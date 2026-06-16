@@ -2,6 +2,30 @@
 description: Create pages, components, and content via Jahia GraphQL API after module is deployed
 ---
 
+## Credentials (resolve at start of every step that calls Jahia)
+
+Read from `state.json` if available, otherwise ask the user:
+
+```bash
+STATE="$PROJECT_PATH/workflow-output/state.json"
+JAHIA_URL=$(jq -r '.server.url // empty' "$STATE" 2>/dev/null)
+JAHIA_USER=$(jq -r '.server.user // empty' "$STATE" 2>/dev/null)
+
+# Password is never stored — always ask if not in session
+if [ -z "$JAHIA_URL" ] || [ -z "$JAHIA_USER" ]; then
+  echo "Jahia server details not found in state.json. Please provide:"
+  echo "  1. Jahia URL (e.g. http://localhost:8080)"
+  echo "  2. Username"
+  echo "  3. Password"
+  # (user provides — set JAHIA_URL, JAHIA_USER, JAHIA_PASS)
+fi
+# JAHIA_PASS must come from the user in this session — never read from disk
+```
+
+Use `$JAHIA_URL`, `$JAHIA_USER`, `$JAHIA_PASS` for all curl calls. Never hardcode `root`, `root1234`, or `localhost:8080`.
+
+---
+
 ## State management (run at start and end)
 
 **At the START of this step — PREREQUISITE CHECK:**
@@ -14,7 +38,10 @@ COMPONENTS_STATUS=$(jq -r '.steps["5-components"].status' "$STATE")
 
 # Verify module is deployed — check Jahia has the module loaded
 MODULE_NAME=$(jq -r '.moduleName' "$STATE")
-DEPLOY_CHECK=$(curl -s -u root:root "http://localhost:8080/modules/api/bundles" 2>/dev/null | grep -c "$MODULE_NAME" || echo 0)
+JAHIA_URL=$(jq -r '.server.url // "http://localhost:8080"' "$STATE")
+JAHIA_USER=$(jq -r '.server.user // "root"' "$STATE")
+JAHIA_PASS=$(jq -r '.server.pass // "root"' "$STATE")
+DEPLOY_CHECK=$(curl -s -u "$JAHIA_USER:$JAHIA_PASS" "$JAHIA_URL/modules/api/bundles" 2>/dev/null | grep -c "$MODULE_NAME" || echo 0)
 [ "$DEPLOY_CHECK" -gt 0 ] || echo "WARNING: module $MODULE_NAME not found in Jahia — run yarn build && yarn jahia-deploy first"
 
 # Verify content-data.json exists
@@ -480,6 +507,86 @@ IMAGE_UUID=$(get_image_uuid "image.jpg")
 {name: "image", value: "$IMAGE_UUID", type: WEAKREFERENCE}
 ```
 
+## Site Creation (Run Before Pre-flight Checks)
+
+If the site does not yet exist, create it via the Jahia provisioning API.
+
+**IMPORTANT:** Do NOT create sites manually via GraphQL `addNode` — this creates a bare `jnt:virtualsite` node missing essential initialization (home page, ACLs, files folder, groups folder, template set binding, installed modules). Always use the provisioning API `createSite` action which handles all of this.
+
+```bash
+JAHIA_HOST="http://localhost:8080"
+JAHIA_USER="root:root"
+SITE_KEY="my-site"
+TEMPLATE_SET="my-module"   # must match the module's jahia.name in package.json
+SITE_TITLE="My Site"
+SITE_LANG="en"             # primary language
+
+curl -s -u "$JAHIA_USER" \
+  -H "Origin: $JAHIA_HOST" \
+  -H "Content-Type: application/yaml" \
+  "$JAHIA_HOST/modules/api/provisioning" \
+  -X POST \
+  --data-binary "
+- createSite:
+    siteKey: ${SITE_KEY}
+    templateSet: ${TEMPLATE_SET}
+    serverName: localhost
+    locale: ${SITE_LANG}
+    title: ${SITE_TITLE}
+"
+sleep 3
+```
+
+**After creating the site, verify it initialized correctly:**
+
+```bash
+curl -s -u "$JAHIA_USER" \
+  -H "Origin: $JAHIA_HOST" \
+  -H "Content-Type: application/json" \
+  "$JAHIA_HOST/modules/graphql" \
+  -X POST \
+  -d "{\"query\":\"{ jcr { nodeByPath(path: \\\"/sites/${SITE_KEY}\\\") { properties { name values } children { nodes { name primaryNodeType { name } } } } } }\"}" \
+  | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+node = d['data']['jcr']['nodeByPath']
+if not node:
+    print('FAIL: site not found')
+    exit(1)
+
+props = {p['name']: p.get('values') or [p.get('value')] for p in node['properties']}
+children = [c['name'] for c in node['children']['nodes']]
+
+print('=== Site validation ===')
+print('j:templatesSet:', props.get('j:templatesSet'))
+print('j:languages:', props.get('j:languages'))
+print('j:defaultLanguage:', props.get('j:defaultLanguage'))
+print('j:installedModules:', props.get('j:installedModules'))
+print('children:', children)
+
+missing = [c for c in ['home', 'files', 'contents', 'groups'] if c not in children]
+if missing:
+    print('FAIL: missing children:', missing)
+elif not props.get('j:languages'):
+    print('FAIL: j:languages is empty — site not properly initialized')
+elif not props.get('j:templatesSet'):
+    print('FAIL: j:templatesSet not set')
+else:
+    print('OK: site is properly initialized')
+"
+```
+
+A properly created site must have:
+- `j:templatesSet` = your module name
+- `j:languages` = non-empty list with the primary language
+- `j:defaultLanguage` = primary language
+- `j:installedModules` = list including the template set + standard Jahia modules
+- Children: `home` (jnt:page), `files` (jnt:folder), `contents` (jnt:contentFolder), `groups` (jnt:groupsFolder)
+
+If any of these are missing, the site was not initialized correctly. Delete it and recreate — do not try to patch a broken site.
+
+---
+
 ## Pre-flight Checks (Before Creating Content)
 
 Before generating content creation scripts, validate the site structure:
@@ -500,7 +607,7 @@ RESPONSE=$(curl -s "$JAHIA_HOST/modules/graphql" \
   --data-raw "{\"query\":\"query { jcr(workspace: EDIT) { nodeByPath(path: \\\"/sites/$SITE_NAME\\\") { uuid } } }\"}")
 
 if echo "$RESPONSE" | grep -q '"nodeByPath":null'; then
-  echo "✗ Site $SITE_NAME does not exist"
+  echo "✗ Site $SITE_NAME does not exist — run site creation first (provisioning API)"
   exit 1
 fi
 echo "✓ Site exists: $SITE_NAME"

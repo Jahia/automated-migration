@@ -9,13 +9,23 @@ Automate the creation of pages in Jahia using GraphQL mutations, populating them
 ## Jahia GraphQL API Overview
 
 ### Endpoint
-- **Development:** `http://localhost:8080/modules/graphql`
-- **Remote:** `https://[jahia-instance]/modules/graphql`
+- `$JAHIA_URL/modules/graphql` — resolved from session credentials (never hardcode)
 
 ### Authentication
-- Basic Auth with Jahia credentials
-- Default dev: `root:root1234`
-- Store credentials securely, never hardcode in files
+
+Credentials come from the session — they were collected at the start of the workflow (`/migration-workflow` Step 0) and stored as `JAHIA_URL`, `JAHIA_USER`, `JAHIA_PASS`. Read them from `state.json` (url + user) and ask the user for the password if not in session.
+
+**Never hardcode credentials. Never use `root:root1234` or any default.**
+
+All curl calls use:
+```bash
+curl -s \
+  -u "$JAHIA_USER:$JAHIA_PASS" \
+  -H "Content-Type: application/json" \
+  -H "Origin: $JAHIA_URL" \
+  "$JAHIA_URL/modules/graphql" \
+  --data-raw '{"query": "..."}'
+```
 
 ### Key Mutations
 
@@ -97,17 +107,25 @@ mutation {
 
 ## Implementation Process
 
-### Step 1: Gather Requirements
-Ask the user for:
-1. **Jahia instance URL** (default: `http://localhost:8080`)
-2. **Site name** (e.g., `medicacom`)
-3. **Credentials** (username/password)
-4. **Page specification:**
-   - Page name/path
-   - Page title
-   - Template to use
-   - Components to add with their content
-5. **Component content** (can be from scraped website or manual input)
+### Step 1: Resolve credentials and site
+
+Credentials were collected at the start of the migration workflow (`/migration-workflow` Step 0). Read from `state.json`:
+
+```bash
+STATE="$PROJECT_PATH/workflow-output/state.json"
+JAHIA_URL=$(jq -r '.server.url' "$STATE")
+JAHIA_USER=$(jq -r '.server.user' "$STATE")
+SITE_KEY=$(jq -r '.siteKey' "$STATE")
+# JAHIA_PASS — ask user if not in session; never read from disk
+```
+
+If any value is missing or state.json does not exist, ask the user:
+1. Jahia URL
+2. Username
+3. Password
+4. Site key
+
+Never use default values. Never hardcode credentials in any file or script.
 
 ### Step 2: Create GraphQL Client Script
 
@@ -279,89 +297,26 @@ done
 
 ## Script Templates
 
-### Simple Curl Approach
+### Standard curl pattern (use this everywhere)
+
 ```bash
-#!/bin/bash
+# Credentials from session — set at workflow start, never hardcoded
+# JAHIA_URL, JAHIA_USER, JAHIA_PASS are session variables
 
-JAHIA_URL="http://localhost:8080/modules/graphql"
-AUTH="root:root1234"
-
-# Create page
-curl -X POST "$JAHIA_URL" \
-  -u "$AUTH" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "mutation { jcr { mutateNode(pathOrId: \"/sites/medicacom/home\") { addChild(name: \"new-page\", primaryNodeType: \"jnt:page\", properties: [{name: \"jcr:title\", value: \"New Page\"}]) { uuid path } } } }"
-  }'
-```
-
-### Python Approach
-```python
-import requests
-import json
-
-JAHIA_URL = "http://localhost:8080/modules/graphql"
-AUTH = ("root", "root1234")
-
-def execute_graphql(query):
-    response = requests.post(
-        JAHIA_URL,
-        auth=AUTH,
-        json={"query": query}
-    )
-    result = response.json()
-    if "errors" in result:
-        raise Exception(result["errors"])
-    return result["data"]
-
-def create_page(site, page_name, title):
-    query = f"""
-    mutation {{
-      jcr {{
-        mutateNode(pathOrId: "/sites/{site}/home") {{
-          addChild(
-            name: "{page_name}"
-            primaryNodeType: "jnt:page"
-            properties: [
-              {{name: "jcr:title", value: "{title}"}}
-              {{name: "j:templateName", value: "simple"}}
-            ]
-          ) {{
-            uuid
-            path
-          }}
-        }}
-      }}
-    }}
-    """
-    return execute_graphql(query)
-```
-
-## Output File Structure
-
-When creating scripts, organize as:
-
-```
-scripts/
-     create-pages.js          # Main page creation script
-     graphql-client.js        # GraphQL client utility
-     content-mapping.json     # Content to component mapping
-     config.json              # Jahia instance configuration
-```
-
-## Configuration Management
-
-**config.json:**
-```json
-{
-  "jahiaUrl": "http://localhost:8080",
-  "siteName": "medicacom",
-  "username": "root",
-  "password": "root1234",
-  "namespace": "presalesmedicacom",
-  "defaultTemplate": "simple"
+gql() {
+  curl -s \
+    -u "$JAHIA_USER:$JAHIA_PASS" \
+    -H "Content-Type: application/json" \
+    -H "Origin: $JAHIA_URL" \
+    "$JAHIA_URL/modules/graphql" \
+    --data-raw "$1"
 }
+
+# Create a page
+gql '{"query":"mutation { jcr { mutateNode(pathOrId: \"/sites/'"$SITE_KEY"'/home\") { addChild(name: \"new-page\", primaryNodeType: \"jnt:page\", properties: [{name: \"jcr:title\", value: \"New Page\", language: \"en\"}]) { uuid path } } } }"}'
 ```
+
+Never write credentials to disk. Never create a `config.json` with a password field.
 
 **content-mapping.json:**
 ```json

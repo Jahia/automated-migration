@@ -87,6 +87,26 @@ Generate all component files (CND, TSX, CSS, resource bundles) using parallel su
 
 ---
 
+### Step 5.5: Validate Module (MANDATORY — cannot skip)
+
+**Command:** `/validate-module`
+
+This is a non-negotiable gate. The module MUST pass all checks before any site or content work begins.
+
+**What it checks:**
+1. **CND syntax** — no invalid JCR types (`richtext`, `text`, `int` are all wrong; use `string`/`long`/`double`)
+2. **Namespace conflict** — queries live Jahia to detect any `prefix already declared` or `uri already declared` conflict BEFORE uploading. A namespace stuck in the JCR registry from a previous failed deploy will silently prevent CND registration even when the upload says "Operation successful".
+3. **Build** — `yarn build` must exit 0
+4. **Deploy** — `yarn jahia-deploy` must succeed
+5. **Module ACTIVE** — the OSGi bundle must reach ACTIVE state (not just INSTALLED or RESOLVED)
+6. **Types queryable** — at least one module CND type must be queryable via GraphQL (`SELECT * FROM [ns:type]` must not return "node type does not exist")
+
+**If ANY check fails: STOP. Fix the issue. Re-run `/validate-module` from the top.**
+
+Do NOT proceed to step 6 until `/validate-module` prints "ALL VALIDATION CHECKS PASSED".
+
+---
+
 ### Step 6: Create Content
 Create pages and content via Jahia GraphQL API.
 
@@ -161,6 +181,45 @@ For failures:
 
 ## Execution Instructions
 
+### Step 0: Collect Jahia server details (MANDATORY — before any work)
+
+**Before doing anything else**, ask the user for the Jahia instance details. Do not assume defaults. Do not proceed until all three are provided.
+
+Ask exactly:
+
+```
+Before we start, I need your Jahia server details:
+
+1. Jahia URL (e.g. http://localhost:8080)
+2. Username
+3. Password
+```
+
+Once provided, store them in the session as:
+- `JAHIA_URL` — base URL, no trailing slash
+- `JAHIA_USER` — username
+- `JAHIA_PASS` — password
+
+Verify connectivity immediately:
+
+```bash
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+  -u "$JAHIA_USER:$JAHIA_PASS" \
+  -H "Origin: $JAHIA_URL" \
+  "$JAHIA_URL/modules/graphql")
+echo "HTTP $HTTP"
+```
+
+- `200` or `400` → connected (400 = GraphQL endpoint reached, no query sent yet — that is fine)
+- `401` → wrong credentials — ask again
+- `000` or connection refused → wrong URL or Jahia not running — ask again
+
+Do not proceed past this check until a `200` or `400` is returned.
+
+Write `JAHIA_URL`, `JAHIA_USER` (only — never the password) into `state.json` under a `server` key for reference by subsequent steps.
+
+---
+
 ### Determine starting point
 
 **If URL provided (e.g. `/migration-workflow https://example.com`):**
@@ -201,16 +260,26 @@ Ask user:
 
 **Before /6-content:**
 - Verify `5-components.status == "completed"` in state.json
-- Run `yarn build` in PROJECT_PATH and verify exit code 0
-- If build fails: STOP. Tell user to run `/5-components` again or `/jahia-debug`.
+- Verify `5.5-validate.status == "completed"` in state.json (set by `/validate-module`)
+- If either is missing: STOP. Tell user to run `/validate-module` first.
+- DO NOT run `/6-content` until the module is confirmed ACTIVE and CND types are queryable.
+- Creating a site before the module is valid wastes time — site template sets reference CND types that must exist first.
 
 ### Quality gates (check after each step, append to migration-log.md)
 
 **After /1-analyze:**
 - Verify 4 files exist in `workflow-output/`: analysis.md, component-manifest.json, content-data.json, asset-inventory.json
 - Count `componentInstances` total and total `children` in content-data.json — report both numbers
-- Warn if total instances < 5 (likely incomplete extraction)
+- **HARD STOP if total instances < 5** — incomplete extraction. Re-run /1-analyze.
+- **HARD STOP if any subPages[] entry has empty or missing `fields`** — sub-page content was not extracted. Run this check:
+  ```bash
+  cat workflow-output/content-data.json | python3 -c "
+  import json,sys; data=json.load(sys.stdin)
+  bad=[p['slug'] for p in data.get('subPages',[]) if not p.get('fields')]
+  print('INCOMPLETE SUBPAGES:',bad if bad else 'NONE - OK')"
+  ```
 - Update state.json: `1-analyze.status = "completed"`, notes = "N components, M instances"
+- **HUMAN GATE: Present the step summary from skill 01 and wait for user to type VALIDATED before proceeding.**
 
 **After /2-scaffold:**
 - Verify `src/components/`, `settings/definitions.cnd`, `package.json` exist
@@ -218,8 +287,10 @@ Ask user:
 
 **After /3-assets:**
 - Count files in `static/css`, `static/js`, `static/fonts`, `static/assets` — report all 4 counts
+- **HARD STOP if `static/css/` is empty** — no CSS was extracted. CSS must come from `/tmp/website-download/`, never fabricated.
 - Verify Layout.tsx references at least one CSS file from static/
 - Update state.json: `3-assets.status = "completed"`, notes = "N css, M js, P fonts, Q images"
+- **HUMAN GATE: Report counts and CSS file names. Wait for user to type VALIDATED before proceeding to step 4.**
 
 **After /4-templates:**
 - Verify Layout.tsx contains `<AbsoluteArea>` for header and footer
@@ -232,12 +303,20 @@ Ask user:
 - Verify components with `needsFullPage: true` have both `default.server.tsx` AND `fullPage.server.tsx`
 - Run `yarn build` — must exit 0. If it fails, set `5-components.status = "failed"` and STOP.
 - Update state.json: `5-components.status = "completed"`, notes = "N components built"
+- **HUMAN GATE: List all components built and whether yarn build passed. Wait for user to type VALIDATED before running /validate-module.**
+- **After user confirms: immediately invoke `/validate-module`.** Do not wait for the user to ask — it is mandatory before step 6.
+
+**After /validate-module:**
+- All 6 checks must pass (CND syntax, namespace, build, deploy, ACTIVE state, types queryable)
+- Update state.json: `5.5-validate.status = "completed"` (done by the skill itself)
+- Only after this step can `/6-content` be invoked
 
 **After /6-content:**
 - Curl LIVE home page (`http://localhost:8080/sites/<siteKey>/home.html`) and verify non-empty text content
 - Curl each sub-page from content-data.json and verify HTTP 200
 - Count items in rendered HTML vs content-data.json — report match %
 - Update state.json: `6-content.status = "completed"`
+- **HUMAN GATE: Report LIVE URL, curl HTTP status, and a text excerpt from the home page. Wait for user to confirm the site looks correct.**
 
 ---
 
