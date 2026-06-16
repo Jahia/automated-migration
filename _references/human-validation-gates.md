@@ -4,6 +4,33 @@ These are the points in the migration workflow where the agent **must stop and w
 
 ---
 
+## Gate 0 — Jahia server connection (before any work)
+
+**Stop at:** The very start, before analysis, scaffolding, or any file creation.
+
+**Ask the user for:**
+- Jahia URL (e.g. `http://localhost:8080`)
+- Username
+- Password
+
+**Then verify immediately:**
+```bash
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+  -u "$JAHIA_USER:$JAHIA_PASS" \
+  -H "Origin: $JAHIA_URL" \
+  "$JAHIA_URL/modules/graphql")
+```
+
+**Gate passes when:** HTTP response is `200` or `400` (400 = GraphQL endpoint reachable, no query sent yet — that is correct).
+
+**Gate fails when:** `000` (connection refused / wrong URL), `401` (wrong credentials), `403` (insufficient permissions). Ask again. Do not proceed.
+
+**Wait for:** A successful connection response before touching any file or starting analysis.
+
+**Why:** Every subsequent step calls Jahia — analysis (site detection), scaffold (siteKey lookup), validate-module (ACTIVE check), create-content (mutations). A wrong URL or wrong password discovered at step 6 wastes the entire session.
+
+---
+
 ## Gate 1 — Component manifest review (after `01-analyze-website`)
 
 **Stop after:** The component manifest is produced (list of sections + proposed content types).
