@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(yarn build)",
+      "Bash(yarn jahia-deploy)",
+      "Bash(yarn deploy)",
+      "Bash(yarn install)",
+      "Bash(npm init *)",
+      "Bash(docker compose *)",
+      "Bash(docker logs *)",
+      "Bash(expect *)",
+      "Bash(wget *)",
+      "Bash(curl -s * http://localhost:8080/*)",
+      "Bash(curl -X POST * http://localhost:8080/*)",
+      "Bash(find . *)",
+      "Bash(grep -r * src/)",
+      "Bash(grep -r * settings/)",
+      "Bash(grep -rh * src/)",
+      "Bash(jq * *)",
+      "Bash(mkdir -p *)",
+      "Bash(cp * *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "WebFetch(http://localhost:8080/*)",
+      "WebFetch(https://academy.jahia.com/*)",
+      "WebFetch(https://github.com/Jahia/*)"
+    ]
+  }
+}
