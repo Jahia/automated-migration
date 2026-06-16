@@ -2,6 +2,45 @@
 description: Implement Layout.tsx with AbsoluteArea for header/footer, page template variants, and MainResource template
 ---
 
+## State management (run at start and end)
+
+**At the START of this step — PREREQUISITE CHECK:**
+```bash
+STATE="$PROJECT_PATH/workflow-output/state.json"
+[ -f "$STATE" ] || { echo "ERROR: state.json missing — run /2-scaffold first"; exit 1; }
+
+SCAFFOLD_STATUS=$(jq -r '.steps["2-scaffold"].status' "$STATE")
+[ "$SCAFFOLD_STATUS" = "completed" ] || { echo "ERROR: step 2-scaffold not completed (status: $SCAFFOLD_STATUS)"; exit 1; }
+
+# Verify src/ exists
+[ -d "$PROJECT_PATH/src" ] || { echo "ERROR: src/ directory missing — scaffold may have failed"; exit 1; }
+
+jq '.steps["4-templates"].status = "in_progress"' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+**At the END of this step:**
+```bash
+# Verify outputs
+LAYOUT_OK=$(grep -l "AbsoluteArea" "$PROJECT_PATH/src/templates/Layout.tsx" 2>/dev/null && echo "yes" || echo "NO")
+BASIC_OK=$([ -f "$PROJECT_PATH/src/templates/Page/basic.server.tsx" ] && echo "yes" || echo "NO")
+
+jq --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+   --arg notes "Layout AbsoluteArea: $LAYOUT_OK, basic template: $BASIC_OK" \
+   '.steps["4-templates"] = {"status": "completed", "completedAt": $ts, "notes": $notes}' \
+   "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+
+cat >> "$PROJECT_PATH/workflow-output/migration-log.md" << EOF
+
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 4 — Page Templates — COMPLETED
+- **Layout AbsoluteArea:** $LAYOUT_OK
+- **basic.server.tsx:** $BASIC_OK
+EOF
+
+[ "$LAYOUT_OK" = "NO" ] && echo "WARNING: AbsoluteArea not found in Layout.tsx — header/footer will not render"
+```
+
+---
+
 > See full skill guide at `.agents/skills/08-page-templates/SKILL.md`
 
 Implement the template set by editing the Layout file to include all CSS and JavaScript files that were previously imported into the static folder.

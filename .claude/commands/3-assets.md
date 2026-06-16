@@ -2,6 +2,49 @@
 description: Import CSS, JS, fonts, and assets from a downloaded website into the static folder
 ---
 
+## State management (run at start and end)
+
+**At the START of this step — PREREQUISITE CHECK:**
+```bash
+STATE="$PROJECT_PATH/workflow-output/state.json"
+
+# 1. Verify state.json exists
+[ -f "$STATE" ] || { echo "ERROR: state.json missing — run /2-scaffold first"; exit 1; }
+
+# 2. Verify step 1-analyze is completed (if analysis was already run)
+ANALYZE_STATUS=$(jq -r '.steps["1-analyze"].status' "$STATE")
+# Note: 1-analyze may be "pending" if scaffold ran first — that is OK.
+# If it is "failed", stop.
+[ "$ANALYZE_STATUS" = "failed" ] && { echo "ERROR: step 1-analyze failed — fix before continuing"; exit 1; }
+
+# 3. Mark in_progress
+jq '.steps["3-assets"].status = "in_progress"' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+**At the END of this step:**
+```bash
+# 1. Count imported files
+CSS_COUNT=$(find "$PROJECT_PATH/static/css" -type f 2>/dev/null | wc -l | tr -d ' ')
+JS_COUNT=$(find "$PROJECT_PATH/static/js" -type f 2>/dev/null | wc -l | tr -d ' ')
+FONT_COUNT=$(find "$PROJECT_PATH/static/fonts" -type f 2>/dev/null | wc -l | tr -d ' ')
+ASSET_COUNT=$(find "$PROJECT_PATH/static/assets" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+# 2. Update state.json
+jq --arg notes "${CSS_COUNT} css, ${JS_COUNT} js, ${FONT_COUNT} fonts, ${ASSET_COUNT} images" \
+   --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+   '.steps["3-assets"] = {"status": "completed", "completedAt": $ts, "notes": $notes}' \
+   "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+
+# 3. Append to migration-log.md
+cat >> "$PROJECT_PATH/workflow-output/migration-log.md" << EOF
+
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 3 — Import Assets — COMPLETED
+- **Imported:** ${CSS_COUNT} css, ${JS_COUNT} js, ${FONT_COUNT} fonts, ${ASSET_COUNT} images
+EOF
+```
+
+---
+
 Import all static assets from the source website into the module's `static/` folder.
 
 ## Overview

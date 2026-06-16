@@ -2,6 +2,56 @@
 description: Create pages, components, and content via Jahia GraphQL API after module is deployed
 ---
 
+## State management (run at start and end)
+
+**At the START of this step — PREREQUISITE CHECK:**
+```bash
+STATE="$PROJECT_PATH/workflow-output/state.json"
+[ -f "$STATE" ] || { echo "ERROR: state.json missing"; exit 1; }
+
+COMPONENTS_STATUS=$(jq -r '.steps["5-components"].status' "$STATE")
+[ "$COMPONENTS_STATUS" = "completed" ] || { echo "ERROR: step 5-components not completed (status: $COMPONENTS_STATUS) — run /5-components first"; exit 1; }
+
+# Verify module is deployed — check Jahia has the module loaded
+MODULE_NAME=$(jq -r '.moduleName' "$STATE")
+DEPLOY_CHECK=$(curl -s -u root:root "http://localhost:8080/modules/api/bundles" 2>/dev/null | grep -c "$MODULE_NAME" || echo 0)
+[ "$DEPLOY_CHECK" -gt 0 ] || echo "WARNING: module $MODULE_NAME not found in Jahia — run yarn build && yarn jahia-deploy first"
+
+# Verify content-data.json exists
+[ -f "$PROJECT_PATH/workflow-output/content-data.json" ] || { echo "ERROR: content-data.json missing — re-run /1-analyze"; exit 1; }
+
+jq '.steps["6-content"].status = "in_progress"' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+**At the END of this step:**
+```bash
+SITE_KEY=$(jq -r '.siteKey // "default"' "$STATE")
+
+# Verify live home page
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u root:root \
+  "http://localhost:8080/sites/${SITE_KEY}/home.html")
+
+# Count GraphQL scripts saved
+SCRIPT_COUNT=$(find "$PROJECT_PATH/workflow-output/graphql-scripts" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
+
+jq --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+   --arg notes "home HTTP $HTTP_CODE, $SCRIPT_COUNT GraphQL scripts saved" \
+   '.steps["6-content"] = {"status": "completed", "completedAt": $ts, "notes": $notes}' \
+   "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+
+cat >> "$PROJECT_PATH/workflow-output/migration-log.md" << EOF
+
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 6 — Create Content — COMPLETED
+- **Home page HTTP:** $HTTP_CODE
+- **GraphQL scripts saved:** $SCRIPT_COUNT at workflow-output/graphql-scripts/
+- **Gate result:** $([ "$HTTP_CODE" = "200" ] && echo "PASS" || echo "WARN — home returned $HTTP_CODE")
+EOF
+```
+
+**Save ALL GraphQL scripts to `$PROJECT_PATH/workflow-output/graphql-scripts/`** — one `.sh` file per operation (upload-images.sh, create-header.sh, create-home-content.sh, create-subpages.sh, publish-all.sh). These scripts are the durable record of every mutation. If content creation fails mid-way, re-running the script for that operation is how you resume.
+
+---
+
 > See full skill guide at `.agents/skills/09-create-content/SKILL.md`
 > Agent rules at `.claude/agents/content-creator.md`
 

@@ -4,6 +4,45 @@ description: Analyze a website to identify all Jahia components needed for migra
 
 > See full skill guide at `.agents/skills/01-analyze-website/SKILL.md`
 
+## State management (run at start and end)
+
+**At the START of this step:**
+```bash
+# Locate PROJECT_DIR (find definitions.cnd or package.json with jahia key)
+# Create workflow-output/ if absent
+mkdir -p "$PROJECT_DIR/workflow-output"
+
+# Update state.json — mark step in_progress
+# If state.json doesn't exist yet, create it with siteUrl and startedAt
+# Set: steps["1-analyze"].status = "in_progress"
+```
+
+**At the END of this step (before presenting results to user):**
+```bash
+# 1. Verify all 4 output files exist
+ls "$PROJECT_DIR/workflow-output/"{analysis.md,component-manifest.json,content-data.json,asset-inventory.json}
+
+# 2. Count instances
+INSTANCE_COUNT=$(jq '.componentInstances | length' "$PROJECT_DIR/workflow-output/content-data.json")
+CHILD_COUNT=$(jq '[.componentInstances[].children // [] | length] | add // 0' "$PROJECT_DIR/workflow-output/content-data.json")
+
+# 3. Update state.json
+# Set: steps["1-analyze"].status = "completed"
+# Set: steps["1-analyze"].notes = "N components, $INSTANCE_COUNT instances, $CHILD_COUNT children"
+# Set: steps["1-analyze"].completedAt = <ISO timestamp>
+
+# 4. Append to migration-log.md
+cat >> "$PROJECT_DIR/workflow-output/migration-log.md" << EOF
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 1 — Analyze Website — COMPLETED
+- **Outputs:** analysis.md, component-manifest.json ($INSTANCE_COUNT instances, $CHILD_COUNT children), content-data.json, asset-inventory.json
+- **Gate result:** $([ $INSTANCE_COUNT -ge 5 ] && echo "PASS" || echo "WARN — only $INSTANCE_COUNT instances, may be incomplete")
+EOF
+```
+
+If any output file is missing: set `1-analyze.status = "failed"` in state.json, append FAILED entry to migration-log.md, and stop.
+
+---
+
 Analyze the provided website and identify all components that need to be implemented in Jahia.
 
 The user will provide either:

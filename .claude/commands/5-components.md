@@ -2,6 +2,68 @@
 description: Implement all Jahia components via parallel subagents - CND, TSX, CSS, resource bundles. MANDATORY - the only correct way to implement components.
 ---
 
+## State management (run at start and end)
+
+**At the START of this step — PREREQUISITE CHECK:**
+```bash
+STATE="$PROJECT_PATH/workflow-output/state.json"
+[ -f "$STATE" ] || { echo "ERROR: state.json missing"; exit 1; }
+
+ANALYZE_STATUS=$(jq -r '.steps["1-analyze"].status' "$STATE")
+ASSETS_STATUS=$(jq -r '.steps["3-assets"].status' "$STATE")
+TEMPLATES_STATUS=$(jq -r '.steps["4-templates"].status' "$STATE")
+MANIFEST="$PROJECT_PATH/workflow-output/component-manifest.json"
+
+[ "$ANALYZE_STATUS" = "completed" ]   || { echo "ERROR: step 1-analyze not completed (status: $ANALYZE_STATUS) — run /1-analyze first"; exit 1; }
+[ "$ASSETS_STATUS" = "completed" ]    || { echo "ERROR: step 3-assets not completed (status: $ASSETS_STATUS) — run /3-assets first"; exit 1; }
+[ "$TEMPLATES_STATUS" = "completed" ] || { echo "ERROR: step 4-templates not completed (status: $TEMPLATES_STATUS) — run /4-templates first"; exit 1; }
+[ -f "$MANIFEST" ]                    || { echo "ERROR: component-manifest.json missing — re-run /1-analyze"; exit 1; }
+
+COMPONENT_COUNT=$(jq '.components | length' "$MANIFEST")
+[ "$COMPONENT_COUNT" -gt 0 ] || { echo "ERROR: component-manifest.json has 0 components"; exit 1; }
+
+echo "Prerequisites OK. Implementing $COMPONENT_COUNT components."
+jq '.steps["5-components"].status = "in_progress"' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+**At the END of this step (after yarn build succeeds):**
+```bash
+# Verify build
+cd "$PROJECT_PATH" && yarn build 2>&1 | tail -5
+BUILD_EXIT=$?
+
+MODULE_NAME=$(jq -r '.moduleName' "$STATE")
+PROPS_COUNT=$(grep -c "=" "settings/resources/${MODULE_NAME}.properties" 2>/dev/null || echo 0)
+COMP_DIRS=$(find src/components -name "definition.cnd" | wc -l | tr -d ' ')
+
+if [ $BUILD_EXIT -eq 0 ]; then
+  jq --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+     --arg notes "${COMP_DIRS} components built, ${PROPS_COUNT} resource bundle entries" \
+     '.steps["5-components"] = {"status": "completed", "completedAt": $ts, "notes": $notes}' \
+     "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+  cat >> "$PROJECT_PATH/workflow-output/migration-log.md" << EOF
+
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 5 — Implement Components — COMPLETED
+- **Components:** ${COMP_DIRS} implemented
+- **Resource bundle entries:** ${PROPS_COUNT}
+- **Build:** PASS
+EOF
+else
+  jq --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+     '.steps["5-components"] = {"status": "failed", "failedAt": $ts, "notes": "yarn build failed"}' \
+     "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+  cat >> "$PROJECT_PATH/workflow-output/migration-log.md" << EOF
+
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 5 — Implement Components — FAILED
+- **Error:** yarn build failed — run /jahia-debug
+EOF
+  echo "BUILD FAILED — step 5 marked as failed. Run /jahia-debug to diagnose."
+  exit 1
+fi
+```
+
+---
+
 > See full skill guide at `.agents/skills/07-implement-components/SKILL.md`
 > Agent rules at `.claude/agents/component-implementer.md`
 

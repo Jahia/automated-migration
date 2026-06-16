@@ -2,6 +2,55 @@
 description: Scaffold a new Jahia JavaScript module using the official scaffolding tool
 ---
 
+## State management (run at start and end)
+
+**At the START of this step:**
+- No prerequisites for step 2.
+- Create `projects/workflow-output/` if it doesn't exist yet (it will move into the module after scaffolding).
+
+**At the END of this step (after yarn install completes):**
+```bash
+# 1. Verify scaffold succeeded
+ls "$PROJECT_PATH/"{src,settings/definitions.cnd,package.json}
+
+# 2. Create workflow-output/ inside the new module
+mkdir -p "$PROJECT_PATH/workflow-output"
+
+# 3. Create state.json
+cat > "$PROJECT_PATH/workflow-output/state.json" << EOF
+{
+  "siteUrl": "<URL>",
+  "projectPath": "$PROJECT_PATH",
+  "moduleName": "<module-name>",
+  "namespace": "<namespace>",
+  "startedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "steps": {
+    "1-analyze":    { "status": "pending" },
+    "2-scaffold":   { "status": "completed", "completedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" },
+    "3-assets":     { "status": "pending" },
+    "4-templates":  { "status": "pending" },
+    "5-components": { "status": "pending" },
+    "6-content":    { "status": "pending" }
+  }
+}
+EOF
+
+# 4. Create migration-log.md
+cat > "$PROJECT_PATH/workflow-output/migration-log.md" << EOF
+# Migration Log — <module-name>
+Site: <URL>
+Started: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+## [$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Step 2 — Scaffold Module — COMPLETED
+- **Module:** $PROJECT_PATH
+- **Namespace:** <namespace>
+EOF
+```
+
+If scaffolding fails: append FAILED entry to migration-log.md and stop.
+
+---
+
 Bootstrap a new Jahia JavaScript module as a subdirectory inside `projects/`.
 
 ## Instructions
