@@ -24,12 +24,64 @@ This harness migrates existing websites to Jahia JavaScript modules. Skills are 
 
 ---
 
-## Supporting skills
+## Supporting skills (migration helpers)
 
 | Skill folder | Purpose |
 |---|---|
 | `support-create-view/` | Implement a React view (.server.tsx + CSS Module) |
 | `support-deploy/` | Build + deploy module to local Jahia |
+
+---
+
+## JS/React development skills (`dev/`)
+
+General Jahia JS module development — used during and after migration for building, reviewing, debugging.
+
+| Skill | Purpose |
+|---|---|
+| `dev/jahia/` | Top-level GPS — start here if unsure what to do |
+| `dev/jahia-dev/` | JS module GPS — detect project state, pick next step |
+| `dev/jahia-dev-build-component/` | Build a complete component (CND + view) — shortcut |
+| `dev/jahia-dev-create-template-set/` | Scaffold a new Jahia JS module from scratch |
+| `dev/jahia-dev-create-view/` | Implement a React view (.server.tsx + CSS Module) |
+| `dev/jahia-dev-define-content-type/` | Define a CND content type + types.ts |
+| `dev/jahia-dev-import-from/` | Build a component from an external URL |
+| `dev/jahia-dev-query-content/` | JCR-SQL2 queries and useJCRQuery listings |
+| `dev/jahia-dev-accessibility/` | Audit live pages with axe-core, fix WCAG 2.1 AA |
+| `dev/jahia-dev-screenshot/` | Screenshot reference + Jahia render for visual comparison |
+| `dev/jahia-dev-start-local/` | Start Jahia locally (Docker or bare metal) |
+| `dev/jahia-dev-cypress/` | Scaffold Cypress e2e tests for components |
+| `dev/jahia-dev-properties/` | JCR properties reference |
+| `dev/jahia-dev-apis/` | REST and GraphQL API reference |
+| `dev/jahia-dev-jexperience/` | jExperience personalization integration |
+| `dev/jahia-dev-ops/` | Operations and provisioning |
+| `dev/jahia-dev-ui-extension/` | OSGi UI extension from JS module |
+
+---
+
+## OSGi/Java skills (`osgi/`)
+
+For back-office extensions and Java service bundles. Distinct from JS template sets.
+
+| Skill | Purpose |
+|---|---|
+| `osgi/jahia-osgi-module/` | Maven bundle structure, DS annotations, JCR integration |
+| `osgi/jahia-osgi-ui-extension/` | Webpack/Module Federation, React 18, registry, actions, dialogs |
+| `osgi/jahia-dev-osgi-module/` | OSGi module development conventions |
+
+---
+
+## Content management skills (`content/`)
+
+For creating, querying, and managing JCR content on a running Jahia instance.
+
+| Skill | Purpose |
+|---|---|
+| `content/jahia-content/` | GPS — detect site state, route to content operation |
+| `content/jahia-content-explore-structure/` | Map content types, properties, enums on an unknown site |
+| `content/jahia-content-query-content/` | List and inspect content via GraphQL |
+| `content/jahia-content-move-content/` | Restructure the content tree |
+| `content/jahia-content-translate-content/` | Translate nodes to a new language and publish |
 
 ---
 
