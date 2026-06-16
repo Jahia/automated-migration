@@ -161,6 +161,38 @@ Add missing entries before reporting success.
 5. **CND property order:** `(type, selector) = 'default' keywords < constraints`
 6. **Use `component.module.css`** (CSS Module), not plain `.css` for component styles
 7. **All props optional in `types.ts`** — even mandatory CND fields
+8. **Every image-rendering component needs a static fallback** — if a component reads a `weakreference` image and no JCR content exists, it collapses to 0px height. This looks like a CSS failure. Always declare `FALLBACK_IMAGES` at the top of the view and use them when the JCR property is absent:
+   ```tsx
+   const FALLBACK_IMAGES = [
+     "static/assets/images/slide-1.jpg",
+     "static/assets/images/slide-2.jpg",
+   ];
+   // use: buildModuleFileUrl(FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length])
+   // when slide.hasProperty("backgroundImage") is false or the node cannot be resolved
+   ```
+   Fallback images must have been downloaded in skill 03 (import-assets).
+
+9. **Icon-driven components need a CND `icon (string)` field** — if the source site uses icon fonts (Font Awesome, Material Icons) to differentiate component items, add `- icon (string)` to the child content type. The view reads this and falls back to a neutral default. Never hardcode icon classes — they are editorial choices:
+   ```cnd
+   [ns:statItem] > jnt:content, jmix:hiddenType
+     - icon (string)
+     - value (string) i18n
+   ```
+
+---
+
+## After deploy: visual verification requires content
+
+**Do NOT take a screenshot and declare "done" immediately after `yarn jahia-deploy`.** Components without JCR content look broken — collapsed carousels, missing icons, empty grids. This mimics CSS failures but is actually empty-content state.
+
+**Correct gate after deploy:**
+
+1. Run `yarn build && yarn jahia-deploy` — verify build succeeds and module is ACTIVE
+2. Invoke skill 09 (create-content) for the home page components ONLY (not sub-pages)
+3. Reload the page and take a screenshot
+4. Present to user for VALIDATED gate
+
+Only after VALIDATED proceed to sub-page content creation.
 
 ---
 
@@ -173,3 +205,5 @@ Add missing entries before reporting success.
 - [ ] Components with `needsFullPage: true` have `default.server.tsx` AND `fullPage.server.tsx`
 - [ ] JCRQuery and GridRow components present in the module
 - [ ] Navigation component uses JCR tree (no hardcoded links)
+- [ ] Every image-rendering component has a `FALLBACK_IMAGES` constant and uses it
+- [ ] Every icon-driven child type has an `icon (string)` CND field

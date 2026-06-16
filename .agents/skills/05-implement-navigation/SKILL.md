@@ -26,16 +26,56 @@ See also: `.agents/context/jahia-navigation-patterns.md` for the full helper fun
 
 ---
 
+## FIRST: Inspect the source site header structure
+
+> CSS grid patterns reference: `.agents/context/jahia-css-framework-conflicts.md` — "CSS Grid header layouts" section.
+
+
+Before writing any code, check whether the source site positions the navigation using CSS grid:
+
+```bash
+grep -n "grid-area\|grid-template\|display.*grid" static/css/*.css | grep -i "nav\|header" | head -20
+```
+
+**Two architectural patterns emerge — choose the right one:**
+
+### Pattern A: Standalone nav (no grid dependency)
+The navigation element is positioned independently (flexbox, float, or block flow). The `ns:mainNavigation` view can output just the `<nav>` element.
+
+### Pattern B: Nav is a CSS grid child (full-header pattern)
+The CSS positions `navigation-main` (or equivalent) as a `grid-area` inside a parent grid. This means the nav **cannot exist without its grid parent**.
+
+**In Pattern B, the `ns:mainNavigation` view MUST output the complete `<header>` structure** — including the grid container, the logo, the dates/headline, the ticket CTA, and the nav. All of these are grid items. If you only output `<div class="navigation-main">`, the browser has no grid parent and the layout collapses or spreads to full viewport width.
+
+To confirm Pattern B:
+```bash
+# Does navigation-main have a grid-area assignment?
+grep -n "navigation-main" static/css/*.css
+# Does its parent .grid have display:grid?
+grep -n "\.grid\b" static/css/*.css | head -10
+```
+
+If Pattern B: the view also needs to render the logo, the top bar (social icons, CTAs), and any other header elements. Pull those from the analysis — they were likely identified as separate components but must be co-located in the header view since they share a grid parent.
+
+---
+
 ## CND definition
 
-`MainNavigation` has no editable properties — all data comes from the JCR page tree at render time:
+`MainNavigation` has no editable properties by default — all nav data comes from the JCR page tree at render time. However, if the header includes configurable elements (logo image, CTA label, ticket button link), add those as fields:
 
 ```cnd
 // src/components/Navigation/MainNavigation/definition.cnd
 [ns:mainNavigation] > jnt:content, nsMix:pageComponent
+  // Add fields only for content editors need to configure:
+  // - logoImage (weakreference, picker[type='image'])
+  // - exposantCtaLabel (string) i18n
+  // - j:linkType (string, choicelist[linkTypeInitializer])
 ```
 
-That's it. No fields needed.
+For a pure nav with no configurable header elements:
+```cnd
+[ns:mainNavigation] > jnt:content, nsMix:pageComponent
+```
 
 ---
 

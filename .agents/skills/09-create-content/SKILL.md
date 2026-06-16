@@ -24,21 +24,140 @@ Creates content nodes in a running Jahia instance using the GraphQL JCR mutation
 
 ---
 
+## Execution order: home page first, screenshot gate, then sub-pages
+
+**Never defer content creation until after visual validation.** Components without JCR content look broken — collapsed carousels, missing icons, empty grids look identical to CSS failures. The correct workflow is:
+
+1. **Create home page content first** (absolute area + all home page component instances)
+2. **Publish everything**
+3. **Take a screenshot and present to user for VALIDATED gate**
+4. Only after VALIDATED: create sub-page content
+
+This is the correct visual gate. Do not take a screenshot of an empty site.
+
+---
+
 ## Prerequisites
 
 - Jahia running at `http://localhost:8080`
-- Credentials: `root` / `root1234` (default)
+- Credentials: `root` / `root` (local dev default)
 - GraphQL endpoint: `http://localhost:8080/modules/graphql`
 
 **Auth pattern — always use both flags:**
 ```bash
-curl -u root:root1234 \
+curl -u root:root \
      -H "Content-Type: application/json" \
      -H "Origin: http://localhost:8080" \
      ...
 ```
 
 > ⚠️ The `Origin: http://localhost:8080` header is **required**. Requests without it return `Permission denied` even with correct credentials.
+
+---
+
+## GraphQL schema reference
+
+**Full schema:** `.agents/context/jahia-graphql-schema.graphql` (introspected from Jahia 8.2 — authoritative source, 4000 lines)
+
+When uncertain about any field name, argument, or return type, read the schema. Never guess.
+
+---
+
+## Canonical mutation patterns (from schema)
+
+### `InputJCRProperty` — the only way to set properties
+
+```graphql
+input InputJCRProperty {
+  language: String          # Required for i18n properties
+  name: String!
+  option: JCRPropertyOption # ENCRYPTED | NOT_ZONED_DATE
+  type: JCRPropertyType     # STRING | LONG | DOUBLE | BOOLEAN | DATE | BINARY | WEAKREFERENCE | ...
+  value: String             # Single-value properties
+  values: [String]          # Multi-value properties
+}
+```
+
+### Create a node (`addNode`)
+
+```graphql
+mutation CreateContent(
+  $path: String!
+  $name: String!
+  $primaryNodeType: String!
+  $mixins: [String]!
+  $properties: [InputJCRProperty]!
+) {
+  jcr(workspace: EDIT) {
+    addNode(
+      parentPathOrId: $path
+      name: $name
+      primaryNodeType: $primaryNodeType
+      mixins: $mixins
+      properties: $properties
+    ) {
+      uuid
+      node { name path }
+    }
+  }
+}
+```
+
+i18n properties use the `language` field in `InputJCRProperty` — there is no `setPropertiesI18N` in Jahia 8.2:
+
+```bash
+curl -s -u root:root \
+  -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+  -X POST http://localhost:8080/modules/graphql \
+  -d '{
+    "query": "mutation { jcr(workspace: EDIT) { addNode(parentPathOrId: \"/sites/SITE_KEY/home/main\", name: \"hero\", primaryNodeType: \"ns:hero\", properties: [{name: \"heading\", value: \"Bienvenue\", language: \"fr\"}, {name: \"heading\", value: \"Welcome\", language: \"en\"}, {name: \"nonI18nField\", value: \"shared value\"}]) { uuid node { path } } } }"
+  }'
+```
+
+### Update properties on an existing node (`mutateNode` + `setPropertiesBatch`)
+
+```bash
+curl -s -u root:root \
+  -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+  -X POST http://localhost:8080/modules/graphql \
+  -d '{
+    "query": "mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: \"/sites/SITE_KEY/home/hero\") { setPropertiesBatch(properties: [{name: \"heading\", value: \"Bienvenue\", language: \"fr\"}]) { path } } } }"
+  }'
+```
+
+### Publish (`publish`)
+
+```graphql
+# From JCRNodeMutation:
+publish(
+  includeSubTree: Boolean = false   # includes sub-pages
+  languages: [String]               # specific languages; null = all
+  publishSubNodes: Boolean = true   # child nodes (areas, components)
+): Boolean
+```
+
+Always specify `languages` explicitly. `publishSubNodes: true` does NOT reliably publish `j:translation_*` nodes. After setting i18n properties, publish with the language list:
+
+```bash
+curl -s -u root:root \
+  -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+  -X POST http://localhost:8080/modules/graphql \
+  -d '{"query":"mutation { jcr { mutateNode(pathOrId: \"/sites/SITE_KEY/home\") { publish(languages: [\"fr\", \"en\"], publishSubNodes: true) } } }"}'
+```
+
+If translation nodes still show empty in LIVE, use the Groovy console deep-publish:
+```groovy
+// http://localhost:8080/modules/tools/groovyConsole.jsp
+def siteNode = session.getNode("/sites/SITE_KEY")
+org.jahia.services.content.JCRPublicationService.getInstance()
+  .publishByMainId(siteNode.getIdentifier(), "default", "live", ["fr"] as Set, true, null)
+```
+
+### `JCRPropertyType` enum values
+
+`STRING` | `LONG` | `DOUBLE` | `DECIMAL` | `BOOLEAN` | `DATE` | `BINARY` | `NAME` | `PATH` | `WEAKREFERENCE`
+
+For image fields declared as `weakreference` in CND: use `type: WEAKREFERENCE` and pass the node UUID as `value`.
 
 ---
 
@@ -51,7 +170,7 @@ Use these patterns to minimise the number of API round-trips:
 Use GraphQL aliases to retrieve site metadata, page structure, files, and available content types in a **single request**:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"{ jcr { site: nodeByPath(path: \"/sites/SITE_KEY\") { properties(names: [\"j:templatesSet\",\"j:defaultLanguage\"]) { name value } } home: nodeByPath(path: \"/sites/SITE_KEY/home\") { children { nodes { name primaryNodeType { name } children { nodes { name primaryNodeType { name } } } } } } files: nodeByPath(path: \"/sites/SITE_KEY/files\") { children { nodes { name uuid } } } contentTypes: nodeTypes(filter: {siteKey: \"SITE_KEY\", includeMixins: false, includeAbstract: false}) { nodes { name systemId } } } }"}'
@@ -66,7 +185,7 @@ Run all uploads simultaneously using background processes:
 ```bash
 for f in /path/to/img1.jpg /path/to/img2.jpg /path/to/img3.jpg; do
   name=$(basename "$f")
-  curl -s -u root:root1234 \
+  curl -s -u root:root \
     -H "Origin: http://localhost:8080" \
     -X POST http://localhost:8080/modules/graphql \
     -F "operations={\"query\":\"mutation { jcr { addNode(name: \\\"${name}\\\", parentPathOrId: \\\"/sites/SITE_KEY/files\\\", primaryNodeType: \\\"jnt:file\\\", mixins: [\\\"jmix:image\\\"]) { addChild(name: \\\"jcr:content\\\", primaryNodeType: \\\"jnt:resource\\\") { content: mutateProperty(name: \\\"jcr:data\\\") { setValue(type: BINARY, value: \\\"fc\\\") } contentType: mutateProperty(name: \\\"jcr:mimeType\\\") { setValue(value: \\\"image/jpeg\\\") } } uuid } } }\"}" \
@@ -80,7 +199,7 @@ wait  # all uploads complete in parallel
 
 To collect UUIDs after parallel uploads, query them in one batch:
 ```bash
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"{ jcr { nodesByQuery(query: \"SELECT * FROM [jnt:file] WHERE ISDESCENDANTNODE('/sites/SITE_KEY/files/FOLDER')\", queryLanguage: SQL2) { nodes { name uuid } } } }"}'
 ```
@@ -90,7 +209,7 @@ curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://
 Use nested `addChild` calls inside a single `addNode` mutation to build a complete page hierarchy without sequential round-trips:
 
 ```bash
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"mutation { jcr { addNode(parentPathOrId: \"/sites/SITE_KEY/home\", name: \"my-page\", primaryNodeType: \"jnt:page\", properties: [{name: \"j:templateName\", value: \"TEMPLATE\"}, {name: \"jcr:title\", value: \"Page Title\", language: \"en\"}]) { uuid addChild(name: \"AREA_NAME\", primaryNodeType: \"AREA_TYPE\") { addChild(name: \"section-1\", primaryNodeType: \"NAMESPACE:section\", properties: [{name: \"jcr:title\", value: \"Section 1\", language: \"en\"}]) { uuid addChild(name: \"item-1\", primaryNodeType: \"NAMESPACE:item\", properties: [{name: \"jcr:title\", value: \"Item 1\", language: \"en\"}, {name: \"body\", value: \"<p>Content</p>\", language: \"en\"}]) { uuid } } } } } }"}'
 ```
@@ -100,7 +219,7 @@ curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://
 ### 4. Publish the entire page in one call
 
 ```bash
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"mutation { jcr { mutateNode(pathOrId: \"/sites/SITE_KEY/home/my-page\") { publish(languages: [\"en\"]) } } }"}'
 ```
@@ -119,7 +238,7 @@ Use the GraphQL API with a **multipart request** to upload files.
 > ⚠️ Always include `mixins: ["jmix:image"]` when uploading images. Without this mixin, the file node **cannot be used as a WEAKREFERENCE** in image properties — you will get a constraint error.
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -F 'operations={"query":"mutation { jcr { addNode(name: \"image.jpg\", parentPathOrId: \"/sites/SITE_KEY/files\", primaryNodeType: \"jnt:file\", mixins: [\"jmix:image\"]) { addChild(name: \"jcr:content\", primaryNodeType: \"jnt:resource\") { content: mutateProperty(name: \"jcr:data\") { setValue(type: BINARY, value: \"fc\") } contentType: mutateProperty(name: \"jcr:mimeType\") { setValue(value: \"image/jpeg\") } } uuid } } }"}' \
@@ -144,7 +263,7 @@ properties: [
 
 > After uploading, publish the files folder so images are accessible on the live site:
 > ```bash
-> curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+> curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
 >   -X POST http://localhost:8080/modules/graphql \
 >   -d '{"query":"mutation { jcr { mutateNode(pathOrId: \"/sites/SITE_KEY/files\") { publish(languages: [\"en\"]) } } }"}'
 > ```
@@ -164,7 +283,7 @@ Content must be created as children of the **Area sub-node** (e.g. `/sites/mySit
 Pick any working sibling page and inspect its children:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -176,7 +295,7 @@ Look for a child node that is a content list or area type (e.g. `jnt:contentList
 ### Step B — Check the page template
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -189,17 +308,17 @@ Use this exact template name for your new page.
 
 ```bash
 # 1. Create the page
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"mutation { jcr { addNode(parentPathOrId: \"/sites/SITE_KEY/home\", name: \"my-page\", primaryNodeType: \"jnt:page\", properties: [{name: \"jcr:title\", value: \"My Page\", language: \"en\"}, {name: \"j:templateName\", value: \"TEMPLATE_NAME\"}]) { uuid node { path } } } }"}'
 
 # 2. Create the Area sub-node (same type and name as the sibling page's area)
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"mutation { jcr { addNode(parentPathOrId: \"/sites/SITE_KEY/home/my-page\", name: \"AREA_NAME\", primaryNodeType: \"AREA_TYPE\") { uuid node { path } } } }"}'
 
 # 3. Add content INSIDE the area (not on the page directly)
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"mutation { jcr { addNode(parentPathOrId: \"/sites/SITE_KEY/home/my-page/AREA_NAME\", name: \"hero\", primaryNodeType: \"jnt:text\", properties: [{name: \"text\", value: \"<h1>Hello<\\/h1>\", language: \"en\"}]) { uuid node { path } } } }"}'
 ```
@@ -207,7 +326,7 @@ curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://
 ### Step D — Publish the page
 
 ```bash
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"mutation { jcr { mutateNode(pathOrId: \"/sites/SITE_KEY/home/my-page\") { publish(languages: [\"en\"]) } } }"}'
 ```
@@ -228,7 +347,7 @@ Standard content folder paths:
 > If the site is unfamiliar, use **`/jahia-content-explore-structure`** first.
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -242,7 +361,7 @@ curl -s -u root:root1234 \
 ## Step 3 — Create a node
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -272,7 +391,7 @@ curl -s -u root:root1234 \
 ## Step 4 — Publish the node
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -290,7 +409,7 @@ Expected response: `{"data": {"jcr": {"mutateNode": {"publish": true}}}}`
 To create multiple nodes efficiently, use `addNodesBatch`:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -302,7 +421,7 @@ curl -s -u root:root1234 \
 Then publish all at once using `mutateNodesByQuery`:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -316,7 +435,7 @@ curl -s -u root:root1234 \
 ## Step 6 — Verify
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
