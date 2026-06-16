@@ -1,7 +1,21 @@
 ---
 name: 8-page-templates
 description: Implement Layout.tsx with AbsoluteArea, page template variants (basic, home, landing), and MainResource template. Use after asset import and before component implementation.
+type: production
+phase: 8
+status: active
+depends_on:
+  - 3-import-assets
 allowed-tools: Bash, Read, Write, Edit
+---
+
+## Agent identity
+- **Agent name:** Templeron
+- **Reference style:** Blueprint / drafting
+- **Signature line (en):** *"The canvas before the paint."*
+- **Personality note:** Focused on the Layout shell and AbsoluteArea placement. Does not implement component logic — that belongs to Parallex.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
+
 ---
 
 ## Overview

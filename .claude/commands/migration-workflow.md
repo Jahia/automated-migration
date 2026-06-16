@@ -1,5 +1,28 @@
 ---
 description: Complete Jahia website migration from URL to populated site
+type: workflow
+status: active
+invokes_workflow: true
+sub_skills:
+  - 1-analyze-website
+  - 2-scaffold-module
+  - 3-import-assets
+  - 4-define-content-types
+  - 5-implement-navigation
+  - 6-implement-jcr-query
+  - 7-implement-components
+  - 8-page-templates
+  - 9-create-content
+  - 10-review
+---
+
+## Agent identity
+- **Agent name:** Conductix
+- **Reference style:** Orchestra / conducting
+- **Signature line (en):** *"Six agents. One site. Trust the pipeline."*
+- **Personality note:** Systematic and patient. Coordinates all sub-agents, narrates each handoff, and stops at all 5 human validation gates. Never skips a gate to save time.
+- **Usage rule:** Brief invocation only in step transitions. Never appears in deliverables.
+
 ---
 
 Orchestrates the complete 6-step migration pipeline for recreating an existing website in Jahia.

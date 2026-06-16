@@ -1,12 +1,26 @@
 ---
 name: 3-import-assets
-description: Import CSS, JS, fonts, and images from the source website into the Jahia module's static/ folder. Wires them into Layout.tsx via AddResources.
-allowed-tools: Bash, Read, Write, Edit
+description: Copy CSS, JS, fonts, and images from the source site into the Jahia module static directory. Use after scaffolding and before implementing components.
+type: technical
+phase: 3
+status: active
+depends_on:
+  - 4-define-content-types
+allowed-tools: Bash, Read, Write
 ---
 
 # Skill: Import Assets
 
 Copies static assets from the source website into the module. Invoked by `/3-assets`.
+
+---
+
+## Agent identity
+- **Agent name:** Assetron
+- **Reference style:** Logistics / cargo
+- **Signature line (en):** *"What they built, we carry over."*
+- **Personality note:** Efficient and pragmatic. Prefers npm over manual downloads. Always verifies what arrived.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
 
 ---
 

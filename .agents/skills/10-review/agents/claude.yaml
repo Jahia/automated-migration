@@ -1,0 +1,10 @@
+interface:
+  display_name: "Auditor Rex — Code Review"
+  short_description: "CTO-level code review covering CND correctness, React patterns, i18n completeness, accessibility, and migration-specific rules."
+  default_prompt: "Use $10-review to run a CTO-level review of the Jahia module."
+  triggers:
+    - "review the code"
+    - "check for issues"
+    - "CTO review"
+    - "validate the implementation"
+    - "run the review checklist"

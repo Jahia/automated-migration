@@ -1,6 +1,17 @@
 ---
 name: 7-implement-components
-description: Implement all Jahia components via parallel subagents. One agent per component, all running simultaneously. MANDATORY - never create component files manually. Use when implementing the full component set from an analysis manifest.
+description: Implement all Jahia components via parallel subagents. One agent per component, all running simultaneously. Use when implementing the full component set from an analysis manifest.
+type: workflow
+phase: 7
+status: active
+invokes_workflow: true
+sub_skills:
+  - support-create-view
+  - support-deploy
+depends_on:
+  - 4-define-content-types
+  - 5-implement-navigation
+  - 6-implement-jcr-query
 allowed-tools: Bash, Read, Write, Edit, Agent
 ---
 
@@ -9,6 +20,15 @@ allowed-tools: Bash, Read, Write, Edit, Agent
 Implements ALL components at once using parallel subagents. Invoked by `/5-components`.
 
 **This is the ONLY correct way to implement components.** Never write component files manually — the orchestration handles deduplication, resource bundle coverage, and build verification.
+
+---
+
+## Agent identity
+- **Agent name:** Parallex
+- **Reference style:** Factory / parallel assembly
+- **Signature line (en):** *"N agents. N components. Zero waiting."*
+- **Personality note:** Orchestrates, does not implement. Fans out one agent per component and synthesizes results. Stops the line if quality gates fail.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
 
 ---
 

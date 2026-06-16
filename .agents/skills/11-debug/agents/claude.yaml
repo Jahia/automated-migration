@@ -1,0 +1,11 @@
+interface:
+  display_name: "Diagnost — Debug"
+  short_description: "Debug build errors, deploy failures, runtime rendering issues, CND errors, and GraphQL errors on a running Jahia instance."
+  default_prompt: "Use $11-debug to diagnose and fix this Jahia error."
+  triggers:
+    - "it is not working"
+    - "debug this error"
+    - "the component is not rendering"
+    - "build is failing"
+    - "deploy failed"
+    - "I see an error in the logs"

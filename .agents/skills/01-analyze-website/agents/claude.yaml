@@ -1,0 +1,10 @@
+interface:
+  display_name: "Archaeon — Analyze Website"
+  short_description: "Download and analyze a website to produce a complete Jahia component manifest, content data, and asset inventory."
+  default_prompt: "Use $1-analyze to analyze this website and produce the migration component manifest."
+  triggers:
+    - "analyze this website"
+    - "map the components on this site"
+    - "I want to migrate this site to Jahia"
+    - "scan this site for components"
+    - "what sections does this page have"

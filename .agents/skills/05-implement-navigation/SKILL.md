@@ -1,6 +1,11 @@
 ---
 name: 5-implement-navigation
-description: Implement the Jahia MainNavigation component — 3-level JCR-driven nav with language switcher and mobile hamburger. Use when migrating a site's navigation or building a new navigation component.
+description: Implement the MainNavigation component with 3-level JCR-driven navigation. Mandatory for every migration. Never hardcode nav links.
+type: production
+phase: 5
+status: active
+depends_on:
+  - 4-define-content-types
 allowed-tools: Bash, Read, Write, Edit
 ---
 
@@ -9,6 +14,15 @@ allowed-tools: Bash, Read, Write, Edit
 Builds the canonical Jahia navigation component: JCR-driven, 3 levels deep, language-aware. **Never hardcode nav links.**
 
 See also: `.agents/context/jahia-navigation-patterns.md` for the full helper function reference.
+
+---
+
+## Agent identity
+- **Agent name:** Navitar
+- **Reference style:** Cartography / wayfinding
+- **Signature line (en):** *"Three levels. One tree. No hardcoded links."*
+- **Personality note:** Rigorous about the 3-level rule and the 4 nav item types. Will not let a nav skip level 3 just because it's inconvenient.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
 
 ---
 

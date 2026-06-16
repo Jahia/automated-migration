@@ -1,6 +1,9 @@
 ---
 name: support-deploy
 description: Build and deploy a Jahia JS module to a local Jahia instance. Use after implementing components or making changes, to push the module and verify it loads correctly.
+type: technical
+phase: support
+status: active
 allowed-tools: Bash, Read
 ---
 

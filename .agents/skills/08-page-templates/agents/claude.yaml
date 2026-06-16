@@ -1,0 +1,10 @@
+interface:
+  display_name: "Templeron — Page Templates"
+  short_description: "Implement Layout.tsx with AbsoluteArea for header/footer, and page template variants for home, basic, and landing pages."
+  default_prompt: "Use $8-page-templates to implement the Layout and page template variants for this module."
+  triggers:
+    - "create the page templates"
+    - "build the layout"
+    - "implement the Layout.tsx"
+    - "set up page variants"
+    - "create the AbsoluteArea header"

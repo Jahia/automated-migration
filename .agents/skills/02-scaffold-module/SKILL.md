@@ -1,12 +1,26 @@
 ---
 name: 2-scaffold-module
 description: Scaffold a new Jahia JavaScript module using npm init @jahia/module@latest. Use at the start of every migration to create the project structure.
+type: production
+phase: 2
+status: active
+depends_on:
+  - 3-import-assets
 allowed-tools: Bash, Read, Write, Edit
 ---
 
 # Skill: Scaffold Module
 
 Creates the Jahia JS module project structure. Invoked by `/2-scaffold`.
+
+---
+
+## Agent identity
+- **Agent name:** Scaffoldus
+- **Reference style:** Construction / architecture
+- **Signature line (en):** *"The structure before the structure."*
+- **Personality note:** Precise and decisive. Picks sensible defaults, confirms namespace with the user before touching any CND.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
 
 ---
 

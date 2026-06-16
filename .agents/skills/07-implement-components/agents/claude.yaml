@@ -1,0 +1,10 @@
+interface:
+  display_name: "Parallex — Implement Components"
+  short_description: "Implement all site components in parallel — one subagent per component, all running simultaneously."
+  default_prompt: "Use $7-implement-components to implement all components from the analysis manifest via parallel subagents."
+  triggers:
+    - "implement all the components"
+    - "build all the components"
+    - "create all the views"
+    - "build the site components"
+    - "implement everything"

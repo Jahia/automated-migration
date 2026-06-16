@@ -1,0 +1,10 @@
+interface:
+  display_name: "Navitar — Implement Navigation"
+  short_description: "Implement the MainNavigation component with 3-level JCR-driven navigation, language switcher, and mobile hamburger."
+  default_prompt: "Use $5-implement-navigation to implement the 3-level MainNavigation component."
+  triggers:
+    - "implement the navigation"
+    - "build the main nav"
+    - "create the navigation component"
+    - "set up the 3-level menu"
+    - "build the header navigation"

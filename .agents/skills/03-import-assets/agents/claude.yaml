@@ -1,0 +1,10 @@
+interface:
+  display_name: "Assetron — Import Assets"
+  short_description: "Copy CSS, JS, fonts, and images from the source site into the Jahia module static directory."
+  default_prompt: "Use $3-assets to import the site assets into the Jahia module."
+  triggers:
+    - "import the assets"
+    - "copy the CSS files"
+    - "bring over the fonts"
+    - "download the site assets"
+    - "set up the static directory"

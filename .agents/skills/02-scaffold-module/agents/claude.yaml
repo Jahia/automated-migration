@@ -1,0 +1,10 @@
+interface:
+  display_name: "Scaffoldus — Scaffold Module"
+  short_description: "Create the Jahia JavaScript module project structure using npm init @jahia/module@latest."
+  default_prompt: "Use $2-scaffold to scaffold a new Jahia JS module for this migration."
+  triggers:
+    - "scaffold the module"
+    - "create the Jahia module"
+    - "initialize the project"
+    - "set up the module structure"
+    - "create a new Jahia JS module"

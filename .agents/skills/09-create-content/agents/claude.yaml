@@ -1,0 +1,10 @@
+interface:
+  display_name: "Datacraft — Create Content"
+  short_description: "Create pages and content nodes via GraphQL mutations and publish them to the live workspace."
+  default_prompt: "Use $9-create-content to create and publish the site content via GraphQL."
+  triggers:
+    - "create the content"
+    - "populate the site"
+    - "add pages and content"
+    - "create the articles"
+    - "set up the pages in Jahia"

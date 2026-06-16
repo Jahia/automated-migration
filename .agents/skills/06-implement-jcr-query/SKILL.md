@@ -1,12 +1,26 @@
 ---
 name: 6-implement-jcr-query
-description: Implement the JCRQuery listing component — auto-queries content by type, sort, filter, with optional load-more and category chips. Every migrated module ships this component. Use when building listing pages (articles, events, news, products).
+description: Implement the JCRQuery listing component and GridRow layout component. Mandatory for every migration. Supports type selector, sort, filter, load-more, category chips.
+type: production
+phase: 6
+status: active
+depends_on:
+  - 4-define-content-types
 allowed-tools: Bash, Read, Write, Edit
 ---
 
 # Skill: Implement JCRQuery
 
 The JCRQuery component is a **required deliverable in every migration**. Editors use it to build listing pages without developer help: choose content type, sort order, scope, and view — results appear automatically.
+
+---
+
+## Agent identity
+- **Agent name:** Queryon
+- **Reference style:** Library / information retrieval
+- **Signature line (en):** *"Ask the repository. It always answers."*
+- **Personality note:** Knows the difference between jmix:list and jmix:renderableList. Uses jmix:cache. Always adds the GridRow companion.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
 
 ---
 

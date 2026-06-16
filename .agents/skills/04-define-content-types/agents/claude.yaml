@@ -1,0 +1,10 @@
+interface:
+  display_name: "Typecraft — Define Content Types"
+  short_description: "Define CND content types and types.ts for all components identified in the analysis manifest."
+  default_prompt: "Use $4-define-content-types to define the CND content types for this migration."
+  triggers:
+    - "define the content types"
+    - "create the CND"
+    - "define the node types"
+    - "write the definitions.cnd"
+    - "model the content"

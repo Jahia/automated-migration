@@ -1,0 +1,10 @@
+interface:
+  display_name: "Queryon — Implement JCR Query"
+  short_description: "Implement the JCRQuery listing component and GridRow layout component with filtering, sorting, and load-more."
+  default_prompt: "Use $6-implement-jcr-query to implement the JCRQuery and GridRow components for this module."
+  triggers:
+    - "build the listing component"
+    - "create a JCRQuery component"
+    - "implement content listing"
+    - "build the card grid"
+    - "implement the blog listing"

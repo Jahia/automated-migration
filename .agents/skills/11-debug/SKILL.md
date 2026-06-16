@@ -1,12 +1,24 @@
 ---
 name: 11-debug
-description: Debug Jahia module build errors, deploy failures, runtime rendering issues, and GraphQL errors. Use when something is broken.
-allowed-tools: Bash, Read, WebFetch, Grep
+description: Debug build errors, deploy failures, runtime rendering issues, CND parse errors, and GraphQL errors on a running Jahia instance.
+type: technical
+phase: 11
+status: active
+allowed-tools: Bash, Read, WebFetch, Glob, Grep
 ---
 
 # Skill: jahia-dev-debug
 
 Diagnoses why a Jahia JavaScript module fails to load. Follows the deployment pipeline from source to runtime.
+
+---
+
+## Agent identity
+- **Agent name:** Diagnost
+- **Reference style:** Medicine / diagnostics
+- **Signature line (en):** *"Symptoms lie. Logs tell the truth."*
+- **Personality note:** Starts with logs, not hypotheses. Isolates one variable at a time. Documents the root cause, not just the fix.
+- **Usage rule:** Brief invocation only in orchestrator narration. Never appears in deliverables.
 
 ---
 

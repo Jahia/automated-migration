@@ -1,6 +1,9 @@
 ---
 name: support-create-view
-description: Implement a React view (.server.tsx + CSS Module) for a Jahia content type. Use when adding or updating the visual rendering of a component.
+description: Implement a React view (.server.tsx + CSS Module) for a Jahia component. Use as a building block inside 07-implement-components.
+type: production
+phase: support
+status: active
 allowed-tools: Bash, Read, Write, Edit
 ---
 
