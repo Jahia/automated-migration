@@ -1,0 +1,44 @@
+{
+  "siteUrl": "https://www.sialparis.com/fr-FR",
+  "projectPath": "projects/sial-paris",
+  "moduleName": "sial-paris",
+  "namespace": "sialp",
+  "mixNamespace": "sialpmix",
+  "siteKey": "sial-paris",
+  "displayName": "SIAL Paris",
+  "language": "fr",
+  "startedAt": "2026-06-16T14:00:00Z",
+  "steps": {
+    "1-analyze": {
+      "status": "completed",
+      "completedAt": "2026-06-16T16:50:00Z",
+      "notes": "ISO redo: 13 component instances extracted from live DOM via Chrome MCP. CSS downloaded from CDN (bootstrap4 29KB, core-libraries 585KB, main-theme 4.9KB, sial-paris-theme 174KB). All class names verified against live HTML. Site is Sitecore SXA, not Next.js. Sub-pages pending extraction."
+    },
+    "2-scaffold": {
+      "status": "completed",
+      "completedAt": "2026-06-16T14:05:00Z"
+    },
+    "3-assets": {
+      "status": "completed",
+      "completedAt": "2026-06-16T16:50:00Z",
+      "notes": "4 real CSS files from CDN: bootstrap4.css, core-libraries.css, main-theme.css, sial-paris-theme.css. Layout.tsx updated to reference all 4 + FontAwesome 6 CDN."
+    },
+    "4-templates": {
+      "status": "completed",
+      "completedAt": "2026-06-16T12:34:30Z"
+    },
+    "5-components": {
+      "status": "completed",
+      "completedAt": "2026-06-16T19:30:00Z",
+      "notes": "All 13 components rewritten with verbatim Sitecore SXA class names from live DOM."
+    },
+    "5.5-validate": {
+      "status": "completed",
+      "completedAt": "2026-06-16T19:30:00Z",
+      "notes": "yarn build succeeded, jahia-deploy returned Operation successful, site HTTP 200."
+    },
+    "6-content": {
+      "status": "pending"
+    }
+  }
+}

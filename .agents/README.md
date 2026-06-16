@@ -99,6 +99,7 @@ Loaded by agents when relevant. Do not modify without reason.
 | `context/jahia-js-reference-patterns.md` | Production patterns from real modules |
 | `context/jahia-frontend-backend-patterns.md` | Decision tree: 5 integration patterns with complete code |
 | `context/jahia-graphql-schema-reference.md` | GraphQL schema: JCRQuery, JCRMutation, JCRNode, all types |
+| `context/jahia-graphql-schema.graphql` | **Full introspected schema (authoritative)** — read this before writing any mutation. 4000 lines covering every type, field, argument, and enum in the Jahia 8.2 GraphQL API. |
 | `context/jahia-cnd-syntax-reference.md` | CND syntax, property types, constraints |
 | `context/jahia-selectortype-pattern.md` | Custom content editor widgets (SelectorType) |
 | `context/jahia-taxonomy-patterns.md` | Tags (jmix:tagged) and categories (category weakreference) |

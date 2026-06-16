@@ -26,9 +26,16 @@ echo "Prerequisites OK. Implementing $COMPONENT_COUNT components."
 jq '.steps["5-components"].status = "in_progress"' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
 ```
 
-**At the END of this step (after yarn build succeeds):**
+**At the END of this step — MANDATORY: run /validate-module BEFORE marking complete:**
+
+Step 5 is NOT complete until the module passes the full validation pipeline in `/validate-module`.
+This includes: CND syntax check, namespace conflict check against live Jahia, build, deploy, and
+confirming the module reaches ACTIVE OSGi state with CND types queryable via GraphQL.
+
+Do NOT proceed to step 6 if any validation check fails.
+
 ```bash
-# Verify build
+# Verify build (preliminary check — /validate-module will also build+deploy)
 cd "$PROJECT_PATH" && yarn build 2>&1 | tail -5
 BUILD_EXIT=$?
 

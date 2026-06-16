@@ -26,46 +26,150 @@ A **page template** defines the full layout of a page. It is registered with `co
 
 > ⚠️ **CMS rule — never hardcode links in templates.** Navigation links, logo hrefs, footer links — all must come from contributed content (via props, `buildNodeUrl`, or `j:linkType`). Do not put literal URLs in template code.
 
-## Step 1 — Create the template file
+## Step 1 — Create Layout.tsx (the shared page shell)
 
-Page templates live in `src/templates/Page/`. Name the file `<templateName>.server.tsx`.
+`Layout.tsx` wraps every page template. It renders the full HTML document, loads CSS, and places `AbsoluteArea` for the shared header and footer. **AbsoluteArea calls MUST live in Layout.tsx**, not in individual template files.
 
 ```tsx
-import { Area, AbsoluteArea, jahiaComponent } from "@jahia/javascript-modules-library";
-import { Layout } from "../Layout.jsx";
+// src/templates/Layout.tsx
+import {
+  AbsoluteArea,
+  AddResources,
+  buildModuleFileUrl,
+  useServerContext,
+} from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import type { ReactNode } from "react";
+
+export const Layout = ({ title, children }: { title?: string; children: ReactNode }) => {
+  const { currentResource, renderContext } = useServerContext();
+  const lang = currentResource.getLocale().getLanguage();
+
+  // AbsoluteArea parent MUST be the home page node — NOT renderContext.getSite()
+  // Content lives at /sites/{siteKey}/home/header and /sites/{siteKey}/home/footer
+  const site = renderContext.getSite() as unknown as JCRNodeWrapper;
+  const homePage = site.getNode("home") as JCRNodeWrapper;
+
+  return (
+    <html lang={lang}>
+      <head>
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{title ?? "My Site"}</title>
+        <AddResources type="css" resources={buildModuleFileUrl("dist/assets/style.css")} />
+      </head>
+      <body>
+        <AbsoluteArea name="header" nodeType="namespace:mainNavigation" parent={homePage} readOnly="children" />
+        {children}
+        <AbsoluteArea name="footer" nodeType="namespace:footer" parent={homePage} readOnly="children" />
+      </body>
+    </html>
+  );
+};
+```
+
+**Critical rules:**
+- Import `useServerContext` from `@jahia/javascript-modules-library` — never receive `renderContext` as a template argument
+- `AbsoluteArea parent` = `site.getNode("home")` — NOT `renderContext.getSite()`. If you use `getSite()` as parent, the absolute area content is stored at the site root node instead of `/home/header`, which is wrong
+- `readOnly="children"` prevents editing the shared header/footer from every inner page — editors can only edit them from the home page
+- Use `.js` import extension (not `.jsx`) when importing Layout in template files: `import { Layout } from "../Layout.js"`
+
+---
+
+## Step 2 — Create page template files
+
+Each template lives in its own subdirectory with `default.server.tsx`. Import Layout with `.js` extension.
+
+```tsx
+// src/templates/HomePage/default.server.tsx
+import { Area, jahiaComponent } from "@jahia/javascript-modules-library";
+import { Layout } from "../Layout.js";
 
 jahiaComponent(
   {
-    componentType: "template",   // "template" for full pages, not "view"
-    nodeType: "jnt:page",        // always jnt:page for page templates
-    displayName: "Single Column",
-    name: "singleColumn",        // used in Jahia UI when selecting a template
+    componentType: "template",
+    nodeType: "jnt:page",
+    name: "homePage",
+    displayName: "Home page",
   },
-  ({ "jcr:title": title }, { renderContext }) => (
+  ({ "jcr:title": title }: { "jcr:title"?: string }) => (
     <Layout title={title}>
-      <Area name="header" nodeType="namespace:header" />
-      <main style={{ maxWidth: "40rem", margin: "0 auto" }}>
+      <main>
+        <Area name="hero" />
         <Area name="main" />
       </main>
-      <AbsoluteArea
-        name="footer"
-        parent={renderContext.getSite()}
-        nodeType="namespace:footer"
-      />
     </Layout>
   ),
 );
 ```
 
+**DO NOT** pass `renderContext` as a second argument to page templates just to access `getSite()`. Use `useServerContext()` inside Layout instead.
+
 ---
 
-## Step 2 — Choose: Area vs AbsoluteArea
+## Step 3 — Create the MainResource template
+
+For modules that have `jmix:mainResource` content types (news articles, events, etc.):
+
+```tsx
+// src/templates/MainResource/default.server.tsx
+import { jahiaComponent, Render } from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { Layout } from "../Layout.js";
+
+jahiaComponent(
+  {
+    componentType: "template",
+    nodeType: "jmix:mainResource",  // NOT jnt:page
+    priority: -1,                    // low priority lets specific types override
+  },
+  ({ "jcr:title": title }: { "jcr:title"?: string }, { currentNode }) => (
+    <Layout title={title}>
+      <main>
+        <Render node={currentNode as JCRNodeWrapper} view="fullPage" />
+      </main>
+    </Layout>
+  ),
+);
+```
+
+**Common mistake:** using `nodeType: "jnt:page"` with `name: "mainResource"` — this creates a selectable page template named "mainResource" instead of a fallback for content nodes.
+
+### MainResource/default.server.tsx — canonical pattern
+
+```tsx
+// CORRECT — Layout once, renders fullPage view
+export default function MainResourceTemplate({ currentNode, renderContext }: Props) {
+  const title = currentNode.hasProperty("jcr:title")
+    ? currentNode.getProperty("jcr:title").getString()
+    : currentNode.getName();
+  return (
+    <Layout title={title}>
+      <main>
+        <Render node={currentNode as JCRNodeWrapper} view="fullPage" />
+      </main>
+    </Layout>
+  );
+}
+```
+
+**Never do this:**
+- Add a second `<Layout>` inside `fullPage.server.tsx`
+- Add `<AbsoluteArea name="header">` or `<AbsoluteArea name="footer">` inside `fullPage.server.tsx`
+- Include navigation components inside fullPage views
+
+The `fullPage.server.tsx` view renders ONLY the article-level content body (title, image, body text, tags, date, related items). `<Layout>` is provided exactly once by the MainResource template wrapper.
+
+---
+
+## Step 4 — Choose: Area vs AbsoluteArea
 
 | | `<Area>` | `<AbsoluteArea>` |
 |---|---|---|
 | Content | Per-page (each page has its own) | Shared across all pages |
-| Use for | Page body, hero, sections | Footer, navbar, sidebar |
-| `parent` prop | Not needed | Set to `renderContext.getSite()` for site-wide |
+| Use for | Page body, hero, sections | Header, footer, global sidebar |
+| Where to put it | In template files | **In Layout.tsx only** |
+| `parent` prop | Not needed | `site.getNode("home")` from `useServerContext()` |
 
 ---
 

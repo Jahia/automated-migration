@@ -162,11 +162,69 @@ Save:
 
 ---
 
+## Step 6b: Sub-page extraction (MANDATORY)
+
+After extracting home page components, navigate to every page listed in the sitemap and extract content for each.
+
+For every sub-page URL identified:
+
+1. Navigate to the URL (wget or Chrome MCP)
+2. Save raw HTML to `/tmp/subpage-<slug>.html`
+3. Extract all component instances with full `fields` values - not just `{slug, title}`
+4. Add to `content-data.json` under `subPages` with `fields` populated for every node
+5. Add any NEW component types discovered to `component-manifest.json`
+
+**STOP condition - before proceeding to step 7:**
+
+```bash
+cat workflow-output/content-data.json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+bad = [p['slug'] for p in data.get('subPages',[]) if not p.get('fields')]
+print('MISSING FIELDS:', bad if bad else 'NONE - OK')
+"
+```
+
+If ANY sub-page has an empty or missing `fields` object: **STOP. Extract that page's content before continuing.** An entry with only `{slug, title}` is a placeholder - it will result in empty pages after content creation.
+
+---
+
 ## Validation checklist
+
+**HARD STOPS - if any fail, do not write output files:**
+
+- [ ] **HTML fragment sourced from file** - for every component, run `grep -n "CLASS_NAME" /tmp/webpage.html`. If the class is not found in the file, you did not extract it - re-extract. Never invent class names.
+- [ ] **CSS class names verified** - every CSS class in each HTML fragment must appear verbatim in `/tmp/webpage.html` or the downloaded CSS. Do not guess or approximate class names.
+- [ ] **Sub-pages have full content** - every `subPages[]` entry has a non-empty `fields` object (see check above).
+- [ ] **All repeating items fully extracted** - count children in HTML equals count in content-data.
+
+**Standard checks:**
 - [ ] At least one section identified per major visible area of the page
-- [ ] HTML fragment extracted from file (not written from memory)
-- [ ] All repeating items fully extracted (not a sample)
 - [ ] All image fields typed as `weakreference` in manifest (not `string`)
 - [ ] Absolute area components identified (header, footer)
 - [ ] Cross-reference validation table passed
 - [ ] All 4 output files saved to `workflow-output/`
+
+---
+
+## Human validation gate (MANDATORY)
+
+After saving all 4 output files, present this summary and **STOP. Do not proceed to step 2 or 3 until the user explicitly confirms.**
+
+```
+STEP 1 COMPLETE - VALIDATION REQUIRED
+
+Components found:    N
+Content instances:   M (home) + K (sub-pages)
+Sub-pages extracted: P (with full content) / Q total
+HTML from file:      YES - verified grep line numbers in /tmp/webpage.html
+CSS classes from:    /tmp/website-download/ (extracted) OR from /tmp/webpage.html
+
+Files written:
+- workflow-output/analysis.md
+- workflow-output/component-manifest.json
+- workflow-output/content-data.json
+- workflow-output/asset-inventory.json
+
+Type VALIDATED to continue to step 2, or describe what to fix.
+```

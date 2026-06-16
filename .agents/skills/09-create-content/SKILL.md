@@ -511,6 +511,29 @@ mutation {
 
 ---
 
+## Image population is mandatory for visual completeness
+
+Every content type with a `weakreference` image field (thumbnail, image, photo) MUST have images populated during content creation. An article card rendered without an image collapses or looks broken.
+
+**Order of operations for image-bearing content:**
+1. Upload images to DAM: use the GraphQL multipart upload pattern above
+2. Get the uploaded node's UUID from the upload response
+3. Set the `thumbnail` (or `image`) property to that UUID with `type: WEAKREFERENCE` in the mutation
+
+**If no client images are available:** use real images from the source site:
+```bash
+curl -sL "<source-image-url>" -o /tmp/news-thumb.jpg
+curl -s -u root:root \
+  -H "Origin: http://localhost:8080" \
+  -X POST http://localhost:8080/modules/graphql \
+  -F 'operations={"query":"mutation { jcr { addNode(name: \"news-thumb.jpg\", parentPathOrId: \"/sites/SITE_KEY/files/news\", primaryNodeType: \"jnt:file\", mixins: [\"jmix:image\"]) { addChild(name: \"jcr:content\", primaryNodeType: \"jnt:resource\") { content: mutateProperty(name: \"jcr:data\") { setValue(type: BINARY, value: \"fc\") } contentType: mutateProperty(name: \"jcr:mimeType\") { setValue(value: \"image/jpeg\") } } uuid } } }"}' \
+  -F 'map={"fc":["variables.f"]}' \
+  -F "fc=@/tmp/news-thumb.jpg;type=image/jpeg"
+```
+Then set the returned UUID as the property value with `type: WEAKREFERENCE`.
+
+---
+
 ## References
 
 - Jahia GraphQL API playground: `http://localhost:8080/modules/graphql` (GET in browser, POST for queries)

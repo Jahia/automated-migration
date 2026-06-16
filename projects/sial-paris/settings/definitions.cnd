@@ -1,0 +1,168 @@
+<jnt = 'http://www.jahia.org/jahia/nt/1.0'>
+<jmix = 'http://www.jahia.org/jahia/mix/1.0'>
+<sialp = 'https://www.jahia.org/sialp/nt/1.0'>
+<sialpmix = 'https://www.jahia.org/sialp/mix/1.0'>
+
+// Base component mixin — all droppable content types extend this
+[sialpmix:component] > jmix:droppableContent, jmix:accessControllableContent mixin
+
+// Page-area component mixin — types droppable in page areas extend this
+[sialpmix:pageComponent] > sialpmix:component mixin
+
+// ─── Navigation ────────────────────────────────────────────────────────────────
+
+[sialp:mainNavigation] > jnt:content, sialpmix:component, jmix:hiddenType
+ - logoImage (weakreference, picker[type='image'])
+ - exposantCtaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - visiteurCtaLabel (string) i18n
+
+// ─── Footer ────────────────────────────────────────────────────────────────────
+
+[sialp:footer] > jnt:content, sialpmix:component, jmix:hiddenType
+ - newsletterHeading (string) i18n
+ - newsletterPlaceholder (string) i18n
+ - gdprText (string, richtext) i18n
+ - sialLogo (weakreference, picker[type='image'])
+ - comexposiumLogo (weakreference, picker[type='image'])
+ - copyrightText (string) i18n
+
+// ─── Hero Carousel ─────────────────────────────────────────────────────────────
+
+[sialp:heroSlide] > jnt:content, jmix:hiddenType
+ - backgroundImage (weakreference, picker[type='image'])
+ - badge (string) i18n
+ - heading (string) i18n
+ - body (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+
+[sialp:heroCarousel] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ + * (sialp:heroSlide) = sialp:heroSlide version
+
+// ─── Intro Text ────────────────────────────────────────────────────────────────
+
+[sialp:introText] > jnt:content, sialpmix:pageComponent
+ - overline (string) i18n
+ - heading (string) i18n
+ - body (string, richtext) i18n
+
+// ─── Key Figures ───────────────────────────────────────────────────────────────
+
+[sialp:keyFigure] > jnt:content, jmix:hiddenType
+ - icon (string)
+ - number (string)
+ - unit (string) i18n
+ - label (string) i18n
+
+[sialp:keyFigures] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ + * (sialp:keyFigure) = sialp:keyFigure version
+
+// ─── News ──────────────────────────────────────────────────────────────────────
+
+[sialp:newsArticle] > jnt:content, sialpmix:pageComponent, jmix:mainResource, jmix:tagged
+ - thumbnail (weakreference, picker[type='image'])
+ - category (string) i18n
+ - publishDate (date)
+ - title (string) i18n
+ - excerpt (string) i18n
+ - body (string, richtext) i18n
+
+[sialp:newsListing] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList
+ - heading (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+ - maxItems (long) = '3'
+
+// ─── Visitor Profiles ──────────────────────────────────────────────────────────
+
+[sialp:visitorProfile] > jnt:content, jmix:hiddenType
+ - icon (weakreference, picker[type='image'])
+ - heading (string) i18n
+ - description (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+
+[sialp:visitorProfiles] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:visitorProfile) = sialp:visitorProfile version
+
+// ─── Trends ────────────────────────────────────────────────────────────────────
+
+[sialp:trendCard] > jnt:content, jmix:hiddenType
+ - tag (string) i18n
+ - image (weakreference, picker[type='image'])
+ - heading (string) i18n
+ - excerpt (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:trendsSection] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ - intro (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+ + * (sialp:trendCard) = sialp:trendCard version
+
+// ─── Video ─────────────────────────────────────────────────────────────────────
+
+[sialp:videoSection] > jnt:content, sialpmix:pageComponent
+ - heading (string) i18n
+ - videoUrl (string)
+ - thumbnailImage (weakreference, picker[type='image'])
+
+// ─── Sectors ───────────────────────────────────────────────────────────────────
+
+[sialp:sectorItem] > jnt:content, jmix:hiddenType
+ - icon (weakreference, picker[type='image'])
+ - label (string) i18n
+
+[sialp:sectorsSection] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:sectorItem) = sialp:sectorItem version
+
+// ─── CTA Dual Cards ────────────────────────────────────────────────────────────
+
+[sialp:ctaDualCards] > jnt:content, sialpmix:pageComponent
+ - leftHeading (string) i18n
+ - leftImage (weakreference, picker[type='image'])
+ - leftCtaLabel (string) i18n
+ - leftLinkType (string, choicelist[linkTypeInitializer])
+ - rightHeading (string) i18n
+ - rightImage (weakreference, picker[type='image'])
+ - rightCtaLabel (string) i18n
+ - rightLinkType (string, choicelist[linkTypeInitializer])
+
+// ─── Partners ──────────────────────────────────────────────────────────────────
+
+[sialp:partnerLogo] > jnt:content, jmix:hiddenType
+ - logo (weakreference, picker[type='image'])
+ - partnerName (string)
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:partnersCarousel] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:partnerLogo) = sialp:partnerLogo version
+
+// ─── SIAL Network ──────────────────────────────────────────────────────────────
+
+[sialp:networkEvent] > jnt:content, jmix:hiddenType
+ - eventName (string)
+ - city (string)
+ - eventDates (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:sialNetwork] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:networkEvent) = sialp:networkEvent version
+
+// ─── Structural ────────────────────────────────────────────────────────────────
+
+[sialp:jcrQuery] > jnt:content, sialpmix:pageComponent
+ - nodeType (string)
+ - basePath (string)
+ - maxItems (long) = '10'
+ - orderBy (string)
+
+[sialp:gridRow] > jnt:content, sialpmix:pageComponent
+ - columns (string, choicelist[resourceBundle]) = '3' < '1', '2', '3', '4'
+ - gap (string, choicelist[resourceBundle]) = 'medium' < 'small', 'medium', 'large'

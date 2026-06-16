@@ -152,6 +152,33 @@ Add missing entries before reporting success.
 
 ---
 
+### CSS class fidelity — inspect before implementing
+
+The source CSS was designed for a specific HTML class structure. Components must output that EXACT class hierarchy or styling will not apply.
+
+**Before implementing any component:**
+1. Open the relevant source CSS file (grep for the component's section name)
+2. Extract the exact CSS class selectors the CSS uses (`.component-name`, `.wrapper`, `.item`, etc.)
+3. Map those to the TSX output — the JSX class names must match exactly
+
+**For section background colors:**
+- Check if the section uses a utility class for background color (e.g., `.bg-secondary-color`, `.bg-gray-1`, `.bg-dark`)
+- Apply that class on the section wrapper in the TSX output
+- Never hardcode background colors inline — the imported CSS owns the theming
+
+**Common fidelity failure:** a component renders correctly in isolation but its section background, wave divider, or container width does not match because the outer wrapper is missing a class. Always wrap sections in the exact same outer element class as the source HTML.
+
+---
+
+### fullPage.server.tsx — critical constraints
+
+- The `fullPage.server.tsx` view renders INSIDE `MainResource/default.server.tsx`, which itself wraps with `<Layout>`.
+- **Never add `<Layout>`, `<header>`, `<footer>`, `<nav>`, or `<AbsoluteArea>` inside a `fullPage.server.tsx`.**
+- The fullPage view renders ONLY the article-level content body (title, image, body text, tags, date, related items).
+- Similarly, `MainResource/default.server.tsx` should use `<Layout>` ONCE and delegate to `<Render ... view="fullPage" />`. Never render AbsoluteArea header/footer separately inside mainResource.
+
+---
+
 ## Critical rules (apply to every component agent)
 
 1. **NEVER use `jmix:list`** — use `+ * (childType)` for containers

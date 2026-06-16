@@ -217,6 +217,27 @@ grep -n "grid-area" static/css/*.css | head -20
 
 ---
 
+## Override slider/carousel JS body manipulation (MANDATORY)
+
+Source-site JavaScript carousel and slider libraries (Swiffy Slider, Swiper, Owl Carousel, Slick, etc.) often manipulate `document.body.style.height` or `document.body.style.overflow` during initialization. In a Jahia SSR context this causes the page body to be locked to the viewport height, making everything below the fold invisible and preventing scroll.
+
+**Fix: add these two CSS rules inside the FA Pro remap `<style>` block in `Layout.tsx`** - they must load before any JS executes:
+
+```css
+/* Prevent source-site carousel/slider JS from locking body height */
+body { height: auto !important; overflow-x: hidden; }
+```
+
+Place these lines at the TOP of the existing `<style dangerouslySetInnerHTML>` block, before the `@font-face` declarations.
+
+**Detection:** after first deploy, open browser DevTools console and run:
+```js
+document.body.style.height
+```
+If this returns anything other than `""` (empty string), the slider JS set it. Add the override.
+
+---
+
 ## Fallback images for image-rendering components (MANDATORY)
 
 Every component that renders a JCR image must have a bundled static fallback. Without it, the component collapses to 0px height when no JCR content exists yet — which looks like a CSS failure, not a missing-content problem.
