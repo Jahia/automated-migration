@@ -312,11 +312,13 @@ Ask user:
 - Only after this step can `/6-content` be invoked
 
 **After /6-content:**
-- Curl LIVE home page (`http://localhost:8080/sites/<siteKey>/home.html`) and verify non-empty text content
-- Curl each sub-page from content-data.json and verify HTTP 200
+- Verify HTTP 200 on live home page
+- **Broken image check:** curl the live page HTML, extract all `<img src>` values, verify each returns HTTP 200. Report any 404s.
+- **Raw key check:** scan rendered HTML for patterns like `ns_component.fieldName` — these are missing translations.
 - Count items in rendered HTML vs content-data.json — report match %
 - Update state.json: `6-content.status = "completed"`
-- **HUMAN GATE: Report LIVE URL, curl HTTP status, and a text excerpt from the home page. Wait for user to confirm the site looks correct.**
+- **Take Jahia screenshot** at 1440px and 375px → save to `workflow-output/screenshots/jahia-home-1440.png` and `jahia-home-375.png`
+- **HUMAN GATE 4 (visual fidelity):** Present side-by-side: `reference-home-1440.png` (original, taken in step 1) vs `jahia-home-1440.png` (Jahia render). Also present 375px pair. Wait for user to type VALIDATED or describe what to fix. Do not proceed to review until this gate passes.
 
 ---
 

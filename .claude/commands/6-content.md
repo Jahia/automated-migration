@@ -53,12 +53,30 @@ jq '.steps["6-content"].status = "in_progress"' "$STATE" > /tmp/state.tmp && mv 
 **At the END of this step:**
 ```bash
 SITE_KEY=$(jq -r '.siteKey // "default"' "$STATE")
+JAHIA_URL=$(jq -r '.server.url' "$STATE")
+JAHIA_USER=$(jq -r '.server.user' "$STATE")
+# JAHIA_PASS from session
 
-# Verify live home page
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u root:root \
-  "http://localhost:8080/sites/${SITE_KEY}/home.html")
+# 1. Verify live home page HTTP 200
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+  -u "$JAHIA_USER:$JAHIA_PASS" \
+  "$JAHIA_URL/sites/${SITE_KEY}/home.html")
+echo "Live home page: HTTP $HTTP_CODE"
 
-# Count GraphQL scripts saved
+# 2. Broken image check — extract all img src, verify each returns 200
+PAGE_HTML=$(curl -s -u "$JAHIA_USER:$JAHIA_PASS" "$JAHIA_URL/sites/${SITE_KEY}/home.html")
+echo "$PAGE_HTML" | grep -oE 'src="[^"]+"' | grep -v 'data:' | sed 's/src="//;s/"//' | while read src; do
+  [[ "$src" != http* ]] && src="$JAHIA_URL$src"
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$src")
+  [ "$STATUS" != "200" ] && echo "BROKEN IMAGE ($STATUS): $src"
+done
+echo "Image check complete."
+
+# 3. Raw i18n key check — missing translations render as raw keys
+echo "$PAGE_HTML" | grep -oE '[a-z]+_[a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z]' | sort -u | head -20
+# If output is non-empty: those are untranslated keys — add them to the .properties files
+
+# 4. Count GraphQL scripts saved
 SCRIPT_COUNT=$(find "$PROJECT_PATH/workflow-output/graphql-scripts" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
 
 jq --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \

@@ -61,29 +61,69 @@ HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
 
 ---
 
-## Gate 3 — Template layout review (after `08-page-templates`)
+## Gate 3 — Shell layout review (after `08-page-templates`)
 
-**Stop after:** `Layout.server.tsx` and page template variants are implemented.
+**Stop after:** `Layout.tsx` and page template variants are deployed and the module is ACTIVE.
 
-**Show the user:** The deployed page rendered in the browser (use `/jahia-dev-screenshot` if available).
+**Show the user:** A screenshot of the deployed page at this stage — header and footer rendered, main area empty. This is a structural check only, not a visual fidelity check.
 
-**Wait for:** User visual approval of the layout shell before content is filled in.
+**Wait for:** User confirms header/footer are present and the page structure is correct (no JS errors, no broken layout shell).
 
-**Why:** Layout changes after content is placed are disruptive — every component may need re-placed or re-styled.
+**Why:** Layout changes after content is placed are disruptive. This gate catches structural issues (wrong AbsoluteArea names, missing header, broken grid) before content creation begins.
+
+**What to check:**
+- Header renders (logo, navigation visible)
+- Footer renders
+- No JavaScript console errors
+- Page does not 500
+
+**What NOT to check at this gate:** Visual fidelity to the original — components have no content yet. Save that for Gate 4.
 
 ---
 
-## Gate 4 — Content review (after `09-create-content`)
+## Gate 4 — Visual fidelity review (after `09-create-content`)
 
-**Stop after:** Pages and content nodes are created, published, and visible on the live site.
+**Stop after:** All home page content is created and published to LIVE.
 
-**Show the user:**
-- A list of created nodes with their JCR paths
-- The live URL for each page
+**This is the primary visual quality gate.** Do not declare the migration done until this gate passes.
 
-**Wait for:** User to spot-check a representative set of pages before declaring the migration complete.
+**Show the user — side by side:**
+1. Screenshot of the **original site** at 1440px (saved during step 1 as `workflow-output/screenshots/reference-home-1440.png`)
+2. Screenshot of the **Jahia render** at 1440px (taken now via Chrome MCP)
+3. Screenshot of original at 375px vs Jahia at 375px
 
-**Why:** Bulk content creation via GraphQL can silently create nodes with wrong types or missing translations. Human spot-check is faster than automated validation at this stage.
+**Automated checks before presenting screenshots:**
+```bash
+JAHIA_URL=$(jq -r '.server.url' "$STATE")
+SITE_KEY=$(jq -r '.siteKey' "$STATE")
+
+# 1. HTTP 200 on live page
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" "$JAHIA_URL/sites/$SITE_KEY/home.html")
+[ "$HTTP" = "200" ] || echo "FAIL: live page returned HTTP $HTTP"
+
+# 2. No broken images (404 on any <img src>)
+curl -s "$JAHIA_URL/sites/$SITE_KEY/home.html" | \
+  grep -oE 'src="[^"]+"' | grep -v 'data:' | \
+  while read src; do
+    url=$(echo $src | sed 's/src="//;s/"//')
+    [[ "$url" != http* ]] && url="$JAHIA_URL$url"
+    STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+    [ "$STATUS" != "200" ] && echo "BROKEN IMAGE: $url ($STATUS)"
+  done
+
+# 3. No raw i18n keys visible (missing translations)
+curl -s "$JAHIA_URL/sites/$SITE_KEY/home.html" | grep -oE '[a-z]+_[a-zA-Z]+\.[a-zA-Z\.]+' | head -10
+```
+
+**Save Jahia screenshot:**
+```
+workflow-output/screenshots/jahia-home-1440.png
+workflow-output/screenshots/jahia-home-375.png
+```
+
+**Wait for:** User to visually compare original vs Jahia render and type VALIDATED or describe what to fix.
+
+**Why:** Curl HTTP 200 does not detect broken images, collapsed components, missing CSS, wrong fonts, or layout regressions. Only a browser screenshot comparison catches visual failures.
 
 ---
 

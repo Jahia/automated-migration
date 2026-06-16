@@ -146,6 +146,68 @@ grep -n "inline.js" $PROJECT_DIR/src/templates/Layout.tsx
 
 Both must return results. If not, the inline assets are not loaded and the site will be missing critical styles.
 
+---
+
+### Step 8b: CSS conflict detection (MANDATORY)
+
+> Full patterns: `.agents/context/jahia-css-framework-conflicts.md`
+
+**Font Awesome Pro detection:**
+```bash
+grep -r "Font Awesome 6 Pro\|Font Awesome 6 Sharp\|font-awesome.*pro" $PROJECT_DIR/static/css/ | head -20
+```
+
+If any match: add `@font-face` remap block to `Layout.tsx` AFTER all `<AddResources>` imports:
+
+```tsx
+<style dangerouslySetInnerHTML={{ __html: `
+  @font-face { font-family: "Font Awesome 6 Pro"; font-weight: 900; font-display: block;
+    src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-solid-900.woff2") format("woff2"); }
+  @font-face { font-family: "Font Awesome 6 Pro"; font-weight: 400; font-display: block;
+    src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-regular-400.woff2") format("woff2"); }
+  @font-face { font-family: "Font Awesome 6 Brands"; font-weight: 400; font-display: block;
+    src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-brands-400.woff2") format("woff2"); }
+  @font-face { font-family: "Font Awesome 6 Sharp"; font-weight: 900; font-display: block;
+    src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-solid-900.woff2") format("woff2"); }
+` }} />
+```
+
+**CSS grid header detection:**
+```bash
+grep -n "grid-area\|grid-template-columns" $PROJECT_DIR/static/css/*.css | head -20
+```
+
+If the nav/header uses `grid-area`: flag in `state.json` so skill 05 (implement-navigation) uses the full-header pattern (Pattern B). Add to state.json:
+```bash
+jq '.cssGridHeader = true' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+---
+
+### Step 8c: Download fallback images (MANDATORY for image-rendering components)
+
+Every component that renders a JCR image must have a bundled static fallback. Without it, the component collapses to 0px when no JCR content exists — which looks like a CSS failure.
+
+```bash
+mkdir -p $PROJECT_DIR/static/assets/images
+```
+
+For each image-rendering component identified in `component-manifest.json` (any component with a `weakreference` image field):
+1. Find a representative image for that component on the live site (use Chrome MCP or `curl` to extract the actual image URL from the DOM)
+2. Download it:
+```bash
+curl -sL "<image-url>" -o "$PROJECT_DIR/static/assets/images/<component-slug>-fallback.jpg"
+```
+
+Naming: `slide-1.jpg`, `slide-2.jpg` for carousels; `news-fallback.jpg` for news cards; etc.
+
+Record downloaded fallback paths in `state.json`:
+```bash
+jq '.fallbackImages = {"heroCarousel": ["static/assets/images/slide-1.jpg", "static/assets/images/slide-2.jpg"], "newsListing": ["static/assets/images/news-fallback.jpg"]}' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+---
+
 ### Step 9: Report
 
-Count files by category and show totals. Next: `/4-templates`.
+Count files by category and show totals. Report FA Pro status, CSS grid flag, and fallback images downloaded. Next: `/4-templates`.

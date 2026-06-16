@@ -39,6 +39,30 @@ cat >> "$PROJECT_DIR/workflow-output/migration-log.md" << EOF
 EOF
 ```
 
+### Reference screenshots (MANDATORY — taken during analysis)
+
+After identifying all sections, take a full-page screenshot of the original site at **1440px width** using Chrome MCP. Save it as the visual reference for the final comparison gate.
+
+```
+workflow-output/screenshots/
+  reference-home-1440.png     ← full page at desktop width
+  reference-home-375.png      ← full page at mobile width
+  reference-<section>.png     ← one crop per identified section (for per-component comparison)
+```
+
+**How to capture:**
+1. Open the source URL in Chrome (use Chrome MCP `navigate` + `computer screenshot`)
+2. Resize to 1440px width, scroll to top, take full-page screenshot → save as `reference-home-1440.png`
+3. Resize to 375px, screenshot → `reference-home-375.png`
+4. For each identified section: scroll to it, crop screenshot → `reference-<sectionSlug>.png`
+
+Record screenshot paths in `state.json`:
+```bash
+jq '.referenceScreenshots = {"home1440": "workflow-output/screenshots/reference-home-1440.png", "home375": "workflow-output/screenshots/reference-home-375.png"}' "$STATE" > /tmp/state.tmp && mv /tmp/state.tmp "$STATE"
+```
+
+These screenshots are the ground truth for Gate 4 (visual comparison). Without them, visual fidelity cannot be verified.
+
 If any output file is missing: set `1-analyze.status = "failed"` in state.json, append FAILED entry to migration-log.md, and stop.
 
 ---
