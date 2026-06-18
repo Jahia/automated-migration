@@ -14,7 +14,11 @@ jahiaComponent(
     displayName: "News Listing",
   },
   (props: Props, { renderContext }) => {
-    const FALLBACK_IMAGE = buildModuleFileUrl("static/assets/images/news-1.jpg");
+    const FALLBACK_IMAGES = [
+      buildModuleFileUrl("static/assets/images/news-1.jpg"),
+      buildModuleFileUrl("static/assets/images/news-2.jpg"),
+      buildModuleFileUrl("static/assets/images/news-3.jpg"),
+    ];
     const { heading, ctaLabel, maxItems = 3 } = props;
     const siteKey = renderContext.getSite().getName();
 
@@ -35,15 +39,23 @@ jahiaComponent(
       <section className="component search-results actus container-bp col-12">
         {heading && <h2>{heading}</h2>}
         <ul className="search-result-list">
-          {limited.map((article: JCRNodeWrapper) => {
+          {limited.map((article: JCRNodeWrapper, idx: number) => {
             const title = article.hasProperty("title")
               ? article.getPropertyAsString("title")
               : article.getName();
             const category = article.hasProperty("category")
               ? article.getPropertyAsString("category")
               : undefined;
-            const publishDate = article.hasProperty("publishDate")
+            const rawDate = article.hasProperty("publishDate")
               ? article.getPropertyAsString("publishDate")
+              : undefined;
+            const publishDate = rawDate
+              ? (() => {
+                  const d = new Date(rawDate);
+                  return isNaN(d.getTime())
+                    ? rawDate
+                    : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+                })()
               : undefined;
             const excerpt = article.hasProperty("excerpt")
               ? article.getPropertyAsString("excerpt")
@@ -53,7 +65,9 @@ jahiaComponent(
               ? (article.getProperty("thumbnail").getNode() as JCRNodeWrapper)
               : undefined;
 
-            const thumbnailUrl = thumbnailNode ? buildNodeUrl(thumbnailNode) : FALLBACK_IMAGE;
+            const thumbnailUrl = thumbnailNode
+              ? buildNodeUrl(thumbnailNode)
+              : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
 
             return (
               <li key={article.getPath()}>

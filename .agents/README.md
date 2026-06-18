@@ -8,6 +8,7 @@ This harness migrates existing websites to Jahia JavaScript modules. Skills are 
 
 | # | Skill folder | Command | Purpose |
 |---|---|---|---|
+| 0 | `00-migration-start/` | `/0-migration-start` | **START HERE** — ask server URL, credentials, Docker container, write migration.env |
 | 1 | `01-analyze-website/` | `/1-analyze` | Download + analyze site → component manifest |
 | 2 | `02-scaffold-module/` | `/2-scaffold` | Scaffold Jahia JS module with `npm init @jahia/module@latest` |
 | 3 | `03-import-assets/` | `/3-assets` | Copy CSS, JS, fonts, images into `static/` |
@@ -16,11 +17,14 @@ This harness migrates existing websites to Jahia JavaScript modules. Skills are 
 | 6 | `06-implement-jcr-query/` | (part of step 5) | JCRQuery listing component |
 | 7 | `07-implement-components/` | `/5-components` | All components via parallel subagents |
 | 8 | `08-page-templates/` | `/4-templates` | Layout.tsx + AbsoluteArea + page variants |
-| 9 | `09-create-content/` | `/6-content` | Create pages and content via GraphQL |
+| 9 | `09-create-content/` | `/6-content` | Create pages and content via Jahia MCP (GraphQL fallback) |
 | 10 | `10-review/` | `/jahia-review` | CTO-level code review |
 | 11 | `11-debug/` | `/jahia-debug` | Debug build/deploy/runtime errors |
+| 12 | `12-visual-diff/` | `/12-visual-diff` | Screenshot every page pair (reference vs Jahia), produce ISO punch list |
+| 13 | `13-vanity-urls/` | `/13-vanity-urls` | Map old site URLs to Jahia pages + generate nginx redirect map for go-live |
 
-**Entry point:** `/migration-workflow` orchestrates all steps.
+**Entry point:** `/migration-workflow` — reads `state.json`, shows current progress, resumes or restarts. Always start here.
+Skill file: [`migration-workflow/SKILL.md`](skills/migration-workflow/SKILL.md)
 
 ---
 

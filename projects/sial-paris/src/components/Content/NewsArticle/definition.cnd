@@ -1,0 +1,7 @@
+[sialp:newsArticle] > jnt:content, sialpmix:pageComponent, jmix:mainResource, jmix:tagged
+ - thumbnail (weakreference, picker[type='image'])
+ - category (string) i18n
+ - publishDate (date)
+ - title (string) i18n
+ - excerpt (string) i18n
+ - body (string, richtext) i18n

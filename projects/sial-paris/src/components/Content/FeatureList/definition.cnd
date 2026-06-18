@@ -1,0 +1,9 @@
+[sialp:featureItem] > jnt:content
+ - iconClass (string)
+ - heading (string) i18n
+ - description (string, textarea) i18n
+
+[sialp:featureList] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - overline (string) i18n
+ - heading (string) i18n
+ + * (sialp:featureItem) = sialp:featureItem

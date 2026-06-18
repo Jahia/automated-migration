@@ -1,0 +1,11 @@
+[sialp:pagesPushesItem] > jnt:content
+ - image (weakreference, picker[type='image'])
+ - imageExternalUrl (string)
+ - imageAlt (string) i18n
+ - title (string) i18n
+ - description (string) i18n
+ - linkUrl (string)
+
+[sialp:pagesPushes] > jnt:content, sialpmix:pageComponent, jmix:orderedList
+ - heading (string) i18n
+ + * (sialp:pagesPushesItem)

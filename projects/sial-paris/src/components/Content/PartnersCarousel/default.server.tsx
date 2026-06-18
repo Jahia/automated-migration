@@ -1,36 +1,30 @@
 import {
-  jahiaComponent,
+  RenderChildren,
   buildNodeUrl,
-  getChildNodes,
+  jahiaComponent,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { Props } from "./types.js";
 
-// Child partner logo view
-import { jahiaComponent as jc2 } from "@jahia/javascript-modules-library";
-
-jc2(
-  {
-    componentType: "view",
-    nodeType: "sialp:partnerLogo",
-    displayName: "Partner Logo",
-  },
+jahiaComponent(
+  { componentType: "view", nodeType: "sialp:partnerLogo", displayName: "Partner Logo" },
   (props: Props) => {
-    const { logo, partnerName } = props;
-
+    const { logo, partnerName, "j:linkType": linkType, "j:linknode": linknode, "j:url": url } = props;
     const href =
-      props["j:linkType"] === "internal" && props["j:linknode"]
-        ? buildNodeUrl(props["j:linknode"])
-        : props["j:linkType"] === "external"
-          ? props["j:url"]
-          : undefined;
-
-    const logoUrl = logo ? buildNodeUrl(logo) : undefined;
+      linkType === "internal" && linknode
+        ? buildNodeUrl(linknode)
+        : linkType === "external" && url
+          ? url
+          : "#";
+    const logoUrl = logo ? buildNodeUrl(logo as unknown as JCRNodeWrapper) : undefined;
 
     return (
-      <li className="row">
-        <a className="content col-4 col-md-3" href={href ?? "#"}>
-          {logoUrl && <img src={logoUrl} alt={partnerName ?? "Partner"} />}
+      <li style={{ flexShrink: 0 }}>
+        <a href={href} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", minHeight: "80px", minWidth: "160px", border: "1px solid #e0e0e0", borderRadius: "8px" }}>
+          {logoUrl
+            ? <img src={logoUrl} alt={partnerName ?? "Partner"} style={{ maxHeight: "60px", maxWidth: "140px", objectFit: "contain" }} />
+            : partnerName && <span style={{ fontWeight: 600, color: "#232536", fontSize: "0.9rem", textAlign: "center" }}>{partnerName}</span>
+          }
         </a>
       </li>
     );
@@ -43,55 +37,14 @@ jahiaComponent(
     nodeType: "sialp:partnersCarousel",
     displayName: "Partners Carousel",
   },
-  ({ heading }: Props, { renderContext, currentNode }) => {
-    const isEdit = renderContext.isEditMode();
-
-    const partners = getChildNodes(
-      currentNode,
-      -1,
-      0,
-      (n: JCRNodeWrapper) => n.isNodeType("sialp:partnerLogo"),
-    );
-
+  ({ heading }: Props, { currentNode }) => {
     return (
       <section className="component partners-carrousel">
-        <div className="component-content">
+        <div className="component-content container" style={{ maxWidth: "1140px", margin: "0 auto" }}>
           {heading && <h2>{heading}</h2>}
-          <div className="swiffy-slider slider-nav-page slider-indicators-outside slider-indicators-dark slider-nav-animation">
-            <ul className="slider-container" role="list">
-              {partners.map((partner: JCRNodeWrapper) => {
-                const logoNode = partner.hasProperty("logo")
-                  ? (partner.getProperty("logo").getNode() as JCRNodeWrapper)
-                  : undefined;
-                const logoUrl = logoNode ? buildNodeUrl(logoNode) : undefined;
-                const partnerName = partner.hasProperty("partnerName")
-                  ? partner.getPropertyAsString("partnerName")
-                  : "";
-                const linkType = partner.hasProperty("j:linkType")
-                  ? partner.getPropertyAsString("j:linkType")
-                  : undefined;
-                const linkNodeProp =
-                  linkType === "internal" && partner.hasProperty("j:linknode")
-                    ? (partner.getProperty("j:linknode").getNode() as JCRNodeWrapper)
-                    : undefined;
-                const externalUrl =
-                  linkType === "external" && partner.hasProperty("j:url")
-                    ? partner.getPropertyAsString("j:url")
-                    : undefined;
-                const href = linkNodeProp
-                  ? buildNodeUrl(linkNodeProp)
-                  : externalUrl ?? "#";
-
-                return (
-                  <li key={partner.getPath()} className="row">
-                    <a className="content col-4 col-md-3" href={href}>
-                      {logoUrl && <img src={logoUrl} alt={partnerName} />}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <ul style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", listStyle: "none", padding: 0, margin: 0, gap: "20px" }}>
+            <RenderChildren />
+          </ul>
         </div>
       </section>
     );

@@ -1,0 +1,5 @@
+[sialp:jcrQuery] > jnt:content, sialpmix:pageComponent
+ - nodeType (string)
+ - basePath (string)
+ - maxItems (long) = '10'
+ - orderBy (string)

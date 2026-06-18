@@ -1,0 +1,10 @@
+[sialp:heroSlide] > jnt:content
+ - backgroundImage (weakreference, picker[type='image'])
+ - badge (string) i18n
+ - heading (string) i18n
+ - body (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+
+[sialp:heroCarousel] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ + * (sialp:heroSlide) = sialp:heroSlide

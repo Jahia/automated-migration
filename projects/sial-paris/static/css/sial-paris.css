@@ -843,3 +843,11 @@ p  { font-size: 16px; font-weight: 400; line-height: 1.6; }
   animation: none;
   flex-wrap: wrap;
 }
+
+/* ─── Spacing overrides ───────────────────────────────────────── */
+/* Cancel 100px bottom margin from original theme on visitor profiles section */
+.quicklinks.container { margin-bottom: 0 !important; }
+/* Tighten internal padding on quicklinks section */
+.quicklinks .container-bp { padding-top: 50px !important; padding-bottom: 50px !important; }
+/* Remove excess bottom margin on news block */
+.search-results.actus { margin-bottom: 0 !important; }

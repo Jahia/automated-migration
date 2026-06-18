@@ -1,0 +1,9 @@
+[sialp:ctaDualCards] > jnt:content, sialpmix:pageComponent
+ - leftHeading (string) i18n
+ - leftImage (weakreference, picker[type='image'])
+ - leftCtaLabel (string) i18n
+ - leftLinkNode (weakreference, picker[type='page'])
+ - rightHeading (string) i18n
+ - rightImage (weakreference, picker[type='image'])
+ - rightCtaLabel (string) i18n
+ - rightLinkNode (weakreference, picker[type='page'])

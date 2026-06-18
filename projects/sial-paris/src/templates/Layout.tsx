@@ -58,6 +58,28 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
             font-display: block;
             src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-solid-900.woff2") format("woff2");
           }
+          /* Component spacing */
+          main > .jcr-draggable-content > .component,
+          main section.component,
+          main .component.feature-list,
+          main .component.key-figures,
+          main .component.cta-banner,
+          main .component.rich-text-block,
+          main .component.trends-section,
+          main .component.sectors-section,
+          main .component.intro-text,
+          main .component.visitor-profiles,
+          main .component.partners-carousel,
+          main .component.news-listing,
+          main .component.video-section,
+          main .component.sial-network,
+          main .component.cta-dual-cards {
+            margin-bottom: 4rem;
+          }
+          main section.component:last-child,
+          main .component:last-child {
+            margin-bottom: 0;
+          }
         ` }} />
       </head>
       <body>

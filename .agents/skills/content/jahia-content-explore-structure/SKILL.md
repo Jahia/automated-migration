@@ -6,6 +6,34 @@ description: Efficiently maps an unknown Jahia website's content structure befor
 
 # Skill: jahia-content-explore-structure
 
+## MCP-first rule
+
+**Always prefer the Jahia MCP server over GraphQL for content operations.** Check availability first:
+
+```bash
+curl -s http://localhost:8080/modules/mcp | python3 -c "import json,sys; d=json.load(sys.stdin); print('MCP OK -', len(d['tools']), 'tools')"
+```
+
+If MCP is available, use these tools instead of GraphQL:
+- Explore structure: `content.type`, `site.types`, `page.structure`
+- Query content: `content.list`, `content.search`, `content.get`, `page.list`
+- Move/rename: `content.move`, `content.rename`, `content.reorder`
+- Translate: `content.translate`
+
+MCP call pattern:
+```bash
+curl -s -X POST http://localhost:8080/modules/mcp \
+  -u root:root \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"TOOL","arguments":{...}}}'
+```
+
+**Credentials: root / root** (NOT root/root1234 - that is wrong for local dev).
+
+Only fall back to GraphQL when MCP is unavailable or a specific operation has no MCP equivalent.
+
+---
+
 Use this skill **before** creating content on an unfamiliar Jahia site. It produces a reusable property map so that `/jahia-content-create-content` can work without trial-and-error mutations.
 
 **No reference site required.** All content type definitions, property names, i18n flags, and enum constraints are retrieved directly from the GraphQL API via the `nodeTypeByName` and `nodeTypes` queries.
@@ -15,7 +43,7 @@ Use this skill **before** creating content on an unfamiliar Jahia site. It produ
 ## Prerequisites
 
 - Jahia running at `http://localhost:8080`
-- Credentials: `root` / `root1234`
+- Credentials: `root` / `root`
 - Always include `-H "Origin: http://localhost:8080"` — omitting it causes `Permission denied`
 
 ---
@@ -26,14 +54,14 @@ Use GraphQL aliases to retrieve everything you need in a **single HTTP request**
 
 First, find the site key:
 ```bash
-curl -s -u root:root1234 -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
+curl -s -u root:root -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"{ jcr { nodeByPath(path: \"/sites\") { children { nodes { name } } } } }"}'
 ```
 
 Then run the full batch query (replace `SITE_KEY` and `TEMPLATE_MODULE`):
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"{ jcr { site: nodeByPath(path: \"/sites/SITE_KEY\") { properties(names: [\"j:templatesSet\",\"j:defaultLanguage\"]) { name value } } home: nodeByPath(path: \"/sites/SITE_KEY/home\") { children { nodes { name primaryNodeType { name } children { nodes { name primaryNodeType { name } } } } } } files: nodeByPath(path: \"/sites/SITE_KEY/files\") { children { nodes { name uuid } } } contentTypes: nodeTypes(filter: {siteKey: \"SITE_KEY\", includeMixins: false, includeAbstract: false}) { nodes { name systemId } } } }"}'
@@ -52,7 +80,7 @@ From the response:
 Once you know `j:templatesSet` (e.g. `mymodule`) from Step 1, fetch **every type with all its properties** in a single call:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{
@@ -65,7 +93,7 @@ curl -s -u root:root1234 \
 If you also need properties from standard Jahia types (e.g. `jnt:bigText`, `jnt:text`), add them with `nodeTypesByNames`:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"{ jcr { nodeTypesByNames(names: [\"jnt:bigText\", \"jnt:text\"]) { name properties { name requiredType internationalized mandatory constraints } } } }"}'
@@ -78,7 +106,7 @@ curl -s -u root:root1234 \
 File assets are already returned by the Step 1 batch query under `files.children`. No additional call needed unless you need UUIDs of files inside sub-folders:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
   -d '{"query":"{ jcr { nodeByPath(path: \"/sites/SITE_KEY/files/SUBFOLDER\") { children { nodes { name uuid } } } } }"}'

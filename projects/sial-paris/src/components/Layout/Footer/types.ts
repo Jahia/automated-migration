@@ -7,4 +7,5 @@ export interface Props {
   sialLogo?: JCRNodeWrapper;
   comexposiumLogo?: JCRNodeWrapper;
   copyrightText?: string;
+  submitButtonLabel?: string;
 }

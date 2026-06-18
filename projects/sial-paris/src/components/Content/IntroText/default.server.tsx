@@ -8,7 +8,7 @@ jahiaComponent(
     displayName: "Intro Text",
   },
   ({ overline, heading, body }: Props) => (
-    <div className="component rich-text col-12 bg-secondary">
+    <div className="component rich-text col-12">
       <div className="component-content">
         <div className="container-bp p-20 mb-20 field-description">
           {overline && <p>{overline}</p>}

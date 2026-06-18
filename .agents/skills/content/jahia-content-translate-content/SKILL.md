@@ -5,6 +5,34 @@ description: Adds language support to a Jahia site and translates existing conte
 
 # Skill: jahia-content-translate-content
 
+## MCP-first rule
+
+**Always prefer the Jahia MCP server over GraphQL for content operations.** Check availability first:
+
+```bash
+curl -s http://localhost:8080/modules/mcp | python3 -c "import json,sys; d=json.load(sys.stdin); print('MCP OK -', len(d['tools']), 'tools')"
+```
+
+If MCP is available, use these tools instead of GraphQL:
+- Explore structure: `content.type`, `site.types`, `page.structure`
+- Query content: `content.list`, `content.search`, `content.get`, `page.list`
+- Move/rename: `content.move`, `content.rename`, `content.reorder`
+- Translate: `content.translate`
+
+MCP call pattern:
+```bash
+curl -s -X POST http://localhost:8080/modules/mcp \
+  -u root:root \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"TOOL","arguments":{...}}}'
+```
+
+**Credentials: root / root** (NOT root/root1234 - that is wrong for local dev).
+
+Only fall back to GraphQL when MCP is unavailable or a specific operation has no MCP equivalent.
+
+---
+
 Adds languages to a Jahia site and populates i18n properties on existing content nodes via the GraphQL API.
 
 ---
@@ -12,12 +40,12 @@ Adds languages to a Jahia site and populates i18n properties on existing content
 ## Prerequisites
 
 - Jahia running at `http://localhost:8080`
-- Credentials: `root` / `root1234` (default)
+- Credentials: `root` / `root` (default)
 - GraphQL endpoint: `http://localhost:8080/modules/graphql`
 
 **Always include both auth flags:**
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
      -H "Content-Type: application/json" \
      -H "Origin: http://localhost:8080" \
      -X POST http://localhost:8080/modules/graphql \
@@ -34,7 +62,7 @@ Before creating or querying translations, the language must be declared on the s
 
 ```bash
 # Check currently enabled languages
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -43,7 +71,7 @@ curl -s -u root:root1234 \
   }'
 
 # Add a language (e.g. "fr") — use setPropertiesBatch with the full new list
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -62,7 +90,7 @@ Query all i18n-bearing nodes and inspect which ones have empty values for the ta
 
 ```bash
 # Find all content nodes under /sites/mySite/contents
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -74,7 +102,7 @@ curl -s -u root:root1234 \
 Or query a specific content type:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -92,7 +120,7 @@ Look for nodes where i18n fields (`jcr:title`, `body`, etc.) have empty or null 
 ### Single node
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -110,7 +138,7 @@ When a content type has **mandatory** i18n fields (other than `jcr:title`), set 
 The safe pattern — set all mandatory i18n fields in a single `setPropertiesBatch` call:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -130,7 +158,7 @@ import json
 from urllib.request import Request, urlopen
 
 JAHIA = "http://localhost:8080"
-AUTH = ("root", "root1234")
+AUTH = ("root", "root")
 
 import base64
 token = base64.b64encode(f"{AUTH[0]}:{AUTH[1]}".encode()).decode()
@@ -226,7 +254,7 @@ When you remove the `i18n` flag from a CND property (or delete a language from t
 
 ```bash
 # Find translation sub-nodes for a content node
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -235,7 +263,7 @@ curl -s -u root:root1234 \
   }'
 
 # Delete an orphaned translation node
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -252,7 +280,7 @@ After setting i18n properties, republish to make them live:
 
 ```bash
 # Publish a single node for a specific language
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -261,7 +289,7 @@ curl -s -u root:root1234 \
   }'
 
 # Publish all articles in both languages
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \

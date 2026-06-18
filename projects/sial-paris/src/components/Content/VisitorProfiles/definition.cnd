@@ -1,0 +1,11 @@
+[sialp:visitorProfile] > jnt:content
+ - icon (weakreference, picker[type='image'])
+ - iconClass (string)
+ - heading (string) i18n
+ - description (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+
+[sialp:visitorProfiles] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:visitorProfile) = sialp:visitorProfile

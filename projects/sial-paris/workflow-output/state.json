@@ -12,7 +12,7 @@
     "1-analyze": {
       "status": "completed",
       "completedAt": "2026-06-16T16:50:00Z",
-      "notes": "ISO redo: 13 component instances extracted from live DOM via Chrome MCP. CSS downloaded from CDN (bootstrap4 29KB, core-libraries 585KB, main-theme 4.9KB, sial-paris-theme 174KB). All class names verified against live HTML. Site is Sitecore SXA, not Next.js. Sub-pages pending extraction."
+      "notes": "ISO redo: 13 component instances extracted from live DOM via Chrome MCP. CSS downloaded from CDN (bootstrap4 29KB, core-libraries 585KB, main-theme 4.9KB, sial-paris-theme 174KB). All class names verified against live HTML. Site is Sitecore SXA."
     },
     "2-scaffold": {
       "status": "completed",
@@ -29,16 +29,19 @@
     },
     "5-components": {
       "status": "completed",
-      "completedAt": "2026-06-16T19:30:00Z",
-      "notes": "All 13 components rewritten with verbatim Sitecore SXA class names from live DOM."
+      "completedAt": "2026-06-18T18:00:00Z",
+      "notes": "All components rewritten with verbatim Sitecore SXA class names. New components added in session 2: sialp:pageHero (banner-title3 small-banner), sialp:imgContentBlock (img-content-block-l), sialp:dateLieuHoraires + sialp:infoCard (date-lieu-horaires), sialp:pagesPushes + sialp:pagesPushesItem (pages-pushes hover). All 4 CSS class patterns identified by screenshotting sub-pages and searching theme CSS."
     },
     "5.5-validate": {
       "status": "completed",
-      "completedAt": "2026-06-16T19:30:00Z",
-      "notes": "yarn build succeeded, jahia-deploy returned Operation successful, site HTTP 200."
+      "completedAt": "2026-06-18T18:00:00Z",
+      "notes": "yarn build succeeded, jahia-deploy Operation successful, all component CSS classes render correctly in screenshots."
     },
     "6-content": {
-      "status": "pending"
+      "status": "completed",
+      "completedAt": "2026-06-18T19:30:00Z",
+      "notes": "ALL 27 pages populated with correct visual components: home page (8 sections), le-salon (4 pages), les-exposants (4 pages), temps-forts (6 pages including SIAL Innovation with verbatim text, SIAL Talks with 4 blocks, SIAL for Change with 3 blocks), tendances (4 pages), infos-pratiques (4 pages including dates-et-acces with dateLieuHoraires + 3 infoCards), medias (4 pages). All pages use sialp:pageHero + sialp:imgContentBlock (or sialp:dateLieuHoraires for dates page). All published to live workspace. Hero banners need background images (URLs blocked by reference site CDN auth - manual editor follow-up needed).",
+      "pendingManualWork": "Banner background images: each pageHero has a backgroundImageUrl field for direct CDN image URLs. Reference site images are behind Cloudflare auth. Content editors need to upload images to DAM and link them."
     }
   }
 }

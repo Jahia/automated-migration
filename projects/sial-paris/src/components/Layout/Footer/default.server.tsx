@@ -15,6 +15,7 @@ jahiaComponent(
       sialLogo,
       comexposiumLogo,
       copyrightText,
+      submitButtonLabel,
     } = props;
 
     return (
@@ -32,7 +33,7 @@ jahiaComponent(
                         placeholder={newsletterPlaceholder}
                         aria-label="Email"
                       />
-                      <button type="submit">Envoyer</button>
+                      <button type="submit">{props.submitButtonLabel ?? "Envoyer"}</button>
                     </form>
                     {gdprText && (
                       <div dangerouslySetInnerHTML={{ __html: gdprText }} />

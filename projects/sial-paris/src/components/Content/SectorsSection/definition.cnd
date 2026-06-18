@@ -1,0 +1,9 @@
+[sialp:sectorItem] > jnt:content
+ - backgroundImage (weakreference, picker[type='image'])
+ - icon (weakreference, picker[type='image'])
+ - label (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:sectorsSection] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:sectorItem) = sialp:sectorItem

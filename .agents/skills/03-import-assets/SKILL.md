@@ -36,6 +36,20 @@ projects/<module-name>/static/
 
 ---
 
+## Load migration environment
+
+```bash
+ENV_FILE=$(find . -name "migration.env" | head -1)
+if [ -z "$ENV_FILE" ]; then
+  echo "ERROR: migration.env not found. Run /0-migration-start first."
+  exit 1
+fi
+source "$ENV_FILE"
+echo "Jahia: $JAHIA_URL | Site: $JAHIA_SITE_KEY | MCP: $MCP_AVAILABLE"
+```
+
+---
+
 ## HARD STOP - verify source before copying anything
 
 Before writing any CSS to the project, verify the source exists:
@@ -203,6 +217,51 @@ grep -r "Font Awesome 6 Pro\|Font Awesome 6 Sharp\|font-awesome.*pro" static/css
 
 ---
 
+### CSS relative path rewriting (mandatory after every CSS import)
+
+Imported CSS files contain relative `url(...)` references to fonts, images, and icons (e.g. `url('../fonts/fa-solid-900.woff2')`). These paths resolve correctly on the original CDN but break when the CSS is served from Jahia's `static/css/` path.
+
+After copying any CSS file, run this rewrite pass:
+
+```bash
+CSS_DIR="projects/$MODULE_NAME/static/css"
+CDN_BASE="<the CDN base URL the CSS was downloaded from, e.g. https://cdn.sialparis.com/styles>"
+
+for css_file in "$CSS_DIR"/*.css; do
+  echo "Rewriting paths in: $css_file"
+
+  # Rewrite relative font paths → absolute CDN URLs
+  sed -i.bak \
+    -e "s|url('\.\./fonts/|url('${CDN_BASE}/../fonts/|g" \
+    -e 's|url("\.\./fonts/|url("'"${CDN_BASE}"'/../fonts/|g' \
+    -e "s|url('\.\./images/|url('${CDN_BASE}/../images/|g" \
+    -e 's|url("\.\./images/|url("'"${CDN_BASE}"'/../images/|g' \
+    -e "s|url('\.\./webfonts/|url('${CDN_BASE}/../webfonts/|g" \
+    -e 's|url("\.\./webfonts/|url("'"${CDN_BASE}"'/../webfonts/|g' \
+    "$css_file"
+
+  rm -f "${css_file}.bak"
+done
+```
+
+**Verify the rewrite worked:**
+```bash
+grep -n "url('\.\." "$CSS_DIR"/*.css | head -20
+# Should return nothing — all relative paths should be gone
+```
+
+If relative paths remain, track down the CDN base URL for each CSS file and rewrite manually. A `url('../fonts/...')` in deployed CSS silently breaks every font and icon that CSS controls — it renders as fallback font or empty box with no error in the browser console.
+
+**For Font Awesome specifically:** if the theme uses Font Awesome Pro (`fa-sharp`, `fa-light`, `fa-thin` prefixes), it cannot be replaced by the free CDN version — those glyph codes do not exist in FA Free. Check the CSS for Pro-exclusive prefixes:
+
+```bash
+grep -E "fa-sharp|fa-light|fa-thin|fa-duotone" "$CSS_DIR"/*.css | head -10
+```
+
+If found: the site uses FA Pro. You need either a FA Pro kit URL or the FA Pro webfont files. Note this as a dependency and ask the user for the FA Pro kit token before proceeding.
+
+---
+
 ## CSS grid structure detection (MANDATORY)
 
 After copying CSS, scan for CSS grid declarations that affect header or navigation layout:
@@ -258,6 +317,180 @@ These become the `FALLBACK_IMAGES` constants used in component views (see skill 
 
 ---
 
+---
+
+## Step 5: Optimize imported assets for Jahia
+
+Run this optimization pass AFTER all assets are imported and paths are rewritten. It reduces bundle size and prevents JS conflicts with React.
+
+### 5a: CSS purging (remove unused rules)
+
+A typical migration site ships 300-500KB of CSS. After purging against the actual component TSX output, 60-80% is typically dead code from pages and sections not being migrated.
+
+```bash
+# Install PurgeCSS if not present
+npx purgecss --version 2>/dev/null || npm install -g purgecss
+
+# Run purge against all compiled TSX component files
+# The safelist preserves:
+#   - Jahia edit-mode classes (jahia-*)
+#   - Bootstrap responsive classes (col-*, d-*, flex-*)
+#   - JavaScript-toggled state classes (active, open, is-*, has-*, show, hide, visible, hidden)
+#   - Font Awesome classes (fa-*, fas, fab, etc.)
+
+npx purgecss \
+  --css static/css/*.css \
+  --content "src/**/*.tsx" "src/**/*.ts" "src/**/*.jsx" \
+  --safelist \
+    "/^jahia/" \
+    "/^col-/" \
+    "/^d-/" \
+    "/^flex-/" \
+    "/^offset-/" \
+    "/^order-/" \
+    "/^align-/" \
+    "/^justify-/" \
+    "/^text-/" \
+    "/^bg-/" \
+    "/^is-/" \
+    "/^has-/" \
+    "/^active$/" \
+    "/^open$/" \
+    "/^show$/" \
+    "/^hide$/" \
+    "/^visible$/" \
+    "/^hidden$/" \
+    "/^fa/" \
+    "/^swiper/" \
+    "/^slick/" \
+  --output static/css/
+
+echo "CSS purge complete. Size before/after:"
+du -sh static/css/ 2>/dev/null || ls -la static/css/
+```
+
+**Important:** Run purge AFTER skill 07 completes all components, not before — otherwise TSX files do not exist yet and purge will remove everything. If running skill 03 before component implementation, skip this step and return here after skill 07.
+
+**If purge removes too much** (layout breaks after deploy): add the broken class names to the safelist above and re-run. Do not revert to the full CSS — fix the safelist instead.
+
+---
+
+### 5b: Classify CSS as global vs component-scoped
+
+The imported CSS mixes two concerns. Pre-classify so component agents in skill 07 know where to look:
+
+```bash
+python3 - << 'EOF'
+import re, os, glob
+
+css_files = glob.glob('static/css/*.css')
+global_patterns = [
+    r'^(html|body|:root|\*|\.container|\.row|\.col)',   # reset, grid, layout
+    r'^@(font-face|keyframes|import)',                    # fonts, animations
+    r'^\.(navbar|header|footer|nav-)',                    # global nav/footer
+    r'^\.(btn|form-|input|select|textarea)',              # global form/button base
+]
+component_hint = []
+
+for f in css_files:
+    with open(f) as fh:
+        content = fh.read()
+    selectors = re.findall(r'^([.#][a-zA-Z][^\s{,]+)', content, re.MULTILINE)
+    for sel in selectors:
+        is_global = any(re.match(p, sel) for p in global_patterns)
+        if not is_global and len(sel) > 5:
+            component_hint.append(sel.strip())
+
+# Write a hint file for component agents
+os.makedirs('workflow-output', exist_ok=True)
+with open('workflow-output/component-css-selectors.txt', 'w') as f:
+    f.write('\n'.join(sorted(set(component_hint))))
+
+print(f"Found {len(set(component_hint))} potentially component-scoped CSS selectors.")
+print("Written to workflow-output/component-css-selectors.txt")
+print("Component agents (skill 07) should pull from this list when building .module.css files.")
+EOF
+```
+
+This file is read by skill 07 component agents to know which CSS selectors to include in each component's `.module.css`.
+
+---
+
+### 5c: Audit JS files for React conflicts
+
+JS files that manipulate the DOM directly can conflict with React's reconciliation. Identify risky patterns before component implementation begins:
+
+```bash
+echo "=== JS conflict audit ==="
+echo ""
+
+echo "-- Carousel / slider init (will conflict with SSR — move to .client.tsx island) --"
+grep -rn "new Swiper\|\.slick(\|new Splide\|swiffy\|new Glide\|\.carousel(" static/js/ 2>/dev/null || echo "  none found"
+
+echo ""
+echo "-- Direct DOM manipulation on load (will fight React hydration) --"
+grep -rn "document\.querySelector\|document\.getElementById\|\.innerHTML\s*=" static/js/ 2>/dev/null | grep -v "//.*document" | head -20 || echo "  none found"
+
+echo ""
+echo "-- Event listeners added to static DOM nodes (safe only if React doesn't own those nodes) --"
+grep -rn "addEventListener\|\.on(" static/js/ 2>/dev/null | grep -v "//.*addEventListener" | head -20 || echo "  none found"
+
+echo ""
+echo "-- Form submit handlers (replace with React form components) --"
+grep -rn "\.submit(\|form\.addEventListener\|ajaxForm\|$.ajax" static/js/ 2>/dev/null || echo "  none found"
+```
+
+For each hit, decide:
+- **Carousel/slider init**: the component must be a `.client.tsx` island — add `interactive: true` in `component-manifest.json`
+- **DOM manipulation on load**: wrap in `if (typeof window !== 'undefined')` guard in a client island
+- **Event listeners on Jahia structural nodes** (header, footer): safe to keep in global JS, but guard with `?.`
+- **Form submit handlers**: replace entirely with React-controlled form components
+
+Write the findings to `workflow-output/js-conflict-report.txt`:
+
+```bash
+{
+  echo "JS Conflict Audit"
+  echo "================="
+  echo ""
+  echo "Carousel/slider:"
+  grep -rn "new Swiper\|\.slick(\|new Splide\|swiffy\|new Glide\|\.carousel(" static/js/ 2>/dev/null || echo "  none"
+  echo ""
+  echo "DOM manipulation:"
+  grep -rn "document\.querySelector\|document\.getElementById\|\.innerHTML\s*=" static/js/ 2>/dev/null | grep -v "//" | head -30 || echo "  none"
+} > workflow-output/js-conflict-report.txt
+
+echo "Report written to workflow-output/js-conflict-report.txt"
+cat workflow-output/js-conflict-report.txt
+```
+
+Present the conflict report to the user. For each carousel library found, confirm the corresponding component should be flagged `interactive: true` in the manifest (or add the flag now if the manifest already exists).
+
+---
+
+### 5d: Edit-mode safety — add Jahia class safeguards to Layout.tsx
+
+Jahia's page builder injects CSS classes onto rendered nodes (e.g., `jahia-node-draggable`, `jahia-editable`, `jahia-highlight`). If any imported CSS uses overly broad selectors like `div *` or `[class*="jahia"]`, it can break the editor UI.
+
+```bash
+echo "Checking for broad selectors that could affect Jahia edit-mode classes..."
+grep -n '\[class\*=\|div \* \|> \* \|\.jahia' static/css/*.css 2>/dev/null || echo "No risky selectors found."
+```
+
+If any `[class*=...]` wildcard selectors are found that could match `jahia-*` class names, add a CSS override at the END of the last imported stylesheet:
+
+```css
+/* Jahia edit-mode safety — keep editor overlays intact */
+[class*="jahia-"] {
+  all: unset !important;
+  display: revert !important;
+}
+```
+
+Only add this override if the audit actually finds conflicting selectors. Do not add it preemptively.
+
+---
+
 ## Validation checklist
 - [ ] `static/css/`, `static/js/`, `static/fonts/`, `static/assets/images/` all populated
 - [ ] `static/css/inline.css` and `static/js/inline.js` extracted
@@ -268,3 +501,7 @@ These become the `FALLBACK_IMAGES` constants used in component views (see skill 
 - [ ] **FA Pro check run** — if Pro font-family found, `@font-face` remap added to Layout.tsx
 - [ ] **CSS grid check run** — if nav is a grid child, flagged for skill 05
 - [ ] **Fallback images downloaded** for every image-rendering component type
+- [ ] CSS purge run (or deferred to after skill 07) — size reduction noted
+- [ ] workflow-output/component-css-selectors.txt written
+- [ ] workflow-output/js-conflict-report.txt written — carousel components flagged as interactive: true
+- [ ] Edit-mode safety override added if broad selectors found

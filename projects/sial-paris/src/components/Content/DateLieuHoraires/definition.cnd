@@ -1,0 +1,10 @@
+[sialp:infoCard] > jnt:content
+ - iconClass (string) = 'fa-regular fa-calendar'
+ - title (string) i18n
+ - body (string, richtext) i18n
+
+[sialp:dateLieuHoraires] > jnt:content, sialpmix:pageComponent, jmix:orderedList
+ - leadText (string, richtext) i18n
+ - ctaLabel (string) i18n
+ - ctaUrl (string)
+ + * (sialp:infoCard)

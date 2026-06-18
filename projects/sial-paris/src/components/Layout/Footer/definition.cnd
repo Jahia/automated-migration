@@ -1,0 +1,8 @@
+[sialp:footer] > jnt:content, sialpmix:component, jmix:hiddenType
+ - newsletterHeading (string) i18n
+ - newsletterPlaceholder (string) i18n
+ - gdprText (string, richtext) i18n
+ - sialLogo (weakreference, picker[type='image'])
+ - comexposiumLogo (weakreference, picker[type='image'])
+ - copyrightText (string) i18n
+ - submitButtonLabel (string) i18n

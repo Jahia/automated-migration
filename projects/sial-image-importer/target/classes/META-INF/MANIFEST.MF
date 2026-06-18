@@ -1,0 +1,71 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1781800032928
+Build-Jdk-Spec: 17
+Bundle-Category: jahia-module
+Bundle-Description: Imports images from external URLs into Jahia DAM
+Bundle-DocURL: http://www.jahia.com
+Bundle-ManifestVersion: 2
+Bundle-Name: SIAL Image Importer
+Bundle-SymbolicName: sial-image-importer
+Bundle-Vendor: Jahia Solutions Group SA
+Bundle-Version: 1.0.0.SNAPSHOT
+Created-By: Apache Maven Bundle Plugin 5.1.9
+Dynamic-ImportPackage: *
+Git-branch: main
+Git-commit-desc: sial-paris: fix scroll lock, double layout, news images
+  + harness rulessial-paris fixes:- body { height: auto !important } in 
+ Layout.tsx to prevent carousel JSfrom locking body height and blocking 
+ page scroll- fullPage.server.tsx: remove <Layout> wrapper that doubled 
+ header/footeron mainResource (news article detail) pages- NewsListing: 
+ add static fallback images so cards always render- IntroText: add bg-se
+ condary class for yellow section backgroundHarness rules added (generic
+ , apply to any future migration):- 03-import-assets: Step 8d — detect
+  and override slider/carousel JSbody height manipulation with body { he
+ ight: auto !important }- 07-implement-components: CSS class fidelity in
+ spection before writingany component; fullPage must never include Layou
+ t/AbsoluteArea- 08-page-templates: MainResource canonical pattern (Layo
+ ut once,delegate to Render view="fullPage")- 09-create-content: image p
+ opulation is mandatory for weakreferencefields — upload to DAM and se
+ t property, not optionalCo-Authored-By: Claude Sonnet 4.6 <noreply@anth
+ ropic.com>
+Git-last-commit-id: d15be0fdcc57a017fd37260a8b7f5baab1d8f33c
+Git-last-commit-time: 2026-06-16T21:30:29+0200
+Implementation-Title: SIAL Image Importer
+Implementation-URL: http://www.jahia.com
+Implementation-Vendor: Jahia Solutions Group SA
+Implementation-Version: 1.0.0-SNAPSHOT
+Import-Package: org.jahia.services.content,org.jahia.bin.filters,javax.j
+ cr;version="[2.0,3)",javax.servlet;version="[3.1,4)",javax.servlet.http
+ ;version="[3.1,4)",org.slf4j;version="[1.7,2)",org.jahia.services.conte
+ nt.decorator,org.jahia.services.sites,org.jahia.settings,javax.jcr.node
+ type;version="[2.0,3)"
+Jahia-Download-Sources-Available: true
+Jahia-GroupId: com.jahia.sial
+Jahia-Module-Type: module
+Jahia-Required-Version: 8.2.0.0
+Jahia-Source-Control-Connection: scm:git:git@github.com:Jahia/jahia-priv
+ ate.git/jahia-modules/sial-image-importer
+Jahia-Source-Control-DeveloperConnection: scm:git:git@github.com:Jahia/j
+ ahia-private.git/jahia-modules/sial-image-importer
+Jahia-Source-Control-Tag: JAHIA_8_2_0_0
+Jahia-Source-Folders: /Users/stephane/Runtimes/0.Modules/jahiaMigration/
+ projects/sial-image-importer
+Jahia-Static-Resources: /css,/icons,/images,/img,/javascript
+Provide-Capability: com.jahia.modules.dependencies;moduleIdentifier=sial
+ -image-importer;moduleVersion:Version="1.0.0.SNAPSHOT",com.jahia.module
+ s.dependencies;moduleIdentifier="SIAL Image Importer";moduleVersion:Ver
+ sion="1.0.0.SNAPSHOT",osgi.service;objectClass:List<String>="org.jahia.
+ bin.filters.AbstractServletFilter";uses:="org.jahia.bin.filters"
+Require-Capability: osgi.extender;filter:="(osgi.extender=org.jahia.bund
+ les.blueprint.extender.config)",osgi.service;filter:="(objectClass=org.
+ jahia.services.content.JCRPublicationService)";effective:=active,osgi.s
+ ervice;filter:="(objectClass=org.jahia.services.content.JCRTemplate)";e
+ ffective:=active,osgi.extender;filter:="(&(osgi.extender=osgi.component
+ )(version>=1.4.0)(!(version>=2.0.0)))",osgi.ee;filter:="(&(osgi.ee=Java
+ SE)(version=11))"
+Service-Component: OSGI-INF/com.jahia.sial.importer.BulkImportServlet.xm
+ l,OSGI-INF/com.jahia.sial.importer.ImageImportServlet.xml
+Specification-Title: SIAL Image Importer
+Specification-Vendor: Jahia Solutions Group SA
+Specification-Version: 1.0.0-SNAPSHOT
+Tool: Bnd-6.3.1.202206071316

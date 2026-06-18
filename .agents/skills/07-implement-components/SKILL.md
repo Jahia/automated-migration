@@ -32,6 +32,20 @@ Implements ALL components at once using parallel subagents. Invoked by `/5-compo
 
 ---
 
+## Load migration environment
+
+```bash
+ENV_FILE=$(find . -name "migration.env" | head -1)
+if [ -z "$ENV_FILE" ]; then
+  echo "ERROR: migration.env not found. Run /0-migration-start first."
+  exit 1
+fi
+source "$ENV_FILE"
+echo "Jahia: $JAHIA_URL | Site: $JAHIA_SITE_KEY | MCP: $MCP_AVAILABLE"
+```
+
+---
+
 ## Orchestration flow
 
 ```
@@ -117,6 +131,12 @@ Working directory: <PROJECT_PATH>
 
 ## HTML Fragment
 {Exact HTML with {placeholders}}
+
+## CSS selectors (component-scoped)
+
+Read `workflow-output/component-css-selectors.txt` — it contains CSS class names identified during asset import (skill 03) as belonging to individual components rather than global layout. When building this component's `.module.css`, pull rules matching these selectors from the imported CSS files in `static/css/`. Do not duplicate selectors already in Layout.tsx global imports.
+
+If the file does not exist, extract CSS rules by grepping `static/css/` for the component's primary CSS class name (visible in the HTML fragment above).
 ```
 
 ---
@@ -153,6 +173,8 @@ Add missing entries before reporting success.
 ---
 
 ### CSS class fidelity — inspect before implementing
+
+**Quick path:** Check `workflow-output/component-css-selectors.txt` first — this pre-classified list from skill 03 maps component class names. Find your component's selectors there before grepping raw CSS.
 
 The source CSS was designed for a specific HTML class structure. Components must output that EXACT class hierarchy or styling will not apply.
 
@@ -199,12 +221,60 @@ The source CSS was designed for a specific HTML class structure. Components must
    ```
    Fallback images must have been downloaded in skill 03 (import-assets).
 
+   **Index the fallback array by position**, not a single constant — news cards, gallery items, and slides each need a distinct fallback to avoid all cards showing the same image:
+   ```tsx
+   const thumbnailUrl = thumbnailNode
+     ? buildNodeUrl(thumbnailNode)
+     : FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+   ```
+
+8b. **Date fields from JCR come as ISO strings (e.g. `2026-04-01T00:00:00.000Z`)** — always format them for the target locale before rendering. Use `toLocaleDateString()` with a try/catch for invalid values:
+   ```tsx
+   const rawDate = article.hasProperty("publishDate")
+     ? article.getPropertyAsString("publishDate") : undefined;
+   const publishDate = rawDate
+     ? (() => {
+         const d = new Date(rawDate);
+         return isNaN(d.getTime()) ? rawDate
+           : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+       })()
+     : undefined;
+   ```
+   Adjust the locale string (`"fr-FR"`, `"en-GB"`, etc.) to match the site's primary language.
+
 9. **Icon-driven components need a CND `icon (string)` field** — if the source site uses icon fonts (Font Awesome, Material Icons) to differentiate component items, add `- icon (string)` to the child content type. The view reads this and falls back to a neutral default. Never hardcode icon classes — they are editorial choices:
+
+10. **Font Awesome Pro icons in imported CSS/content must be replaced with FA Free equivalents** — Sitecore/SXA sites often use Font Awesome 6 Pro icons (e.g. `fa-bullseye-arrow`, `fa-lightbulb-gear`, `fa-circle-half-stroke`) which are not in the free CDN. In Layout.tsx, `@font-face` remaps "Font Awesome 6 Pro" to Free font files, but Pro-exclusive glyphs still render as empty boxes. Fix in two places:
+    - **Layout.tsx**: the `@font-face` remapping to FA Free CDN handles most icons automatically
+    - **JCR content**: when icon class strings are stored as content properties (e.g. `icon = "fa-solid fa-bullseye-arrow"`), fix them via GraphQL mutation after content creation. FA Free substitutes:
+
+    | FA Pro (exclusive) | FA Free equivalent | Theme |
+    |---|---|---|
+    | `fa-bullseye-arrow` | `fa-solid fa-bullseye` | target / precision |
+    | `fa-lightbulb-gear` | `fa-solid fa-gears` | innovation / settings |
+    | `fa-circle-half-stroke` | `fa-solid fa-circle-half-stroke` | (exists in Free) |
+    | `fa-sharp fa-*` | `fa-solid fa-*` equivalent | use solid variant |
+
+    **Detection**: after content creation, check key-figure / stat components in the browser. An empty square where an icon should be = Pro-only glyph. Query JCR for the stored icon values and patch via GraphQL.
    ```cnd
    [ns:statItem] > jnt:content, jmix:hiddenType
      - icon (string)
      - value (string) i18n
    ```
+
+11. **Never combine `container` and `col-*` on the same element.** Bootstrap's `col-12` sets `max-width: 100%` which overrides `container`'s `max-width: 1140px`. This is silent — no error, just a full-width layout. When a component needs a centered max-width wrapper, use one of two approaches:
+    - `className="component-content container"` on a *child* div where no ancestor has `col-*` fighting it, OR
+    - Inline style: `style={{ maxWidth: "1140px", margin: "0 auto", width: "100%" }}` — this always wins regardless of CSS cascade
+    Prefer the inline style approach for component-content divs inside any section that has `col-12` on the outer wrapper.
+
+12. **JS-dependent carousels render only the first item in SSR.** Libraries like Swiffy Slider set `overflow: hidden` on the container and rely on JS to translate slides. Without hydration, only slide 0 is visible. In server-only views (`.server.tsx` with no client island), always render carousels as a flex/grid layout so all items are visible without JS:
+    ```tsx
+    // Instead of Swiffy Slider markup:
+    <ul style={{ display: "flex", flexWrap: "wrap", gap: "20px", listStyle: "none", padding: 0 }}>
+      {items.map(item => <li key={item.getPath()}>...</li>)}
+    </ul>
+    // Add a client island only if animated sliding is required.
+    ```
 
 ---
 
@@ -212,14 +282,49 @@ The source CSS was designed for a specific HTML class structure. Components must
 
 **Do NOT take a screenshot and declare "done" immediately after `yarn jahia-deploy`.** Components without JCR content look broken — collapsed carousels, missing icons, empty grids. This mimics CSS failures but is actually empty-content state.
 
+**First: flush caches immediately after deploy**
+
+```bash
+curl -s -u "$JAHIA_USER:$JAHIA_PASS" \
+  "$JAHIA_URL/cms/render/default/fr/sites/$JAHIA_SITE_KEY/home.flushCaches.do" \
+  -o /dev/null -w "Cache flush: %{http_code}\n"
+sleep 3
+```
+
+Do this BEFORE taking any screenshots. A stale cache produces a screenshot of the old broken render, not the new code.
+
 **Correct gate after deploy:**
 
 1. Run `yarn build && yarn jahia-deploy` — verify build succeeds and module is ACTIVE
 2. Invoke skill 09 (create-content) for the home page components ONLY (not sub-pages)
-3. Reload the page and take a screenshot
-4. Present to user for VALIDATED gate
+3. Reload the page and take a screenshot of BOTH the reference home page and the Jahia home page
+4. Compare them side by side — check: hero image present, section count matches, layout structure matches, fonts/colors match
+5. Present side-by-side to user for VALIDATED gate
 
 Only after VALIDATED proceed to sub-page content creation.
+
+**What to look for in the comparison:**
+
+| Check | Reference | Jahia | Pass? |
+|---|---|---|---|
+| Hero background image | Full-width photo | Photo OR blank | |
+| Hero heading | Visible, correct font weight | Matches | |
+| Section count (above fold) | N sections | N sections | |
+| Grid layout | X columns | X columns | |
+| CTA buttons | Color + border correct | Matches | |
+| Font family | Matches CSS | Matches | |
+
+If any row fails: fix the component before proceeding to sub-pages. A layout bug on the home page will appear on every page that uses the same component.
+
+### fullPage view validation (for jmix:mainResource components)
+
+After deploying any component with `needsFullPage: true`:
+1. Create one test content node of that type in the JCR
+2. Navigate directly to its URL: `$JAHIA_URL/cms/render/live/fr/sites/$JAHIA_SITE_KEY/contents/FOLDER/TEST-NODE.html`
+3. Verify the page renders the full detail layout (not just the card)
+4. Compare against the reference site's detail page for that content type
+
+A `fullPage` view that is missing or broken will show a blank page when editors click through from listing cards — this is invisible until the content phase.
 
 ---
 
@@ -234,3 +339,5 @@ Only after VALIDATED proceed to sub-page content creation.
 - [ ] Navigation component uses JCR tree (no hardcoded links)
 - [ ] Every image-rendering component has a `FALLBACK_IMAGES` constant and uses it
 - [ ] Every icon-driven child type has an `icon (string)` CND field
+- [ ] No component uses JS-dependent carousel markup in a server-only view — use flex layout instead
+- [ ] No `container` + `col-*` on the same element — pick one pattern per element

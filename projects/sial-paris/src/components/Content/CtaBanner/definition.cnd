@@ -1,0 +1,6 @@
+[sialp:ctaBanner] > jnt:content, sialpmix:pageComponent
+ - heading (string) i18n
+ - subtext (string) i18n
+ - ctaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - backgroundColor (string, choicelist) = 'yellow' < 'yellow', 'dark', 'white'

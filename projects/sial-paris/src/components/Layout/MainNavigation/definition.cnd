@@ -1,0 +1,8 @@
+[sialp:mainNavigation] > jnt:content, sialpmix:component, jmix:hiddenType
+ - logoImage (weakreference, picker[type='image'])
+ - dateText (string) i18n
+ - locationText (string) i18n
+ - ticketCtaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - visiteurCtaLabel (string) i18n
+ + topBar (sialp:topBar) = sialp:topBar

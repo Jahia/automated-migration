@@ -123,9 +123,9 @@ The `ctaLabel`, `ctaType`, `j:linknode`, `j:url` fields are inherited and ready 
 **Generic container — accept any droppable child:**
 
 ```cnd
-[ns:gridRow] > jnt:content, nsmix:component
- - columns (long) = '3' autocreated mandatory < '1', '2', '3', '4'
- + * (jmix:droppableContent)   // ← accepts ANY droppable component as a child
+[ns:gridRow] > jnt:content, nsMix:pageComponent
+ - columns (string, choicelist[resourceBundle]) = '2' < '1', '2', '3', '4'
+ + * (jmix:droppableContent) = jmix:droppableContent
 ```
 
 Use `+ * (jmix:droppableContent)` for layout containers that should not restrict which components editors can place inside them.

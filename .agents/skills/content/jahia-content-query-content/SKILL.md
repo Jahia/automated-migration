@@ -5,6 +5,34 @@ description: Queries JCR content from a running Jahia instance via the GraphQL A
 
 # Skill: jahia-content-query-content
 
+## MCP-first rule
+
+**Always prefer the Jahia MCP server over GraphQL for content operations.** Check availability first:
+
+```bash
+curl -s http://localhost:8080/modules/mcp | python3 -c "import json,sys; d=json.load(sys.stdin); print('MCP OK -', len(d['tools']), 'tools')"
+```
+
+If MCP is available, use these tools instead of GraphQL:
+- Explore structure: `content.type`, `site.types`, `page.structure`
+- Query content: `content.list`, `content.search`, `content.get`, `page.list`
+- Move/rename: `content.move`, `content.rename`, `content.reorder`
+- Translate: `content.translate`
+
+MCP call pattern:
+```bash
+curl -s -X POST http://localhost:8080/modules/mcp \
+  -u root:root \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"TOOL","arguments":{...}}}'
+```
+
+**Credentials: root / root** (NOT root/root1234 - that is wrong for local dev).
+
+Only fall back to GraphQL when MCP is unavailable or a specific operation has no MCP equivalent.
+
+---
+
 Retrieves JCR content from a running Jahia instance using the GraphQL JCR query API.
 
 ---
@@ -12,12 +40,12 @@ Retrieves JCR content from a running Jahia instance using the GraphQL JCR query 
 ## Prerequisites
 
 - Jahia running at `http://localhost:8080`
-- Credentials: `root` / `root1234` (default)
+- Credentials: `root` / `root` (default)
 - GraphQL endpoint: `http://localhost:8080/modules/graphql`
 
 **Auth pattern — always use both flags:**
 ```bash
-curl -u root:root1234 \
+curl -u root:root \
      -H "Content-Type: application/json" \
      -H "Origin: http://localhost:8080" \
      ...
@@ -32,7 +60,7 @@ curl -u root:root1234 \
 ### 1 — Get a node by path
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -44,7 +72,7 @@ curl -s -u root:root1234 \
 ### 2 — Query by node type (JCR-SQL2)
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -56,7 +84,7 @@ curl -s -u root:root1234 \
 ### 3 — Read node properties (including i18n)
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -70,7 +98,7 @@ curl -s -u root:root1234 \
 ### 4 — Filter by property value
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -82,7 +110,7 @@ curl -s -u root:root1234 \
 ### 5 — List all sites
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -94,7 +122,7 @@ curl -s -u root:root1234 \
 ### 6 — Check publication status
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
