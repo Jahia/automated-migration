@@ -22,6 +22,20 @@ Diagnoses why a Jahia JavaScript module fails to load. Follows the deployment pi
 
 ---
 
+## Load migration environment
+
+```bash
+ENV_FILE=$(find . -name "migration.env" | head -1)
+if [ -z "$ENV_FILE" ]; then
+  echo "ERROR: migration.env not found. Run /0-migration-start first."
+  exit 1
+fi
+source "$ENV_FILE"
+echo "Jahia: $JAHIA_URL | Site: $JAHIA_SITE_KEY | MCP: $MCP_AVAILABLE"
+```
+
+---
+
 ## Step 1 — Build
 
 From the module directory (where `package.json` is):
@@ -144,6 +158,35 @@ Every `jcr:mixinTypes` value in `import.xml` is scanned by the OSGi bundle resol
 
 ### View: module loads but page is blank
 Run `yarn dev` and check the Vite / SSR console for a React render error.
+
+---
+
+## Visual layout — section width and collapse
+
+### Component renders but is full-width when it should be constrained
+
+**Symptom:** A component's inner content spans the full viewport (e.g. 2560px) instead of the expected `max-width: 1140px`.
+
+**Cause - `container` + `col-*` on same element:** Bootstrap `col-*` classes set `max-width: 100%` which overrides `container`'s `max-width: 1140px`. Even `col-12` wins over `container` on the same element.
+
+**Diagnosis:**
+```javascript
+// In browser console:
+const el = document.querySelector('.your-section .component-content');
+getComputedStyle(el).maxWidth; // will show "100%" not "1140px"
+```
+
+**Fix:** Remove the `container` class and use an inline style instead:
+```tsx
+<div className="component-content" style={{ maxWidth: "1140px", margin: "0 auto", width: "100%" }}>
+```
+
+### Component collapses to ~50px height
+
+**Common causes:**
+1. **JS carousel with `overflow: hidden`** - Swiffy Slider and similar set this via JS. Without initialization, the container has height 0. Fix: replace with flex layout in SSR.
+2. **`position: absolute` children inside non-positioned parent** - the parent has no height because absolute children are out of flow. Fix: add `position: relative; min-height: Xpx` to the parent, or change children to `position: static`.
+3. **Empty content** - component renders nothing because JCR content is missing. Always check `document.querySelector('.component').innerHTML` before diagnosing CSS.
 
 ---
 

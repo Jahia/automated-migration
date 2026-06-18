@@ -487,6 +487,8 @@ yarn build && yarn jahia-deploy
 - [ ] `buildNodeUrl` used for any image or node URL
 - [ ] Weakreference-backed content rendered via sub-view (`RenderChild`), not inline property access
 - [ ] Interactive UI (carousels, tabs) flattened in edit mode with editor hints
+- [ ] No JS carousel markup (Swiffy Slider, Swiper, etc.) in a server-only view — use flex layout
+- [ ] No `container` + `col-*` on the same element — use inline `maxWidth: "1140px"` on the content wrapper
 - [ ] Structural/shared nodes rendered with `readOnly` prop
 - [ ] Semantic HTML used (`<article>`, `<section>`, `<nav>`, `<header>`, `<footer>`)
 - [ ] Images have meaningful `alt` text (not empty `alt=""` unless decorative)
@@ -500,6 +502,35 @@ yarn build && yarn jahia-deploy
 
 ## Troubleshooting
 > https://academy.jahia.com/tutorials-get-started/front-end-developer/making-a-hero-section
+
+### `container` + `col-*` on the same element — component is full-width
+
+**Symptom:** Section renders at full viewport width (e.g. 2560px) instead of capped at 1140px.
+
+**Cause:** Bootstrap `col-12` (and any `col-*`) sets `max-width: 100%` which silently overrides `container`'s `max-width: 1140px` when both classes are on the same element. No error, no warning.
+
+**Fix:** Never put both on the same element. For the inner content wrapper, use inline style instead of the `container` class:
+```tsx
+// Wrong: col-12 wins, full width
+<section className="component my-section col-12">
+  <div className="component-content container">  {/* max-width: 100% — broken */}
+
+// Right: inline style always wins
+<section className="component my-section col-12">
+  <div className="component-content" style={{ maxWidth: "1140px", margin: "0 auto", width: "100%" }}>
+```
+
+### JS carousel shows only the first item in SSR
+
+**Cause:** Libraries like Swiffy Slider, Swiper, and Glide set `overflow: hidden` on their container and translate slides via JS. In `.server.tsx` views with no client island, JS never runs — only slide 0 is visible.
+
+**Fix:** Render carousels as a plain flex layout in server views. Add a client island only if animated sliding is required:
+```tsx
+// Instead of Swiffy Slider or any JS carousel markup:
+<ul style={{ display: "flex", flexWrap: "wrap", gap: "20px", listStyle: "none", padding: 0 }}>
+  {items.map((item) => <li key={item.getPath()}>...</li>)}
+</ul>
+```
 
 ### JSX vs HTML attribute differences
 

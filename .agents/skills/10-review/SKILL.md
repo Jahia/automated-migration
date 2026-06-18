@@ -22,6 +22,20 @@ Reviews a Jahia JavaScript module for correctness and best practices. Scans real
 
 ---
 
+## Load migration environment
+
+```bash
+ENV_FILE=$(find . -name "migration.env" | head -1)
+if [ -z "$ENV_FILE" ]; then
+  echo "ERROR: migration.env not found. Run /0-migration-start first."
+  exit 1
+fi
+source "$ENV_FILE"
+echo "Jahia: $JAHIA_URL | Site: $JAHIA_SITE_KEY | MCP: $MCP_AVAILABLE"
+```
+
+---
+
 ## Step 1 — Locate the module
 
 Find the module root: look for `package.json` with `@jahia/javascript-modules-library`. Determine the `src/` directory.

@@ -207,40 +207,96 @@ ns_jcrQuery.categoryFilter.ui.tooltip=Show category filter chips above the listi
 
 ## GridRow companion component
 
-Every module that ships JCRQuery also ships GridRow:
+Every module that ships JCRQuery also ships GridRow. Canonical implementation (from `soprahr/mysoprahr`):
 
 ```cnd
-// src/components/Layout/GridRow/definition.cnd
+// src/components/GridRow/definition.cnd
 [ns:gridRow] > jnt:content, nsMix:pageComponent
  - columns (string, choicelist[resourceBundle]) = '2' < '1', '2', '3', '4'
+ + * (jmix:droppableContent) = jmix:droppableContent
 ```
 
 ```tsx
-// default.server.tsx
-import { Area, jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
+// src/components/GridRow/default.server.tsx
+import { AbsoluteArea, jahiaComponent } from "@jahia/javascript-modules-library";
 import styles from "./gridRow.module.css";
+
+const MAX_COLS = 4;
+const MIN_COLS = 1;
+const DEFAULT_COLS = 2;
+
+function parseColumns(raw: unknown): number {
+  const n = Number(raw);
+  if (Number.isNaN(n) || n < MIN_COLS) return DEFAULT_COLS;
+  return Math.min(MAX_COLS, Math.trunc(n));
+}
 
 jahiaComponent(
   { componentType: "view", nodeType: "ns:gridRow", displayName: "Grid Row" },
-  ({ columns: rawCols }) => {
-    const { renderContext, currentNode } = useServerContext();
-    const cols = Math.min(4, Math.max(1, Number(rawCols) || 2));
-    const isEdit = renderContext.isEditMode();
-    const suffix = currentNode.getIdentifier().replace(/[^A-Za-z0-9]/g, "").slice(-8);
-    const areaNames = Array.from({ length: cols }, (_, i) => `col${i + 1}_${suffix}`);
+  ({ columns: rawCols }: { columns?: string }, { currentNode }) => {
+    const cols = parseColumns(rawCols);
+    const areaNames = Array.from({ length: cols }, (_, index) => index);
 
     return (
-      <div className={styles.gridRow} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-        {areaNames.map((name) => (
-          <div key={name} className={`${styles.column}${isEdit ? ` ${styles.columnEdit}` : ""}`}>
-            <Area name={name} />
-          </div>
-        ))}
-      </div>
+      <section className={styles.root}>
+        <div
+          className={styles.row}
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+        >
+          {areaNames.map((col) => (
+            <div key={col} className={styles.col}>
+              <AbsoluteArea parent={currentNode} name={`${currentNode.getName()}-col-${col}`} />
+            </div>
+          ))}
+        </div>
+      </section>
     );
-  }
+  },
 );
 ```
+
+```css
+/* src/components/GridRow/gridRow.module.css */
+.root {
+  width: 100%;
+}
+
+.row {
+  display: grid;
+  width: 100%;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.col > * {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .row { gap: 1.25rem; }
+}
+
+@media (max-width: 767px) {
+  .row {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+}
+```
+
+**Key design decisions:**
+- Uses `AbsoluteArea` (not `Area`) — each column is a named absolute area keyed by `${currentNode.getName()}-col-${index}`, making it stable and unique across the page tree.
+- `parseColumns()` is a dedicated guard function — clamps to [1–4], defaults to 2 on invalid input, uses `Math.trunc` to reject decimals.
+- CSS grid with `minmax(0, 1fr)` — prevents overflow on narrow content. The `min-width: 0` on `.col` enforces the same at the flex child level.
+- Mobile breakpoint at 767px forces single-column via `!important` to override the inline `gridTemplateColumns` style.
+- No edit-mode branch — `AbsoluteArea` handles editor chrome automatically.
 
 ---
 

@@ -5,6 +5,34 @@ description: Moves and reorganizes JCR content nodes in Jahia. Use when asked to
 
 # Skill: jahia-content-move-content
 
+## MCP-first rule
+
+**Always prefer the Jahia MCP server over GraphQL for content operations.** Check availability first:
+
+```bash
+curl -s http://localhost:8080/modules/mcp | python3 -c "import json,sys; d=json.load(sys.stdin); print('MCP OK -', len(d['tools']), 'tools')"
+```
+
+If MCP is available, use these tools instead of GraphQL:
+- Explore structure: `content.type`, `site.types`, `page.structure`
+- Query content: `content.list`, `content.search`, `content.get`, `page.list`
+- Move/rename: `content.move`, `content.rename`, `content.reorder`
+- Translate: `content.translate`
+
+MCP call pattern:
+```bash
+curl -s -X POST http://localhost:8080/modules/mcp \
+  -u root:root \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"TOOL","arguments":{...}}}'
+```
+
+**Credentials: root / root** (NOT root/root1234 - that is wrong for local dev).
+
+Only fall back to GraphQL when MCP is unavailable or a specific operation has no MCP equivalent.
+
+---
+
 Reorganizes the JCR content tree — moving nodes into sub-folders, renaming them, and reordering them — using the Jahia GraphQL API.
 
 ---
@@ -12,12 +40,12 @@ Reorganizes the JCR content tree — moving nodes into sub-folders, renaming the
 ## Prerequisites
 
 - Jahia running at `http://localhost:8080`
-- Credentials: `root` / `root1234` (default)
+- Credentials: `root` / `root` (default)
 - GraphQL endpoint: `http://localhost:8080/modules/graphql`
 
 **Always include both auth flags:**
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
      -H "Content-Type: application/json" \
      -H "Origin: http://localhost:8080" \
      -X POST http://localhost:8080/modules/graphql \
@@ -34,7 +62,7 @@ Before moving anything, map out what exists and where:
 
 ```bash
 # List all content folders and their direct children
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -46,7 +74,7 @@ curl -s -u root:root1234 \
 Or use a JCR-SQL2 query for a flat list of all content items:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -63,7 +91,7 @@ If destination folders don't exist yet, create them with `mix:title` for a prope
 
 ```bash
 # Create a sub-folder
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -72,7 +100,7 @@ curl -s -u root:root1234 \
   }'
 
 # Set a human-readable title on the folder
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -88,7 +116,7 @@ curl -s -u root:root1234 \
 Use `move` on a `mutateNode` to relocate a node to a new parent. The node keeps its name:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -102,7 +130,7 @@ curl -s -u root:root1234 \
 ### Rename a node in place
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -132,7 +160,7 @@ mutation {
 import subprocess, json
 
 def gql(q):
-    r = subprocess.run(["curl","-s","-u","root:root1234",
+    r = subprocess.run(["curl","-s","-u","root:root",
         "-H","Origin: http://localhost:8080",
         "-H","Content-Type: application/json",
         "-X","POST","http://localhost:8080/modules/graphql",
@@ -161,7 +189,7 @@ for src, dest in moves:
 To control the display order within a folder, use `reorder` after moving:
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -178,7 +206,7 @@ Moving a node unpublishes it in the live workspace. Always republish after reorg
 
 ```bash
 # Publish a single node
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -187,7 +215,7 @@ curl -s -u root:root1234 \
   }'
 
 # Publish everything under a folder at once
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \
@@ -201,7 +229,7 @@ curl -s -u root:root1234 \
 ## Step 6 — Verify
 
 ```bash
-curl -s -u root:root1234 \
+curl -s -u root:root \
   -H "Content-Type: application/json" \
   -H "Origin: http://localhost:8080" \
   -X POST http://localhost:8080/modules/graphql \

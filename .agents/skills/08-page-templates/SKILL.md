@@ -26,6 +26,20 @@ A **page template** defines the full layout of a page. It is registered with `co
 
 > ⚠️ **CMS rule — never hardcode links in templates.** Navigation links, logo hrefs, footer links — all must come from contributed content (via props, `buildNodeUrl`, or `j:linkType`). Do not put literal URLs in template code.
 
+## Load migration environment
+
+```bash
+ENV_FILE=$(find . -name "migration.env" | head -1)
+if [ -z "$ENV_FILE" ]; then
+  echo "ERROR: migration.env not found. Run /0-migration-start first."
+  exit 1
+fi
+source "$ENV_FILE"
+echo "Jahia: $JAHIA_URL | Site: $JAHIA_SITE_KEY | MCP: $MCP_AVAILABLE"
+```
+
+---
+
 ## Step 1 — Create Layout.tsx (the shared page shell)
 
 `Layout.tsx` wraps every page template. It renders the full HTML document, loads CSS, and places `AbsoluteArea` for the shared header and footer. **AbsoluteArea calls MUST live in Layout.tsx**, not in individual template files.
@@ -73,6 +87,86 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
 - `AbsoluteArea parent` = `site.getNode("home")` — NOT `renderContext.getSite()`. If you use `getSite()` as parent, the absolute area content is stored at the site root node instead of `/home/header`, which is wrong
 - `readOnly="children"` prevents editing the shared header/footer from every inner page — editors can only edit them from the home page
 - Use `.js` import extension (not `.jsx`) when importing Layout in template files: `import { Layout } from "../Layout.js"`
+
+---
+
+### Analytics and tracking scripts
+
+Most client sites use Google Tag Manager, GA4, or a cookie consent manager. These must be added to `Layout.tsx` but **suppressed in edit mode** — jcontent fires page events on every toolbar click, which pollutes analytics data and triggers false conversions.
+
+#### Step: Ask the user before implementing
+
+```
+Does this site use analytics or tag management?
+  1. Google Tag Manager (GTM) — provide the GTM-XXXXXX container ID
+  2. Google Analytics 4 (GA4) — provide the G-XXXXXXXXXX measurement ID
+  3. Custom script — paste the script tag
+  4. None / handled externally
+```
+
+#### GTM implementation pattern
+
+```tsx
+// In Layout.tsx — import renderContext at the top
+import { useServerContext } from "@jahia/javascript-modules-library";
+
+// Inside the Layout component:
+const { renderContext } = useServerContext();
+const isEditMode = renderContext?.isEditMode() ?? false;
+const GTM_ID = "GTM-XXXXXX"; // replace with actual ID
+
+// In the <head> section:
+{!isEditMode && (
+  <>
+    {/* GTM script — only in live mode */}
+    <script dangerouslySetInnerHTML={{ __html: `
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','${GTM_ID}');
+    `}} />
+  </>
+)}
+
+// Immediately after the opening <body> tag (or Layout wrapper div):
+{!isEditMode && (
+  <noscript>
+    <iframe
+      src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+      height="0" width="0"
+      style={{ display: "none", visibility: "hidden" }}
+    />
+  </noscript>
+)}
+```
+
+#### GA4 direct implementation pattern (no GTM)
+
+```tsx
+{!isEditMode && (
+  <>
+    <script async src={`https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX`} />
+    <script dangerouslySetInnerHTML={{ __html: `
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    `}} />
+  </>
+)}
+```
+
+#### Cookie consent manager
+
+If the site uses a consent manager (OneTrust, Axeptio, Cookiebot, Didomi), add its script the same way — wrapped in `{!isEditMode && ...}`. The consent manager script tag typically goes BEFORE the GTM script so it can block GTM until consent is given.
+
+#### Critical rules
+
+- **Always guard with `!isEditMode`** — no exceptions. Analytics firing in jcontent editor is not recoverable without manually clearing the GTM/GA4 data layer.
+- **Never hardcode tracking IDs** — add them as CND properties on a singleton `ns:siteSettings` node (or read from `contextJsParameters` if available) so editors can change them without a code deploy.
+- **`dangerouslySetInnerHTML` is acceptable here** — inline tracking scripts cannot be loaded as external modules due to the way GTM works. This is the standard React pattern for analytics.
+- **Test in live workspace** only — navigate to `$JAHIA_URL/cms/render/live/fr/sites/$JAHIA_SITE_KEY/home.html` and verify the GTM debug panel shows page view events. Never test from the default workspace render URL.
 
 ---
 
