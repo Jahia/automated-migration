@@ -218,7 +218,7 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 
 The response contains the JCR path and UUID of the uploaded file. Use the path directly as a property value (WEAKREFERENCE accepts absolute JCR path).
 
-**Use `media.upload.url` instead of the image proxy whenever the source URL is directly accessible.** The image proxy (`/modules/jahia-image-proxy/import-image`) remains available as a fallback when `media.upload.url` fails (e.g. CDN requires specific headers).
+**Use `media.upload.url` instead of the image importer whenever the source URL is directly accessible.** When it fails (e.g. CDN requires browser headers), fall back to the **`sial-image-importer`** servlet — see "Hero and section images" below for the exact, verified endpoint. (NOTE: the endpoint is `/modules/sial/import-image`, NOT `jahia-image-proxy` — that name returns 404.)
 
 ### Upload a local file (binary upload)
 
@@ -572,16 +572,42 @@ curl -s -X POST http://localhost:8080/modules/mcp \
   }' | python3 -m json.tool
 ```
 
-**Fallback: if `media.upload.url` fails** (CDN blocks, 403, redirect loop), use the image proxy:
+**Fallback: if `media.upload.url` fails** (CDN blocks, 403, redirect loop), use the
+**`sial-image-importer`** servlet. It fetches with a full browser User-Agent +
+`Referer: https://www.sialparis.com/` baked in, which is what gets past Cloudflare
+on the SIAL CDN. The module must be built (Java 17) and deployed first; verify with
+`curl -o /dev/null -w '%{http_code}' http://localhost:8080/modules/sial/import-image?sourceUrl=x&destPath=y&filename=z`
+— a `500` (not `404`) means it is live.
+
+Single image:
 ```bash
-curl -s "http://localhost:8080/modules/jahia-image-proxy/import-image\
-?sourceUrl=https://www.sialparis.com/-/media/.../hero.jpg\
-&destPath=/sites/SITEKEY/files/imported-images/heroes\
-&filename=sial-innovation-hero.jpg\
-&referer=https://www.sialparis.com"
+curl -s -u root:root -G "http://localhost:8080/modules/sial/import-image" \
+  --data-urlencode "sourceUrl=https://www.sialparis.com/-/media/.../hero.jpg" \
+  --data-urlencode "destPath=/sites/SITEKEY/files/imported/heroes" \
+  --data-urlencode "filename=le-salon-hero.jpg"
+# -> {"success":true,"url":"/files/live/sites/SITEKEY/files/imported/heroes/le-salon-hero.jpg", ...}
 ```
 
-Both return a JCR path. Use it as the `backgroundImageUrl` string property or as a WEAKREFERENCE value on image fields.
+Many images at once (one round-trip — preferred for a full migration):
+```bash
+curl -s -u root:root -X POST "http://localhost:8080/modules/sial/bulk-import" \
+  -H "Content-Type: application/json" \
+  -d '[{"sourceUrl":"https://.../a.jpg","destPath":"/sites/SITEKEY/files/imported/heroes","filename":"a.jpg"},
+       {"sourceUrl":"https://.../b.jpg","destPath":"/sites/SITEKEY/files/imported/heroes","filename":"b.jpg"}]'
+```
+
+Both return a JCR path under `/files/live/...` (already published). Set it as the
+`backgroundImageUrl` **string** property on `pageHero` (or any image field) via
+`content.update` — and that call **requires a `locale` argument** even for
+non-i18n props, or it fails with `required property 'locale' not found`:
+```bash
+# MCP content.update — note the mandatory "locale"
+{"name":"content.update","arguments":{
+   "path":"/sites/SITEKEY/home/le-salon/main/hero","locale":"fr",
+   "properties":{"backgroundImageUrl":"/files/live/sites/SITEKEY/files/imported/heroes/le-salon-hero.jpg"}}}
+```
+Get real CDN URLs from the live reference DOM with the Chrome MCP JS tool:
+`Array.from(document.images).map(i=>(i.currentSrc||i.src).split('?')[0]).filter(s=>/\.(jpg|png|webp)/i.test(s))`.
 
 ---
 

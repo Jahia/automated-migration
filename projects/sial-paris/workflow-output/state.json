@@ -124,6 +124,42 @@
           "complete": true
         }
       }
+    },
+    "6b-hero-images": {
+      "status": "completed",
+      "completedAt": "2026-06-19T06:54:18.178352Z",
+      "notes": "Hero background images imported from SIAL CDN via sial-image-importer servlet (UA+Referer fix) and linked on each pageHero.backgroundImageUrl.",
+      "evidence": {
+        "le-salon": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/le-salon-hero.jpg",
+          "fileHttp": "200"
+        },
+        "les-exposants": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/les-exposants-hero.png",
+          "fileHttp": "200"
+        },
+        "temps-forts": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/temps-forts-hero.jpg",
+          "fileHttp": "200"
+        },
+        "tendances": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/tendances-hero.jpg",
+          "fileHttp": "200"
+        },
+        "infos-pratiques": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/infos-pratiques-hero.jpg",
+          "fileHttp": "200"
+        },
+        "medias": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/medias-hero.jpg",
+          "fileHttp": "200"
+        }
+      }
     }
-  }
+  },
+  "harnessFixes": [
+    "migration-workflow: verified-completion gate + per-page checklist probe",
+    "09-create-content: corrected image-importer endpoint (jahia-image-proxy 404 -> /modules/sial/import-image), documented bulk-import + mandatory locale on content.update",
+    "sial-image-importer: downloadImage now sends browser UA + Referer (was bot UA, blocked by CDN)"
+  ]
 }

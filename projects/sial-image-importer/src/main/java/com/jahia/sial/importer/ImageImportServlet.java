@@ -157,7 +157,14 @@ public class ImageImportServlet extends AbstractServletFilter {
         URL url = new URL(sourceUrl);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible; JahiaImageImporter/1.0)");
+        // Full browser User-Agent + Accept headers. Many CDNs (Cloudflare, Wikimedia)
+        // reject requests advertising a bot UA or omitting an image Accept header.
+        conn.setRequestProperty("User-Agent",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                        + "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+        conn.setRequestProperty("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
+        conn.setRequestProperty("Accept-Language", "fr-FR,fr;q=0.9,en;q=0.8");
+        conn.setRequestProperty("Referer", "https://www.sialparis.com/");
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setInstanceFollowRedirects(true);
