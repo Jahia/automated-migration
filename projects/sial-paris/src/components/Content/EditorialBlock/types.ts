@@ -6,5 +6,7 @@ export interface Props {
   image?: JCRNodeWrapper;
   imageExternalUrl?: string;
   imageAlt?: string;
-  imageAlignment?: 'left' | 'right';
+  ctaLabel?: string;
+  ctaUrl?: string;
+  darkBackground?: boolean;
 }

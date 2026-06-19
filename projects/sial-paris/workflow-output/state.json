@@ -155,6 +155,43 @@
           "fileHttp": "200"
         }
       }
+    },
+    "7b-component-gaps": {
+      "status": "completed",
+      "completedAt": "2026-06-19T07:23:41.382947Z",
+      "notes": "Closed editorial component gaps with clean multi-view structure. Verified all 5 types registered in Jahia.",
+      "evidence": {
+        "editorialBlock": "3 views (default=left-img, rightImg, verticalImage) + darkBackground; rewritten from inline-style stub to real SXA content-block classes",
+        "imgContentBlock": "reverted to single img-content-block-l view (distinct SXA component)",
+        "simpleTitle": "new \u2014 SXA simple-title (back-title/sub-title/h2)",
+        "previousNext": "new \u2014 SXA previous-next page nav",
+        "partnersList+partnerEntry": "new \u2014 SXA partners-2-list (logo+desc+link rows)",
+        "resourceBundles": "EN+FR labels + ui.tooltip added for all; stale editorialBlock.imageAlignment removed"
+      }
+    },
+    "home-carousel-fix": {
+      "status": "completed",
+      "completedAt": "2026-06-19T07:35:03.324886Z",
+      "notes": "Carousel nav rewritten: prev/next as <a.prev-text/.next-text> (matching SXA), working click handlers + auto-advance + wraparound scoped per carousel, removed dead empty slider-indicators and broken dot logic. Chevrons overridden to Unicode angles (FontAwesome legacy family had broken URL). Verified next-click advances slides."
+    },
+    "home-iso-pass": {
+      "status": "in_progress",
+      "updatedAt": "2026-06-19T08:18:14.059504Z",
+      "notes": "Authoritative section-by-section diff (reference vs Jahia) done. Reference home = 20 components; ours = 11.",
+      "diff_fixed": [
+        "Hero carousel nav + 3 slides aligned to reference (distinct images, headings, body, CTA)",
+        "KeyFigures numbers (130/8000/10/400000/650) \u2014 were unset",
+        "Partners carousel: 0 -> 77 partnerLogo (imported via servlet, nodes created, published; 77 confirmed in DOM)",
+        "Pourquoi SIAL: 4 visitorProfile blocks were empty -> populated headings (importateur/distributeur/acheteur/industriel) + icons; verified in DOM"
+      ],
+      "diff_remaining": [
+        "MISSING: 'SIAL en bref' img-content-block (image+text+'D\u00e9couvrez l'histoire' CTA) between intro and news. We mislabeled key-figures as 'SIAL en bref' \u2014 should be retitled 'Les chiffres cl\u00e9s' and the real img-content-block added.",
+        "TENDANCES ET INNOVATIONS ALIMENTAIRES: reference is content.mosaic with 3 cards (Innovations sectorielles / Focus tendances / Livres blancs) + final CTA 'D\u00e9couvrez tous les contenus'. Ours renders as image-list \u2014 verify 3-card content present/styled.",
+        "News listing: 3 cards share one LIMBUA image (need 3 distinct: g\u00e2teau corse, SIAL Insights, LIMBUA). Should be jmix:mainResource under /contents/news + jcrQuery teasers.",
+        "Standalone simple-title section headers (reference has them as separate components before listings).",
+        "Verify visitor-profiles (Pourquoi SIAL) 4 cards, sectors, cta-dual, sial-network vs reference."
+      ],
+      "sial_network": "OK \u2014 heading + 13 salon items match reference; minor: missing 'D\u00e9couvrez SIAL Network' CTA link"
     }
   },
   "harnessFixes": [

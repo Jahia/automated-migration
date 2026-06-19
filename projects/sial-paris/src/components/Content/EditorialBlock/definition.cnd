@@ -4,4 +4,6 @@
  - image (weakreference, picker[type='image'])
  - imageExternalUrl (string)
  - imageAlt (string) i18n
- - imageAlignment (string, choicelist) = 'left' < 'left', 'right'
+ - ctaLabel (string) i18n
+ - ctaUrl (string)
+ - darkBackground (boolean) = false

@@ -27,7 +27,7 @@ jahiaComponent(
 
     const imgSrc = props.backgroundImage
       ? buildNodeUrl(props.backgroundImage)
-      : buildModuleFileUrl(FALLBACK_IMAGES[0]);
+      : (props.backgroundImageUrl || buildModuleFileUrl(FALLBACK_IMAGES[0]));
 
     return (
       <li className="slide" role="group" aria-label={heading ?? "Slide"}>
@@ -72,13 +72,14 @@ jahiaComponent(
               </ul>
               {!isEdit && (
                 <div className="nav">
-                  <button className="prev-text" aria-label="Précédent" type="button">&#8249;</button>
-                  <button className="next-text" aria-label="Suivant" type="button">&#8250;</button>
+                  {/* Anchors (not buttons): the theme styles a.prev-text/a.next-text
+                      and injects the FontAwesome chevron via ::after. */}
+                  <a className="prev-text" href="#" role="button" aria-label="Précédent"></a>
+                  <a className="next-text" href="#" role="button" aria-label="Suivant"></a>
                 </div>
               )}
             </div>
           </div>
-          {!isEdit && <ol className="slider-indicators" />}
         </div>
       </section>
     );

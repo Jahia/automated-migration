@@ -9,14 +9,14 @@ import type { Props } from "./types.js";
 jahiaComponent(
   { componentType: "view", nodeType: "sialp:partnerLogo", displayName: "Partner Logo" },
   (props: Props) => {
-    const { logo, partnerName, "j:linkType": linkType, "j:linknode": linknode, "j:url": url } = props;
+    const { logo, logoExternalUrl, partnerName, "j:linkType": linkType, "j:linknode": linknode, "j:url": url } = props;
     const href =
       linkType === "internal" && linknode
         ? buildNodeUrl(linknode)
         : linkType === "external" && url
           ? url
           : "#";
-    const logoUrl = logo ? buildNodeUrl(logo as unknown as JCRNodeWrapper) : undefined;
+    const logoUrl = logo ? buildNodeUrl(logo as unknown as JCRNodeWrapper) : (logoExternalUrl || undefined);
 
     return (
       <li style={{ flexShrink: 0 }}>

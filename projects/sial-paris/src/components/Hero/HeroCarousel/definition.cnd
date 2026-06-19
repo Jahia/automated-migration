@@ -1,5 +1,6 @@
 [sialp:heroSlide] > jnt:content
  - backgroundImage (weakreference, picker[type='image'])
+ - backgroundImageUrl (string)
  - badge (string) i18n
  - heading (string) i18n
  - body (string) i18n

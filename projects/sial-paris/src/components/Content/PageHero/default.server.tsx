@@ -9,11 +9,15 @@ jahiaComponent(
       <div className="component title banner-title3 container text-center text-white small-banner col-12">
         <div className="component-content">
           {imgUrl && <img src={imgUrl} alt="" aria-hidden="true" />}
+          {/*
+            Stack subtitle + heading vertically. .fields-container is flex-column
+            with a gap, so direct children stack and stay centered over the image.
+            Do NOT wrap in .focus-title with a .back-title — that CSS absolutely
+            centers the back-title over the heading, making them overlap.
+          */}
           <div className="fields-container">
-            <div className="focus-title">
-              {subtitle && <div className="back-title field-arriere-titre">{subtitle}</div>}
-              {heading && <h1 className="field-titre">{heading}</h1>}
-            </div>
+            {subtitle && <div className="sub-title field-arriere-titre">{subtitle}</div>}
+            {heading && <h1 className="field-titre">{heading}</h1>}
           </div>
         </div>
       </div>

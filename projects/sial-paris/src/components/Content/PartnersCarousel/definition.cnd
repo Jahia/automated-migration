@@ -1,5 +1,6 @@
 [sialp:partnerLogo] > jnt:content
  - logo (weakreference, picker[type='image'])
+ - logoExternalUrl (string)
  - partnerName (string)
  - j:linkType (string, choicelist[linkTypeInitializer])
 

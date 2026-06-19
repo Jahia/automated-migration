@@ -59,6 +59,19 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
             font-display: block;
             src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-solid-900.woff2") format("woff2");
           }
+          /* Legacy FA4 family name — used by theme CSS for carousel chevrons (\\f053/\\f054) etc. */
+          @font-face {
+            font-family: "FontAwesome";
+            font-style: normal;
+            font-weight: 900;
+            font-display: block;
+            src: url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/webfonts/fa-solid-900.woff2") format("woff2");
+          }
+          /* Carousel nav chevrons: the theme uses font-family:FontAwesome which the
+             imported CSS declares with a broken URL. Override with Unicode angles
+             that render in any font, so the prev/next arrows always show. */
+          .component.carousel .nav a.prev-text::after { content: "\\276E" !important; font-family: inherit !important; font-weight: 700; font-size: 22px; line-height: 1; }
+          .component.carousel .nav a.next-text::after { content: "\\276F" !important; font-family: inherit !important; font-weight: 700; font-size: 22px; line-height: 1; }
           /* Component spacing */
           main > .jcr-draggable-content > .component,
           main section.component,
@@ -88,26 +101,29 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
         {children}
         <AbsoluteArea name="footer" nodeType="sialp:footer" parent={homePage} readOnly="children" />
         {!isEditMode && (
-          <>
-            <script src="https://cdn.jsdelivr.net/npm/swiffy-slider@1.6.0/dist/js/swiffy-slider.min.js" crossOrigin="anonymous" defer></script>
-            <script dangerouslySetInnerHTML={{ __html: `
-              document.addEventListener('DOMContentLoaded', function() {
-                // Init hero carousel
-                var slides = document.querySelectorAll('.slides .slide');
-                var dots = document.querySelectorAll('.slider-indicators li');
-                var current = 0;
-                function showSlide(n) {
-                  slides.forEach(function(s,i){ s.style.display = i===n?'':'none'; });
-                  dots.forEach(function(d,i){ d.className = i===n?'active':''; });
-                  current = n;
+          <script dangerouslySetInnerHTML={{ __html: `
+            document.addEventListener('DOMContentLoaded', function() {
+              document.querySelectorAll('.component.carousel').forEach(function(carousel) {
+                var slides = carousel.querySelectorAll('.slides .slide');
+                if (!slides.length) return;
+                var current = 0, timer = null;
+                function show(n) {
+                  current = (n + slides.length) % slides.length;
+                  slides.forEach(function(s, i){ s.style.display = i === current ? '' : 'none'; });
                 }
-                if (slides.length > 1) {
-                  showSlide(0);
-                  setInterval(function(){ showSlide((current+1)%slides.length); }, 5000);
+                function restart() {
+                  if (timer) clearInterval(timer);
+                  if (slides.length > 1) timer = setInterval(function(){ show(current + 1); }, 6000);
                 }
+                var prev = carousel.querySelector('.prev-text');
+                var next = carousel.querySelector('.next-text');
+                if (prev) prev.addEventListener('click', function(e){ e.preventDefault(); show(current - 1); restart(); });
+                if (next) next.addEventListener('click', function(e){ e.preventDefault(); show(current + 1); restart(); });
+                show(0);
+                restart();
               });
-            ` }} />
-          </>
+            });
+          ` }} />
         )}
       </body>
     </html>

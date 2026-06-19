@@ -1,0 +1,11 @@
+[sialp:partnerEntry] > jnt:content
+ - logo (weakreference, picker[type='image'])
+ - logoExternalUrl (string)
+ - title (string) i18n
+ - body (string, richtext) i18n
+ - linkLabel (string) i18n
+ - linkUrl (string)
+
+[sialp:partnersList] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList, jmix:cache orderable
+ - heading (string) i18n
+ + * (sialp:partnerEntry) = sialp:partnerEntry

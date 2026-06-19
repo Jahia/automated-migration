@@ -1,0 +1,5 @@
+[sialp:previousNext] > jnt:content, sialpmix:pageComponent
+ - prevLabel (string) i18n
+ - prevUrl (string)
+ - nextLabel (string) i18n
+ - nextUrl (string)
