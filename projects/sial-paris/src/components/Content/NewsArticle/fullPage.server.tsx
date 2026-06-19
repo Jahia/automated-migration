@@ -12,7 +12,7 @@ jahiaComponent(
     const { category, publishDate, title, excerpt, body, thumbnail } = props;
 
     return (
-      <main className="article-page">
+      <div className="article-page">
         <div className="container">
           <article className="article-full">
             {thumbnail && (
@@ -42,7 +42,7 @@ jahiaComponent(
             )}
           </article>
         </div>
-      </main>
+      </div>
     );
   },
 );

@@ -1,0 +1,13 @@
+{
+  "footer": {
+    "emailAriaLabel": "Email",
+    "submitDefault": "Send"
+  },
+  "nav": {
+    "logoAriaLabel": "SIAL Paris - Home",
+    "logoAlt": "SIAL Paris - Inspire Food Business"
+  },
+  "jcrQuery": {
+    "empty": "No content found."
+  }
+}

@@ -95,15 +95,35 @@ jahiaComponent(
                                   </div>
                                   {subPages.length > 0 && (
                                     <ul className="clearfix">
-                                      {subPages.map((sub: JCRNodeWrapper) => (
-                                        <li key={sub.getPath()} className="level2">
-                                          <div className="navigation-title field-navigationtitle">
-                                            <a href={buildNodeUrl(sub)}>
-                                              {sub.getPropertyAsString("jcr:title") || sub.getName()}
-                                            </a>
-                                          </div>
-                                        </li>
-                                      ))}
+                                      {subPages.map((sub: JCRNodeWrapper) => {
+                                        const subSubPages = isEdit
+                                          ? []
+                                          : getChildNodes(sub, -1, 0, (n: JCRNodeWrapper) =>
+                                              n.isNodeType("jnt:page"),
+                                            );
+                                        return (
+                                          <li key={sub.getPath()} className={subSubPages.length > 0 ? "level2 submenu" : "level2"}>
+                                            <div className="navigation-title field-navigationtitle">
+                                              <a href={buildNodeUrl(sub)}>
+                                                {sub.getPropertyAsString("jcr:title") || sub.getName()}
+                                              </a>
+                                            </div>
+                                            {subSubPages.length > 0 && (
+                                              <ul className="clearfix level3-dropdown">
+                                                {subSubPages.map((subsub: JCRNodeWrapper) => (
+                                                  <li key={subsub.getPath()} className="level3">
+                                                    <div className="navigation-title field-navigationtitle">
+                                                      <a href={buildNodeUrl(subsub)}>
+                                                        {subsub.getPropertyAsString("jcr:title") || subsub.getName()}
+                                                      </a>
+                                                    </div>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            )}
+                                          </li>
+                                        );
+                                      })}
                                     </ul>
                                   )}
                                 </li>

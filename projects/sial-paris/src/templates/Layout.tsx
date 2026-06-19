@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 export const Layout = ({ title, children }: { title?: string; children: ReactNode }) => {
   const { currentResource, renderContext } = useServerContext();
+  const isEditMode = renderContext.isEditMode();
   const lang = currentResource.getLocale().getLanguage();
 
   const site = renderContext.getSite() as unknown as JCRNodeWrapper;
@@ -86,24 +87,28 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
         <AbsoluteArea name="header" nodeType="sialp:mainNavigation" parent={homePage} readOnly="children" />
         {children}
         <AbsoluteArea name="footer" nodeType="sialp:footer" parent={homePage} readOnly="children" />
-        <script src="https://cdn.jsdelivr.net/npm/swiffy-slider@1.6.0/dist/js/swiffy-slider.min.js" crossOrigin="anonymous" defer></script>
-        <script dangerouslySetInnerHTML={{ __html: `
-          document.addEventListener('DOMContentLoaded', function() {
-            // Init hero carousel
-            var slides = document.querySelectorAll('.slides .slide');
-            var dots = document.querySelectorAll('.slider-indicators li');
-            var current = 0;
-            function showSlide(n) {
-              slides.forEach(function(s,i){ s.style.display = i===n?'':'none'; });
-              dots.forEach(function(d,i){ d.className = i===n?'active':''; });
-              current = n;
-            }
-            if (slides.length > 1) {
-              showSlide(0);
-              setInterval(function(){ showSlide((current+1)%slides.length); }, 5000);
-            }
-          });
-        ` }} />
+        {!isEditMode && (
+          <>
+            <script src="https://cdn.jsdelivr.net/npm/swiffy-slider@1.6.0/dist/js/swiffy-slider.min.js" crossOrigin="anonymous" defer></script>
+            <script dangerouslySetInnerHTML={{ __html: `
+              document.addEventListener('DOMContentLoaded', function() {
+                // Init hero carousel
+                var slides = document.querySelectorAll('.slides .slide');
+                var dots = document.querySelectorAll('.slider-indicators li');
+                var current = 0;
+                function showSlide(n) {
+                  slides.forEach(function(s,i){ s.style.display = i===n?'':'none'; });
+                  dots.forEach(function(d,i){ d.className = i===n?'active':''; });
+                  current = n;
+                }
+                if (slides.length > 1) {
+                  showSlide(0);
+                  setInterval(function(){ showSlide((current+1)%slides.length); }, 5000);
+                }
+              });
+            ` }} />
+          </>
+        )}
       </body>
     </html>
   );

@@ -25,7 +25,7 @@ jahiaComponent(
     if (limited.length === 0) {
       return (
         <div className="jcr-query jcr-query--empty">
-          <p>No content found for type <code>{resolvedType}</code> under <code>{resolvedPath}</code>.</p>
+          <p>No content found.</p>
         </div>
       );
     }
