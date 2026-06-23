@@ -1,0 +1,63 @@
+{
+  "goal": "Populate the existing sial-paris page tree with content (the 24 empty sub-pages), idempotently, via the Jahia MCP. The page nodes already exist; reuse them and fill empty main areas with components mirroring each reference URL. Proven by content.sh against the live render.",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+  "model": "deepseek/deepseek-v4-pro",
+  "github_repo": "smonier/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_content_only",
+      "title": "Populate existing pages with content",
+      "goal": "Fill every empty page in the sitemap with reference-accurate content components, reusing existing nodes, and publish to live.",
+      "review_config": {
+        "max_review_rounds": 1,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "Every page in orchestration/sitemaps/sial-paris.txt renders > 400 chars of live content",
+          "No new component types beyond orchestration/component-baseline.txt",
+          "Existing pages reused, not recreated or duplicated"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_content_only",
+          "title": "Populate + publish all pages",
+          "description": "The page tree already exists (31 jnt:page nodes); 7 have content, 24 are empty shells. Idempotently fill the empty ones with content components mirroring each reference URL, then publish to live. Do not recreate or duplicate existing pages.",
+          "acceptance_criteria": [
+            "every page in the sitemap renders > 400 chars of live content"
+          ],
+          "steps": [
+            {
+              "id": "step_populate",
+              "title": "Populate empty pages via Jahia MCP (idempotent)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "siteKey": "sial-paris",
+                "language": "fr",
+                "sitemap": "orchestration/sitemaps/sial-paris.txt",
+                "imagesManifest": "orchestration/images/sial-paris.imported.json",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "IDEMPOTENT: for each path in orchestration/sitemaps/sial-paris.txt, check existence with MCP content.get (locale fr). If missing, page.create it; if present, REUSE the node - never recreate or duplicate. Node names are lowercase. Publish each page to live with publication.publish.",
+                "FULL FIDELITY, NOT A SUMMARY: reproduce EVERY section of the matching reference URL on https://www.sialparis.com/fr-FR with its REAL data - do not abridge. Where the reference shows a price matrix, use sialp:pricingTable + pricingTier with ACTUAL prices/labels (EARLY BIRD/STANDARD/LATE BIRD/ONSITE x Individuel/Groupe/VIP/Ecole, real EUR values). Where it shows expandable Q&A or conditions, use sialp:faqSection + faqItem with the REAL questions and answers. Where it shows team/experts/speakers, use sialp:peopleGrid + personCard. NEVER substitute a generic image+text block for a table or accordion. Transcribe all editorial text, every card and section heading.",
+                "MAP each section onto an existing sialp: type (run inventory.sh first). Add a view if markup differs but properties match. Do NOT invent new types. New components (FAQ accordion=faqSection/faqItem, pricing=pricingTable/pricingTier, people=peopleGrid/personCard) already exist - reuse them.",
+                "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp, Authorization APIToken from project .env) for ALL content operations. content.create/content.update/publication.publish. GraphQL only if MCP cannot do an op; note any fallback in the summary.",
+                "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Images are imported into the DAM via MCP media.upload.url (consistent UUID) - see orchestration/images/set_image_refs.py and set_hero_refs.py. Reference each via the component's WEAKREFERENCE field (image/backgroundImage/logo/photo) with setValue(type:WEAKREFERENCE). NEVER set imageExternalUrl/backgroundImageUrl/logoExternalUrl; if set, clear them. Do NOT fetch images (the site blocks the agent) - URLs are captured via browser into orchestration/images/<project>.json.",
+                "PROBE: bash orchestration/probes/no-new-types.sh projects/sial-paris sialp orchestration/component-baseline.txt",
+                "PROBE: bash orchestration/probes/mcp.sh projects/sial-paris",
+                "PROBE: bash orchestration/probes/content.sh projects/sial-paris sial-paris fr @orchestration/sitemaps/sial-paris.txt 800",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/sial-paris sial-paris sialp"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

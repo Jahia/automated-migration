@@ -26,12 +26,30 @@ The JCRQuery component is a **required deliverable in every migration**. Editors
 
 ## CND definition
 
+First declare a **marker mixin** in `settings/definitions.cnd` — content types opt in to the
+query dropdown by extending it. This keeps the `type` dropdown short (only the few listable
+types) instead of every node type in the module:
+
+```cnd
+// settings/definitions.cnd
+// Marker mixin: add to any content type that should be selectable in a JcrQuery `type` dropdown.
+[nsMix:queryContent] mixin
+```
+
+```cnd
+// A listable content type opts in by extending nsMix:queryContent:
+[ns:article] > jnt:content, mix:title, jmix:mainResource, nsMix:queryContent, jmix:tagged, jmix:categorized
+ - ...
+```
+
 ```cnd
 // src/components/Content/JcrQuery/definition.cnd
 // jmix:renderableList is NOT used — it injects j:linknode/j:url and limits view names.
 [ns:jcrQuery] > jnt:content, mix:title, nsMix:pageComponent, jmix:list, jmix:cache
- - type (string, choicelist[resourceBundle]) indexed=no mandatory
-   < 'ns:article', 'ns:event', 'ns:product'    // ← add all mainResource types in the module
+ - type (string, choicelist[subnodetypes = 'jnt:page, nsMix:queryContent', resourceBundle]) indexed=no mandatory
+   // ↑ `subnodetypes` auto-populates the dropdown with every type extending nsMix:queryContent
+   //   (+ jnt:page). NEVER hardcode a '< type, type, ...' list and NEVER list generic jmix
+   //   mixins — opt types in via the marker mixin so the dropdown stays short and curated.
  - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated indexed=no
    < 'jcr:created', 'jcr:lastModified', 'j:lastPublished'
  - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated indexed=no
@@ -47,7 +65,16 @@ The JCRQuery component is a **required deliverable in every migration**. Editors
  - categoryFilter (boolean) = false indexed=no
 ```
 
-Adapt the `< 'ns:article', ...` constraint to include all `jmix:mainResource` types in the module.
+The `type` dropdown is driven by the `nsMix:queryContent` **marker mixin** + the
+`subnodetypes` initializer — so it lists exactly the types that opted in (e.g.
+`ns:newsArticle`, `ns:focusArticle`), never a hardcoded list and never the full component
+catalogue. Scope a query to a content folder with `startNode` (e.g. `contents/news`,
+`contents/focus`). Do **not** ship a minimalist hardcoded-`nodeType`/`basePath` variant —
+use this full component with `criteria`, `sortDirection`, `filter`, `loadMore`,
+`categoryFilter`, `j:subNodesView` and the edit-mode info panel. Each result is rendered
+with the content type's own card view via `<Render view={subNodesView} />`; the listing
+carries no per-type markup. `buildQuery` uses the stored `type` value directly in
+`SELECT * FROM [<type>]`, so it works whether the editor picked a concrete type or `jnt:page`.
 
 ---
 
@@ -175,14 +202,18 @@ jahiaComponent(
 ns_jcrQuery=JCR Query
 ns_jcrQuery.ui.tooltip=Listing component. Automatically queries and renders content by type.
 ns_jcrQuery.type=Content type
-ns_jcrQuery.type.ui.tooltip=Which type of content to list.
-ns_jcrQuery.type.ns:article=Articles
-ns_jcrQuery.type.ns:event=Events
+ns_jcrQuery.type.ui.tooltip=Which content to list (only types that opt in via nsMix:queryContent appear here).
+# NOTE: the ':' in a key MUST be escaped as '\:' in .properties, or Java parses it as the
+#       key/value separator and the label breaks. This applies to every value with a prefix.
+# One label per type that extends nsMix:queryContent (the subnodetypes dropdown relabels via these):
+ns_jcrQuery.type.ns\:article=Articles
+ns_jcrQuery.type.ns\:event=Events
+ns_jcrQuery.type.jnt\:page=Pages
 ns_jcrQuery.criteria=Sort by
 ns_jcrQuery.criteria.ui.tooltip=Property used to order results.
-ns_jcrQuery.criteria.jcr:created=Creation date
-ns_jcrQuery.criteria.jcr:lastModified=Last modified date
-ns_jcrQuery.criteria.j:lastPublished=Last published date
+ns_jcrQuery.criteria.jcr\:created=Creation date
+ns_jcrQuery.criteria.jcr\:lastModified=Last modified date
+ns_jcrQuery.criteria.j\:lastPublished=Last published date
 ns_jcrQuery.sortDirection=Sort order
 ns_jcrQuery.sortDirection.ui.tooltip=Ascending (oldest first) or descending (newest first).
 ns_jcrQuery.sortDirection.asc=Ascending
@@ -301,9 +332,20 @@ jahiaComponent(
 ---
 
 ## Validation checklist
-- [ ] `type` choicelist constraint lists all `jmix:mainResource` types in the module
+- [ ] `nsMix:queryContent` marker mixin declared in `settings/definitions.cnd`
+- [ ] Every listable content type extends `nsMix:queryContent` (so it appears in the dropdown); non-listable components do NOT
+- [ ] `type` uses `choicelist[subnodetypes = 'jnt:page, nsMix:queryContent', resourceBundle]` — NOT a hardcoded `< ... >` list and NOT generic `jmix:*` mixins
+- [ ] All choicelist values with a prefix (`ns:`, `jcr:`, `j:`, `jnt:`) are escaped as `\:` in the `.properties` keys
+- [ ] Full field set present: `criteria`, `sortDirection`, `maxItems`, `startNode`, `excludeNodes`, `filter`, `noResultText`, `j:subNodesView`, `j:linkType`, `loadMore`, `categoryFilter` — NOT a minimalist `nodeType`/`basePath` variant
+- [ ] Results rendered via `<Render view={subNodesView} />` (each type's own card view) — no per-type markup in the query
+- [ ] Match the reference card LAYOUT and COLUMN COUNT per content type. A type may ship several card views (e.g. a vertical grid card vs a horizontal image-left/text-right card), picked per listing with `j:subNodesView`. The grid div carries `data-subnodesview`, so CSS adapts columns per view — e.g. `.grid[data-subnodesview="card"] { grid-template-columns: repeat(2, 1fr) }` for horizontal focus cards (2 per row), with a `@media (max-width:767px)` override back to `1fr`. The attribute selector outranks the generic `.grid` mobile rule, so the mobile override MUST repeat the `[data-subnodesview="card"]` selector. Measure width/orientation/per-row with `getBoundingClientRect` against the reference — don't assume.
+- [ ] Content WIDTH is a template-level concern, not per-component. This template set's `<main>` is full-width (heroes/banners/carousels go full-bleed); content is centered by a global `main .component:not(...) { max-width: 1340px; margin: 0 auto }` rule in `Layout.tsx`. Set the listing column width there to match the reference — the JcrQuery `.wrapper` just mirrors that max-width. Card pixel width then follows from `(column − padding − gaps) / columns` (e.g. 1340 − 32 − 20 ÷ 2 ≈ 644px).
+- [ ] Filter chips + load-more are client islands coordinated via `data-qitem`/`data-cat-visible`/`data-lm-visible`
+- [ ] Edit-mode info panel shows type / count / view / sort / scope
 - [ ] `j:linkType (linkTypeInitializer)` present for the "see all" CTA
 - [ ] No `jmix:renderableList` (it conflicts with custom view names)
 - [ ] GridRow implemented alongside JCRQuery
+- [ ] Wrapper width matches the template set: if `main`/the page container is **full-width**, the listing `.wrapper` must self-constrain (`max-width: <site content width>; margin: 0 auto; padding: 2rem 1rem; box-sizing: border-box`) so results aren't edge-to-edge; if the page template already provides a centered container, leave `.wrapper { width: 100% }`. Verify with `getBoundingClientRect` (centered = equal left/right gap), never by eyeballing.
+- [ ] Reference implementation: soprahr `mysoprahr/src/components/JcrQuery` (canonical); sial-paris `Structural/JcrQuery` (replicated)
 - [ ] Resource bundle has all field labels + `ui.tooltip` for every field
 - [ ] `yarn build && yarn jahia-deploy` — both types appear in Jahia content picker

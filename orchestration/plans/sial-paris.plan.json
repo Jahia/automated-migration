@@ -1,0 +1,607 @@
+{
+  "goal": "Migrate https://www.sialparis.com/fr-FR to a Jahia JS module (project: sial-paris, namespace sialp, siteKey sial-paris, primary language fr). Each step is proven by its PROBE command; a step is done only when the probe exits 0.",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+  "model": "deepseek/deepseek-chat",
+  "github_repo": "smonier/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_foundation",
+      "title": "Foundation: connect + analyze",
+      "goal": "Confirm the Jahia server is reachable and produce a complete component/content manifest for the reference site.",
+      "review_config": {
+        "max_review_rounds": 2,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "Jahia server reachable and credentials valid",
+          "component-manifest.json and content-data.json exist with total instances > 0",
+          "Component scope was presented to the operator (Gate 1)"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_analyze",
+          "title": "Analyze the reference site",
+          "description": "Verify server connectivity, then download and analyze https://www.sialparis.com/fr-FR into a component manifest and content data set.",
+          "acceptance_criteria": [
+            "Server reachable",
+            "Manifest and content data produced",
+            "Operator has seen the component scope"
+          ],
+          "steps": [
+            {
+              "id": "step_connect",
+              "title": "Verify Jahia server connection (Gate 0)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/00-migration-start/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/connect.sh projects/sial-paris"
+              ],
+              "max_attempts": 2
+            },
+            {
+              "id": "step_analyze",
+              "title": "Analyze reference site -> manifest (Gate 1: HALT for scope review)",
+              "task_type": "analyze",
+              "agent": "code",
+              "depends_on": ["step_connect"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "siteUrl": "https://www.sialparis.com/fr-FR",
+                "skill": ".agents/skills/01-analyze-website/SKILL.md"
+              },
+              "expected_outputs": {
+                "manifest": "projects/sial-paris/workflow-output/component-manifest.json",
+                "content": "projects/sial-paris/workflow-output/content-data.json"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/analyze.sh projects/sial-paris",
+                "Gate 1: present the numbered section map and proposed CND field splits, then return status halt for operator sign-off."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_scaffold_assets",
+      "title": "Scaffold module + import assets",
+      "goal": "Scaffold the Jahia JS module (namespace sialp) and import the reference site's CSS/JS/fonts/images into static/.",
+      "review_config": {
+        "max_review_rounds": 2,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "package.json present and yarn build exits 0",
+          "Namespace sialp confirmed (Gate 2)",
+          "All Layout-referenced stylesheets exist under static/"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_scaffold",
+          "title": "Scaffold the module",
+          "description": "Create the Jahia JS module with namespace sialp and confirm it builds.",
+          "depends_on": ["story_analyze"],
+          "acceptance_criteria": ["Module scaffolded", "yarn build clean", "Namespace confirmed"],
+          "steps": [
+            {
+              "id": "step_scaffold",
+              "title": "Scaffold module (Gate 2: HALT for namespace confirmation)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_analyze"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "moduleName": "sial-paris",
+                "namespace": "sialp",
+                "mixNamespace": "sialpmix",
+                "skill": ".agents/skills/02-scaffold-module/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/build.sh projects/sial-paris",
+                "Gate 2: present the module structure, namespace sialp, and package.json name; return status halt for operator confirmation."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_assets",
+          "title": "Import assets",
+          "description": "Copy CSS, JS, fonts and images into static/ and reference them from Layout.tsx.",
+          "depends_on": ["story_scaffold"],
+          "acceptance_criteria": ["static/ populated", "Layout references stylesheets"],
+          "steps": [
+            {
+              "id": "step_assets",
+              "title": "Import CSS/JS/fonts/images",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_scaffold"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/03-import-assets/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/assets.sh projects/sial-paris"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_content_model",
+      "title": "Content model: types + navigation + listing",
+      "goal": "Define CND content types, a 3-level MainNavigation component, and the JCRQuery + GridRow listing components in the sialp namespace.",
+      "review_config": {
+        "max_review_rounds": 2,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "Every type appears in definitions.cnd with en+fr resource bundle keys (label + ui.tooltip)",
+          "Navigation uses a Jahia Navigation Menu component, 3 levels deep, no hardcoded links",
+          "Module ships JCRQuery and GridRow components; tags/categories use Jahia built-ins"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_content_types",
+          "title": "Define content types",
+          "description": "Create CND definitions + types.ts for every component in the manifest, with i18n labels and ui.tooltip keys.",
+          "depends_on": ["story_assets"],
+          "acceptance_criteria": ["build clean", "namespace + i18n bundles present"],
+          "steps": [
+            {
+              "id": "step_content_types",
+              "title": "Define CND types + types.ts",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_assets"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "namespace": "sialp",
+                "skill": ".agents/skills/04-define-content-types/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/cnd.sh projects/sial-paris sialp",
+                "PROBE: bash orchestration/probes/cnd-patterns.sh projects/sial-paris sialp"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_navigation",
+          "title": "Implement 3-level navigation",
+          "description": "Build the sialp MainNavigation component backed by the JCR page tree, 3 levels deep.",
+          "depends_on": ["story_content_types"],
+          "acceptance_criteria": ["MainNavigation component exists", "build clean"],
+          "steps": [
+            {
+              "id": "step_navigation",
+              "title": "Implement MainNavigation (3 levels)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_content_types"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "sections": "le-salon, temps-forts, tendances, infos-pratiques, exposer (plus existing les-exposants, medias)",
+                "sitemap": "orchestration/sitemaps/sial-paris.txt",
+                "skill": ".agents/skills/05-implement-navigation/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Navigation must render 3 levels deep from the JCR page tree (getChildNodes on home for L1, recurse for L2 and L3), matching orchestration/sitemaps/sial-paris.txt. No hardcoded links. L2/L3 render as dropdown/fly-out.",
+                "PROBE: bash orchestration/probes/component.sh projects/sial-paris Navigation"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_listing",
+          "title": "Implement JCRQuery + GridRow",
+          "description": "Build the sialp JCRQuery listing component and the GridRow layout component.",
+          "depends_on": ["story_content_types"],
+          "acceptance_criteria": ["JCRQuery + GridRow exist", "build clean"],
+          "steps": [
+            {
+              "id": "step_jcr_query",
+              "title": "Implement JCRQuery component",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_content_types"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/component.sh projects/sial-paris JCRQuery"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_grid_row",
+              "title": "Implement GridRow component",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_jcr_query"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/component.sh projects/sial-paris GridRow"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_components_templates",
+      "title": "Components + page templates + deploy",
+      "goal": "Implement all section components verbatim to the reference, build the page templates (Layout + AbsoluteAreas), and deploy the module ACTIVE.",
+      "review_config": {
+        "max_review_rounds": 2,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "Every manifest component has a view with verbatim reference class names and a resource-bundle label",
+          "Layout has header + footer AbsoluteArea; page templates exist",
+          "Module deploys ACTIVE; shell renders header+footer with no console errors (Gate 3)"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_components",
+          "title": "Implement all components",
+          "description": "Implement every component from the manifest with verbatim Sitecore SXA class names and i18n labels.",
+          "depends_on": ["story_navigation", "story_listing"],
+          "acceptance_criteria": ["all components built", "build clean"],
+          "steps": [
+            {
+              "id": "step_components",
+              "title": "Implement all section components",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_navigation", "step_grid_row"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/07-implement-components/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Work from the existing component library (run `bash orchestration/probes/inventory.sh projects/sial-paris sialp`). Add views to existing types where markup varies; only the operator-approved set of types may exist. Do not duplicate a type that already covers a section.",
+                "PROBE: bash orchestration/probes/build.sh projects/sial-paris"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_templates",
+          "title": "Page templates + deploy",
+          "description": "Build Layout.tsx with header/footer AbsoluteAreas and page template variants, then deploy.",
+          "depends_on": ["story_components"],
+          "acceptance_criteria": ["Layout AbsoluteAreas present", "module deployed"],
+          "steps": [
+            {
+              "id": "step_templates",
+              "title": "Implement Layout + page templates",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_components"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/08-page-templates/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/templates.sh projects/sial-paris"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_deploy",
+              "title": "Deploy module (Gate 3: HALT for shell layout review)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_templates"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/support-deploy/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/deploy.sh projects/sial-paris",
+                "Gate 3: present a screenshot of the deployed shell (header+footer, empty main, no console errors); return status halt for operator confirmation."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_fidelity_home",
+          "title": "Fix look-and-feel discrepancies (home + shared components)",
+          "description": "Before creating the deep page tree, bring the deployed home page and shared section components to visual parity with the reference. Components are reused across all 30+ pages, so fixing them once propagates everywhere - this is why fidelity comes before breadth.",
+          "depends_on": ["story_templates"],
+          "acceptance_criteria": [
+            "Home and existing section landings match the reference at 1440px and 375px",
+            "Module still builds and home still renders after the fixes"
+          ],
+          "steps": [
+            {
+              "id": "step_fidelity_home",
+              "title": "Fix component fidelity vs reference (Gate 4-pre: HALT)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_deploy"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "siteUrl": "https://www.sialparis.com/fr-FR",
+                "referencePages": "home, le-salon, temps-forts, tendances, infos-pratiques, les-exposants, medias",
+                "skill": ".agents/skills/12-visual-diff/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Screenshot the deployed home and each existing section landing vs the reference at 1440px and 375px. Fix component CSS/markup discrepancies (spacing, typography, colors, carousels, cards, grids, fonts) in the views until they match. Redeploy after fixes.",
+                "PROBE: bash orchestration/probes/build.sh projects/sial-paris",
+                "PROBE: bash orchestration/probes/content.sh projects/sial-paris sial-paris fr home",
+                "Gate 4-pre: present reference vs Jahia screenshots of home + section landings; return status halt for operator VALIDATED before any new pages are created."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_images",
+      "title": "Capture + import page images",
+      "goal": "Capture each reference page's image URLs with a browser and import them into the DAM, so the content epic can reference real images. The headless agent cannot fetch images (the reference site blocks bots), so capture is a browser pre-step and import is deterministic.",
+      "review_config": {
+        "max_review_rounds": 1,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "A source image manifest exists for the project's pages",
+          "Images are imported into the DAM and the imported manifest records their jcrPaths"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_image_capture",
+          "title": "Capture reference image URLs (browser)",
+          "description": "Extract content image URLs per page from the reference site into orchestration/images/<project>.json. MUST use a browser (Chrome MCP) - the site returns 403 to headless fetches. Filter to '/-/media/' content images, strip query strings.",
+          "depends_on": ["story_fidelity_home"],
+          "acceptance_criteria": ["source image manifest exists and is non-empty"],
+          "steps": [
+            {
+              "id": "step_capture_images",
+              "title": "Capture image URLs into the source manifest (BROWSER required)",
+              "task_type": "analyze",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "sourceManifest": "orchestration/images/sial-paris.json",
+                "skill": ".agents/skills/12-visual-diff/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Image capture REQUIRES a browser (Chrome MCP); the reference site blocks headless fetch (403). For each page in orchestration/sitemaps/sial-paris.txt, extract content image URLs (filter '/-/media/', strip query strings) and write orchestration/images/sial-paris.json keyed by page path with {src, file, role: hero|section|person|logo}. If no browser is available to you, return status halt requesting the operator run the browser capture.",
+                "PROBE: test -s orchestration/images/sial-paris.json"
+              ],
+              "max_attempts": 2
+            }
+          ]
+        },
+        {
+          "id": "story_image_import",
+          "title": "Import images into the DAM",
+          "description": "Deterministically import every captured image via the sial-image-importer servlet and record the imported JCR node paths.",
+          "depends_on": ["story_image_capture"],
+          "acceptance_criteria": ["imported manifest exists with jcrPaths; images served from the DAM"],
+          "steps": [
+            {
+              "id": "step_import_images",
+              "title": "Import images via the servlet (deterministic)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_capture_images"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Run the deterministic importer; it imports each image and writes orchestration/images/sial-paris.imported.json (page -> [{jcrPath, role}]).",
+                "PROBE: python3 orchestration/images/import.py sial-paris",
+                "PROBE: test -s orchestration/images/sial-paris.imported.json"
+              ],
+              "max_attempts": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_content_quality",
+      "title": "Content creation + review + accessibility",
+      "goal": "Create and publish all page content to LIVE, run code review and accessibility audit, and fix what they surface.",
+      "review_config": {
+        "max_review_rounds": 3,
+        "auto_approve_on_max_rounds": false,
+        "review_criteria": [
+          "Every page's LIVE <main> text exceeds 400 chars in fr (and en where required)",
+          "Code review reports 0 critical issues (Gate 5)",
+          "axe-core reports 0 critical or serious violations on home + key pages"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_content",
+          "title": "Create + publish the full page tree",
+          "description": "Populate every page in orchestration/sitemaps/sial-paris.txt (31 pages, 3 levels) with content. The page TREE already exists (created in a prior run); 7 pages have content, 24 are empty shells. Be idempotent: for each path, if the page node is missing, create it; if it exists, REUSE it - do not recreate or duplicate. Then fill each empty page's main area with components that mirror the reference URL. Publish to live.",
+          "depends_on": ["story_image_import"],
+          "acceptance_criteria": ["every page in the sitemap has live content > 400 chars"],
+          "steps": [
+            {
+              "id": "step_content",
+              "title": "Create + publish all page content (Gate 4: HALT for visual fidelity)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_import_images"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "siteKey": "sial-paris",
+                "language": "fr",
+                "sitemap": "orchestration/sitemaps/sial-paris.txt",
+                "imagesManifest": "orchestration/images/sial-paris.imported.json",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "IDEMPOTENT: the page tree already exists. For each path in orchestration/sitemaps/sial-paris.txt, first check existence with MCP content.get (locale fr); if missing, page.create it; if present, REUSE the node (never recreate/duplicate). Then populate empty pages with content components mirroring the reference URL. The 24 sub-pages are currently empty shells. Use lowercase node names (Jahia lowercases them).",
+                "REUSE existing components - do NOT create new types per page (section 2b of AGENTS.md). Run `bash orchestration/probes/inventory.sh projects/sial-paris sialp` and map each section onto an existing sialp: type. If markup differs but properties match, add a view to the existing type. If a section genuinely fits no existing type, STOP and return status halt for an operator decision; do not invent a type.",
+                "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot perform an operation; if you fall back, state it in the summary.",
+                "PROBE: bash orchestration/probes/no-new-types.sh projects/sial-paris sialp orchestration/component-baseline.txt",
+                "PROBE: bash orchestration/probes/mcp.sh projects/sial-paris",
+                "PROBE: bash orchestration/probes/content.sh projects/sial-paris sial-paris fr @orchestration/sitemaps/sial-paris.txt",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/sial-paris sial-paris sialp",
+                "Gate 4: present reference vs Jahia screenshots at 1440px and 375px for a sample of new pages per section; return status halt for operator VALIDATED."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_review",
+          "title": "Code review + accessibility",
+          "description": "Run the CTO-level code review and the axe-core accessibility audit; write reports.",
+          "depends_on": ["story_content"],
+          "acceptance_criteria": ["review report 0 critical", "axe 0 critical/serious"],
+          "steps": [
+            {
+              "id": "step_review",
+              "title": "CTO-level code review (Gate 5: HALT for sign-off)",
+              "task_type": "review",
+              "agent": "code",
+              "depends_on": ["step_content"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "report": "projects/sial-paris/workflow-output/review/REVIEW.md",
+                "skill": ".agents/skills/10-review/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/artifact.sh projects/sial-paris/workflow-output/review/REVIEW.md",
+                "Gate 5: present critical/warning/suggestion findings; return status halt for operator decisions on what to fix now."
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_accessibility",
+              "title": "Accessibility audit (axe-core)",
+              "task_type": "review",
+              "agent": "code",
+              "depends_on": ["step_review"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "report": "projects/sial-paris/workflow-output/a11y/A11Y.md",
+                "skill": ".agents/skills/dev/jahia-dev-accessibility/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/artifact.sh projects/sial-paris/workflow-output/a11y/A11Y.md \"critical|serious\""
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_fidelity_golive",
+      "title": "Visual diff + vanity URLs",
+      "goal": "Produce a section-by-section visual diff with zero critical gaps and a vanity-URL redirect map for go-live.",
+      "review_config": {
+        "max_review_rounds": 2,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "visual-diff/SUMMARY.md exists with 0 critical gaps",
+          "Old site URLs mapped to Jahia pages with an nginx redirect map"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_visual_diff",
+          "title": "Visual diff",
+          "description": "Screenshot every reference page vs the Jahia render and produce an ISO punch list.",
+          "depends_on": ["story_review"],
+          "acceptance_criteria": ["SUMMARY.md exists, 0 critical gaps"],
+          "steps": [
+            {
+              "id": "step_visual_diff",
+              "title": "Section-by-section visual diff",
+              "task_type": "review",
+              "agent": "code",
+              "depends_on": ["step_accessibility"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "summary": "projects/sial-paris/workflow-output/visual-diff/SUMMARY.md",
+                "sitemap": "orchestration/sitemaps/sial-paris.txt",
+                "skill": ".agents/skills/12-visual-diff/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/artifact.sh projects/sial-paris/workflow-output/visual-diff/SUMMARY.md \"critical\""
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_vanity",
+          "title": "Vanity URLs",
+          "description": "Map old site URLs to Jahia pages and generate an nginx redirect map.",
+          "depends_on": ["story_visual_diff"],
+          "acceptance_criteria": ["redirect map generated"],
+          "steps": [
+            {
+              "id": "step_vanity",
+              "title": "Generate vanity-URL redirect map",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": ["step_visual_diff"],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "redirects": "projects/sial-paris/workflow-output/vanity/redirects.map",
+                "skill": ".agents/skills/13-vanity-urls/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/artifact.sh projects/sial-paris/workflow-output/vanity/redirects.map"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

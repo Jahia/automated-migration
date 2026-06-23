@@ -276,6 +276,26 @@ SiteHeader must include:
 
 ---
 
+## Gotcha: imported theme makes the nav an off-canvas panel (verified on sial-paris)
+
+When you import a site's compiled theme CSS, the desktop horizontal menu and the mobile menu are usually **two different layouts gated by `@media`**, and the mobile one is an off-canvas panel hidden until a class is toggled. On sial-paris the theme did:
+
+```css
+@media (max-width: 1199.98px) { .navigation-main { position: fixed; left: -1400px; } }   /* off-screen */
+.navigation-main.is-open { transform: translateX(1400px); }                               /* slid in */
+@media (min-width: 1200px)   { .level1:hover .clearfix { display: block; position: absolute; } }  /* desktop dropdown */
+@media (max-width: 1199.98px){ .level1.submenu-open .clearfix { display: block; } }        /* mobile accordion */
+```
+
+Consequences you MUST handle, or the menu is dead below the desktop breakpoint:
+- **The toggle button must actually be RENDERED.** A `querySelector('[data-mobile-nav-toggle]')` that finds nothing = the off-canvas never opens; the whole menu is invisible on every laptop/tablet/phone under the breakpoint. Render the `<button data-mobile-nav-toggle>` in the markup, not just reference it in JS.
+- **Toggle the class the THEME expects** (here `.is-open` on `.navigation-main`), not an invented one like `data-expanded`. Read the theme CSS to find the real open mechanism.
+- **Wire the submenu accordion for mobile** by toggling the theme's class (here `submenu-open`) on click of `.level1.submenu > .navigation-title`, guarded by `matchMedia` so desktop keeps using `:hover`. Attach to the title wrapper, not the `<a>` (the theme often sets `pointer-events:none` on the submenu link).
+- **Align breakpoints.** If the theme's desktop dropdown starts at `min-width:1200px` but your mobile rules use `≤991px`, the 992-1199px band has neither — a dead zone. Match toggle/burger visibility to the theme's actual breakpoint (`≤1199.98px`).
+- **Verify across widths.** `getComputedStyle(submenuUl).display` at rest is `none` (correct); test the real hover (desktop) and a real toggle click (mobile). Parse the theme CSS *with @media context* — a flat grep hides which rules are media-gated.
+
+---
+
 ## Validation checklist
 - [ ] CND has no properties (data comes from JCR tree at render time)
 - [ ] Helper functions handle all 4 nav item types: jnt:page, jnt:navMenuText, jnt:nodeLink, jnt:externalLink

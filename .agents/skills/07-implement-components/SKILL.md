@@ -341,3 +341,28 @@ A `fullPage` view that is missing or broken will show a blank page when editors 
 - [ ] Every icon-driven child type has an `icon (string)` CND field
 - [ ] No component uses JS-dependent carousel markup in a server-only view — use flex layout instead
 - [ ] No `container` + `col-*` on the same element — pick one pattern per element
+
+---
+
+## Validation gate — one component at a time (MANDATORY)
+
+A component is **not done until it passes its full probe**, and you do **not** start the
+next component until it does. After adding/modifying any component (CND, view, resource
+bundle, or content), run from the repo root:
+
+```
+orchestration/probes/component-validate.sh <project_path> <namespace> <ComponentDir> <smoke_page> <site_key> <lang>
+# e.g. orchestration/probes/component-validate.sh projects/sial-paris sialp WhitePaper tendances/livres-blancs sial-paris fr
+```
+
+It runs the whole chain and exits non-zero on any failure: **source present → no duplicate
+default-view (the crash that 404s the whole site) → CND patterns for that component → en+fr
+resource keys for the type and every property → build → deploy → bundle ACTIVE → a non-home
+page renders HTTP 200 → engine log free of `already exist`**.
+
+- Always pass a real `smoke_page` that uses the component and the `site_key`. The render
+  smoke on a **non-home** page is what catches a duplicate-view/registration crash (home
+  alone keeps rendering and hides it).
+- One default view per (nodeType): a second `jahiaComponent({componentType:'view', nodeType})`
+  with no distinct `name:` throws `already exist` at module load and breaks every page using
+  a not-yet-registered template. `grep -rn "nodeType: 'ns:foo'" src/` before adding a view.
