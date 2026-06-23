@@ -1,6 +1,7 @@
 [sialp:sectorItem] > jnt:content
  - backgroundImage (weakreference, picker[type='image'])
  - icon (weakreference, picker[type='image'])
+ - iconClass (string)
  - label (string) i18n
  - j:linkType (string, choicelist[linkTypeInitializer])
 

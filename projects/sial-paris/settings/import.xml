@@ -7,7 +7,7 @@
     <sial-paris>
       <home
         j:isHomePage="true"
-        j:templateName="basic"
+        j:templateName="home"
         jcr:primaryType="jnt:page"
         >
         <j:translation_en
@@ -22,6 +22,8 @@
           jcr:primaryType="jnt:translation"
           jcr:title="Accueil"
           />
+        <hero jcr:primaryType="jnt:content"/>
+        <main jcr:primaryType="jnt:content"/>
       </home>
     </sial-paris>
   </modules>

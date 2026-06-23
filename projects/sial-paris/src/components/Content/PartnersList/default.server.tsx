@@ -1,7 +1,18 @@
-import { RenderChildren, buildNodeUrl, jahiaComponent } from '@jahia/javascript-modules-library';
+import { Island, buildNodeUrl, jahiaComponent, useServerContext } from '@jahia/javascript-modules-library';
 import type { EntryProps, Props } from './types.js';
+import PartnersFilter from './partnersFilter.client.jsx';
+import classes from './partnersGrid.module.css';
 
-/** A single partner row: logo (col-4) + title + description + link (col-8) — SXA `partners-2-list` item. */
+const CATEGORY_LABELS: Record<string, string> = {
+  animations: 'Animations',
+  institutionnels: 'Institutionnels',
+  medias: 'Médias',
+  salons: 'Salons',
+  sialInsights: 'SIAL Insights',
+};
+const CATEGORY_ORDER = ['animations', 'institutionnels', 'medias', 'salons', 'sialInsights'];
+
+/** A single partner row (used standalone / in the detailed list view). */
 jahiaComponent(
   { componentType: 'view', nodeType: 'sialp:partnerEntry', displayName: 'Partner Entry' },
   function PartnerEntry({ logo, logoExternalUrl, title, body, linkLabel, linkUrl }: EntryProps) {
@@ -25,15 +36,49 @@ jahiaComponent(
   }
 );
 
-/** Detailed partners list (SXA `partners-2-list`): each entry is a logo + description + link. */
+/** Partner logo wall with category filter tabs (Animations / Institutionnels / Médias / Salons / SIAL Insights). */
 jahiaComponent(
   { componentType: 'view', nodeType: 'sialp:partnersList', displayName: 'Partners List' },
   function PartnersList({ heading }: Props) {
+    const { currentNode } = useServerContext();
+    const children = Array.from(currentNode.getNodes()) as any[];
+
+    const catOf = (ch: any) =>
+      ch.hasProperty('partnerCategory') ? ch.getProperty('partnerCategory').getString() : '';
+    const present = CATEGORY_ORDER.filter((c) => children.some((ch) => catOf(ch) === c)).map((c) => ({
+      key: c,
+      label: CATEGORY_LABELS[c] ?? c,
+    }));
+
     return (
       <div className="component partners-2-list container-bp col-12">
         <div className="component-content">
           {heading && <h2 className="field-title">{heading}</h2>}
-          <RenderChildren />
+          <Island component={PartnersFilter} props={{ categories: present }}>
+            <div className={classes.grid}>
+              {children.map((ch) => {
+                const cat = catOf(ch);
+                const title = ch.hasProperty('title') ? ch.getProperty('title').getString() : '';
+                let logoUrl: string | null = null;
+                if (ch.hasProperty('logo')) {
+                  try {
+                    logoUrl = buildNodeUrl(ch.getProperty('logo').getNode());
+                  } catch (_) {
+                    /* missing ref */
+                  }
+                }
+                if (!logoUrl && ch.hasProperty('logoExternalUrl')) {
+                  logoUrl = ch.getProperty('logoExternalUrl').getString() || null;
+                }
+                return (
+                  <figure key={ch.getIdentifier()} className={classes.item} data-category={cat}>
+                    {logoUrl && <img src={logoUrl} alt={title} className={classes.logo} loading="lazy" />}
+                    {title && <figcaption className={classes.name}>{title}</figcaption>}
+                  </figure>
+                );
+              })}
+            </div>
+          </Island>
         </div>
       </div>
     );

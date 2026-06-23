@@ -176,13 +176,17 @@
     },
     "home-iso-pass": {
       "status": "in_progress",
-      "updatedAt": "2026-06-19T08:18:14.059504Z",
+      "updatedAt": "2026-06-22T08:22:56.800876Z",
       "notes": "Authoritative section-by-section diff (reference vs Jahia) done. Reference home = 20 components; ours = 11.",
       "diff_fixed": [
         "Hero carousel nav + 3 slides aligned to reference (distinct images, headings, body, CTA)",
         "KeyFigures numbers (130/8000/10/400000/650) \u2014 were unset",
         "Partners carousel: 0 -> 77 partnerLogo (imported via servlet, nodes created, published; 77 confirmed in DOM)",
-        "Pourquoi SIAL: 4 visitorProfile blocks were empty -> populated headings (importateur/distributeur/acheteur/industriel) + icons; verified in DOM"
+        "Pourquoi SIAL: 4 visitorProfile blocks were empty -> populated headings (importateur/distributeur/acheteur/industriel) + icons; verified in DOM",
+        "SIAL en bref: added real img-content-block (image le-sial-en-bref.jpg + body + 'D\u00e9couvrez l'histoire' CTA) at top after intro; retitled mislabeled key-figures to 'Les chiffres cl\u00e9s'; reordered /main to reference order",
+        "TENDANCES: rewrote trendsSection view to real SXA mosaic (header + col-l large card + col-r 2 cards + CTA); added imageExternalUrl to trendCard; set 3 images (SIAL-Innovation/Summits/start-up) + full card content. Verified mosaic+3 imgs in live HTML",
+        "Partners: rewrote to swiffy-slider carousel (slider-container + nav buttons), re-added swiffy JS to Layout; 77 logos in a paged sliding strip. Verified swiffy markup + JS + 77 logos in live HTML",
+        "Top bar: topBar node existed but was empty. Populated communityText '#SIALParis', Exposez + Votre espace exposant CTAs, and 6 editable socialLink children (LinkedIn/Instagram/X/Facebook/YouTube/WhatsApp, FA brand icons + external URLs). All editable in Content Editor (sialp:topBar > sialp:socialLink). Verified in live HTML."
       ],
       "diff_remaining": [
         "MISSING: 'SIAL en bref' img-content-block (image+text+'D\u00e9couvrez l'histoire' CTA) between intro and news. We mislabeled key-figures as 'SIAL en bref' \u2014 should be retitled 'Les chiffres cl\u00e9s' and the real img-content-block added.",
@@ -191,7 +195,9 @@
         "Standalone simple-title section headers (reference has them as separate components before listings).",
         "Verify visitor-profiles (Pourquoi SIAL) 4 cards, sectors, cta-dual, sial-network vs reference."
       ],
-      "sial_network": "OK \u2014 heading + 13 salon items match reference; minor: missing 'D\u00e9couvrez SIAL Network' CTA link"
+      "sial_network": "OK \u2014 heading + 13 salon items match reference; minor: missing 'D\u00e9couvrez SIAL Network' CTA link",
+      "build_note": "Module requires Node >=22 (v22.21.0 via nvm). cwd resets drop it -> build fails 'styleText' from node:util on Node 18. Prefix PATH with ~/.nvm/versions/node/v22.21.0/bin.",
+      "icon_caveat": "Social icons use FA brand classes (fa-brands fa-*). FA brand font is @font-face-mapped in Layout, but FA glyph rendering unverified visually (Chrome extension was down); risk of tofu like the earlier carousel chevrons \u2014 verify when Chrome reconnects."
     }
   },
   "harnessFixes": [

@@ -1,0 +1,67 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "tendances/livres-blancs",
+  "hero": {
+    "heading": "Livres blancs",
+    "subtitle": "Comprendre et anticiper l'industrie alimentaire. Découvrez les livres blancs exclusifs de SIAL Paris et téléchargez-les pour optimiser votre stratégie dans une industrie en constante évolution."
+  },
+  "intro": {
+    "overline": "TENDANCES",
+    "heading": "Comprendre et anticiper l'industrie alimentaire",
+    "body": "<p>Découvrez les livres blancs exclusifs de SIAL Paris, experts en agroalimentaire. Téléchargez-les pour optimiser votre succès dans l'industrie alimentaire en constante évolution.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Nutrition personnalisée : tendances food 2026",
+      "image": "tendance/lp/nouvelle-ere-alimentation-nellyrodi/livre-blanc-tendances-et-mutations-food.jpg",
+      "imgFile": "lb-nutrition-personnalisee.jpg",
+      "imageAlt": "Livre blanc Nutrition personnalisée",
+      "body": ["<p>Notre façon de nous alimenter est en pleine transformation. Des produits standardisés aux solutions hautement personnalisées, l'industrie alimentaire entre dans une nouvelle ère marquée par la personnalisation, la sensibilisation à la santé et l'innovation technologique.</p>"]
+    },
+    {
+      "heading": "SIAL Insights : les tendances qui transforment le secteur",
+      "image": "tendance/lp/SIAL-Insights-2025-TV/main-tenant-sushi-baguettes-fond-jaune.jpg",
+      "imgFile": "lb-sial-insights-tv.jpg",
+      "imageAlt": "SIAL Insights",
+      "dark": true,
+      "body": ["<p>Découvrez SIAL Insights et les tendances qui transforment aujourd'hui le secteur alimentaire mondial.</p>"]
+    },
+    {
+      "heading": "Le végétal à SIAL Paris : innovations et tendances",
+      "image": "tendance/lp/Livre-blanc-vegetal/livre-blanc-tendances-vegetales-push.jpg",
+      "imgFile": "lb-vegetal.jpg",
+      "imageAlt": "Analyse du marché des fruits et légumes",
+      "body": ["<p>Céréales, légumineuses, fruits et légumes : vos futurs partenaires sont à SIAL Paris. Une analyse du marché du végétal, de ses innovations et de ses tendances.</p>"]
+    },
+    {
+      "heading": "Étude Open Innovation",
+      "image": "tendance/lp/Open-Innovation/Study-Open-Innovation.jpg",
+      "imgFile": "lb-open-innovation.jpg",
+      "imageAlt": "Étude Open Innovation",
+      "dark": true,
+      "body": ["<p>Téléchargez l'étude Open Innovation pour comprendre comment les acteurs de l'agroalimentaire collaborent avec les start-ups et l'écosystème pour accélérer l'innovation.</p>"]
+    },
+    {
+      "heading": "Tout savoir sur les produits laitiers",
+      "image": "tendance/lp/Livre-blanc-CNIEL-SIAL/CNIEL-livre-blanc.jpg",
+      "imgFile": "lb-cniel-laitiers.jpg",
+      "imageAlt": "Livre blanc produits laitiers",
+      "body": ["<p>Téléchargez gratuitement notre livre blanc pour découvrir les données récentes, les innovations et les engagements des acteurs laitiers.</p>"]
+    },
+    {
+      "heading": "SIAL Insights 2024",
+      "image": "tendance/lp/SIAL-Insights-2024/SIAL-Insights-2024.jpg",
+      "imgFile": "lb-sial-insights-2024.jpg",
+      "imageAlt": "SIAL Insights 2024",
+      "dark": true,
+      "body": ["<p>Toutes les tendances alimentaires mondiales de 2024 rassemblées dans un seul guide à télécharger gratuitement, co-créé avec Kantar, ProtéinesXTC et Circana.</p>"]
+    },
+    {
+      "heading": "SIAL Insights 2022",
+      "image": "tendance/lp/SIAL-Insight-2022/SIAL-Insights-2022.jpg",
+      "imgFile": "lb-sial-insights-2022.jpg",
+      "imageAlt": "SIAL Insights 2022",
+      "body": ["<p>Revivez l'édition 2022 de SIAL Insights et son décryptage des grandes tendances alimentaires mondiales.</p>"]
+    }
+  ]
+}

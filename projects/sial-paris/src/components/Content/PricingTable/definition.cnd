@@ -1,0 +1,11 @@
+[sialp:pricingTier] > jnt:content
+ - rowLabel (string) i18n
+ - cells (string) i18n multiple
+
+[sialp:pricingTable] > jnt:content, sialpmix:pageComponent, mix:title, jmix:list, jmix:renderableList, jmix:cache orderable
+ - intro (string, richtext) i18n
+ - columnHeaders (string) i18n multiple
+ - note (string, richtext) i18n
+ - ctaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ + * (sialp:pricingTier) = sialp:pricingTier

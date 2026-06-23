@@ -1,0 +1,49 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "temps-forts/sial-summits",
+  "hero": {
+    "heading": "SIAL Summits",
+    "subtitle": "À l'occasion de sa nouvelle édition, SIAL Paris révolutionne l'expérience des conférences classiques avec le retour de SIAL Summits, un format premium dédié aux grands enjeux de l'agroalimentaire."
+  },
+  "intro": {
+    "overline": "TEMPS FORTS",
+    "heading": "Un temps fort pour l'industrie agroalimentaire",
+    "body": "<p>Ces rendez-vous exclusifs réunissent experts et décideurs autour de thématiques structurantes qui façonnent l'avenir de notre écosystème. Plus qu'un simple cycle de conférences : une véritable plateforme d'échange et de réflexion pour anticiper les évolutions du secteur. Les conférences se tiennent en français et en anglais, avec traduction simultanée.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Une expérience immersive tournée vers l'action",
+      "body": [
+        "<p>Technologies, outils numériques et IA, nutrition personnalisée, comportements de consommation, défis environnementaux et souveraineté alimentaire : en 2026, trois sommets mettront en lumière les sujets majeurs qui redessinent les contours de l'industrie agroalimentaire.</p>",
+        "<p>Conçues avec des partenaires stratégiques de SIAL Paris et nourries par l'expertise de spécialistes reconnus, ces conférences offriront un éclairage concret sur les mutations à l'œuvre et les réponses à imaginer pour l'avenir.</p>"
+      ]
+    },
+    {
+      "heading": "Les 3 thématiques à l'honneur en 2026",
+      "dark": true,
+      "body": [
+        "<h3>Nourrir un monde sous tensions</h3>",
+        "<p><strong>Lundi 19 octobre, de 10h30 à 13h.</strong> Comment l'industrie alimentaire mondiale doit-elle se réorganiser face aux défis environnementaux et géopolitiques actuels pour assurer son futur ?</p>",
+        "<h3>Food intelligence : redéfinir la chaîne de valeur</h3>",
+        "<p><strong>Lundi 19 octobre, de 14h à 16h30.</strong> Comment la technologie, les données, les plateformes et l'IA redéfinissent-elles les règles du jeu pour les acteurs de la filière agroalimentaire ?</p>",
+        "<h3>L'ère de l'alimentation personnalisée</h3>",
+        "<p><strong>Mardi 20 octobre, de 14h à 16h30.</strong> Comment les tendances transforment-elles notre façon de manger, et comment la science et la tech réinventent-elles l'alimentation sur-mesure ?</p>"
+      ]
+    },
+    {
+      "heading": "Réservez votre accès à SIAL Summits",
+      "body": [
+        "<p>Disponible dès maintenant sur la billetterie de SIAL Paris — places limitées.</p>",
+        "<ul><li><strong>Pack Summits complet — 300 €</strong> : accès aux 3 Summits, soit 50 % d'économie par rapport aux tarifs individuels.</li><li><strong>Accès à l'unité — 140 €</strong> : participez uniquement au Summit de votre choix.</li></ul>"
+      ]
+    },
+    {
+      "heading": "Redécouvrez les thématiques de SIAL Summits 2024",
+      "dark": true,
+      "body": [
+        "<p>En 2024, quatre grandes thématiques ont été mises à l'honneur : la RSE, l'IA et la deeptech, la supply chain et l'Afrique. À travers une demi-journée dédiée à chaque sommet, dirigeants, experts internationaux et acteurs clés du secteur se sont réunis pour échanger lors de tables rondes et de keynotes.</p>",
+        "<p>Ces interventions ont permis d'analyser les impacts immédiats de ces enjeux majeurs sur l'industrie agroalimentaire et d'identifier des pistes d'action concrètes, en s'appuyant sur l'expertise et les retours d'expérience de professionnels de premier plan.</p>"
+      ]
+    }
+  ]
+}

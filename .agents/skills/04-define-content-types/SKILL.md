@@ -26,6 +26,39 @@ All Jahia development starts with content modeling. Content types are defined in
 
 ---
 
+## Non-negotiable CND rules (GATE-ENFORCED — do not violate)
+
+These are enforced automatically by `orchestration/probes/cnd-patterns.sh <project_path> <ns>`.
+The component/cnd gate **fails** until every `definition.cnd` is clean. Run it after
+writing any CND. There is no exception list.
+
+1. **Title → `mix:title`.** Never declare a `title` (or `jcr:title`) property. Any
+   editorial component (anything an editor gives a name/heading to, and **always** every
+   `jmix:mainResource` type) extends **`mix:title`**, which provides an i18n `jcr:title`
+   that jContent shows as the node title. In views read `props["jcr:title"]`; in JCR
+   queries read `getPropertyAsString("jcr:title")`. In `migrate_news.py`/MCP set
+   `"jcr:title"`, never `"title"`.
+2. **Tags / categories → built-in mixins only.** Never declare `tags`, `tag`, `category`,
+   `categories`, `keywords` properties. Free-form tags = extend **`jmix:tagged`** (gives
+   `j:tagList`); taxonomy = `(weakreference, category[autoSelectParent=false]) multiple`
+   via **`jmix:categorized`**.
+3. **Links → `linkTypeInitializer` only.** Any contributor link is
+   `- j:linkType (string, choicelist[linkTypeInitializer])`. Never store a link in a
+   plain `string` (`ctaUrl`, `linkUrl`, `href`, `targetUrl`, `prevUrl`, `videoUrl`…).
+   Never declare `j:url`/`j:linknode` — Jahia injects them. The button **label** is a
+   separate `- ctaLabel (string) i18n` (labels are fine; URLs are not).
+4. **Images & documents → `weakreference` only.** Every image/file is a DAM
+   `(weakreference, picker[type='image']) < jmix:image` (or `picker[type='file']`).
+   Never an `imageExternalUrl` / `logoExternalUrl` / `backgroundImageUrl` string field.
+   Capture the source URL with the browser, import via MCP `media.upload.url`, store the
+   weakref (see the Media section of `_references/migration-quality-bar.md`).
+
+Changing one of these on a type that already has content is a **3+1 edit**: CND →
+`types.ts` → every view → then a data remap (re-run the populate script / MCP
+`content.update` to move data into the new field, with `removeProperties` for the old one).
+
+---
+
 ## Step 0 — Write a spec before coding
 
 Before writing any CND, capture the content type spec. Ask the user to confirm:

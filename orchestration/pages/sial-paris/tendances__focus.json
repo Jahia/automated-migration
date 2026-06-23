@@ -1,0 +1,21 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "tendances/focus",
+  "intro": {
+    "overline": "FOCUS TENDANCES",
+    "heading": "Décryptez les grandes tendances de l'alimentation",
+    "body": "<p>Insights et chiffres clés pour vos décisions stratégiques. SIAL Paris décrypte les mouvements de fond qui transforment l'industrie alimentaire mondiale, de la personnalisation à la durabilité.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "La protéine au cœur des mutations",
+      "image": "tendance/focus-tendances/proteines/proteines-oeufs-jaune.jpg",
+      "imgFile": "proteines-hero.jpg",
+      "imageAlt": "La protéine au cœur des mutations alimentaires",
+      "body": [
+        "<p>Animale, végétale ou issue de nouvelles technologies, la protéine s'est imposée comme l'ingrédient central des nouvelles stratégies d'innovation. 57 % des consommateurs recherchent des protéines dans leurs snacks et 81 % des Français les jugent essentielles à la santé — mais le véritable enjeu se joue sur la qualité et la diversification des sources.</p>",
+        "<p>Notre focus explore le grand rééquilibrage entre protéines animales et végétales, la montée des protéines durables et locales (légumineuses, fermentation, insectes), le bien vieillir, le risque de « protein washing » et ce que SIAL 2026 nous dira sur la protéine de demain.</p>"
+      ]
+    }
+  ]
+}

@@ -37,42 +37,38 @@ jahiaComponent(
     return (
       <section className="component picture-grid container-bp col-12">
         <div className="component-content">
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-img">
-                <img className="img-cover" src={leftImageUrl} alt="" />
-              </div>
-              <div className="card-body" style={{ position: "relative", zIndex: 1 } as React.CSSProperties}>
-                {leftHeading && (
-                  <h2 className="text-truncate-3 field-picturegriditemtitre">
-                    {leftHeading}
-                  </h2>
-                )}
-                {leftCtaLabel && (
-                  <a className="btn btn-solid-white field-picturegriditemcta" href={leftHref}>
-                    <span>{leftCtaLabel}</span>
-                  </a>
-                )}
-              </div>
+          <div className="card">
+            <div className="card-img">
+              <img className="img-cover" src={leftImageUrl} alt="" />
+            </div>
+            <div className="card-body" style={{ position: "relative", zIndex: 1 } as React.CSSProperties}>
+              {leftHeading && (
+                <h2 className="text-truncate-3 field-picturegriditemtitre">
+                  {leftHeading}
+                </h2>
+              )}
+              {leftCtaLabel && (
+                <a className="btn btn-solid-white field-picturegriditemcta" href={leftHref}>
+                  <span>{leftCtaLabel}</span>
+                </a>
+              )}
             </div>
           </div>
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-img">
-                <img className="img-cover" src={rightImageUrl} alt="" />
-              </div>
-              <div className="card-body" style={{ position: "relative", zIndex: 1 } as React.CSSProperties}>
-                {rightHeading && (
-                  <h2 className="text-truncate-3 field-picturegriditemtitre">
-                    {rightHeading}
-                  </h2>
-                )}
-                {rightCtaLabel && (
-                  <a className="btn btn-solid-white field-picturegriditemcta" href={rightHref}>
-                    <span>{rightCtaLabel}</span>
-                  </a>
-                )}
-              </div>
+          <div className="card">
+            <div className="card-img">
+              <img className="img-cover" src={rightImageUrl} alt="" />
+            </div>
+            <div className="card-body" style={{ position: "relative", zIndex: 1 } as React.CSSProperties}>
+              {rightHeading && (
+                <h2 className="text-truncate-3 field-picturegriditemtitre">
+                  {rightHeading}
+                </h2>
+              )}
+              {rightCtaLabel && (
+                <a className="btn btn-solid-white field-picturegriditemcta" href={rightHref}>
+                  <span>{rightCtaLabel}</span>
+                </a>
+              )}
             </div>
           </div>
         </div>

@@ -8,6 +8,34 @@
     "logoAlt": "SIAL Paris - Inspire Food Business"
   },
   "jcrQuery": {
-    "empty": "Aucun contenu trouvé."
+    "empty": "Aucun contenu trouvé.",
+    "noResult": "Aucun contenu trouvé.",
+    "filterLabel": "Filtrer par catégorie",
+    "filterAll": "Toutes",
+    "loadMore": "Voir plus",
+    "loadMoreCount": "+{{count}}",
+    "defaultView": "par défaut",
+    "item": "élément",
+    "items": "éléments",
+    "view": "vue",
+    "under": "sous"
+  },
+  "common": {
+    "seeAll": "Voir tout"
+  },
+  "query": {
+    "catIsMissing": "Requête « {{queryName}} » : un filtre de catégorie configuré est manquant.",
+    "excludeIsMissing": "Requête « {{queryName}} » : un nœud exclu est manquant."
+  },
+  "newsGrid": {
+    "allLabel": "Toutes",
+    "loadMore": "Voir plus",
+    "filterLabel": "Filtrer les actualités par catégorie"
+  },
+  "focus": {
+    "discover": "Découvrir"
+  },
+  "whitePaper": {
+    "download": "Télécharger"
   }
 }

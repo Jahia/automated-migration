@@ -8,3 +8,7 @@
 
 // Page-area component mixin — types droppable in page areas extend this
 [sialpmix:pageComponent] > sialpmix:component mixin
+
+// This mixin is used to define which content is allowed to be returned by the JcrQuery content type. Add this mixin
+// to your content type to be able to select it from the "type" props of a JcrQuery content
+[sialpmix:queryContent] mixin

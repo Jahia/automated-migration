@@ -3,6 +3,8 @@ import {
   buildNodeUrl,
   jahiaComponent,
 } from "@jahia/javascript-modules-library";
+import type React from "react";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { Props } from "./types.js";
 
 jahiaComponent(
@@ -37,15 +39,38 @@ jahiaComponent(
     displayName: "SIAL Network",
   },
   (props: Props, { currentNode }) => {
-    const { heading } = props;
+    const { heading, image, ctaLabel, "j:linkType": linkType, "j:linknode": linknode, "j:url": url } = props;
+    const ctaHref =
+      linkType === "internal" && linknode
+        ? buildNodeUrl(linknode)
+        : linkType === "external" && url
+          ? url
+          : "#";
+    const imgUrl = image ? buildNodeUrl(image as unknown as JCRNodeWrapper) : null;
     return (
-      <section className="component sial-network container-bp col-12">
+      <section className="component content img-content-block-l sial-network col-12">
         <div className="component-content">
-          <div className="simple-title">
-            {heading && <h2 className="field-titre">{heading}</h2>}
-          </div>
-          <div className="row">
-            <RenderChildren />
+          <div className="container-bp">
+            <div className="row align-items-center">
+              <div className="col-md-5">
+                {imgUrl && (
+                  <img className="img-cover basic-radius w-100" src={imgUrl} alt={heading ?? "SIAL Network"} />
+                )}
+              </div>
+              <div className="col-md-7">
+                {heading && <h2 className="field-titre">{heading}</h2>}
+                <div className="row network-events">
+                  <RenderChildren />
+                </div>
+                {ctaLabel && (
+                  <div className="mt-4">
+                    <a href={ctaHref} className="btn btn-solid-primary">
+                      <span>{ctaLabel}</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -1,5 +1,15 @@
 import { buildNodeUrl, jahiaComponent } from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { Props } from "./types.js";
+
+function getCategoryLabels(node: JCRNodeWrapper): string[] {
+  try {
+    if (!node.hasProperty("j:defaultCategory")) return [];
+    return node.getProperty("j:defaultCategory").getValues().map((v: any) => {
+      try { return v.getNode().getDisplayableName(); } catch { return null; }
+    }).filter(Boolean);
+  } catch { return []; }
+}
 
 jahiaComponent(
   {
@@ -8,7 +18,9 @@ jahiaComponent(
     displayName: "News Article Card",
   },
   (props: Props, { currentNode }) => {
-    const { category, publishDate, title, excerpt, thumbnail } = props;
+    const { publishDate, excerpt, thumbnail } = props;
+    const title = props["jcr:title"];
+    const categories = getCategoryLabels(currentNode);
 
     return (
       <article className="news-card">
@@ -23,8 +35,14 @@ jahiaComponent(
           </div>
         )}
         <div className="news-card__body">
+          {categories.length > 0 && (
+            <div className="news-card__categories">
+              {categories.map((cat) => (
+                <span key={cat} className="news-card__category">{cat}</span>
+              ))}
+            </div>
+          )}
           <div className="news-card__meta">
-            {category && <span className="news-card__category">{category}</span>}
             {publishDate && (
               <time dateTime={publishDate} className="news-card__date">
                 {new Date(publishDate).toLocaleDateString("en", { dateStyle: "medium" })}

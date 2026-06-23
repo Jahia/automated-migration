@@ -1,12 +1,14 @@
 [sialp:trendCard] > jnt:content
  - tag (string) i18n
  - image (weakreference, picker[type='image'])
+ - imageExternalUrl (string)
  - heading (string) i18n
  - excerpt (string) i18n
  - ctaLabel (string) i18n
  - j:linkType (string, choicelist[linkTypeInitializer])
 
 [sialp:trendsSection] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - surtitle (string) i18n
  - heading (string) i18n
  - intro (string) i18n
  - j:linkType (string, choicelist[linkTypeInitializer])

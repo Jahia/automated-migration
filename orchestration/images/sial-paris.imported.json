@@ -1,0 +1,386 @@
+{
+  "infos-pratiques": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/SIAL-Paris-dates-acces.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/banner-infos-pratiques.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/commun/Kiwi-fond-noir-585X550px.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/kiwi-fond-noir.jpg"
+    }
+  ],
+  "infos-pratiques/dates-et-acces": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/SIAL-Paris-dates-acces.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/dates-et-acces/banner-dates-acces.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/commun/Kiwi-fond-noir-585X550px.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/dates-et-acces/kiwi-fond-noir.jpg"
+    }
+  ],
+  "infos-pratiques/tarifs-visiteurs": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/Banner-tarifs.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/tarifs-visiteurs/banner-tarifs.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/Tarifs-2026.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/tarifs-visiteurs/tarifs-2026.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/admission-terms.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/tarifs-visiteurs/admission-terms.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/VISA.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/tarifs-visiteurs/visa.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/vestiaire-SIAL-Paris.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/tarifs-visiteurs/vestiaire-sial-paris.jpg"
+    }
+  ],
+  "infos-pratiques/vip-ticket": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/badge-VIP/SIAL-Le-Club.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/vip-ticket/sial-le-club.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/badge-VIP/lounge-sial-evenement-discussions.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/vip-ticket/lounge-sial.jpg"
+    }
+  ],
+  "infos-pratiques/sial-off": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/SIAL-Off/Banner-SIAL-Off.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/sial-off/banner-sial-off.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/SIAL-Off/Explore-an-exclusive-selection-of-the-most-soughtafter-spots-in-the-city-chosen-for-their-vibrant-at.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/sial-off/explore-spots.jpg"
+    }
+  ],
+  "infos-pratiques/faq": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/SIAL-Paris-FAQ-banner.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/faq/banner-faq.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/SIAL-Paris-FAQ-Visiteur-pp.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/faq/faq-visiteur.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/infos-pratiques/SIAL-Paris-FAQ-Exposant-pp.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/faq/faq-exposant.jpg"
+    }
+  ],
+  "infos-pratiques/contacts": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/banner-SIAL-Paris-contacts.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/contacts/banner-contacts.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/Contacts/cb-Alexandra-Benmoussa.jpg",
+      "role": "person",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/contacts/alexandra-benmoussa.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/Contacts/Valentina-Giudici.jpg",
+      "role": "person",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/contacts/valentina-giudici.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/Contacts/cb-Audrey-Ashworth.jpg",
+      "role": "person",
+      "jcrPath": "/sites/sial-paris/files/migrated/infos-pratiques/contacts/audrey-ashworth.jpg"
+    }
+  ],
+  "le-salon": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Notre-histoire/SIAL-Paris-Notre-Histoire.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/notre-histoire.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Notre-histoire/SIAL-Innovation.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/sial-innovation.jpg"
+    }
+  ],
+  "le-salon/top-acheteurs-programme": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Top-Buyer/reunion-professionnels-salon-pro.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/top-acheteurs-programme/top-buyer-hero.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Top-Buyer/Why-join-the-Top-Buyers-programme.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/top-acheteurs-programme/why-join.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Top-Buyer/How-to-apply.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/top-acheteurs-programme/how-to-apply.jpg"
+    }
+  ],
+  "le-salon/pourquoi-visiter-sial-paris": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Why-visit/why-visit.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/pourquoi-visiter-sial-paris/why-visit.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Why-visit/SIAL-Paris-salon-ideal-business-notoriete.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/pourquoi-visiter-sial-paris/salon-ideal-business.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/le-salon/Why-visit/SIAL-un-salon-different-des-autres.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/pourquoi-visiter-sial-paris/salon-different.jpg"
+    }
+  ],
+  "le-salon/sial-newsfeed-trends": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/Article-newsfeed--trends.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/sial-newsfeed-trends/banner-newsfeed.jpg"
+    }
+  ],
+  "le-salon/nos-partenaires": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/banner-SIAL-Paris-contacts.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/le-salon/nos-partenaires/banner-partenaires.jpg"
+    }
+  ],
+  "temps-forts/sial-talks": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-Talks/banniere-SIAL-Talks.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-talks/banner-sial-talks.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-Talks/sial-talks-espace-conferences.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-talks/espace-conferences.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-Talks/Key-speakers/key-speakers-push.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-talks/key-speakers.jpg"
+    }
+  ],
+  "temps-forts/sial-summits": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-SUMMITS/2026/table-ronde-sial-conference-public.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-summits/banner-summits.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-SUMMITS/2026/champ-ble-coucher-soleil.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-summits/champ-ble.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-SUMMITS/IA-picture-grid.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-summits/ia-grid.jpg"
+    }
+  ],
+  "tendances": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temporaire/banner-jaune-2000x560.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/banner-tendances.jpg"
+    }
+  ],
+  "tendances/actualites": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/Cleverdis/main-verre-cocktail-concombre-menthe.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/actualites/actualites-hero.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/Cleverdis/2026/04/mango_sticky_rice_420x250.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/actualites/mango-sticky-rice.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/Cleverdis/2026/03/orange-miroir-jus-fond-bleu_clean.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/actualites/orange-jus.jpg"
+    }
+  ],
+  "tendances/focus": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/focus-tendances/orange-assiette-couvert.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/focus/focus-hero.jpg"
+    }
+  ],
+  "tendances/focus/proteines": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/focus-tendances/proteines/proteines-oeufs-jaune.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/focus/proteines/proteines-hero.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/focus-tendances/proteines/proteines-viande-rouge-fond-rose.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/focus/proteines/proteines-viande.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/focus-tendances/proteines/pates-proteines-barilla.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/focus/proteines/proteines-pates.jpg"
+    }
+  ],
+  "tendances/livres-blancs": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temporaire/banner-jaune-2000x560.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/livres-blancs/banner-livres-blancs.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/nouvelle-ere-alimentation-nellyrodi/livre-blanc-tendances-et-mutations-food.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/livres-blancs/lb-mutations.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/Livre-blanc-vegetal/livre-blanc-tendances-vegetales-push.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/livres-blancs/lb-vegetal.jpg"
+    }
+  ],
+  "tendances/livres-blancs/sial-insights-2024": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/SIAL-Insights-2024/SIAL-Insights-2024-555x450.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/livres-blancs/sial-insights-2024/insights-2024-hero.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/SIAL-Insights-2024/SIAL_INSIGHTS_2024_MOCKUP_555x600.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/tendances/livres-blancs/sial-insights-2024/insights-2024-mockup.jpg"
+    }
+  ],
+  "exposer/les-secteurs-du-salon": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temporaire/banner-jaune-2000x560.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/les-secteurs-du-salon/banner-secteurs.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/commun/Kiwi-fond-noir-585X550px.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/les-secteurs-du-salon/kiwi-fond-noir.jpg"
+    }
+  ],
+  "exposer/augmentez-votre-visibilite": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Augmentez-la-visibilite/Outils-de-com/Visuel-Outils-de-Comm.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/augmentez-votre-visibilite/outils-comm-hero.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Augmentez-la-visibilite/Outils-de-com/Lecteur-de-badges.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/augmentez-votre-visibilite/lecteur-badges.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Augmentez-la-visibilite/Outils-de-com/Maj-VAS-2026/invitation-cards-sial-jaune.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/augmentez-votre-visibilite/invitation-cards.jpg"
+    }
+  ],
+  "temps-forts": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/SIAL-Innovation-tendances-et-innovations-alimentaires-banner.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/banner-temps-forts.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/temps-forts/SIAL-Innovation/SIAL-Innovation-tendances-et-innovations-alimentaires-icb.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/temps-forts/sial-innovation-icb.jpg"
+    }
+  ],
+  "exposer/je-veux-exposer": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/banner/SIAL-Paris-pourquoi-exposer-banner.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/je-veux-exposer/banner-je-veux-exposer.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/ROI-business-discussion.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/je-veux-exposer/roi-business.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/plateforme-mondiale.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/je-veux-exposer/plateforme-mondiale.jpg"
+    }
+  ],
+  "exposer/je-veux-exposer/je-suis-une-start-up": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/start-up/le-start-up-village-du-salon-SIAL-Paris.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/je-veux-exposer/je-suis-une-start-up/startup-village.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/start-up/rencontre-sur-un-stand-dans-le-village-start-up-sial-paris.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/je-veux-exposer/je-suis-une-start-up/startup-stand.jpg"
+    }
+  ],
+  "exposer/les-secteurs-du-salon/boissons-sans-alcool": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Secteurs-60-ans/Boissons/Boisson-sans-alcool/boissons-sans-alcool-banniere.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/les-secteurs-du-salon/boissons-sans-alcool/banner-boissons.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Secteurs/Beverages/main-tient-bubble-tea.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/les-secteurs-du-salon/boissons-sans-alcool/bubble-tea.jpg"
+    }
+  ],
+  "exposer/augmentez-votre-visibilite/outils-de-communication-sial-paris": [
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Augmentez-la-visibilite/Outils-de-com/Visuel-Outils-de-Comm.jpg",
+      "role": "hero",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/augmentez-votre-visibilite/outils-de-communication-sial-paris/outils-comm-hero.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Augmentez-la-visibilite/Outils-de-com/Lecteur-de-badges.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/augmentez-votre-visibilite/outils-de-communication-sial-paris/lecteur-badges.jpg"
+    },
+    {
+      "src": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/rubrique-X/Augmentez-la-visibilite/Outils-de-com/Maj-VAS-2026/invitation-cards-sial-jaune.jpg",
+      "role": "section",
+      "jcrPath": "/sites/sial-paris/files/migrated/exposer/augmentez-votre-visibilite/outils-de-communication-sial-paris/invitation-cards.jpg"
+    }
+  ]
+}

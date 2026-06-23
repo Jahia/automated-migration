@@ -230,3 +230,24 @@ After the mutation, Jahia logs a `devtools://...` URL. Open it in Chrome (use la
 In Chrome DevTools Sources tab, open `<module>/dist/main.js`, set a breakpoint, then reload the page. The server-side render pauses at the breakpoint. Full scope inspection, step-over, and continue are supported.
 
 The config file `org.jahia.modules.javascript.modules.engine.jsengine.GraalVMEngine.cfg` accepts any `polyglot.*` key as an engine option — you can persist these settings there instead of using the GraphQL mutation.
+
+---
+
+## Gotcha: duplicate view registration → SITE-WIDE 404 (verified on sial-paris)
+
+Symptom: after deploy, **only the home page renders; every other page 404s** in BOTH `live` and `default` workspaces. The render log shows `Rendered ... in [4ms]` followed by `[Error code: 404]: Requested resource is not available` — i.e. no render exception, the page node exists and `j:published=true`, but the **template/view fails to resolve**.
+
+Root cause: two `jahiaComponent({ componentType:'view', nodeType:'ns:foo', ... })` registrations for the **same nodeType + view name** (default view = no `name`). The GraalVM engine throws at module load:
+
+```
+org.graalvm.polyglot.PolyglotException: Entry for view / <module>_view_ns:foo_default already exist
+```
+
+That exception **aborts the module's view/template registration partway**, so whichever templates registered before the throw work (e.g. the `home` template) and everything after does not (e.g. the `basic` template every other page uses) → site-wide 404.
+
+How it happens: adding a `jahiaComponent` view for a type that **already has a view file** (e.g. a separate `item.server.tsx`). Easy to miss if you only read `default.server.tsx`.
+
+Prevention / fix:
+- Before adding a view, `grep -rn "nodeType: 'ns:foo'" src/` across the WHOLE component dir — there may be `item.server.tsx`, `card.server.tsx`, etc. registering it already.
+- One default view per nodeType per module. Use distinct `name:` for additional views.
+- After deploy, smoke-test a NON-home page (the home template often masks this), and `docker logs <jahia-container> | grep -i "already exist"`.

@@ -1,0 +1,59 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "infos-pratiques/vip-ticket",
+  "hero": {
+    "heading": "Ticket VIP SIAL Paris 2026",
+    "subtitle": "Exclusivité : en 2026, le ticket VIP SIAL Paris devient accessible à tous les professionnels. Vivez une expérience exclusive et bénéficiez de services privilégiés pour optimiser votre présence tout au long des cinq jours du salon.",
+    "image": "infos-pratiques/badge-VIP/SIAL-Le-Club.jpg",
+    "imgFile": "vip-ticket-hero.jpg"
+  },
+  "intro": {
+    "overline": "ACHETEZ VOTRE TICKET VIP",
+    "heading": "Une expérience business exclusive",
+    "body": "<p>Pour cette édition 2026, SIAL Paris franchit une nouvelle étape dans l'accueil des professionnels. Traditionnellement réservé aux institutionnels et aux partenaires stratégiques, le ticket VIP est désormais accessible à l'ensemble des acteurs de la filière agroalimentaire.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Pourquoi SIAL Paris est votre rendez-vous business incontournable ?",
+      "image": "infos-pratiques/badge-VIP/SIAL-Le-Club.jpg",
+      "imgFile": "vip-le-club.jpg",
+      "imageAlt": "Le Club VIP de SIAL Paris",
+      "body": [
+        "<p>En tant que salon de référence mondial de l'alimentation et des boissons, SIAL Paris est le catalyseur de vos ambitions commerciales. C'est ici que se dessine l'avenir de l'industrie et que se concrétisent les partenariats de demain.</p>",
+        "<ul><li><strong>Une puissance de frappe internationale</strong> : rencontrez des milliers d'exposants venus du monde entier pour sourcer les produits qui feront la différence dans vos rayons ou vos menus.</li><li><strong>SIAL For Change, le business avec un temps d'avance</strong> : anticipez les mutations du secteur avec notre programme dédié à la transition alimentaire, ses stratégies RSE et ses solutions pour une alimentation plus durable.</li><li><strong>Le laboratoire des innovations</strong> : accédez en avant-première aux tendances mondiales via SIAL Innovation, SIAL Taste, SIAL StrEAT Lab ou SIAL Bakery.</li><li><strong>Un networking à haute valeur ajoutée</strong> : planifiez vos rendez-vous stratégiques avec les exposants avant même l'ouverture des portes.</li><li><strong>Une efficacité maximale</strong> : 5 jours intensifs pour explorer, networker et sécuriser vos approvisionnements sur une plateforme unique.</li></ul>"
+      ]
+    },
+    {
+      "heading": "Ticket VIP vs Visiteur : maximisez votre efficacité business",
+      "dark": true,
+      "body": [
+        "<p>Si le ticket Visiteur permet de profiter de toute l'offre du salon, le ticket VIP est conçu pour les professionnels qui souhaitent optimiser leur temps au maximum.</p>",
+        "<table><thead><tr><th>Avantage</th><th>Visiteur</th><th>VIP</th></tr></thead><tbody><tr><td>Accès général au salon (5 jours)</td><td>✓</td><td>✓</td></tr><tr><td>Animations et conférences gratuites (SIAL Innovation, Taste, StrEAT Lab, Talks, Start-up)</td><td>✓</td><td>✓</td></tr><tr><td>Service de business meetings (RDV exposants)</td><td>✓</td><td>✓</td></tr><tr><td>Entrée dédiée, sans file d'attente</td><td>✕</td><td>✓</td></tr><tr><td>Accès exclusif au Club VIP (ouverture dès 8h00)</td><td>✕</td><td>✓</td></tr><tr><td>SIAL Meet &amp; Match, votre QG business</td><td>✕</td><td>✓</td></tr><tr><td>Services de conciergerie personnalisés</td><td>✕</td><td>✓</td></tr></tbody></table>",
+        "<p>Pour toute question, contactez visit@sialparis.com</p>"
+      ]
+    },
+    {
+      "heading": "Prêt à passer au niveau supérieur ?",
+      "image": "infos-pratiques/badge-VIP/lounge-sial-evenement-discussions.jpg",
+      "imgFile": "vip-lounge.jpg",
+      "imageAlt": "Lounge SIAL, espace d'échanges",
+      "body": [
+        "<p>Ne vous contentez pas de visiter SIAL Paris : faites-en un levier de croissance pour votre activité. En choisissant le ticket VIP, vous rejoignez le cercle des professionnels qui bénéficient de conditions de travail optimales au cœur du plus grand événement agroalimentaire mondial.</p>"
+      ]
+    },
+    {
+      "heading": "Questions fréquentes",
+      "dark": true,
+      "body": [
+        "<h3>Quelle est la différence entre le ticket Visiteur et le ticket VIP ?</h3>",
+        "<p>Le ticket Visiteur offre un accès complet aux halls et aux animations. Le ticket VIP enrichit l'expérience avec des services exclusifs : entrée dédiée, accès anticipé au Club VIP (dès 8h00) et service de conciergerie pour faciliter votre séjour, de la réservation de restaurant à l'organisation de vos déplacements.</p>",
+        "<h3>Le ticket VIP est-il accessible à tous les professionnels ?</h3>",
+        "<p>Oui. Pour la première fois cette année, ce ticket, auparavant réservé exclusivement aux institutionnels et partenaires, est disponible à l'achat pour l'ensemble des acteurs de la filière agroalimentaire.</p>",
+        "<h3>Puis-je accéder au salon plus tôt avec mon ticket VIP ?</h3>",
+        "<p>Le ticket VIP vous donne accès au Club VIP une heure avant l'ouverture officielle du salon (dès 8h00) : un moment privilégié pour organiser vos rendez-vous ou travailler au calme avant l'affluence.</p>",
+        "<h3>Comment fonctionne le service de conciergerie ?</h3>",
+        "<p>Le service de conciergerie est à votre disposition avant et pendant le salon : réservation de restaurant, organisation de transport, recherche de services de proximité ou demandes spécifiques. Une équipe dédiée vous accompagne pour vous permettre de vous concentrer sur vos rendez-vous et vos objectifs professionnels.</p>"
+      ]
+    }
+  ]
+}

@@ -14,6 +14,8 @@ const FALLBACK_IMAGES = [
   "static/assets/images/slide-3.jpg",
 ];
 
+let slideIndex = 0;
+
 jahiaComponent(
   { componentType: "view", nodeType: "sialp:heroSlide", displayName: "Hero Slide" },
   (props: Props) => {
@@ -25,9 +27,10 @@ jahiaComponent(
           ? url
           : "#";
 
+    const idx = slideIndex++ % FALLBACK_IMAGES.length;
     const imgSrc = props.backgroundImage
       ? buildNodeUrl(props.backgroundImage)
-      : (props.backgroundImageUrl || buildModuleFileUrl(FALLBACK_IMAGES[0]));
+      : (props.backgroundImageUrl || buildModuleFileUrl(FALLBACK_IMAGES[idx]));
 
     return (
       <li className="slide" role="group" aria-label={heading ?? "Slide"}>

@@ -7,6 +7,7 @@ export interface EntryProps {
   body?: string;
   linkLabel?: string;
   linkUrl?: string;
+  partnerCategory?: string;
 }
 
 export interface Props {

@@ -1,0 +1,59 @@
+{
+  "goal": "PROOF RUN through the orchestrator: populate the 7 infos-pratiques pages with content AND their pre-imported images, idempotently, via the Jahia MCP. Proven by content.sh against the live render.",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+  "model": "deepseek/deepseek-v4-flash",
+  "github_repo": "smonier/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_infos_proof",
+      "title": "Populate infos-pratiques (content + images)",
+      "goal": "Fill the 7 infos-pratiques pages with reference-accurate content components and their imported hero/section/person images, reusing existing nodes, and publish to live.",
+      "review_config": {
+        "max_review_rounds": 1,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "Every infos-pratiques page renders > 400 chars of live content",
+          "Each page shows its hero banner from the imported images manifest",
+          "No new component types beyond the baseline"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_infos",
+          "title": "Populate + publish infos-pratiques",
+          "description": "The 7 page nodes already exist (empty shells). Idempotently fill each with content components mirroring its reference URL, attach the pre-imported images, and publish to live. Reuse existing nodes; do not recreate.",
+          "acceptance_criteria": ["every infos-pratiques page renders > 400 chars with its hero image"],
+          "steps": [
+            {
+              "id": "step_infos_populate",
+              "title": "Populate infos-pratiques via Jahia MCP (idempotent, with images)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "sial-paris",
+                "project_path": "projects/sial-paris",
+                "siteKey": "sial-paris",
+                "language": "fr",
+                "sitemap": "orchestration/sitemaps/sial-paris-infos.txt",
+                "imagesManifest": "orchestration/images/sial-paris.imported.json",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "IDEMPOTENT: for each path in orchestration/sitemaps/sial-paris-infos.txt, content.get (locale fr) to check; if missing page.create, else REUSE - never recreate. Then fill each empty page's main area with content components mirroring the reference URL on https://www.sialparis.com/fr-FR. Use lowercase node names. Publish each page (publication.publish).",
+                "IMAGES are already imported - read orchestration/images/sial-paris.imported.json (keyed by page path; each entry has jcrPath + role). Reference those jcrPath nodes as weakreferences: role 'hero' -> the page hero/banner image; 'person' -> personCard photo; 'section' -> imgContentBlock/editorial image. Every page MUST display its hero banner. Do NOT fetch images.",
+                "REUSE existing sialp: types (run inventory.sh first); add a view if markup differs but properties match; never invent a type. FAQ=faqSection/faqItem, pricing=pricingTable/pricingTier, people=peopleGrid/personCard already exist.",
+                "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp, Authorization APIToken from project .env) for ALL content ops. content.create/content.update/publication.publish.",
+                "PROBE: bash orchestration/probes/no-new-types.sh projects/sial-paris sialp orchestration/component-baseline.txt",
+                "PROBE: bash orchestration/probes/mcp.sh projects/sial-paris",
+                "PROBE: bash orchestration/probes/content.sh projects/sial-paris sial-paris fr @orchestration/sitemaps/sial-paris-infos.txt"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

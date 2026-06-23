@@ -1,0 +1,6 @@
+[sialp:whitePaper] > jnt:content, sialpmix:pageComponent, mix:title, jmix:mainResource, sialpmix:queryContent, jmix:tagged, jmix:categorized
+ - thumbnail (weakreference, picker[type='image']) < jmix:image
+ - document (weakreference, picker[type='file'])
+ - publishDate (date)
+ - excerpt (string) i18n
+ - body (string, richtext) i18n

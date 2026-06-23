@@ -1,0 +1,63 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "le-salon/top-acheteurs-programme",
+  "hero": {
+    "heading": "Programme Top Acheteurs",
+    "subtitle": "Le rendez-vous des top acheteurs de l'agroalimentaire. Rejoignez les top acheteurs de SIAL Paris et bénéficiez d'avantages exclusifs lors de votre visite gratuite au salon international de l'alimentation.",
+    "image": "le-salon/Top-Buyer/reunion-professionnels-salon-pro.jpg",
+    "imgFile": "top-acheteurs-hero.jpg"
+  },
+  "intro": {
+    "overline": "TOP ACHETEURS",
+    "heading": "Le rendez-vous des top acheteurs de l'agroalimentaire",
+    "body": "<p>SIAL Paris est le rendez-vous mondial de l'agroalimentaire, où se retrouvent tous les décideurs et acteurs clés du secteur. Le Programme Top Acheteurs donne accès à une expérience unique pour développer votre business, élargir votre réseau et découvrir les innovations du secteur.</p><p>Le programme s'adresse aux acheteurs, aux responsables achats et aux dirigeants du secteur food &amp; beverage. En le rejoignant, vous intégrez la communauté mondiale des Top Buyers SIAL et accédez à des avantages exclusifs pour optimiser votre visite et développer votre réseau.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Qui peut candidater ?",
+      "image": "le-salon/Top-Buyer/reunion-professionnels-salon-pro.jpg",
+      "imgFile": "top-acheteurs-reunion.jpg",
+      "imageAlt": "Réunion de professionnels sur un salon",
+      "body": [
+        "<p>Le programme est ouvert aux professionnels ayant un rôle décisionnaire dans les achats de produits alimentaires et une intention d'achat clairement définie.</p>",
+        "<p><strong>Les professionnels du secteur agroalimentaire</strong> : import-export, distribution, restauration, food service ou transformation agroalimentaire.</p>",
+        "<p><strong>Les décideurs et acheteurs clés</strong> : PDG, Directeur de magasin, Responsable achats, Acheteur ou Category Manager.</p>"
+      ]
+    },
+    {
+      "heading": "Vos avantages exclusifs",
+      "dark": true,
+      "body": [
+        "<h3>Avant le salon</h3>",
+        "<ul><li>Entrée gratuite pour les cinq jours de l'événement.</li><li>Accès à un service de conciergerie disponible trois semaines avant l'ouverture.</li><li>Planification de vos rendez-vous business grâce à la plateforme de matchmaking.</li></ul>",
+        "<h3>Pendant le salon</h3>",
+        "<ul><li>Navette gratuite aller-retour vers Paris et file prioritaire à l'entrée.</li><li>Accès réservé au Business Lounge et au VIP Club.</li><li>Services premium : conciergerie, bagagerie, vestiaire.</li><li>Accès privilégié aux espaces SIAL Innovation, SIAL Taste et SIAL Talks.</li><li>Invitations aux événements exclusifs : Top Buyers Cocktail, networking et animations business.</li></ul>",
+        "<h3>Après le salon</h3>",
+        "<ul><li>Accès aux carnets de tendances SIAL Insights.</li><li>Adhésion possible à The SIAL Society, le club international des acheteurs du réseau SIAL, avec accès VIP à 11 salons dans le monde (sous conditions).</li></ul>"
+      ]
+    },
+    {
+      "heading": "Pourquoi rejoindre le programme ?",
+      "image": "le-salon/Top-Buyer/Why-join-the-Top-Buyers-programme.jpg",
+      "imgFile": "top-acheteurs-why-join.jpg",
+      "imageAlt": "Pourquoi rejoindre le programme Top Acheteurs",
+      "body": [
+        "<p>Participer à SIAL Paris, c'est entrer au cœur du marché mondial de l'industrie agroalimentaire. Le Programme Top Acheteurs vous ouvre les portes d'un réseau international de fournisseurs et d'innovateurs.</p>",
+        "<p>Vous accédez à toute la chaîne de valeur agroalimentaire : vous identifiez des produits, comparez des solutions et créez des partenariats stratégiques. Tout est pensé pour faciliter vos décisions et accélérer votre business.</p>",
+        "<p>Les acheteurs sélectionnés peuvent également être invités à rejoindre The SIAL Society, le club officiel des acheteurs de SIAL Network — une communauté internationale qui récompense les acheteurs influents et fidèles avec des avantages premium.</p>"
+      ]
+    },
+    {
+      "heading": "Comment postuler ?",
+      "image": "le-salon/Top-Buyer/How-to-apply.jpg",
+      "imgFile": "top-acheteurs-how-to-apply.jpg",
+      "imageAlt": "Comment postuler au programme Top Acheteurs",
+      "dark": true,
+      "body": [
+        "<p>Remplissez le formulaire de candidature en ligne en indiquant vos intentions d'achat et votre fonction. Notre équipe étudie chaque profil et vous répond rapidement. L'envoi d'une candidature ne garantit pas l'acceptation au programme.</p>",
+        "<p>SIAL Paris propose également un Programme Hosted Buyers — une offre limitée, soumise à conditions et candidature.</p>",
+        "<p>Pour toute question, contactez-nous : topbuyers@sialparis.com</p>"
+      ]
+    }
+  ]
+}

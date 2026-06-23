@@ -1,0 +1,134 @@
+/* JcrQuery — featured layout: 1 hero left + 2 compact stacked right */
+
+/* main is full-width in this template set -> constrain + center the listing */
+.wrapper {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+/* Section heading row */
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid #1b2a4a;
+}
+
+.heading {
+  font-family: inherit;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1b2a4a;
+  margin: 0;
+  display: inline-block;
+}
+
+.seeAll {
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1b2a4a;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.seeAll:hover {
+  text-decoration: underline;
+}
+
+/* 2-column grid: equal halves, stretch to tallest */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* Left slot: featured card fills full height */
+.featuredSlot {
+  height: 100%;
+  min-height: 400px;
+}
+
+.featuredSlot > * {
+  height: 100%;
+}
+
+/* Right slot: two compact items stacked, each taking ~half the height */
+.sideSlots {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+.sideItem {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sideItem > * {
+  flex: 1;
+  height: 100%;
+}
+
+/* Empty state */
+.empty {
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: #666;
+  text-align: center;
+  padding: 40px 20px;
+  background: #f6f6f8;
+  border-radius: 10px;
+  border: 1px dashed #dcdce3;
+}
+
+/* Edit mode panels — reuse same tokens as default view */
+.editInfo {
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: #1b2a4a;
+  background: rgba(77, 28, 135, 0.06);
+  border: 1px solid rgba(77, 28, 135, 0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.warn {
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: #7a4a00;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+/* Responsive: stack to single column on mobile */
+@media (max-width: 767px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .featuredSlot {
+    min-height: 300px;
+  }
+
+  .sideItem {
+    flex: unset;
+    height: auto;
+  }
+}

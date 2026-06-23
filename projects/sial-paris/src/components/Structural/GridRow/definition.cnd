@@ -1,3 +1,4 @@
 [sialp:gridRow] > jnt:content, sialpmix:pageComponent
  - columns (string, choicelist[resourceBundle]) = '3' < '1', '2', '3', '4'
  - gap (string, choicelist[resourceBundle]) = 'medium' < 'small', 'medium', 'large'
+ + * (jmix:droppableContent) = jmix:droppableContent

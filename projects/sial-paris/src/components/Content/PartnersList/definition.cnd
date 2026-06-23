@@ -5,6 +5,7 @@
  - body (string, richtext) i18n
  - linkLabel (string) i18n
  - linkUrl (string)
+ - partnerCategory (string, choicelist) < 'animations', 'institutionnels', 'medias', 'salons', 'sialInsights'
 
 [sialp:partnersList] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList, jmix:cache orderable
  - heading (string) i18n

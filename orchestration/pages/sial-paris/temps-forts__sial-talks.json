@@ -1,0 +1,58 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "temps-forts/sial-talks",
+  "hero": {
+    "heading": "SIAL Talks",
+    "subtitle": "Hall 5A — le rendez-vous incontournable des actualités du moment et à venir de la food. Un espace de prise de parole d'experts internationaux de haut niveau.",
+    "image": "temps-forts/SIAL-Talks/banniere-SIAL-Talks.jpg",
+    "imgFile": "sial-talks-hero.jpg"
+  },
+  "intro": {
+    "overline": "TEMPS FORTS",
+    "heading": "SIAL Talks en bref",
+    "body": "<p>SIAL Talks est le forum de discussion et de présentation où toutes les tendances et les idées autour du marché de l'alimentation sont portées à l'attention des visiteurs. Notre rôle : vous permettre de comprendre, analyser et échanger autour de l'alimentation de demain, et faire écho aux tendances de notre écosystème (formats de distribution, process alimentaires innovants, impacts environnementaux) afin de vous donner toutes les clés de création de solutions d'avenir.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Un espace de conférences au cœur du salon",
+      "image": "temps-forts/SIAL-Talks/sial-talks-espace-conferences.jpg",
+      "imgFile": "sial-talks-conferences.jpg",
+      "imageAlt": "L'espace conférences SIAL Talks",
+      "body": [
+        "<p>Retrouvez de nombreuses prises de parole d'experts internationaux de haut niveau, ainsi que l'intervention d'acteurs de la distribution, de l'innovation agroalimentaire et de la restauration. SIAL Talks vous donne les clés pour comprendre et anticiper l'alimentation de demain.</p>"
+      ]
+    },
+    {
+      "heading": "Explorez le futur de l'industrie agroalimentaire",
+      "dark": true,
+      "body": [
+        "<h3>SIAL Insights : comprendre et agir sur les tendances</h3>",
+        "<p>Dans un contexte où les habitudes de consommation évoluent rapidement, SIAL Insights fournit une compréhension fine des dynamiques qui façonnent le comportement des consommateurs et leur impact sur le marché.</p>",
+        "<h3>Les perspectives globales face aux frontières de l'alimentation mondiale</h3>",
+        "<p>L'industrie est de plus en plus influencée par des facteurs globaux — géopolitique, évolutions économiques, changements climatiques. Les opportunités émergentes sur les marchés internationaux offrent aux entreprises des perspectives plus claires pour naviguer dans un environnement en constante évolution.</p>",
+        "<h3>Innover et réinventer l'industrie agroalimentaire</h3>",
+        "<p>L'innovation est le moteur de la transformation du secteur. Nouvelles technologies, procédés innovants et produits révolutionnaires redéfinissent les standards. Les entreprises doivent réinventer leurs modèles d'affaires pour rester compétitives.</p>",
+        "<h3>Le développement durable au cœur des discussions</h3>",
+        "<p>Face aux défis environnementaux, le développement durable est devenu une priorité. Les initiatives des entreprises visent à réduire l'empreinte écologique de la production alimentaire tout en répondant aux attentes des consommateurs en matière de responsabilité sociale et environnementale.</p>"
+      ]
+    },
+    {
+      "heading": "Les speakers de SIAL Talks",
+      "image": "temps-forts/SIAL-Talks/Speakers-2026/SIAL-Talks-speaker-Audrey-Ashworth.jpg",
+      "imgFile": "sial-talks-speaker.jpg",
+      "imageAlt": "Intervenante SIAL Talks",
+      "body": [
+        "<p><strong>Speakers 2026</strong> — explorez les grands enjeux qui transforment l'industrie alimentaire mondiale grâce aux interventions de nos experts agroalimentaires internationaux.</p>",
+        "<p><strong>Speakers 2024</strong> — tables rondes et conférences où nos experts internationaux ont révélé tout ce qu'il faut savoir sur le secteur agroalimentaire.</p>",
+        "<p><strong>Key speakers 2022</strong> — des experts du monde entier ont présenté la Food 360 en conférences et tables rondes.</p>"
+      ]
+    },
+    {
+      "heading": "Les partenaires de SIAL Talks",
+      "dark": true,
+      "body": [
+        "<ul><li><strong>Agropole</strong> — la plus grande technopole agroalimentaire européenne, qui rassemble 90 entreprises et 2 984 salariés et accompagne les porteurs de projets de l'idéation à l'implantation.</li><li><strong>ALL4PACK Emballage Paris</strong> — depuis 1947, le salon multi-spécialiste de la filière emballage : près de 850 exposants et 24 000 professionnels attendus.</li><li><strong>ANIA</strong> — l'Association nationale des industries alimentaires, représentative des 19 000 entreprises alimentaires de France (1er secteur économique français, 212 Md€ de chiffre d'affaires, 510 000 salariés).</li><li><strong>Ecotrophelia</strong> — promeut l'entrepreneuriat et la compétitivité du secteur via le concours national et européen d'innovation alimentaire « Les Trophées Étudiants de l'Innovation Alimentaire ».</li><li><strong>Interfel</strong> — l'interprofession des fruits et légumes frais, qui promeut et valorise la filière en France.</li><li><strong>Kantar</strong> — leader mondial des études et du conseil fondés sur des données objectives, présent dans plus de 90 pays.</li><li><strong>ProtéinesXTC</strong> — cabinet de conseil en innovation, communication et nutrition, partenaire Innovation du SIAL depuis 1996 et créateur de NewFoodData et de l'Arbre des Tendances.</li><li><strong>EIT Food, Circana, Nutrimarketing, Noé, Evidence Santé</strong> — experts et partenaires de la programmation.</li></ul>"
+      ]
+    }
+  ]
+}

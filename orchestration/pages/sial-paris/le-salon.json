@@ -1,0 +1,107 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "le-salon",
+  "hero": {
+    "heading": "Le Salon",
+    "subtitle": "Notre histoire — depuis 60 ans, SIAL Paris apporte un éclairage stratégique pour aider les acteurs de l'agroalimentaire à prendre les bonnes décisions.",
+    "image": "le-salon/Notre-histoire/SIAL-Paris-Notre-Histoire.jpg",
+    "imgFile": "le-salon-notre-histoire.jpg"
+  },
+  "intro": {
+    "overline": "NOTRE HISTOIRE",
+    "heading": "L'histoire du Salon International de l'Alimentation",
+    "body": "<p>Depuis 60 ans, SIAL Paris apporte un éclairage stratégique pour aider les acteurs de l'agroalimentaire à prendre les bonnes décisions. Retour sur six décennies qui ont façonné le rendez-vous phare de la planète food.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "1950 : la révolution agro-alimentaire",
+      "imageAlt": "Affiche historique du Salon International de l'Alimentation",
+      "body": [
+        "<p>Dans les années 1950, l'Europe de l'Ouest sort de la pénurie causée par la Seconde Guerre mondiale. Grâce à la Politique Agricole Commune (PAC), les grands pays agricoles du marché commun retrouvent rapidement leur capacité de production.</p>",
+        "<p>À l'origine, la PAC vise à garantir l'auto-suffisance alimentaire, mais cet objectif est rapidement étendu pour inclure une dimension commerciale, rendant tout aussi cruciales les ventes sur les marchés intérieurs et internationaux. Dans certains pays, l'agroalimentaire devient essentiel pour la balance commerciale. La France voit en 1961 la création de la SOPEXA (Société pour la Promotion et l'Expansion des Produits Agro-Alimentaires), marquant la prise de conscience de l'importance de promouvoir les produits français à l'international.</p>",
+        "<p>Premier producteur agricole de la communauté, la France ne peut rester en retrait. Elle lance donc SIAL Paris, le Salon International de l'Alimentation, avec Philippe Le Coq de Kerland comme premier Directeur Général.</p>"
+      ]
+    },
+    {
+      "heading": "1964 : les fondements de SIAL Paris définis dès l'origine",
+      "image": "le-salon/Notre-histoire/affiche-salon-international-de-lalimentation-1964.jpg",
+      "imgFile": "le-salon-1964-affiche.jpg",
+      "imageAlt": "Affiche du Salon International de l'Alimentation 1964",
+      "dark": true,
+      "body": [
+        "<p>En 1964, à l'occasion de la Semaine Internationale de l'Alimentation, la première édition de SIAL Paris voit le jour. Le salon accueille 602 exposants dont 340 internationaux dans 27 pavillons sur les 13 000 m² du CNIT de Paris La Défense.</p>",
+        "<p>C'est encore modeste, mais les principes fondamentaux de l'événement sont déjà définis : un salon international ouvert aux produits étrangers, se positionnant tous les deux ans à Paris comme un temps fort de l'activité agroalimentaire mondiale, fréquenté par des producteurs, importateurs, acheteurs et détaillants, où les affaires s'engagent et se traitent.</p>",
+        "<p>Le CNIT abrite les trois premières éditions jusqu'en 1968, mais la rapide expansion de la biennale exige en 1970 son déménagement vers le Parc des Expositions de la Porte de Versailles, où d'autres grands salons concourent au développement des industries agroalimentaires :</p>",
+        "<ul><li>le GIA (Génie Industriel Alimentaire)</li><li>le MATIC (Industrie et Commerce des Produits d'origine animale)</li><li>le SALON DE L'EMBALLAGE — aujourd'hui ALL4PACK EMBALLAGE PARIS</li></ul>"
+      ]
+    },
+    {
+      "heading": "1986 : SIAL Paris en pleine expansion",
+      "image": "le-salon/Notre-histoire/sial-paris-cnit-1964.jpg",
+      "imgFile": "le-salon-cnit.jpg",
+      "imageAlt": "SIAL Paris au CNIT",
+      "body": [
+        "<p>En 1986, SIAL Paris quitte le Parc des Expositions de la Porte de Versailles, devenu trop étroit, pour Paris-Nord Villepinte, où il occupe 5 halls, soit 80 000 m². 88 000 professionnels viennent à la rencontre de plus de 4 000 exposants et nouveautés. La renommée internationale du salon est alors bien établie.</p>",
+        "<p>SIAL Network, le réseau mondial de salons professionnels de l'agroalimentaire, voit alors le jour :</p>",
+        "<ul><li>le Salon du Fromage et des Produits Laitiers (1985)</li><li>SIAL in China, lancé en 1999 à Singapour et installé à Shanghai depuis 2000, aujourd'hui le plus grand salon asiatique dédié à l'innovation alimentaire</li><li>SIAL Canada (2001), en éditions annuelles entre Montréal et Toronto</li><li>Djazagro (2003)</li><li>Gourmet Selection (2009), salon de l'épicerie fine</li><li>SIAL Interfood (2015) à Jakarta</li><li>SIAL India (2019) à New Delhi puis Mumbai</li><li>SIAL in China South (2021) à Shenzhen puis Guangzhou</li><li>Food &amp; Drinks Malaysia (2022)</li><li>SIAL Vietnam (2026), co-localisé avec Vietnam Food Expo</li></ul>"
+      ]
+    },
+    {
+      "heading": "1996 : SIAL Innovation voit le jour",
+      "image": "le-salon/Notre-histoire/SIAL-Innovation.jpg",
+      "imgFile": "le-salon-sial-innovation.jpg",
+      "imageAlt": "SIAL Innovation",
+      "dark": true,
+      "body": [
+        "<p>En 1994, SIAL Paris fête son 30e anniversaire. À travers ses quinze éditions et les déménagements qui ont jalonné son succès, le salon a acquis une notoriété et un savoir-faire qui lui ont permis dès 1992 d'échapper à la morosité engendrée par la crise économique.</p>",
+        "<p>C'est en 1996 que SIAL Paris, en collaboration avec ProtéinesXTC, lance SIAL Innovation, le concours d'innovation agroalimentaire devenu l'événement majeur pour faire connaître les nouveautés produits, vecteur d'une visibilité inégalée et d'opportunités business accrues. De nombreuses histoires à succès ont depuis vu le jour :</p>",
+        "<ul><li>Charal et son hebdopack® (1986), emballage en aluminium qui conserve la viande pendant une semaine</li><li>la Laiterie Triballat, qui proposait en 1988 la première gamme de desserts frais au soja avec Sojasun, devenue leader du marché français et exportée jusqu'en Chine</li></ul>"
+      ]
+    },
+    {
+      "heading": "2004 : une édition record, marquée par l'innovation et la diversité internationale",
+      "image": "le-salon/Notre-histoire/sial-paris-2004.jpg",
+      "imgFile": "le-salon-2004.jpg",
+      "imageAlt": "SIAL Paris 2004",
+      "body": [
+        "<p>En 2004, SIAL Paris attire plus de 135 000 visiteurs, dont 52 % d'internationaux, et 5 259 entreprises exposantes de 99 pays, confirmant son rôle de catalyseur de l'innovation agroalimentaire mondiale. On note une augmentation des visiteurs des marchés émergents comme la Chine, l'Inde et le Brésil, témoignant de l'intérêt global pour les nouvelles tendances alimentaires.</p>",
+        "<p>L'espace Tendances &amp; Innovations, aujourd'hui SIAL Innovation, met en avant des produits comme le lait demi-écrémé en fût de la société Inex (Belgique) ou les salades bio de Mont Blanc Bio, illustrant l'engagement de SIAL Paris à promouvoir l'innovation. Le salon bénéficie d'une large couverture médiatique internationale et de nombreuses délégations officielles.</p>"
+      ]
+    },
+    {
+      "heading": "2014 : 50 ans d'innovation",
+      "image": "le-salon/Notre-histoire/sial-innovation-sial-paris-2014.jpg",
+      "imgFile": "le-salon-2014.jpg",
+      "imageAlt": "SIAL Innovation 2014",
+      "dark": true,
+      "body": [
+        "<p>En 2014, SIAL Paris fête ses 50 ans et lance SIAL Off, une offre privilégiée dans 50 lieux parisiens d'exception. Véritable guide des bonnes tables et des lieux insolites de Paris, SIAL Off propose les meilleures adresses gourmandes et festives de la capitale.</p>",
+        "<p>6 000 exposants du monde entier présentent les produits de demain, les tendances et les innovations destinées à nos cuisines. Des kits pour faire pousser des pleurotes à domicile, des spaghettis d'algues vendus dans de l'eau de mer ou une boisson régénérante à la spiruline séduisent les visiteurs. Dans la catégorie Traiteurs, la société française New Food Packings est primée pour son produit TWISTS, une pasta-box améliorée.</p>"
+      ]
+    },
+    {
+      "heading": "2024 : 60 ans d'inspiration alimentaire",
+      "image": "le-salon/Notre-histoire/SIAL-60-ans-soiree.jpg",
+      "imgFile": "le-salon-60-ans.jpg",
+      "imageAlt": "Soirée des 60 ans de SIAL Paris",
+      "body": [
+        "<p>En 60 ans, SIAL Paris est devenu le rendez-vous phare de la planète food. Tous les deux ans, le salon réunit les professionnels qui imaginent et construisent notre destin alimentaire pour cinq journées riches en découvertes, en débats et en rencontres. Fort de 60 ans d'expérience et d'une présence mondiale renforcée avec 11 salons à travers le monde, la marque SIAL est devenue un carrefour incontournable de l'offre et de la demande alimentaire mondiale.</p>",
+        "<p>En 2024, la biennale était plus grande que jamais, avec 11 halls pour 10 secteurs alimentaires. Plus de 7 500 exposants avaient réservé leur stand et, pour la première fois de son histoire, SIAL Paris était complet 5 mois avant son ouverture, attendant 285 000 professionnels de 205 pays pour leur présenter plus de 400 000 produits et innovations.</p>",
+        "<p>Pour cette édition spéciale, SIAL Paris proposait à toute la filière un feu d'artifice de nouveautés :</p>",
+        "<ul><li>SIAL Insights — un livre blanc co-créé avec ProtéinesXTC, Circana et Kantar</li><li>SIAL Taste — la dégustation des produits sélectionnés à SIAL Innovation</li><li>SIAL Off — le guide des bonnes tables et lieux insolites de Paris</li><li>SIAL Summits — un format de conférences inédit sur les enjeux cruciaux de l'industrie</li><li>SIAL for Change — la célébration de l'engagement des entreprises pour un avenir durable</li><li>SIAL Jobs — connecter entreprises et talents pour faciliter le recrutement</li></ul>"
+      ]
+    },
+    {
+      "heading": "SIAL Paris 2026 : le salon incontournable du business et de l'innovation alimentaire",
+      "image": "le-salon/Notre-histoire/SIAL-2026-inspire-food-business.jpg",
+      "imgFile": "le-salon-2026.jpg",
+      "imageAlt": "SIAL Paris 2026 — Inspire Food Business",
+      "dark": true,
+      "body": [
+        "<p>Cap sur 2026, où SIAL Paris continue de renforcer sa mission : INSPIRE FOOD BUSINESS, et d'accompagner les leaders du food business à penser l'avenir de l'alimentation durable. Dans un contexte où l'innovation et la transformation sont clés, cette édition promet d'être un accélérateur de business sans précédent, réunissant marques, fournisseurs, décideurs et entrepreneurs du monde entier.</p>",
+        "<p>Avec des rencontres stratégiques, des produits innovants, des process de pointe et une vision aiguisée des tendances de demain, SIAL Paris 2026 élève le débat et offre une plateforme unique pour décoder les mutations du marché. Plus qu'un salon, c'est un véritable hub d'inspiration et de réflexion, où les grands enjeux sociétaux et environnementaux s'intègrent au cœur des stratégies des entreprises.</p>",
+        "<p>Plus international, plus influent, plus incontournable, SIAL Paris 2026 se tiendra du 17 au 21 octobre 2026 à Paris Nord Villepinte.</p>"
+      ]
+    }
+  ]
+}

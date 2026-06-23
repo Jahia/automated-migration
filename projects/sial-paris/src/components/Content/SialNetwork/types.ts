@@ -8,4 +8,6 @@ export interface Props {
   "j:linknode"?: JCRNodeWrapper;
   "j:url"?: string;
   heading?: string;
+  image?: JCRNodeWrapper;
+  ctaLabel?: string;
 }

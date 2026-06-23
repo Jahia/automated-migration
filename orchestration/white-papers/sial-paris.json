@@ -1,0 +1,55 @@
+{
+  "base": "https://www.sialparis.com",
+  "folder": "contents/livres-blancs",
+  "articles": [
+    {
+      "name": "nutrition-personalisee",
+      "title": "Nutrition personnalisée : tendances food 2026",
+      "excerpt": "Notre façon de nous alimenter est en pleine transformation. Des produits alimentaires standardisés aux solutions hautement personnalisées, l'industrie alimentaire entre dans une nouvelle ère marquée par la personnalisation, la sensibilisation à la santé et l'innovation technologique.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/nouvelle-ere-alimentation-nellyrodi/livre-blanc-tendances-et-mutations-food.jpg",
+      "imgFile": "wp-nutrition-personalisee.jpg"
+    },
+    {
+      "name": "sial-insights-video",
+      "title": "SIAL Insights : Tendances alimentaires transformant le secteur",
+      "excerpt": "Découvrez SIAL Insights et les tendances qui transforment aujourd'hui le secteur alimentaire mondial.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/SIAL-Insights-2025-TV/main-tenant-sushi-baguettes-fond-jaune.jpg",
+      "imgFile": "wp-sial-insights-video.jpg"
+    },
+    {
+      "name": "le-vegetal-tendances-innovations",
+      "title": "Analyse du marché des fruits et légumes : les innovations et tendances du végétal",
+      "excerpt": "Céréales, légumineuses, fruits et légumes : vos futurs partenaires sont à SIAL Paris.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/Livre-blanc-vegetal/livre-blanc-tendances-vegetales-push.jpg",
+      "imgFile": "wp-vegetal.jpg"
+    },
+    {
+      "name": "open-innovation-study",
+      "title": "Téléchargez l'étude Open Innovation",
+      "excerpt": "Étude Open Innovation : les leviers de l'innovation ouverte qui transforment l'industrie agroalimentaire.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/Open-Innovation/Study-Open-Innovation.jpg",
+      "imgFile": "wp-open-innovation.jpg"
+    },
+    {
+      "name": "livre-blanc-produits-laitiers",
+      "title": "Livre blanc : tout ce que vous devez savoir sur les produits laitiers !",
+      "excerpt": "Téléchargez gratuitement notre livre blanc pour découvrir les données récentes, les innovations, et les engagements des acteurs laitiers.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/Livre-blanc-CNIEL-SIAL/CNIEL-livre-blanc.jpg",
+      "imgFile": "wp-produits-laitiers.jpg"
+    },
+    {
+      "name": "sial-insights-2024",
+      "title": "SIAL Insights 2024 : télécharger le livre blanc",
+      "excerpt": "Téléchargez le livre blanc SIAL Insights 2024 et explorez les grandes tendances de l'alimentation mondiale.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/SIAL-Insights-2024/SIAL-Insights-2024.jpg",
+      "imgFile": "wp-sial-insights-2024.jpg"
+    },
+    {
+      "name": "sial-insights-2022",
+      "title": "Télécharger le livre blanc de SIAL Insights 2022",
+      "excerpt": "Revisitez les tendances marquantes de SIAL Insights 2022 en téléchargeant le livre blanc.",
+      "image": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/tendance/lp/SIAL-Insight-2022/SIAL-Insights-2022.jpg",
+      "imgFile": "wp-sial-insights-2022.jpg"
+    }
+  ]
+}
