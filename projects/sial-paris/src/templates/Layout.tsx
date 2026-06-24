@@ -14,6 +14,7 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
 
   const site = renderContext.getSite() as unknown as JCRNodeWrapper;
   const homePage = site.getNode("home") as JCRNodeWrapper;
+  const parallaxBg = buildModuleFileUrl("static/assets/images/parallax-60-ans.jpg");
 
   return (
     <html lang={lang}>
@@ -34,11 +35,28 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
         <style dangerouslySetInnerHTML={{ __html: `
           /* Prevent source-site carousel/slider JS from locking body height */
           body { height: auto !important; overflow-x: hidden; }
+          /* ===== Parallax background — HOME PAGE ONLY =====
+             Scoped to main.home-main (the home template adds that class). The Layout
+             is shared by every template, so an unscoped 'main' rule would put the
+             parallax on all pages. */
+          main.home-main {
+            background-image: url("${parallaxBg}");
+            background-repeat: repeat;
+            background-attachment: fixed;
+            background-position: top center;
+          }
+          /* Components that should let the parallax show through (transparent backgrounds) */
+          main.home-main .component.key-figures,
+          main.home-main .component.mosaic,
+          main.home-main .component.sectors,
+          main.home-main .component.sial-network,
+          main.home-main .component.search-results { /*background: transparent !important; */}
+          @media (max-width: 767px) { main.home-main { background-attachment: scroll; } }
           /* Centered content column: the loaded theme overrides Bootstrap .container to max-width:100%,
              so nothing was constrained. Constrain content components to a centered max-width while
              leaving full-bleed banners/heroes/carousels/nav/footer full width. Verified live. */
           main .component:not([class*="banner"]):not([class*="hero"]):not([class*="carousel"]):not([class*="navigation"]):not([class*="top-bar"]):not([class*="footer"]):not([class*="Slide"]):not([class*="slide"]) {
-            max-width: 1340px;
+            /* max-width: 1340px; */
             margin-left: auto !important;
             margin-right: auto !important;
             padding-left: 1rem;
@@ -126,6 +144,15 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
              that render in any font, so the prev/next arrows always show. */
           .component.carousel .nav a.prev-text::after { content: "\\276E" !important; font-family: inherit !important; font-weight: 700; font-size: 22px; line-height: 1; }
           .component.carousel .nav a.next-text::after { content: "\\276F" !important; font-family: inherit !important; font-weight: 700; font-size: 22px; line-height: 1; }
+          /* CTA banner with an image background + parallax (background-attachment:fixed) */
+          .cta-banner.image-banner { background-size: cover; background-position: center; position: relative; min-height: 420px; display: flex; align-items: center; }
+          .cta-banner.parallax-banner { background-attachment: fixed; }
+          .cta-banner.image-banner .cta-banner-overlay { width: 100%; background: transparent; padding: 90px 0; }
+          .cta-banner.image-banner.has-overlay .cta-banner-overlay { background: rgba(20, 30, 50, 0.45); }
+          .cta-banner.image-banner h2, .cta-banner.image-banner p { color: #fff; }
+          .cta-banner.image-banner h2 { margin-bottom: 16px; }
+          .cta-banner.image-banner p { margin-bottom: 32px; opacity: 0.9; max-width: 760px; margin-left: auto; margin-right: auto; }
+          @media (max-width: 767px) { .cta-banner.parallax-banner { background-attachment: scroll; } }
           /* ===== Footer ===== */
           footer { background: #fff; color: #1b2a4a; border-top: 1px solid #ececec; }
           footer .component.footer > .component-content { max-width: 1340px; margin: 0 auto; padding: 0 1.5rem; }

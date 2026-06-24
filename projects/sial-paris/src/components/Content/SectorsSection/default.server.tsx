@@ -49,7 +49,7 @@ jahiaComponent(
   (props: Props) => {
     const { heading } = props;
     return (
-      <section className="component sectors col-12" style={{ background: "#FCE003", padding: "60px 0 80px" }}>
+      <section className="component sectors col-12" style={{ /*background: "#FCE003",*/ padding: "60px 0 80px" }}>
         <div className="component-content container-bp">
           {heading && (
             <h2 style={{ color: "#000", marginBottom: "40px", textAlign: "center" }}>{heading}</h2>

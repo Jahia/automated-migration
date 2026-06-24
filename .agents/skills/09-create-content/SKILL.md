@@ -835,3 +835,27 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 - Jahia credentials: root / root (local dev)
 - Image proxy (fallback): `http://localhost:8080/modules/jahia-image-proxy/import-image`
 - JCR browser (inspect nodes): `http://localhost:8080/modules/tools/jcrBrowser.jsp`
+
+---
+
+## Gotcha: MCP content.update silently no-ops weakreference props (categories)
+
+`content.update` with `{"j:defaultCategory": ["<category-uuid>"]}` returns **OK but
+sets nothing** — the weakreference is silently dropped (verified: EDIT still empty
+after a "successful" update). It's a content-op the MCP genuinely can't do, so fall
+back to GraphQL:
+
+```graphql
+mutation { jcr { mutateNode(pathOrId:"<article-path>") {
+  p: mutateProperty(name:"j:defaultCategory") { setValues(values:["<category-uuid>"]) }
+} } }
+```
+
+Then `publication.publish` the node. Categories live under
+`/sites/systemsite/categories/<site>/…` — query `[jnt:category]` for the UUIDs and use
+the **site's own vocabulary** (do not invent a `category` string field; `jmix:categorized`
+already provides `j:defaultCategory`).
+
+ALWAYS verify the value persisted in **EDIT and LIVE** afterwards (`property(name:"j:defaultCategory"){values}`)
+— a "successful" MCP response is not proof the weakref stuck. This is the anti-hallucination
+rule in practice: prove it, don't trust the OK.

@@ -4,3 +4,5 @@
  - ctaLabel (string) i18n
  - j:linkType (string, choicelist[linkTypeInitializer])
  - backgroundColor (string, choicelist) = 'yellow' < 'yellow', 'dark', 'white'
+ - backgroundImage (weakreference, picker[type='image']) < jmix:image
+ - parallax (boolean) = false

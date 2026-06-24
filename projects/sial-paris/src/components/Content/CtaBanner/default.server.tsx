@@ -20,13 +20,10 @@ jahiaComponent(
     displayName: "CTA Banner",
   },
   (props: Props) => {
-    const { heading, subtext, ctaLabel, backgroundColor } = props;
+    const { heading, subtext, ctaLabel, backgroundColor, backgroundImage, parallax } = props;
     const linkType = props["j:linkType"];
     const linknode = props["j:linknode"];
     const url = props["j:url"];
-
-    const bg = bgMap[backgroundColor ?? "yellow"] ?? bgMap.yellow;
-    const color = textMap[backgroundColor ?? "yellow"] ?? textMap.yellow;
 
     const href =
       linkType === "internal" && linknode
@@ -35,6 +32,31 @@ jahiaComponent(
           ? url
           : undefined;
 
+    // ── Parallax / image-background variant ──────────────────────────────
+    const bgImageUrl = backgroundImage ? buildNodeUrl(backgroundImage) : undefined;
+    if (bgImageUrl) {
+      const hasOverlay = Boolean(heading || subtext || (href && ctaLabel));
+      const cls = `component cta-banner image-banner${parallax !== false ? " parallax-banner" : ""}${hasOverlay ? " has-overlay" : ""} col-12`;
+      return (
+        <section className={cls} style={{ backgroundImage: `url(${bgImageUrl})` }}>
+          <div className="cta-banner-overlay">
+            <div className="component-content container-bp" style={{ textAlign: "center" }}>
+              {heading && <h2>{heading}</h2>}
+              {subtext && <p>{subtext}</p>}
+              {href && ctaLabel && (
+                <a href={href} className="btn btn-solid-primary">
+                  <span>{ctaLabel}</span>
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ── Solid-colour variant (default) ───────────────────────────────────
+    const bg = bgMap[backgroundColor ?? "yellow"] ?? bgMap.yellow;
+    const color = textMap[backgroundColor ?? "yellow"] ?? textMap.yellow;
     return (
       <section className="component cta-banner col-12" style={{ background: bg, color, padding: "60px 0" }}>
         <div className="component-content container-bp" style={{ textAlign: "center" }}>
