@@ -2058,6 +2058,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lucide-react@npm:^1.21.0":
+  version: 1.21.0
+  resolution: "lucide-react@npm:1.21.0"
+  peerDependencies:
+    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+  checksum: 10c0/55f914e3bc06425064efb4d4d77031c2565294910c362ffd1f5b2eaabd8ee31d682b5749dde5e1d3071ecbf625bbce0d810d1a271a27ecc60b50e908a4f6133d
+  languageName: node
+  linkType: hard
+
+"lucide-static@npm:^1.21.0":
+  version: 1.21.0
+  resolution: "lucide-static@npm:1.21.0"
+  checksum: 10c0/c2e33a7ef44031b6c49eed5143920ca38cc666ea46fceae01312fff35b895bfdae69239151d564676ecfa2185309a41433750b4a938ae4bda8ba964c51c3a7d1
+  languageName: node
+  linkType: hard
+
 "magic-string@npm:^0.30.21":
   version: 0.30.21
   resolution: "magic-string@npm:0.30.21"
@@ -2630,6 +2646,8 @@ __metadata:
     eslint: "npm:^9.26.0"
     globals: "npm:^16.0.0"
     i18next: "npm:^25.0.2"
+    lucide-react: "npm:^1.21.0"
+    lucide-static: "npm:^1.21.0"
     modern-normalize: "npm:^3.0.1"
     prettier: "npm:^3.5.3"
     react: "npm:^19.1.0"

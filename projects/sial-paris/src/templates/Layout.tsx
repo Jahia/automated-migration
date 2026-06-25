@@ -158,7 +158,9 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
           footer .component.footer > .component-content { max-width: 1340px; margin: 0 auto; padding: 0 1.5rem; }
           footer #footer.container { max-width: none; padding: 0; }
           footer .row { margin: 0; }
-          .bg-top-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem 3rem; padding: 2.5rem 0; }
+          /* Gray band spans full viewport width; its content stays in the 1340 centered column
+             (full-bleed break-out of the 1340 .component-content, with content-centering padding). */
+          .bg-top-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem 3rem; width: 100vw; margin-left: 50%; transform: translateX(-50%); padding: 2.5rem max(1.5rem, calc(50vw - 670px)); box-sizing: border-box; }
           .bg-top-footer .grid-1 { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
           .bg-top-footer .grid-1 h3 { font-size: 1.05rem; font-weight: 700; margin: 0; max-width: 230px; line-height: 1.3; }
           .social-links { display: flex; gap: .55rem; }

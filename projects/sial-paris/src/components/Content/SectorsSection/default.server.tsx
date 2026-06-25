@@ -3,6 +3,7 @@ import {
   buildNodeUrl,
   jahiaComponent,
 } from "@jahia/javascript-modules-library";
+import { LucideIcon } from "../../shared/LucideIcon.js";
 import type { Props } from "./types.js";
 
 jahiaComponent(
@@ -23,12 +24,12 @@ jahiaComponent(
           <div className="grid">
             {iconClass && (
               <div className="grid-icon">
-                <i className={iconClass} aria-hidden="true" />
+                <LucideIcon name={iconClass} size={48} />
               </div>
             )}
             {label && <h3 className="grid-title field-title">{label}</h3>}
             <div className="grid-arrow">
-              <i className="fa-solid fa-circle-chevron-right" aria-hidden="true" />
+              <LucideIcon name="circle-chevron-right" size={20} />
             </div>
             <div className="grid-img img-cover">
               {bgUrl && <img src={bgUrl} alt="" loading="lazy" />}

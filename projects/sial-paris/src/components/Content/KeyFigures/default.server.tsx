@@ -5,6 +5,7 @@ import {
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { LucideIcon } from "../../shared/LucideIcon.js";
 import type { Props } from "./types.js";
 
 jahiaComponent(
@@ -15,7 +16,7 @@ jahiaComponent(
     return (
       <div className="col">
         <div>
-          {icon && <div><i className={icon} /></div>}
+          {icon && <div><LucideIcon name={icon} size={40} /></div>}
           <div className="figure-number">
             <span className="field-chiffre-N" data-count-target={target}>
               {number}{unit ? ` ${unit}` : ""}

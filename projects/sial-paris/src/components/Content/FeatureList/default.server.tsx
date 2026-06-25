@@ -1,4 +1,5 @@
 import { RenderChildren, jahiaComponent } from "@jahia/javascript-modules-library";
+import { LucideIcon } from "../../shared/LucideIcon.js";
 import type { Props } from "./types.js";
 
 jahiaComponent(
@@ -8,7 +9,7 @@ jahiaComponent(
     return (
       <div className="col-md-4 feature-item">
         <div className="feature-card">
-          {iconClass && <div className="feature-icon"><i className={iconClass}></i></div>}
+          {iconClass && <div className="feature-icon"><LucideIcon name={iconClass} size={36} /></div>}
           {heading && <h3 className="feature-heading">{heading}</h3>}
           {description && <p className="feature-description">{description}</p>}
         </div>

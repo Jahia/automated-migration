@@ -4,6 +4,7 @@ import {
   jahiaComponent,
 } from "@jahia/javascript-modules-library";
 import type React from "react";
+import { LucideIcon } from "../../shared/LucideIcon.js";
 import type { Props } from "./types.js";
 
 const iconBoxStyle: React.CSSProperties = {
@@ -41,7 +42,9 @@ jahiaComponent(
               <img src={buildNodeUrl(icon)} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </i>
           ) : iconClass ? (
-            <i className={iconClass} style={iconBoxStyle} />
+            <span style={iconBoxStyle}>
+              <LucideIcon name={iconClass} size={54} />
+            </span>
           ) : null}
           {heading && <h3 className="field-titre">{heading}</h3>}
         </a>

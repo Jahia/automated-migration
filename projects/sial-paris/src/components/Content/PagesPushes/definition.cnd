@@ -1,4 +1,4 @@
-[sialp:pagesPushesItem] > jnt:content
+[sialp:pagesPushesItem] > jnt:content, sialpmix:queryContent
  - image (weakreference, picker[type='image'])
  - imageExternalUrl (string)
  - imageAlt (string) i18n

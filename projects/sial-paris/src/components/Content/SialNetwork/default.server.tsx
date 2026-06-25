@@ -22,8 +22,11 @@ jahiaComponent(
       <div className="col-md-4 col-6">
         <div className="network-card">
           <a href={href}>
+            <span className="bullet" aria-hidden="true">•</span>{" "}
             {eventName && <span className="city-name">{eventName}</span>}
-            {city && <span> - {city}</span>}
+            {/* dash is only a separator between the event name and the city */}
+            {eventName && city && <span> - </span>}
+            {city && <span className="city">{city}</span>}
             {eventDates && <div className="dates">{eventDates}</div>}
           </a>
         </div>
