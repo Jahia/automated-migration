@@ -305,17 +305,74 @@ Every component that renders a JCR image must have a bundled static fallback. Wi
 
 ```bash
 mkdir -p static/assets/images
-# Hero/carousel: download 2-3 real slide images from the source site
-# Use Chrome MCP JS tool to extract real image URLs from the live DOM (bypasses CDN auth)
-# Then curl directly:
-curl -sL "<image-url>" -o static/assets/images/slide-1.jpg
+# Use the Chrome MCP JS tool to extract real image URLs from the live DOM (this also
+# bypasses CDN/WAF auth). Then fetch through the cached, rate-limited helper rather
+# than a bare curl — it caches under <project>/.reference/cache/, retries, and backs
+# off if the CDN throttles:
+FETCH="orchestration/lib/cached-fetch.sh"
+SRC="$("$FETCH" fetch "$PROJECT_PATH" "<image-url>")" && cp "$SRC" static/assets/images/slide-1.jpg
 ```
+
+> **WAF / VPN note:** these are *static fallback* assets bundled in the module. For **content** images that must land in Jahia's DAM, prefer the in-Jahia image proxy / importer (skills 01 and 09) — it fetches server-side with browser headers + Referer and is the most WAF-resistant path. If even the helper is blocked (exit 2), slow down (`RATE_DELAY=8`), use the browser to capture the URL, or import via the in-Jahia proxy. Never loop a bare `curl` against a blocking CDN.
 
 **Naming convention:** `static/assets/images/<component-slug>-fallback.jpg` or numbered: `slide-1.jpg`, `slide-2.jpg`, `news-fallback.jpg`.
 
 These become the `FALLBACK_IMAGES` constants used in component views (see skill 07).
 
 ---
+
+## Tokenize CSS into theme variables (MANDATORY)
+
+**Every migration must variabilize its CSS tokens.** The imported CSS ships with hardcoded colors and fonts; a re-theme would otherwise mean editing dozens of files. Instead, hoist all color and font literals into CSS custom properties on `:root` so the **entire site theme can be changed by overriding those variables** — with no code redeploy.
+
+Run this AFTER CSS import + path rewrite, BEFORE the purge step:
+
+```bash
+# Variabilize colors + font stacks across all imported stylesheets.
+# Writes the :root token layer to static/css/theme-tokens.css, rewrites every
+# value to var(--token), and reports the palette for semantic naming.
+python3 orchestration/lib/tokenize-css.py \
+  --out static/css/theme-tokens.css \
+  --report workflow-output/theme-tokens.md \
+  static/css/*.css
+
+cat workflow-output/theme-tokens.md   # review the palette
+```
+
+Then:
+1. **Verify the semantic guesses** in `theme-tokens.css` — the tool labels the most frequent saturated colors `--color-primary/secondary/accent` and the dominant neutrals `--color-bg/--color-text`, but confirm `--color-primary` is the real brand color and rename/remap if not.
+2. **Load `theme-tokens.css` FIRST** in `Layout.tsx` (before the bundled CSS that consumes the vars). See skill 08 — the Layout also emits the runtime overrides below.
+
+### Two ways to re-theme at runtime (both wired in Layout — skill 08)
+
+The harness ships **both** override paths so a site can be re-themed by an editor, not a developer:
+
+**A) Site-node theme mixin** — quick token tweaks from jContent. Declare in `settings/definitions.cnd` (the scaffold ships this; add the property set to match your semantic tokens):
+
+```
+[<ns>mix:siteTheme] mixin
+ - themePrimaryColor (string)
+ - themeSecondaryColor (string)
+ - themeAccentColor (string)
+ - themeTextColor (string)
+ - themeBackgroundColor (string)
+ - themeFontHeading (string)
+ - themeFontBody (string)
+ - themeOverrideCss (weakreference, picker[type='file'])
+```
+
+Add the mixin to the **site node** (`/sites/<siteKey>`, type `jnt:virtualsite`) so editors get the theme fields. The Layout reads these props and emits an inline `:root{}` that overrides the defaults from `theme-tokens.css`.
+
+```bash
+# add the mixin to the site node via MCP (one-time, per site)
+curl -s -X POST "$JAHIA_HOST/modules/mcp" -u "$JAHIA_USER" -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"content.update","arguments":{
+    "path":"/sites/'"$JAHIA_SITE_KEY"'","locale":"en","addMixins":["<ns>mix:siteTheme"]}}}'
+```
+
+**B) Uploaded override stylesheet** — full re-skin without a deploy. The `themeOverrideCss` weakreference points to a `.css` file uploaded into Jahia's DAM; the Layout links it **last** so its rules win. An editor uploads a CSS file (typically just a `:root{}` block overriding the tokens, or any rule overrides) and points the site at it.
+
+> Run the tokenizer BEFORE purge. Exclude `theme-tokens.css` from PurgeCSS input (it defines the `:root` variables used everywhere; purging would strip them).
 
 ---
 
@@ -338,10 +395,13 @@ npx purgecss --version 2>/dev/null || npm install -g purgecss
 #   - JavaScript-toggled state classes (active, open, is-*, has-*, show, hide, visible, hidden)
 #   - Font Awesome classes (fa-*, fas, fab, etc.)
 
+# Exclude theme-tokens.css — it defines the :root variables used everywhere; purging would strip them.
 npx purgecss \
-  --css static/css/*.css \
+  --css $(ls static/css/*.css | grep -v 'theme-tokens.css') \
   --content "src/**/*.tsx" "src/**/*.ts" "src/**/*.jsx" \
   --safelist \
+    ":root" \
+    "/^--/" \
     "/^jahia/" \
     "/^col-/" \
     "/^d-/" \

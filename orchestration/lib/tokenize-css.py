@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+"""
+Tokenize imported CSS into a themeable variable layer.
+
+Goal: make the whole site re-themable without touching component CSS. Every color
+and font-family literal is hoisted into CSS custom properties on `:root` (written
+to a single theme-tokens.css), and every usage in the source CSS is rewritten to
+`var(--token)`. Re-theming then happens by overriding those `:root` variables —
+either from the site node (a theme mixin -> inline <style>) or from an uploaded
+override stylesheet linked last. See skill 03-import-assets.
+
+Only declaration VALUES inside `{ ... }` blocks are rewritten, so `#id` selectors
+and pseudo-classes are never touched.
+
+Usage:
+  tokenize-css.py --out static/css/theme-tokens.css \
+                  --report workflow-output/theme-tokens.md \
+                  static/css/*.css
+The input files are rewritten in place; the tokens file is (re)generated. Idempotent:
+values already written as var(...) are left alone.
+"""
+import argparse, colorsys, os, re, sys
+from collections import Counter
+
+COLOR = re.compile(r'#(?:[0-9a-fA-F]{4}){1,2}\b|#[0-9a-fA-F]{3}\b|rgba?\([^)]*\)', re.I)
+BLOCK = re.compile(r'\{([^{}]*)\}', re.S)
+FONTFAM = re.compile(r'(font-family\s*:\s*)([^;]+)', re.I)
+
+def _norm_hex(h):
+    h = h[1:]
+    if len(h) in (3, 4):
+        h = ''.join(c * 2 for c in h)
+    if len(h) == 6:
+        h += 'ff'
+    return '#' + h.lower()
+
+def _parse_rgb(s):
+    nums = re.findall(r'-?[\d.]+%?', s)
+    if len(nums) < 3:
+        return None
+    def ch(x):
+        return max(0, min(255, round(float(x[:-1]) * 255 / 100) if x.endswith('%') else round(float(x))))
+    r, g, b = ch(nums[0]), ch(nums[1]), ch(nums[2])
+    a = 1.0
+    if len(nums) >= 4:
+        a = float(nums[3][:-1]) / 100 if nums[3].endswith('%') else float(nums[3])
+    return '#%02x%02x%02x%02x' % (r, g, b, max(0, min(255, round(a * 255))))
+
+def canon(tok):
+    return _norm_hex(tok) if tok.startswith('#') else _parse_rgb(tok)
+
+def lum(c):
+    r, g, b = (int(c[i:i+2], 16) / 255 for i in (1, 3, 5))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+def sat(c):
+    r, g, b = (int(c[i:i+2], 16) / 255 for i in (1, 3, 5))
+    return colorsys.rgb_to_hls(r, g, b)[2]
+
+def alpha(c):
+    return int(c[7:9], 16) / 255
+
+def pretty(c):
+    return '#' + c[1:7] if c[7:9] == 'ff' else c  # opaque -> #rrggbb, else keep hex8
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--out', required=True, help='theme-tokens.css output path')
+    ap.add_argument('--report', help='markdown report path')
+    ap.add_argument('files', nargs='+')
+    a = ap.parse_args()
+    out_abs = os.path.abspath(a.out)
+    files = [f for f in a.files if os.path.abspath(f) != out_abs and os.path.isfile(f)]
+
+    # --- pass 1: collect colors + font stacks from declaration values only ---
+    colors, fonts = Counter(), Counter()
+    for f in files:
+        css = open(f, encoding='utf-8', errors='ignore').read()
+        for body in BLOCK.findall(css):
+            for m in COLOR.finditer(body):
+                c = canon(m.group(0))
+                if c and alpha(c) > 0:           # skip fully transparent
+                    colors[c] += 1
+            for fm in FONTFAM.finditer(body):
+                stack = re.sub(r'\s+', ' ', fm.group(2)).strip().rstrip(';')
+                if stack and 'var(' not in stack:
+                    fonts[stack] += 1
+
+    if not colors and not fonts:
+        print('No color/font literals found — nothing to tokenize.', file=sys.stderr)
+        return 0
+
+    # --- classify colors into semantic roles (heuristic, editable) ---
+    by_freq = [c for c, _ in colors.most_common()]
+    neutral = [c for c in by_freq if sat(c) < 0.15]
+    saturated = [c for c in by_freq if sat(c) >= 0.15]
+    lights = [c for c in neutral if lum(c) > 0.80]
+    darks = [c for c in neutral if lum(c) < 0.22]
+    role = {}  # canonical -> css var name
+    def assign(c, name):
+        if c and c not in role and name not in role.values():
+            role[c] = name
+    assign(lights[0] if lights else None, '--color-bg')
+    assign(darks[0] if darks else None, '--color-text')
+    for c, name in zip(saturated, ('--color-primary', '--color-secondary', '--color-accent')):
+        assign(c, name)
+    # everything else -> stable numbered tokens, frequency ordered
+    n = 0
+    for c in by_freq:
+        if c not in role:
+            n += 1
+            role[c] = f'--color-{n:02d}'
+
+    # fonts: most-common stack -> body, next distinct -> heading, rest numbered
+    font_role = {}
+    fb = [s for s, _ in fonts.most_common()]
+    if fb:
+        font_role[fb[0]] = '--font-body'
+    if len(fb) > 1:
+        font_role[fb[1]] = '--font-heading'
+    for i, s in enumerate(fb[2:], 1):
+        font_role[s] = f'--font-{i:02d}'
+
+    # --- write theme-tokens.css ---
+    semantic_order = ['--color-primary', '--color-secondary', '--color-accent', '--color-text', '--color-bg']
+    inv = {v: k for k, v in role.items()}
+    lines = ['/* Generated by orchestration/lib/tokenize-css.py — theme token layer.',
+             '   Re-theme the whole site by overriding these :root variables:',
+             '   - from the site node via the theme mixin (inline <style>), or',
+             '   - from an uploaded override stylesheet linked last.',
+             '   Semantic names are a heuristic first guess — rename/remap freely. */',
+             ':root {']
+    for name in semantic_order:
+        if name in inv:
+            lines.append(f'  {name}: {pretty(inv[name])};')
+    lines.append('')
+    for c in by_freq:
+        nm = role[c]
+        if nm not in semantic_order:
+            lines.append(f'  {nm}: {pretty(c)}; /* used {colors[c]}x */')
+    for s, nm in font_role.items():
+        lines.append(f'  {nm}: {s};')
+    lines.append('}')
+    os.makedirs(os.path.dirname(out_abs) or '.', exist_ok=True)
+    open(out_abs, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+
+    # --- pass 2: rewrite source CSS (values only) ---
+    def rewrite_body(m):
+        body = m.group(0)
+        def repl_color(cm):
+            c = canon(cm.group(0))
+            return f'var({role[c]})' if c and c in role else cm.group(0)
+        body = COLOR.sub(repl_color, body)
+        def repl_font(fm):
+            stack = re.sub(r'\s+', ' ', fm.group(2)).strip().rstrip(';')
+            return fm.group(1) + (f'var({font_role[stack]})' if stack in font_role else fm.group(2))
+        return FONTFAM.sub(repl_font, body)
+    rewritten = 0
+    for f in files:
+        css = open(f, encoding='utf-8', errors='ignore').read()
+        new = BLOCK.sub(rewrite_body, css)
+        if new != css:
+            open(f, 'w', encoding='utf-8').write(new)
+            rewritten += 1
+
+    # --- report ---
+    if a.report:
+        os.makedirs(os.path.dirname(os.path.abspath(a.report)) or '.', exist_ok=True)
+        r = ['# CSS theme tokens', '',
+             f'Tokenized **{len(colors)} colors** and **{len(fonts)} font stacks** across {len(files)} file(s); rewrote {rewritten}.',
+             '', 'Tokens written to the `:root` of `theme-tokens.css`. Override these to re-theme.',
+             '', '## Semantic colors (heuristic — verify & expose in the site theme mixin)', '',
+             '| var | value | role |', '|---|---|---|']
+        for name in semantic_order:
+            if name in inv:
+                r.append(f'| `{name}` | `{pretty(inv[name])}` | {name.split("-")[-1]} |')
+        r += ['', '## Other color tokens', '', '| var | value | uses |', '|---|---|---|']
+        for c in by_freq:
+            if role[c] not in semantic_order:
+                r.append(f'| `{role[c]}` | `{pretty(c)}` | {colors[c]} |')
+        r += ['', '## Next steps', '',
+              '1. Verify the semantic guesses; rename/remap so `--color-primary` is the real brand color.',
+              '2. Expose the semantic tokens on the **site theme mixin** (`<ns>mix:siteTheme`) so editors re-theme from the site node.',
+              '3. The Layout emits an inline `:root{}` override from those props, and links an optional uploaded override stylesheet last. See skill 03.']
+        open(a.report, 'w', encoding='utf-8').write('\n'.join(r) + '\n')
+
+    print(f'Tokenized {len(colors)} colors, {len(fonts)} fonts -> {a.out}; rewrote {rewritten}/{len(files)} files.', file=sys.stderr)
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

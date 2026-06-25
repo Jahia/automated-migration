@@ -50,6 +50,7 @@ import {
   AbsoluteArea,
   AddResources,
   buildModuleFileUrl,
+  buildNodeUrl,
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
@@ -64,13 +65,40 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
   const site = renderContext.getSite() as unknown as JCRNodeWrapper;
   const homePage = site.getNode("home") as JCRNodeWrapper;
 
+  // --- Theming: optional site-node overrides (mixin <ns>mix:siteTheme) ---
+  // Each set property overrides the matching :root token from theme-tokens.css,
+  // letting an editor re-theme the whole site from the site node — no redeploy.
+  const overrides: string[] = [];
+  const push = (prop: string, cssVar: string) => {
+    if (site.hasProperty(prop)) overrides.push(`${cssVar}:${site.getProperty(prop).getString()}`);
+  };
+  push("themePrimaryColor", "--color-primary");
+  push("themeSecondaryColor", "--color-secondary");
+  push("themeAccentColor", "--color-accent");
+  push("themeTextColor", "--color-text");
+  push("themeBackgroundColor", "--color-bg");
+  push("themeFontHeading", "--font-heading");
+  push("themeFontBody", "--font-body");
+  let overrideCssUrl: string | undefined;
+  if (site.hasProperty("themeOverrideCss")) {
+    try { overrideCssUrl = buildNodeUrl(site.getProperty("themeOverrideCss").getNode()); } catch { /* missing ref */ }
+  }
+
   return (
     <html lang={lang}>
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{title ?? "My Site"}</title>
+        {/* Order matters: 1) token defaults, 2) base styles that consume var(--token) */}
+        <AddResources type="css" resources={buildModuleFileUrl("static/css/theme-tokens.css")} />
         <AddResources type="css" resources={buildModuleFileUrl("dist/assets/style.css")} />
+        {/* 3) site-node token overrides — only the props the editor set */}
+        {overrides.length > 0 && (
+          <style dangerouslySetInnerHTML={{ __html: `:root{${overrides.join(";")}}` }} />
+        )}
+        {/* 4) uploaded override stylesheet — linked LAST so its rules win */}
+        {overrideCssUrl && <link rel="stylesheet" href={overrideCssUrl} />}
       </head>
       <body>
         <AbsoluteArea name="header" nodeType="namespace:mainNavigation" parent={homePage} readOnly="children" />
@@ -83,6 +111,8 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
 ```
 
 **Critical rules:**
+- **Theme tokens load first, overrides last.** The cascade is: `theme-tokens.css` (`:root` defaults) → bundled CSS that uses `var(--token)` → inline `:root{}` from the site-node mixin → uploaded override stylesheet. Later sources win, so a site can be re-themed without a redeploy. The token layer is produced by skill 03 (`tokenize-css.py`); never hardcode colors/fonts back into component CSS.
+- The site-theme props come from the `<ns>mix:siteTheme` mixin added to the **site node** (`/sites/<siteKey>`). Guard every read with `site.hasProperty(...)` — the mixin/props may be absent.
 - Import `useServerContext` from `@jahia/javascript-modules-library` — never receive `renderContext` as a template argument
 - `AbsoluteArea parent` = `site.getNode("home")` — NOT `renderContext.getSite()`. If you use `getSite()` as parent, the absolute area content is stored at the site root node instead of `/home/header`, which is wrong
 - `readOnly="children"` prevents editing the shared header/footer from every inner page — editors can only edit them from the home page
