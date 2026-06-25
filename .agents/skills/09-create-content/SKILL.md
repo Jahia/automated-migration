@@ -126,6 +126,7 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 - i18n and non-i18n properties are both passed in the same `properties` map — the MCP resolves i18n automatically using the `locale` param
 - WEAKREFERENCE properties accept a UUID **or** an absolute JCR path — use the path when you have it
 - Multi-valued: use a JSON array `["value1", "value2"]`
+- **Links: `j:linknode` and `j:url` are i18n.** When setting a link target you MUST pass the locale. Sequence: set `j:linkType` (`internal`/`external`, NOT i18n) → `addMixins` `jmix:internalLink`/`jmix:externalLink` → set `j:linknode` (weakreference, **with locale**) or `j:url` (string, **with locale**). Writing them without a locale throws `ConstraintViolationException: no matching property definition found for ...url/...linknode`, and MCP `content.update` **silently no-ops** the value — so the CTA renders nothing. This is a write-side locale bug, not a missing CND mixin. Via GraphQL use `setPropertiesBatch` with `language:` (not `mutateProperty.setValue`).
 - Dates: ISO-8601 `"2026-06-01T00:00:00.000Z"`
 
 ### Create a node with children in one atomic call
