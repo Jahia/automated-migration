@@ -80,7 +80,7 @@ After deploying a `.jar` via `docker cp`, the cache flush is not enough — the 
 
 ```bash
 # Replace ARTIFACT_ID with the Maven artifactId of the deployed bundle
-ARTIFACT_ID="jahia-image-proxy"   # e.g. sial-image-importer, my-module
+ARTIFACT_ID="jahia-image-proxy"   # the global image proxy, or your own module
 
 echo "Waiting for bundle activation..."
 for i in $(seq 1 18); do

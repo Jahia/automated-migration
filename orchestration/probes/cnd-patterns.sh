@@ -40,6 +40,7 @@ TAG_NAMES = {"tags", "tag", "taglist", "j:taglist", "category", "categories", "k
 INJECTED = {"j:url", "j:linknode"}
 # URL *storage* fields only - a label/text/title/alt/caption ending is a legit i18n string
 URL_SUFFIX = ("url",)            # ctaUrl, linkUrl, videoUrl, backgroundImageUrl, *ExternalUrl ...
+LINK_SUFFIX = ("link",)          # link, ctaLink, logoLink, ctaPrimaryLink, ctaExposerLink ...
 PLAIN_LINK = {"href", "linkto", "targeturl", "link"}
 viol = []
 for path in cnds:
@@ -59,8 +60,8 @@ for path in cnds:
                 viol.append((rel, i, name, "injected by Jahia -> never declare; add only `j:linkType (choicelist[linkTypeInitializer])`"))
             elif "string" in typ and name != "j:linkType" and ln.endswith(URL_SUFFIX):
                 viol.append((rel, i, name, "image/URL stored as string -> use a `weakreference` picker (image/file) or `j:linkType`"))
-            elif "string" in typ and ln in PLAIN_LINK:
-                viol.append((rel, i, name, "link stored as plain string -> use `j:linkType (string, choicelist[linkTypeInitializer])`"))
+            elif "string" in typ and (ln in PLAIN_LINK or ln.endswith(LINK_SUFFIX)):
+                viol.append((rel, i, name, "link stored as plain string -> use `j:linkType` (one per type) or child `ctaButton` nodes if the component has several links"))
 if viol:
     print(f"FAIL: {len(viol)} CND pattern violation(s):", file=sys.stderr)
     for rel, i, name, msg in viol:

@@ -289,7 +289,7 @@ extends = ns:newsArticle
 - j:url (string)
 - j:linknode (weakreference)
 ```
-✅ Use the `linkTo` mixin with `linkTypeInitializer`. See `jahia-link-patterns.md`.
+✅ Declare `j:linkType (string, choicelist[linkTypeInitializer])` directly on the type; Jahia injects `j:url`/`j:linknode` at runtime. See `jahia-link-patterns.md`.
 
 ---
 

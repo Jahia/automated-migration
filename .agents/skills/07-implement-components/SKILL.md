@@ -51,7 +51,7 @@ echo "Jahia: $JAHIA_URL | Site: $JAHIA_SITE_KEY | MCP: $MCP_AVAILABLE"
 ```
 1. Read component-manifest.json
 2. Read settings/definitions.cnd → namespace prefix
-3. Ensure shared mixin, linkTo, ctaButton exist
+3. Ensure shared mixin + ctaButton type exist (links use j:linkType directly — no linkTo mixin)
 4. If any component needsFullPage: true → create MainResource template files
 5. Launch ONE agent per component (all in parallel)
 6. Wait for all agents
@@ -72,14 +72,13 @@ Before spawning agents, add to `settings/definitions.cnd` if missing:
 [<ns>Mix:component] > jmix:droppableContent, jmix:accessControllableContent mixin
 [<ns>Mix:pageComponent] > <ns>Mix:component mixin
 
-// Link mixin — j:url and j:linknode MUST be declared here
-[<ns>:linkTo] mixin
- - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
- - j:url (string) indexed=no
- - j:linknode (weakreference) < jmix:mainResource, jnt:page
-
 // CTA button — used as child node via + * (<ns>:ctaButton)
-[<ns>:ctaButton] > jnt:content, <ns>Mix:component, <ns>:linkTo
+// Links are declared with j:linkType DIRECTLY on the type (no linkTo mixin).
+// j:url and j:linknode are injected at runtime by Jahia's built-in mixins
+// (jmix:externalLink / jmix:internalLink) when linkTypeInitializer fires —
+// NEVER declare j:url or j:linknode in the CND.
+[<ns>:ctaButton] > jnt:content, <ns>Mix:component
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
  - ctaLabel (string) i18n
 ```
 
