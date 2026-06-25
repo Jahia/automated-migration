@@ -101,6 +101,15 @@ return linkHref !== "#" ? (
 
 ## GraphQL — Creating Links via API
 
+> ⚠️ **`j:linknode` AND `j:url` are i18n (internationalized) properties.** You MUST pass
+> `language:` when writing them, even for `j:linknode` (a weakreference). Writing them
+> without a language fails with `ConstraintViolationException: no matching property
+> definition found for ...url` / `...linknode`, and **MCP `content.update` silently
+> no-ops** them. This — not a missing CND mixin — is the usual reason "the link target
+> won't save". The CND pattern (`j:linkType` direct + runtime `addMixins`) is correct;
+> just always set the link value WITH a locale. Use `setPropertiesBatch` (it takes
+> `language`), not `mutateProperty.setValue` (no locale).
+
 ### Internal link (page reference):
 ```graphql
 mutation {
@@ -108,8 +117,8 @@ mutation {
     mutateNode(pathOrId: "/sites/SITE/home/AREA/my-cta") {
       addMixins(mixins: ["jmix:internalLink"])
       setPropertiesBatch(properties: [
-        { name: "j:linkType", value: "internal" }
-        { name: "j:linknode", value: "/sites/SITE/home/target-page", type: WEAKREFERENCE }
+        { name: "j:linkType", value: "internal" }                                  # non-i18n
+        { name: "j:linknode", value: "<target-uuid>", language: "en", type: WEAKREFERENCE }  # i18n!
       ]) { path }
     }
   }
@@ -123,15 +132,15 @@ mutation {
     mutateNode(pathOrId: "/sites/SITE/home/AREA/my-cta") {
       addMixins(mixins: ["jmix:externalLink"])
       setPropertiesBatch(properties: [
-        { name: "j:linkType", value: "external" }
-        { name: "j:url", value: "https://example.com", language: "en" }
+        { name: "j:linkType", value: "external" }                       # non-i18n
+        { name: "j:url", value: "https://example.com", language: "en" } # i18n
       ]) { path }
     }
   }
 }
 ```
 
-> Always set `j:linkType` alongside the mixin so the content editor shows the correct UI state.
+> Always set `j:linkType` alongside the mixin so the content editor shows the correct UI state. `j:linkType` itself is NOT i18n; `j:url`/`j:linknode` ARE.
 
 ---
 

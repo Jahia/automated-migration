@@ -102,7 +102,10 @@ export const Layout = ({ title, children }: { title?: string; children: ReactNod
       </head>
       <body>
         <AbsoluteArea name="header" nodeType="namespace:mainNavigation" parent={homePage} readOnly="children" />
-        {children}
+        {/* Page content MUST be wrapped in <main> — it is the a11y main landmark AND
+            what the content.sh gate measures (it counts text inside <main>). Without
+            it every page reads as 0 chars even when fully populated. */}
+        <main id="main-content">{children}</main>
         <AbsoluteArea name="footer" nodeType="namespace:footer" parent={homePage} readOnly="children" />
       </body>
     </html>

@@ -133,7 +133,7 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
       </head>
       <body>
         <AbsoluteArea name="header" nodeType="usg:mainNavigation" parent={homePage} readOnly="children" />
-        {children}
+        <main id="main-content">{children}</main>
         <AbsoluteArea name="footer" nodeType="usg:footerSection" parent={homePage} readOnly="children" />
       </body>
     </html>
