@@ -5,7 +5,7 @@ export interface ItemProps {
   image?: any;
   imageExternalUrl?: string;
   imageAlt?: string;
-  title?: string;
+  "jcr:title"?: string;
   description?: string;
   linkUrl?: string;
 }
@@ -13,7 +13,7 @@ export interface ItemProps {
 jahiaComponent(
   { componentType: 'view', nodeType: 'sialp:pagesPushesItem', displayName: 'Pages Pushes Item' },
   function PagesPushesItem(
-    { image, imageExternalUrl, imageAlt, title, description, linkUrl }: ItemProps,
+    { image, imageExternalUrl, imageAlt, "jcr:title": title, description, linkUrl }: ItemProps,
     { renderContext }: { renderContext: RenderContext },
   ) {
     const isEdit = renderContext.isEditMode();

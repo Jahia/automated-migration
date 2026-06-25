@@ -23,8 +23,12 @@ orchestration/
 ├── plan-template.json     # parameterized template for a new project
 ├── plans/
 │   └── sial-paris.plan.json   # concrete, runnable plan for the SIAL Paris site
+├── lib/
+│   ├── cached-fetch.sh   # reference scraping: cache-to-disk + WAF/rate-limit backoff (see below)
+│   └── tokenize-css.py   # variabilize imported CSS into a :root theme-token layer (see below)
 └── probes/                # the verification library (the hard gate)
     ├── _lib.sh            # shared env loading
+    ├── css-tokens.sh     # CSS is tokenized + site-theme mixin + Layout override wiring present
     ├── connect.sh         # Gate 0: Jahia reachable + creds
     ├── analyze.sh         # manifest + content-data exist
     ├── build.sh           # yarn build exits 0
@@ -54,6 +58,53 @@ existing type; markup differences become an extra `*.server.tsx` view; a new
 type is a last resort that requires an operator-approved halt. The content step
 enforces this with `no-new-types.sh` against the baseline. To approve a new type,
 regenerate the baseline: `bash orchestration/probes/inventory.sh projects/sial-paris sialp --write orchestration/component-baseline.txt`.
+
+### Reference scraping is cached and WAF-aware
+
+Reference sites sit behind CDNs/WAFs (Cloudflare, Akamai) and the operator may be
+on a VPN the WAF distrusts. `orchestration/lib/cached-fetch.sh` enforces two rules
+for every fetch (skills 01/03/09 call it instead of bare `wget`/`curl`):
+
+- **Always check the cache before scraping again.** Every scrape path — `curl`,
+  recursive crawl, and the browser fallback — checks the cache first; a hit is
+  reused with no network call. Pages/assets live under `<project>/.reference/cache/`
+  (in-project, durable — survives sessions, context compaction, re-runs). A
+  completed crawl is reused, not repeated. `FORCE_REFETCH=1` is the deliberate bypass.
+- **Slow down when blocked.** A polite base delay (`RATE_DELAY`, default 2s) sits
+  between requests; on any WAF/rate-limit signal (HTTP 403/429/5xx/520-524 or a
+  Cloudflare challenge body) it backs off exponentially with jitter and raises the
+  run-wide delay. After `MAX_ATTEMPTS` it returns exit code 2 and tells the caller
+  to fall back to **browser capture** (Chrome MCP `get_page_text`) — never hammer.
+
+```bash
+FETCH=orchestration/lib/cached-fetch.sh
+"$FETCH" get   projects/sial-paris "$URL"   # cache check, no network (exit 0=hit+path, 3=miss) — call before scraping
+"$FETCH" fetch projects/sial-paris "$URL"   # cache-first fetch; network only on miss; backs off on WAF
+"$FETCH" crawl projects/sial-paris "$URL" 3 # cache-first recursive crawl (skips a completed crawl)
+printf '%s' "$browser_text" | "$FETCH" put projects/sial-paris "$URL"   # persist a browser-captured page
+"$FETCH" cache-root projects/sial-paris     # -> .reference/cache
+# RATE_DELAY=8 MAX_ATTEMPTS=8 (throttle harder) · FORCE_REFETCH=1 (bypass cache)
+```
+
+### CSS is tokenized for whole-site re-theming
+
+Imported CSS is never left with hardcoded colors/fonts. `orchestration/lib/tokenize-css.py`
+hoists every color and font-family literal into CSS custom properties on `:root`
+(written to `static/css/theme-tokens.css`) and rewrites all usages to `var(--token)`.
+Re-theming then needs no code redeploy — override the `:root` tokens via either path,
+wired in `Layout.tsx` and gated by `probes/css-tokens.sh`:
+
+- **Site-node theme mixin** (`<ns>Mix:siteTheme`, added to `/sites/<siteKey>`): editor
+  sets `themePrimaryColor`, `themeFontHeading`, … → Layout emits an inline `:root{}`
+  override.
+- **Uploaded override stylesheet** (`themeOverrideCss` weakreference → a `.css` in the
+  DAM): Layout links it **last** so its rules win the cascade.
+
+```bash
+python3 orchestration/lib/tokenize-css.py --out projects/sial-paris/static/css/theme-tokens.css \
+  --report workflow-output/theme-tokens.md projects/sial-paris/static/css/*.css
+bash orchestration/probes/css-tokens.sh projects/sial-paris
+```
 
 ### Content management goes through the Jahia MCP server
 

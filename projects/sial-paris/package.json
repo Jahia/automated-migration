@@ -1,14 +1,12 @@
 {
   "name": "sial-paris",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "type": "module",
   "files": [
     "dist",
     "src/**/*.cnd",
     "settings",
-    "static",
-    "images",
-    "icons"
+    "static"
   ],
   "scripts": {
     "build": "tsc --noEmit && vite build && run package",
@@ -54,6 +52,6 @@
     "module-dependencies": "default",
     "module-type": "templatesSet",
     "server": "dist/server/index.js",
-    "static-resources": "/dist/client,/dist/assets,/locales,/static/css,/static/js,/static/fonts,/static/assets,/images,/icons"
+    "static-resources": "/dist/client,/dist/assets,/locales,/static/css,/static/js,/static/fonts,/static/assets,/icons"
   }
 }

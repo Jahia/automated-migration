@@ -31,7 +31,7 @@ function resolveLogoUrl(child: any): string | null {
 
 function renderEntry(child: any) {
   const logoUrl = resolveLogoUrl(child);
-  const title = child.hasProperty('title') ? child.getProperty('title').getString() : undefined;
+  const title = child.hasProperty('jcr:title') ? child.getProperty('jcr:title').getString() : undefined;
   const body = child.hasProperty('body') ? child.getProperty('body').getString() : undefined;
   const linkLabel = child.hasProperty('linkLabel') ? child.getProperty('linkLabel').getString() : undefined;
   const linkUrl = child.hasProperty('linkUrl') ? child.getProperty('linkUrl').getString() : undefined;

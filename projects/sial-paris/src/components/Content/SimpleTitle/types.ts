@@ -1,5 +1,5 @@
 export interface Props {
-  title?: string;
+  "jcr:title"?: string;
   backTitle?: string;
   subTitle?: string;
   backColor?: 'white' | 'gray';

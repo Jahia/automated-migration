@@ -121,7 +121,23 @@ Before implementing any components, add these to `settings/definitions.cnd`:
 // CTA button — child node via + * (<ns>:ctaButton)
 [<ns>:ctaButton] > jnt:content, <ns>Mix:component, <ns>:linkTo
  - ctaLabel (string) i18n
+
+// Site theme mixin — add to the site node (jnt:virtualsite) so editors can
+// re-theme the whole site by overriding the :root tokens (see skills 03 + 08).
+// Property values feed the inline :root{} override emitted by Layout.tsx; the
+// weakreference points to an uploaded stylesheet linked LAST to win the cascade.
+[<ns>Mix:siteTheme] mixin
+ - themePrimaryColor (string)
+ - themeSecondaryColor (string)
+ - themeAccentColor (string)
+ - themeTextColor (string)
+ - themeBackgroundColor (string)
+ - themeFontHeading (string)
+ - themeFontBody (string)
+ - themeOverrideCss (weakreference, picker[type='file'])
 ```
+
+> CSS is tokenized into `:root` variables at import time (skill 03 — `tokenize-css.py`), and `Layout.tsx` wires both override paths (skill 08). The `<ns>Mix:siteTheme` mixin above is what surfaces the theme fields on the site node; add it to `/sites/<siteKey>` once the site exists.
 
 ---
 
@@ -129,5 +145,6 @@ Before implementing any components, add these to `settings/definitions.cnd`:
 - [ ] Module scaffolded at `projects/<module-name>/`
 - [ ] `yarn install` completed without errors
 - [ ] `.env` file created with correct credentials
-- [ ] `settings/definitions.cnd` has module mixin, pageComponent mixin, linkTo mixin, ctaButton type
+- [ ] `settings/definitions.cnd` has module mixin, pageComponent mixin, linkTo mixin, ctaButton type, **siteTheme mixin**
+- [ ] Namespace prefix recorded (needed for all subsequent CND and resource bundle work)
 - [ ] Namespace prefix recorded (needed for all subsequent CND and resource bundle work)

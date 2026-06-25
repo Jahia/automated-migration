@@ -441,42 +441,73 @@ Use the `url` value as the image path in content nodes — it is the live worksp
 
 ---
 
-## Step 1: Crawl the full site
+## Scraping policy (applies to every fetch in this skill — non-negotiable)
+
+Reference sites sit behind CDNs/WAFs (Cloudflare, Akamai) and you may be on a VPN the WAF distrusts. Three rules, enforced by the shared helper `orchestration/lib/cached-fetch.sh` — always scrape through it, never with a bare `wget`/`curl`:
+
+0. **ALWAYS check the cache before scraping again.** Before *any* fetch — `curl` **or** browser capture — check `<project>/.reference/cache/`. If the URL is already cached, reuse it; do not re-hit the origin. This is the first thing every scrape step does. (The `fetch`/`crawl` commands do it automatically; for the browser path, call `get` first — see below.)
+1. **Cache everything locally, fetch once.** All scraped HTML/text/assets are written under **`<project>/.reference/cache/`** (in-project, durable — survives sessions, compaction and re-runs). Re-running a migration must not re-scrape.
+2. **Slow down when blocked — never hammer.** A polite base delay sits between requests; on any WAF/rate-limit signal (HTTP 403/429/5xx/520-524 or a Cloudflare challenge body) back off exponentially and raise the delay for the rest of the run. After a few attempts, **stop** and fall back to browser capture.
 
 ```bash
-mkdir -p /tmp/website-download
-wget --recursive --level=3 --no-parent \
-     --adjust-extension --no-clobber \
-     --reject "*.css,*.js,*.png,*.jpg,*.gif,*.svg,*.woff,*.woff2,*.ttf,*.ico,*.pdf,*.zip" \
-     --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" \
-     --server-response \
-     --directory-prefix=/tmp/website-download "{URL}" \
-     2>&1 | tee /tmp/wget-log.txt
+FETCH="orchestration/lib/cached-fetch.sh"   # from repo root
 
-# Extract failed URLs (4xx, 5xx responses)
-grep -E "^  HTTP/[0-9.]+ [4-9][0-9][0-9]" /tmp/wget-log.txt \
-  | grep -oP "(?<=GET )[^ ]+" \
-  | sort -u > /tmp/crawl-errors.txt 2>/dev/null || true
+# Cache-first check (READ-ONLY, no network). exit 0 + prints path if cached; exit 3 if not.
+"$FETCH" get "$PROJECT_PATH" "$URL" && echo "already cached — reuse it"
 
+# Fetch a page (checks cache first automatically; only hits network on a miss; backs off on WAF):
+"$FETCH" fetch "$PROJECT_PATH" "https://www.example.com/fr-FR/some-page"
+# Throttle harder when a site is blocking: RATE_DELAY (base s), MAX_ATTEMPTS
+RATE_DELAY=8 MAX_ATTEMPTS=8 "$FETCH" fetch "$PROJECT_PATH" "$URL"
+# Force a re-scrape of an already-cached URL (rare; deliberate escape hatch):
+FORCE_REFETCH=1 "$FETCH" fetch "$PROJECT_PATH" "$URL"
+```
+
+**Browser fallback (when `fetch` returns exit code 2 = blocked, or the page is JS-rendered):** a hard-WAF'd page won't yield to `curl`. The sequence is **check → capture → save**:
+
+```bash
+# 1. check the cache first — skip the browser entirely if already captured
+"$FETCH" get "$PROJECT_PATH" "$URL" && exit 0
+# 2. capture with the Chrome MCP (navigate + get_page_text) — uses the real browser session, passes the WAF
+# 3. save the captured text into the cache so the next run reuses it instead of re-capturing:
+printf '%s' "$CAPTURED_TEXT" | "$FETCH" put "$PROJECT_PATH" "$URL"
+```
+
+This is the documented, expected escape hatch, not a workaround.
+
+## Step 1: Crawl the full site (cached + rate-limited)
+
+```bash
+FETCH="orchestration/lib/cached-fetch.sh"
+# Polite recursive crawl into <project>/.reference/cache/_crawl/ — rate-limited,
+# retries transient/WAF codes, warns + advises slow-down if still blocked.
+"$FETCH" crawl "$PROJECT_PATH" "{URL}" 3
+# If it reports WAF/rate-limit responses, re-run gentler:
+#   RATE_DELAY=8 "$FETCH" crawl "$PROJECT_PATH" "{URL}" 3
+# Failed URLs are written to <project>/.reference/cache/_crawl/_crawl-errors.txt
+
+CACHE="$("$FETCH" cache-root "$PROJECT_PATH")"
 echo "=== CRAWL RESULTS ==="
-echo "Pages downloaded: $(find /tmp/website-download -name '*.html' | wc -l)"
-echo "Failed URLs:      $(wc -l < /tmp/crawl-errors.txt)"
+echo "Pages cached: $(find "$CACHE/_crawl" -name '*.html' 2>/dev/null | wc -l)"
+echo "Failed URLs:  $(wc -l < "$CACHE/_crawl/_crawl-errors.txt" 2>/dev/null || echo 0)"
 ```
 
 ### Crawl error report (MANDATORY — present to user before continuing)
 
 ```bash
-if [ -s /tmp/crawl-errors.txt ]; then
+CRAWL_ERRORS="$(orchestration/lib/cached-fetch.sh cache-root "$PROJECT_PATH")/_crawl/_crawl-errors.txt"
+if [ -s "$CRAWL_ERRORS" ]; then
   echo "WARNING: The following pages failed to download and CANNOT be migrated from the reference site:"
-  cat /tmp/crawl-errors.txt
+  cat "$CRAWL_ERRORS"
   echo ""
   echo "Save to workflow output for tracking:"
-  cp /tmp/crawl-errors.txt workflow-output/crawl-errors.txt 2>/dev/null || \
-    mkdir -p workflow-output && cp /tmp/crawl-errors.txt workflow-output/crawl-errors.txt
+  mkdir -p workflow-output && cp "$CRAWL_ERRORS" workflow-output/crawl-errors.txt
 else
   echo "All pages downloaded successfully."
 fi
 ```
+
+> If the failures are 403/429/5xx (not 404), that is a **WAF/rate-limit block, not missing content** — re-run the crawl with a higher `RATE_DELAY`, or capture those specific pages via the browser fallback, before declaring them un-migratable.
 
 Present the error list to the user and agree on one of these options before continuing:
 
@@ -512,7 +543,11 @@ try:
 except:
     state = {"steps": {}}
 
-with open('/tmp/crawl-errors.txt') as f:
+import subprocess
+cache = subprocess.run(['orchestration/lib/cached-fetch.sh','cache-root',os.environ.get('PROJECT_PATH','.')],
+                       capture_output=True, text=True).stdout.strip()
+errpath = os.path.join(cache, '_crawl', '_crawl-errors.txt')
+with open(errpath) as f:
     failed = [l.strip() for l in f if l.strip()]
 
 state['crawlErrors'] = failed
@@ -525,14 +560,15 @@ print(f"Recorded {len(failed)} pages as requiring manual migration.")
 EOF
 ```
 
-Then inventory every downloaded HTML file:
+Then inventory every cached HTML file (`CRAWL_DIR` is the cache crawl dir from Step 1):
 
 ```bash
-find /tmp/website-download -name "*.html" | sort > /tmp/page-list.txt
+CRAWL_DIR="$(orchestration/lib/cached-fetch.sh cache-root "$PROJECT_PATH")/_crawl"
+find "$CRAWL_DIR" -name "*.html" | sort > /tmp/page-list.txt
 wc -l /tmp/page-list.txt
 ```
 
-Report the page count to the user before continuing. If 0 pages downloaded, the site may block wget — fall back to Chrome MCP to fetch each page.
+Report the page count to the user before continuing. If 0 pages were cached, the site is blocking the crawler (WAF) — slow down (`RATE_DELAY=8`) and/or fall back to Chrome MCP to capture each page into the cache dir.
 
 ---
 
@@ -555,7 +591,7 @@ Store this corpus as `/tmp/section-corpus.json`:
 ```json
 [
   {
-    "page": "/tmp/website-download/fr-FR/index.html",
+    "page": ".reference/cache/_crawl/fr-FR/index.html",
     "rootTag": "div",
     "classSignature": "component content hero-section",
     "childSignature": "none",
@@ -706,9 +742,10 @@ Before saving results:
 **HARD STOPS — do not write output files until all pass:**
 
 ```bash
-# Verify every claimed CSS class exists in downloaded HTML
+# Verify every claimed CSS class exists in the cached HTML
+CRAWL_DIR="$(orchestration/lib/cached-fetch.sh cache-root "$PROJECT_PATH")/_crawl"
 for class in "hero-section" "news-card" "article-full"; do
-  count=$(grep -rl "$class" /tmp/website-download | wc -l)
+  count=$(grep -rl "$class" "$CRAWL_DIR" | wc -l)
   echo "$class: found in $count files"
 done
 ```
@@ -754,13 +791,13 @@ Save:
           "name": "default",
           "file": "default.server.tsx",
           "purpose": "Card in news listing grid",
-          "htmlFragmentSource": "/tmp/website-download/news/index.html:line 142"
+          "htmlFragmentSource": ".reference/cache/_crawl/news/index.html:line 142"
         },
         {
           "name": "fullPage",
           "file": "fullPage.server.tsx",
           "purpose": "Full article detail page",
-          "htmlFragmentSource": "/tmp/website-download/news/article-slug.html:line 38"
+          "htmlFragmentSource": ".reference/cache/_crawl/news/article-slug.html:line 38"
         }
       ],
       "fields": [
@@ -787,7 +824,7 @@ Save:
           "name": "default",
           "file": "default.server.tsx",
           "purpose": "Full-width hero banner with background image and heading",
-          "htmlFragmentSource": "/tmp/website-download/fr-FR/index.html:line 88"
+          "htmlFragmentSource": ".reference/cache/_crawl/fr-FR/index.html:line 88"
         }
       ],
       "fields": [
@@ -828,7 +865,7 @@ Per-component view assignment:
 
 jmix:mainResource types:   Y  (each has fullPage HTML fragment sourced from detail page)
 
-HTML fragments:  ALL sourced from /tmp/website-download/ — grep line numbers verified
+HTML fragments:  ALL sourced from .reference/cache/_crawl/ — grep line numbers verified
 CSS classes:     ALL verified present in downloaded HTML files
 
 Files written:

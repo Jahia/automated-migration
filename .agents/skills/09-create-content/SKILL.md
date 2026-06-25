@@ -419,12 +419,17 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 
 This reveals the exact area paths (e.g. `/sites/SITEKEY/home/sial-innovation/main`) to use as `parentPath` in `content.create`.
 
-### Step D: Extract verbatim text content per page
+### Step D: Extract verbatim text content per page (cache-first)
 
-Use browser MCP `get_page_text` on each reference URL. Extract:
+**Always check the cache before scraping; read from the cache, not the live site.** Reference pages are scraped once into `<project>/.reference/cache/` by skill 01's hardened helper (`orchestration/lib/cached-fetch.sh`). For each page, `cached-fetch.sh get <project> <url>` first and reuse the hit — do not re-hit the origin per page (re-hitting is what trips the WAF/VPN block). Persist a short blueprint per page (headings, body, CTA labels, image URLs) under `<project>/.reference/<section>/<slug>.md` so it survives context compaction.
+
+For a page not yet cached (`get` exits 3) or one that is JS-rendered / WAF-hard, capture it with the **Chrome MCP** (`navigate` + `get_page_text`) — real browser session, passes the WAF — then save it back so the next run reuses it: `printf '%s' "$text" | cached-fetch.sh put <project> <url>`. Slow the fetch down (`RATE_DELAY=8`) rather than retrying a blocked origin back-to-back.
+
+Extract per page:
 - Banner: watermark text + h1 heading
 - Each content block: watermarkWord, h2, body text, CTA label
 - Info cards: icon class, title, body
+- Image URLs (for import): `Array.from(document.images).map(i=>(i.currentSrc||i.src).split('?')[0])` via the Chrome JS tool
 
 ### Step E: Populate in order
 

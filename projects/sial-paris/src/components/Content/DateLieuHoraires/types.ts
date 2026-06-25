@@ -2,7 +2,7 @@ import type { JCRNodeWrapper } from 'org.jahia.services.content';
 
 export interface InfoCardProps {
   iconClass?: string;
-  title?: string;
+  "jcr:title"?: string;
   body?: string;
 }
 

@@ -596,6 +596,20 @@ The prefix is the **CND namespace** (e.g. `ns`, `nsmix`), **not** the module nam
 
 You can source free icons from [flaticon.com](https://www.flaticon.com/) (download at 32px). If no icon is available, copy an existing one as a placeholder — editors will see a blank space otherwise.
 
+#### Serving content-type icons (required, easy to get wrong)
+
+A node type's icon URL resolves to `/modules/<module>/icons/<namespace>_<typeName>.png` (jContent appends `.png`). For that URL to return 200, **`/icons` must be listed in `jahia.static-resources` in `package.json`:**
+
+```json
+"jahia": {
+  "static-resources": "/dist/client,/dist/assets,/locales,/static/css,/static/js,/static/fonts,/static/assets,/icons"
+}
+```
+
+The JS module engine maps `settings/content-types-icons/` into the bundle's `/icons/` path automatically. Adding `/icons` to `static-resources` makes that path HTTP-servable. Without it, every type shows a blank icon in the editor (the `/icons/...png` URL 404s).
+
+> ⚠️ **Never ship a root `icons/` folder** (do **not** add `"icons"` to the `files` array). The engine already populates the bundle's `/icons/` from `settings/content-types-icons/`; a second root `icons/` folder produces **duplicate JAR entries**, and the install fails with `java.util.zip.ZipException` ("Cannot install package.tgz"). The provisioning API still returns `{}` / "Operation successful", so the failure is silent — the old bundle keeps running and your changes (CND, views, everything) never deploy. Icons go in `settings/content-types-icons/` only; expose them with `/icons` in `static-resources`.
+
 ---
 
 ## Step 6 — Deploy to Jahia
@@ -628,7 +642,8 @@ If Jahia rejects the type definition (e.g. breaking change), use the **Installed
 - [ ] `types.ts` created with correct TypeScript types
 - [ ] Views handle null/missing values gracefully (mandatory does not guarantee a value)
 - [ ] Translation keys added to `.properties` files (EN + FR minimum) — **every field has both a label and a `ui.tooltip`**
-- [ ] Icon created at `settings/content-types-icons/<namespace>_<typeName>.png`
+- [ ] Icon created at `settings/content-types-icons/<namespace>_<typeName>.png` (and **no** root `icons/` folder — it causes a silent `ZipException` deploy failure)
+- [ ] `/icons` is listed in `jahia.static-resources` in `package.json` (so the icon URL serves 200)
 - [ ] `yarn build && yarn jahia-deploy` run and type appears in Jahia content editor with correct label and icon
 
 ## Troubleshooting

@@ -5,7 +5,7 @@ import type { Props } from './types.js';
  *  yellow sub-title above an h2. Use to head a section, e.g. "SIAL en bref". */
 jahiaComponent(
   { componentType: 'view', nodeType: 'sialp:simpleTitle', displayName: 'Section Title' },
-  function SimpleTitle({ title, backTitle, subTitle, backColor = 'gray' }: Props) {
+  function SimpleTitle({ "jcr:title": title, backTitle, subTitle, backColor = 'gray' }: Props) {
     return (
       <div className="component simple-title mb-50 mt-50 col-12">
         <div className="component-content">

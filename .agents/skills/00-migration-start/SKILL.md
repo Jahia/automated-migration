@@ -282,6 +282,18 @@ Ready to start. Proceed with /1-analyze <reference-site-url>
 
 ---
 
+## Scraping policy (every skill that fetches the reference site)
+
+Reference sites sit behind CDNs/WAFs and you may be on a VPN they distrust. Three rules, enforced by `orchestration/lib/cached-fetch.sh`:
+
+0. **Always check the cache before scraping again.** Before any `curl` or browser capture, check `<project>/.reference/cache/` (`cached-fetch.sh get <project> <url>`). Reuse a hit; never re-hit the origin for it.
+1. **Cache locally, fetch once.** All scraped HTML/text/assets go under `<project>/.reference/cache/` (durable — survives sessions and re-runs).
+2. **Slow down when blocked.** Polite base delay between requests; exponential backoff + raised delay on any WAF/rate-limit signal (403/429/5xx/Cloudflare challenge); after a few attempts, **stop** and capture via the browser (Chrome MCP `get_page_text`), saving the result back to the cache (`cached-fetch.sh put`).
+
+Always scrape through the helper (`get` / `fetch` / `crawl` / `put`), never a bare `wget`/`curl`. Details in skill 01.
+
+---
+
 ## How subsequent skills use migration.env
 
 Every skill that calls Jahia reads from `migration.env` at the start of its execution:

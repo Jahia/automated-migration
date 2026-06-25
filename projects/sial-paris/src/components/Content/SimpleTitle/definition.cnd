@@ -1,5 +1,4 @@
-[sialp:simpleTitle] > jnt:content, sialpmix:pageComponent
- - title (string) i18n
+[sialp:simpleTitle] > jnt:content, sialpmix:pageComponent, mix:title
  - backTitle (string) i18n
  - subTitle (string) i18n
  - backColor (string, choicelist) = 'gray' < 'white', 'gray'

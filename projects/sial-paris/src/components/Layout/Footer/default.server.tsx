@@ -111,7 +111,9 @@ jahiaComponent(
                     )}
                   </div>
 
-                  {/* ── Newsletter + consent ── */}
+ 
+                </div>
+                 {/* ── Newsletter + consent ── */}
                   <div className="footer-newsletter bg-white">
                     {newsletterHeading && <h4>{newsletterHeading}</h4>}
                     <form>
@@ -127,8 +129,6 @@ jahiaComponent(
                       <div className="footer-gdpr" dangerouslySetInnerHTML={{ __html: gdprText }} />
                     )}
                   </div>
-                </div>
-
                 {/* ── CTA buttons ── */}
                 {cta.length > 0 && (
                   <div className="footer-cta-row">

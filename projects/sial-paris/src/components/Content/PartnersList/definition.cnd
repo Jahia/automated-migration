@@ -1,7 +1,6 @@
-[sialp:partnerEntry] > jnt:content
+[sialp:partnerEntry] > jnt:content, mix:title
  - logo (weakreference, picker[type='image'])
  - logoExternalUrl (string)
- - title (string) i18n
  - body (string, richtext) i18n
  - linkLabel (string) i18n
  - linkUrl (string)

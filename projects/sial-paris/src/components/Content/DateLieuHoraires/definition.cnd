@@ -1,6 +1,5 @@
-[sialp:infoCard] > jnt:content
- - iconClass (string) = 'fa-regular fa-calendar'
- - title (string) i18n
+[sialp:infoCard] > jnt:content, mix:title
+ - iconClass (string) = 'calendar'
  - body (string, richtext) i18n
 
 [sialp:dateLieuHoraires] > jnt:content, sialpmix:pageComponent, jmix:orderedList

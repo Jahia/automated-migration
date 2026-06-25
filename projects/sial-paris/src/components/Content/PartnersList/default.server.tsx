@@ -15,7 +15,7 @@ const CATEGORY_ORDER = ['animations', 'institutionnels', 'medias', 'salons', 'si
 /** A single partner row (used standalone / in the detailed list view). */
 jahiaComponent(
   { componentType: 'view', nodeType: 'sialp:partnerEntry', displayName: 'Partner Entry' },
-  function PartnerEntry({ logo, logoExternalUrl, title, body, linkLabel, linkUrl }: EntryProps) {
+  function PartnerEntry({ logo, logoExternalUrl, "jcr:title": title, body, linkLabel, linkUrl }: EntryProps) {
     const logoUrl = logo ? buildNodeUrl(logo) : (logoExternalUrl || null);
     return (
       <div className="row align-items-center">
@@ -58,7 +58,7 @@ jahiaComponent(
             <div className={classes.grid}>
               {children.map((ch) => {
                 const cat = catOf(ch);
-                const title = ch.hasProperty('title') ? ch.getProperty('title').getString() : '';
+                const title = ch.hasProperty('jcr:title') ? ch.getProperty('jcr:title').getString() : '';
                 let logoUrl: string | null = null;
                 if (ch.hasProperty('logo')) {
                   try {
