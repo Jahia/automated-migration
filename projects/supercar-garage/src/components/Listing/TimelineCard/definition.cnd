@@ -1,0 +1,3 @@
+[usg:timelineCard] > jnt:content, usgmix:component
+ - heading (string) i18n mandatory primary
+ - description (string, richtext) i18n

@@ -1,0 +1,18 @@
+.heading {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+/* Flat grid used only in edit mode */
+.editGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.5rem;
+}
+
+.editGrid img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}

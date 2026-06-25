@@ -1,0 +1,4 @@
+[usg:partnerLogo] > jnt:content, usgmix:component
+ - image (weakreference, picker[type='image']) mandatory < jmix:image
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+ - altText (string) i18n

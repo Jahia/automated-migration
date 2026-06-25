@@ -1,0 +1,4 @@
+[usg:keyFigures] > jnt:content, usgmix:pageComponent
+ - heading (string) i18n mandatory primary
+ - animated (boolean) = 'false' autocreated
+ + * (usg:keyFigure) = usg:keyFigure

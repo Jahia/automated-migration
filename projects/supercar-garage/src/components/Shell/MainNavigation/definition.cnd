@@ -1,0 +1,8 @@
+[usg:mainNavigation] > jnt:content, usgmix:component, jmix:hiddenType
+ - logo (weakreference, picker[type='image']) mandatory
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+ - eventDate (string) i18n
+ - eventVenue (string) i18n
+ - ctaPrimaryLabel (string) i18n
+ - ctaSecondaryLabel (string) i18n
+ + * (usg:ctaButton) = usg:ctaButton

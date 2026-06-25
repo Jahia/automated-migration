@@ -1,0 +1,2 @@
+[usg:sectionHub] > jnt:content, usgmix:pageComponent
+ - childPages (weakreference) multiple < jnt:page

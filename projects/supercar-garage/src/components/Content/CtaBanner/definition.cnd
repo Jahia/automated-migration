@@ -1,0 +1,3 @@
+[usg:ctaBanner] > jnt:content, usgmix:pageComponent
+ - ctaLabel (string) i18n mandatory
+ - j:linkType (string, choicelist[linkTypeInitializer]) mandatory

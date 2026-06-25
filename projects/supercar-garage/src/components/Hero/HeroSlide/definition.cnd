@@ -1,0 +1,6 @@
+[usg:heroSlide] > jnt:content, usgmix:component
+ - image (weakreference, picker[type='image']) mandatory < jmix:image
+ - smallTitle (string) i18n
+ - body (string, richtext) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+ - ctaLabel (string) i18n

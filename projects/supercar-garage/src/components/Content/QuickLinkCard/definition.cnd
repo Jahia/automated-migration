@@ -1,0 +1,4 @@
+[usg:quickLinkCard] > jnt:content, usgmix:component
+ - iconClass (string)
+ - heading (string) i18n mandatory primary
+ - j:linkType (string, choicelist[linkTypeInitializer]) mandatory

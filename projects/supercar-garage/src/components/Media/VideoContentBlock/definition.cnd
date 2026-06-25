@@ -1,0 +1,4 @@
+[usg:videoContentBlock] > jnt:content, usgmix:pageComponent
+ - j:linkType (string, choicelist[linkTypeInitializer]) mandatory
+ - heading (string) i18n mandatory primary
+ - body (string, richtext) i18n

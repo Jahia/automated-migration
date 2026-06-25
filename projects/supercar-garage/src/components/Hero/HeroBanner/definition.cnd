@@ -1,0 +1,3 @@
+[usg:heroBanner] > jnt:content, usgmix:pageComponent
+ - heading (string) i18n mandatory primary
+ - backgroundImage (weakreference, picker[type='image']) mandatory < jmix:image

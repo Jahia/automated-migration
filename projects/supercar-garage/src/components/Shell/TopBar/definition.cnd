@@ -1,0 +1,5 @@
+[usg:topBar] > jnt:content, usgmix:component, jmix:hiddenType
+ - ctaExposerLabel (string) i18n
+ - ctaPresseLabel (string) i18n
+ + * (usg:socialLink) = usg:socialLink
+ + * (usg:ctaButton) = usg:ctaButton

@@ -17,6 +17,9 @@
  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
  - ctaLabel (string) i18n
 
+// Marker mixin — content types opt into the JcrQuery type dropdown by extending this
+[usgmix:queryContent] mixin
+
 // Site theme mixin — add to the site node (jnt:virtualsite) so editors can
 // re-theme the whole site by overriding the :root tokens.
 [usgmix:siteTheme] mixin

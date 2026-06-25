@@ -1,0 +1,45 @@
+/* Edit-mode wrapper — not shown in live rendering */
+.editWrapper {
+  border: 2px dashed #bbb;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: #f9f9f9;
+  font-size: 0.875rem;
+}
+
+.editHint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.editHint strong {
+  color: #333;
+}
+
+.editList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.editItem {
+  display: inline-flex;
+  align-items: center;
+  background: #e8e8e8;
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.editLabel {
+  font-family: sans-serif;
+  color: #666;
+  margin-left: 0.25rem;
+}

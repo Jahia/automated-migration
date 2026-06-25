@@ -1,0 +1,18 @@
+[usg:footerSection] > jnt:content, usgmix:component, jmix:hiddenType
+ - socialHeading (string) i18n
+ - newsletterLabel (string) i18n
+ - newsletterPlaceholder (string) i18n
+ - newsletterConsentLabel (string) i18n
+ - newsletterSubmitLabel (string) i18n
+ - partnerLogo1 (weakreference, picker[type='image'])
+ - partnerLogo2 (weakreference, picker[type='image'])
+ - partnerLogo3 (weakreference, picker[type='image'])
+ - partnerLabel1 (string) i18n
+ - partnerLabel2 (string) i18n
+ - partnerLabel3 (string) i18n
+ - legalPlanSite (string) i18n
+ - legalMentions (string) i18n
+ - legalData (string) i18n
+ - legalCookies (string) i18n
+ + * (usg:socialLink) = usg:socialLink
+ + * (usg:ctaButton) = usg:ctaButton

@@ -1,0 +1,7 @@
+[usg:editorialBlock] > jnt:content, usgmix:pageComponent
+ - heading (string) i18n mandatory primary
+ - subheading (string) i18n
+ - image (weakreference, picker[type='image']) < jmix:image
+ - body (string, richtext) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+ - ctaLabel (string) i18n

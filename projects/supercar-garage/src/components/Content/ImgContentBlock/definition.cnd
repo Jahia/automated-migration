@@ -1,0 +1,7 @@
+[usg:imgContentBlock] > jnt:content, usgmix:pageComponent
+ - iconClass (string)
+ - image (weakreference, picker[type='image']) mandatory < jmix:image
+ - heading (string) i18n mandatory primary
+ - body (string, richtext) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+ - ctaLabel (string) i18n

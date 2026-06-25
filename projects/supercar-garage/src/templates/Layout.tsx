@@ -1,4 +1,5 @@
 import {
+  AbsoluteArea,
   AddResources,
   buildModuleFileUrl,
   buildNodeUrl,
@@ -46,6 +47,9 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
 
   // Read site node for theme mixin props
   const siteNode = renderContext.getSite() as unknown as JCRNodeWrapper;
+
+  // AbsoluteArea parent MUST be the home page node — NOT renderContext.getSite()
+  const homePage = siteNode.getNode("home") as JCRNodeWrapper;
   const themePrimaryColor = getProp(siteNode, "themePrimaryColor");
   const themeSecondaryColor = getProp(siteNode, "themeSecondaryColor");
   const themeAccentColor = getProp(siteNode, "themeAccentColor");
@@ -127,7 +131,11 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
           <link rel="stylesheet" href={buildNodeUrl(themeOverrideCss)} />
         ) : null}
       </head>
-      <body>{children}</body>
+      <body>
+        <AbsoluteArea name="header" nodeType="usg:mainNavigation" parent={homePage} readOnly="children" />
+        {children}
+        <AbsoluteArea name="footer" nodeType="usg:footerSection" parent={homePage} readOnly="children" />
+      </body>
     </html>
   );
 };

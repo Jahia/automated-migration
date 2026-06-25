@@ -1,0 +1,3 @@
+[usg:gridRow] > jnt:content, usgmix:pageComponent
+ - columns (string, choicelist[resourceBundle]) = '2' < '1', '2', '3', '4'
+ + * (jmix:droppableContent) = jmix:droppableContent

@@ -1,5 +1,5 @@
 import { Area, jahiaComponent } from "@jahia/javascript-modules-library";
-import { Layout } from "../Layout.jsx";
+import { Layout } from "../Layout.js";
 
 jahiaComponent(
   {

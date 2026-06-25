@@ -1,0 +1,6 @@
+[usg:newsArticle] > jnt:content, usgmix:component, mix:title, jmix:mainResource, usgmix:queryContent, jmix:tagged
+ - publishDate (date)
+ - image (weakreference, picker[type='image']) < jmix:image
+ - summary (string, richtext) i18n
+ - bodyContent (string, richtext) i18n
+ - author (string)
