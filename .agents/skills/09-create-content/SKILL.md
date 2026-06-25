@@ -838,7 +838,19 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 
 ---
 
-## Gotcha: MCP content.update silently no-ops weakreference props (categories)
+## Gotcha: MCP content.update silently no-ops some props (weakrefs AND overwriting existing strings)
+
+Two cases observed where `content.update` returns OK but changes nothing:
+- **weakreference** props (e.g. `j:defaultCategory`, `startNode`, `backgroundImage`) — see below.
+- **overwriting an already-set plain string** (e.g. changing `iconClass`/`icon` from a Font Awesome
+  class to a Lucide name) — the response is success but EDIT still holds the old value.
+
+Setting a previously-empty string field works; overwriting an existing one may not. So after ANY
+`content.update`, re-read the property in EDIT and LIVE — never trust the OK. When it no-ops, use
+GraphQL `mutateNode(pathOrId){ mutateProperty(name){ setValue/setValues } }` (works for strings AND
+weakrefs), then publish.
+
+### Original note — weakreference props (categories)
 
 `content.update` with `{"j:defaultCategory": ["<category-uuid>"]}` returns **OK but
 sets nothing** — the weakreference is silently dropped (verified: EDIT still empty

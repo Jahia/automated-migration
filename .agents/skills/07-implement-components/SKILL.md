@@ -366,3 +366,22 @@ page renders HTTP 200 → engine log free of `already exist`**.
 - One default view per (nodeType): a second `jahiaComponent({componentType:'view', nodeType})`
   with no distinct `name:` throws `already exist` at module load and breaks every page using
   a not-yet-registered template. `grep -rn "nodeType: 'ns:foo'" src/` before adding a view.
+
+---
+
+## Content-type icons (jContent picker) — serving them in a JS module
+
+The `@jahia/vite-plugin` does NOT process content-type icons, so they are NOT served
+automatically. For a nodetype icon to show in jContent (Jahia resolves it to
+`/modules/<module>/icons/<ns>_<type>.png`) you need BOTH:
+
+1. The PNGs in a **root `icons/`** folder (32×32, named `<ns>_<type>.png`, e.g. `sialp_jcrQuery.png`).
+2. `icons` added to **`files`** AND `/icons` added to **`jahia.static-resources`** in `package.json`:
+   `"static-resources": "…,/static/assets,/images,/icons"`.
+
+Without `/icons` in static-resources the URL 404s and jContent shows a fallback. Verify with
+`curl /modules/<module>/icons/<ns>_<type>.png` → expect `200 image/png`.
+
+Icons: generate from **Lucide** (`lucide-static` SVGs → `rsvg-convert -w 32 -h 32`), stroke
+**black `#000000`** for contrast on jContent's white background (navy is too faint). Keep a copy in
+`settings/content-types-icons/` too (the documented convention) and keep the two in sync.
