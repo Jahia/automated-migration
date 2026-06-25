@@ -7,3 +7,6 @@
 # Reference scraping: raw cached pages/assets (durable per-run cache, not source).
 # Distilled blueprints under .reference/<section>/*.md ARE committed.
 **/.reference/cache/
+
+# Maven build output (never commit compiled artifacts)
+**/target/

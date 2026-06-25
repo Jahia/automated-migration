@@ -1,0 +1,30 @@
+<jnt = 'http://www.jahia.org/jahia/nt/1.0'>
+<jmix = 'http://www.jahia.org/jahia/mix/1.0'>
+<usg = 'https://jahia.com/supercar-garage/nt/1.0'>
+<usgmix = 'https://jahia.com/supercar-garage/mix/1.0'>
+
+// Base component mixin — all components extend this
+[usgmix:component] > jmix:droppableContent, jmix:accessControllableContent mixin
+
+// Page component mixin — for components that go into page Areas
+[usgmix:pageComponent] > usgmix:component mixin
+
+// CTA button — child node via + * (usg:ctaButton)
+// Links use j:linkType DIRECTLY on the type (no linkTo mixin). j:url and
+// j:linknode are injected at runtime by Jahia's built-in mixins
+// (jmix:externalLink / jmix:internalLink) — NEVER declare them in the CND.
+[usg:ctaButton] > jnt:content, usgmix:component
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+ - ctaLabel (string) i18n
+
+// Site theme mixin — add to the site node (jnt:virtualsite) so editors can
+// re-theme the whole site by overriding the :root tokens.
+[usgmix:siteTheme] mixin
+ - themePrimaryColor (string)
+ - themeSecondaryColor (string)
+ - themeAccentColor (string)
+ - themeTextColor (string)
+ - themeBackgroundColor (string)
+ - themeFontHeading (string)
+ - themeFontBody (string)
+ - themeOverrideCss (weakreference, picker[type='file'])

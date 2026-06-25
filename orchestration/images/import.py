@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import reference images into Jahia's DAM via the sial-image-importer servlet.
+"""Import reference images into Jahia's DAM via the global jahia-image-proxy servlet.
 
 Reads a per-page image manifest (orchestration/images/<project>.json), imports
 each image into <destRoot>/<page>/, and writes <project>.imported.json mapping
@@ -25,7 +25,7 @@ def load_env(project):
     return user, host
 
 def import_one(host, user, source_url, dest_path, filename):
-    url = (f"{host}/modules/sial/import-image"
+    url = (f"{host}/modules/jahia-image-proxy/import-image"
            f"?sourceUrl={urllib.parse.quote(source_url, safe='')}"
            f"&destPath={urllib.parse.quote(dest_path, safe='')}"
            f"&filename={urllib.parse.quote(filename, safe='')}")

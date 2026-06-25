@@ -1,5 +1,5 @@
 {
-  "_README": "Per-page image manifest captured from the reference site via browser (the headless loop agent cannot fetch the bot-blocked site). Run orchestration/images/import.py to import each via the sial-image-importer servlet; it writes sial-paris.imported.json (page -> imported JCR node paths) which the content step references. Keys are sitemap page paths (lowercase). src is relative to base.",
+  "_README": "Per-page image manifest captured from the reference site via browser (the headless loop agent cannot fetch the bot-blocked site). Run orchestration/images/import.py to import each via the global jahia-image-proxy servlet; it writes sial-paris.imported.json (page -> imported JCR node paths) which the content step references. Keys are sitemap page paths (lowercase). src is relative to base.",
   "destRoot": "/sites/sial-paris/files/migrated",
   "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
   "pages": {

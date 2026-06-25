@@ -772,6 +772,8 @@ Save:
 
 ## component-manifest.json structure
 
+> **Namespace:** use the `namespace` / `mixNamespace` given in the step inputs for every `nodeType` (e.g. `usg:newsArticle`). Never invent a prefix. If inputs omit it, read it from `settings/definitions.cnd`. A manifest whose prefix disagrees with the scaffolded module breaks every downstream step.
+
 ```json
 {
   "components": [

@@ -44,9 +44,20 @@ writing any CND. There is no exception list.
    via **`jmix:categorized`**.
 3. **Links → `linkTypeInitializer` only.** Any contributor link is
    `- j:linkType (string, choicelist[linkTypeInitializer])`. Never store a link in a
-   plain `string` (`ctaUrl`, `linkUrl`, `href`, `targetUrl`, `prevUrl`, `videoUrl`…).
+   plain `string` (`ctaUrl`, `linkUrl`, `href`, `targetUrl`, `prevUrl`, `videoUrl`,
+   `ctaPrimaryLink`, `logoLink`, … — any name ending in `Url`/`Link`).
    Never declare `j:url`/`j:linknode` — Jahia injects them. The button **label** is a
    separate `- ctaLabel (string) i18n` (labels are fine; URLs are not).
+   - **One link per type.** `j:linkType` is a single fixed property; the mixins it
+     injects (`j:linknode`/`j:url`) are also single fixed names, so a node can hold
+     **exactly one** `linkTypeInitializer` link. A component that needs **several**
+     links (a top bar with two CTAs, a nav with logo + two buttons, a card grid) must
+     model each link as a **child `<ns>:ctaButton` node** (`+ * (<ns>:ctaButton)`),
+     each child carrying its own `j:linkType` + `ctaLabel`. NEVER declare two
+     `*Link`/`*Url` fields on one type to dodge this — that is the rule-14 violation.
+   - **External video embeds** (YouTube/Vimeo `videoUrl`): use `j:linkType` (external)
+     and read `j:url` in the view, or a DAM `weakreference` for a self-hosted file —
+     never a `videoUrl` string.
 4. **Images & documents → `weakreference` only.** Every image/file is a DAM
    `(weakreference, picker[type='image']) < jmix:image` (or `picker[type='file']`).
    Never an `imageExternalUrl` / `logoExternalUrl` / `backgroundImageUrl` string field.

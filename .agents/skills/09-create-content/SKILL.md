@@ -218,7 +218,7 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 
 The response contains the JCR path and UUID of the uploaded file. Use the path directly as a property value (WEAKREFERENCE accepts absolute JCR path).
 
-**Use `media.upload.url` instead of the image importer whenever the source URL is directly accessible.** When it fails (e.g. CDN requires browser headers), fall back to the **`sial-image-importer`** servlet — see "Hero and section images" below for the exact, verified endpoint. (NOTE: the endpoint is `/modules/sial/import-image`, NOT `jahia-image-proxy` — that name returns 404.)
+**Use `media.upload.url` instead of the image importer whenever the source URL is directly accessible.** When it fails (e.g. CDN requires browser headers), fall back to the global **`jahia-image-proxy`** servlet — see "Hero and section images" below for the exact, verified endpoint. Canonical endpoint: `/modules/jahia-image-proxy/import-image` (the legacy `/modules/sial/import-image` path is also served for back-compat).
 
 ### Upload a local file (binary upload)
 
@@ -578,16 +578,17 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 ```
 
 **Fallback: if `media.upload.url` fails** (CDN blocks, 403, redirect loop), use the
-**`sial-image-importer`** servlet. It fetches with a full browser User-Agent +
-`Referer: https://www.sialparis.com/` baked in, which is what gets past Cloudflare
-on the SIAL CDN. The module must be built (Java 17) and deployed first; verify with
-`curl -o /dev/null -w '%{http_code}' http://localhost:8080/modules/sial/import-image?sourceUrl=x&destPath=y&filename=z`
-— a `500` (not `404`) means it is live.
+global **`jahia-image-proxy`** servlet (`projects/jahia-image-proxy/`). It fetches with
+a full browser User-Agent and a `Referer` derived from the source URL's own host, which
+is what gets past Cloudflare-style CDNs. The module is site-agnostic — build it (Java 17)
+and deploy it once; it then serves every project. Verify with
+`curl -o /dev/null -w '%{http_code}' http://localhost:8080/modules/jahia-image-proxy/import-image`
+— a `400` (not `404`) means it is live.
 
 Single image:
 ```bash
-curl -s -u root:root -G "http://localhost:8080/modules/sial/import-image" \
-  --data-urlencode "sourceUrl=https://www.sialparis.com/-/media/.../hero.jpg" \
+curl -s -u root:root -G "http://localhost:8080/modules/jahia-image-proxy/import-image" \
+  --data-urlencode "sourceUrl=https://cdn.example.com/-/media/.../hero.jpg" \
   --data-urlencode "destPath=/sites/SITEKEY/files/imported/heroes" \
   --data-urlencode "filename=le-salon-hero.jpg"
 # -> {"success":true,"url":"/files/live/sites/SITEKEY/files/imported/heroes/le-salon-hero.jpg", ...}
@@ -595,7 +596,7 @@ curl -s -u root:root -G "http://localhost:8080/modules/sial/import-image" \
 
 Many images at once (one round-trip — preferred for a full migration):
 ```bash
-curl -s -u root:root -X POST "http://localhost:8080/modules/sial/bulk-import" \
+curl -s -u root:root -X POST "http://localhost:8080/modules/jahia-image-proxy/bulk-import" \
   -H "Content-Type: application/json" \
   -d '[{"sourceUrl":"https://.../a.jpg","destPath":"/sites/SITEKEY/files/imported/heroes","filename":"a.jpg"},
        {"sourceUrl":"https://.../b.jpg","destPath":"/sites/SITEKEY/files/imported/heroes","filename":"b.jpg"}]'

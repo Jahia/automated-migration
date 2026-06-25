@@ -111,15 +111,13 @@ Before implementing any components, add these to `settings/definitions.cnd`:
 // Page component mixin — for components that go into page Areas
 [<ns>Mix:pageComponent] > <ns>Mix:component mixin
 
-// Link mixin — MUST declare j:url and j:linknode explicitly
-// linkTypeInitializer is UI-only; it does not inject these at runtime
-[<ns>:linkTo] mixin
- - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
- - j:url (string) indexed=no
- - j:linknode (weakreference) < jmix:mainResource, jnt:page
-
 // CTA button — child node via + * (<ns>:ctaButton)
-[<ns>:ctaButton] > jnt:content, <ns>Mix:component, <ns>:linkTo
+// Links are declared with j:linkType DIRECTLY on the type (no linkTo mixin).
+// j:url and j:linknode are injected at runtime by Jahia's built-in mixins
+// (jmix:externalLink / jmix:internalLink) when linkTypeInitializer fires —
+// NEVER declare j:url or j:linknode in the CND.
+[<ns>:ctaButton] > jnt:content, <ns>Mix:component
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
  - ctaLabel (string) i18n
 
 // Site theme mixin — add to the site node (jnt:virtualsite) so editors can
@@ -145,6 +143,6 @@ Before implementing any components, add these to `settings/definitions.cnd`:
 - [ ] Module scaffolded at `projects/<module-name>/`
 - [ ] `yarn install` completed without errors
 - [ ] `.env` file created with correct credentials
-- [ ] `settings/definitions.cnd` has module mixin, pageComponent mixin, linkTo mixin, ctaButton type, **siteTheme mixin**
+- [ ] `settings/definitions.cnd` has module mixin, pageComponent mixin, ctaButton type (with `j:linkType` declared directly — no linkTo mixin), **siteTheme mixin**
 - [ ] Namespace prefix recorded (needed for all subsequent CND and resource bundle work)
 - [ ] Namespace prefix recorded (needed for all subsequent CND and resource bundle work)

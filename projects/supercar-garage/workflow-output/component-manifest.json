@@ -1,0 +1,610 @@
+{
+  "sourceUrl": "https://www.ultimate-supercar-garage.com/fr-FR",
+  "platform": "Sitecore SXA",
+  "pagesCrawled": 53,
+  "language": "fr-FR (primary), en (alternate)",
+  "namespace": "usg",
+  "mixNamespace": "usgmix",
+  "components": [
+    {
+      "name": "TopBar",
+      "nodeType": "usg:topBar",
+      "displayName": "Top Bar",
+      "areaType": "absolute",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 28,
+      "clusterPages": ["every page"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Top bar with social links, language selector, utility CTAs", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 84" }],
+      "fields": [
+        { "name": "socialLinks", "type": "weakreference, multiple", "mandatory": false },
+        { "name": "ctaExposerLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "ctaExposerLink", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "ctaPresseLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "ctaPresseLink", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "MainNavigation",
+      "nodeType": "usg:mainNavigation",
+      "displayName": "Main Navigation",
+      "areaType": "absolute",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 28,
+      "clusterPages": ["every page"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Site header with logo, date/venue, 5-section mega nav (3 levels), CTAs, hamburger", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 115" }],
+      "fields": [
+        { "name": "logo", "type": "weakreference, picker[type='image']", "mandatory": true },
+        { "name": "logoLink", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "eventDate", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "eventVenue", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "ctaPrimaryLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "ctaPrimaryLink", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "ctaSecondaryLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "ctaSecondaryLink", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "FooterSection",
+      "nodeType": "usg:footerSection",
+      "displayName": "Footer Section",
+      "areaType": "absolute",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 28,
+      "clusterPages": ["every page"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Footer with social links, newsletter form, partner logos, legal links", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 627" }],
+      "fields": [
+        { "name": "socialHeading", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "newsletterLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "newsletterPlaceholder", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "newsletterConsentLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "newsletterSubmitLabel", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "partnerLogo1", "type": "weakreference, picker[type='image']", "mandatory": false },
+        { "name": "partnerLogo2", "type": "weakreference, picker[type='image']", "mandatory": false },
+        { "name": "partnerLogo3", "type": "weakreference, picker[type='image']", "mandatory": false },
+        { "name": "partnerLabel1", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "partnerLabel2", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "legalPlanSite", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "legalMentions", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "legalData", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "legalCookies", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "HeroBanner",
+      "nodeType": "usg:heroBanner",
+      "displayName": "Hero Banner",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 24,
+      "clusterPages": ["home", "evenement", "billetterie", "actualites", "presse", "infos-pratiques", "exposants-et-animations", "espace-exposant", "le-salon", "les-univers", "scene-live", "FAQ", "date-acces-plan", "comment-venir-au-salon", "acheter-mon-ticket", "groupes-cse", "liste-des-exposants", "calendrier-des-animations", "design-in-motion", "sponsors-et-partenaires", "exposants-animations", "Infos-Pratiques"],
+      "views": [
+        { "name": "default", "file": "default.server.tsx", "purpose": "Full-height hero with background image + H1 heading", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/le-salon.html:line 20" },
+        { "name": "small", "file": "small.server.tsx", "purpose": "Shorter hero variant (banner-title3, smaller image)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/presse.html:line 20" }
+      ],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "backgroundImage", "type": "weakreference, picker[type='image']", "mandatory": true }
+      ]
+    },
+    {
+      "name": "VideoSection",
+      "nodeType": "usg:videoSection",
+      "displayName": "Video Section",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 2,
+      "clusterPages": ["home", "espace-exposant"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Embedded YouTube video with optional caption and description", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 75" }],
+      "fields": [
+        { "name": "videoUrl", "type": "string", "i18n": false, "mandatory": true },
+        { "name": "caption", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "description", "type": "string, richtext", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "QuickLinks",
+      "nodeType": "usg:quickLinks",
+      "displayName": "Quick Links",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 1,
+      "clusterPages": ["home"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Sticky row of 4 icon+title CTA cards (inscrire, exposer, exposants, animations)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 50" }],
+      "fields": [
+        { "name": "cards", "type": "weakreference, multiple", "mandatory": false },
+        { "name": "backgroundColor", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "QuickLinkCard",
+      "nodeType": "usg:quickLinkCard",
+      "displayName": "Quick Link Card",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 4,
+      "clusterPages": ["home (4 instances)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Single CTA card with icon + title", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 55" }],
+      "fields": [
+        { "name": "iconClass", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "title", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "link", "type": "string", "i18n": false, "mandatory": true }
+      ]
+    },
+    {
+      "name": "SectionTitle",
+      "nodeType": "usg:sectionTitle",
+      "displayName": "Section Title",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 3,
+      "clusterPages": ["home", "espace-exposant", "date-acces-plan"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Simple H2 heading with decorative focus-title element", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 90" }],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": true }
+      ]
+    },
+    {
+      "name": "RichText",
+      "nodeType": "usg:richText",
+      "displayName": "Rich Text",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 20,
+      "clusterPages": ["home (3x)", "actualites", "presse", "le-salon", "les-univers", "scene-live", "date-acces-plan", "FAQ", "groupes-cse", "acheter-mon-ticket", "comment-venir-au-salon"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Formatted rich text block with optional heading and body", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 100" }],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "body", "type": "string, richtext", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "CtaBanner",
+      "nodeType": "usg:ctaBanner",
+      "displayName": "CTA Banner",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 10,
+      "clusterPages": ["home (3x)", "les-univers", "acheter-mon-ticket (2x)", "groupes-cse (2x)", "scene-live"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Centered CTA button with link", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 110" }],
+      "fields": [
+        { "name": "ctaLabel", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "j:linkType", "type": "string, choicelist[linkTypeInitializer]", "i18n": false, "mandatory": true }
+      ]
+    },
+    {
+      "name": "KeyFigures",
+      "nodeType": "usg:keyFigures",
+      "displayName": "Key Figures",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "usg:keyFigure",
+      "clusterFrequency": 2,
+      "clusterPages": ["home", "espace-exposant"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Stats grid section with heading + N stat cards", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 120" }],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "animated", "type": "boolean", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "KeyFigure",
+      "nodeType": "usg:keyFigure",
+      "displayName": "Key Figure",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 9,
+      "clusterPages": ["home (5)", "espace-exposant (5), scene-live (4)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Single stat: number + label", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 130" }],
+      "fields": [
+        { "name": "value", "type": "string", "i18n": false, "mandatory": true },
+        { "name": "label", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "iconClass", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "EditorialBlock",
+      "nodeType": "usg:editorialBlock",
+      "displayName": "Editorial Block",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 12,
+      "clusterPages": ["home (3x)", "les-univers (5x)", "scene-live (3x)", "espace-exposant (2x)"],
+      "views": [
+        { "name": "default", "file": "default.server.tsx", "purpose": "Image LEFT, text RIGHT two-column layout", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 140" },
+        { "name": "rightImg", "file": "rightImg.server.tsx", "purpose": "Image RIGHT, text LEFT two-column layout (order-sm)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 160" },
+        { "name": "verticalImage", "file": "verticalImage.server.tsx", "purpose": "Vertical image + text + optional CTA (content-block-vertical-image)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 180" }
+      ],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "subheading", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": false },
+        { "name": "body", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "j:linkType", "type": "string, choicelist[linkTypeInitializer]", "i18n": false, "mandatory": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "ImageBlock",
+      "nodeType": "usg:imageBlock",
+      "displayName": "Image Block",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 4,
+      "clusterPages": ["home (2x)", "les-univers"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Full-width centered image", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 200" }],
+      "fields": [
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": true },
+        { "name": "alt", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "PartnersCarousel",
+      "nodeType": "usg:partnersCarousel",
+      "displayName": "Partners Carousel",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": true,
+      "childType": "usg:partnerLogo",
+      "clusterFrequency": 2,
+      "clusterPages": ["home", "scene-live (video thumbnails)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Logo/image slider using swiffy-slider", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 220" }],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "PartnerLogo",
+      "nodeType": "usg:partnerLogo",
+      "displayName": "Partner Logo",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 19,
+      "clusterPages": ["home (8)", "scene-live (11)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Single logo slide in carousel", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 230" }],
+      "fields": [
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": true },
+        { "name": "linkUrl", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "altText", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "HeroCarousel",
+      "nodeType": "usg:heroCarousel",
+      "displayName": "Hero Carousel",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": true,
+      "childType": "usg:heroSlide",
+      "clusterFrequency": 2,
+      "clusterPages": ["home", "espace-exposant"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Hero carousel/slider with slides (image + heading + richtext + CTA)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 30" }],
+      "fields": [
+        { "name": "timeout", "type": "long", "i18n": false, "mandatory": false },
+        { "name": "transition", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "HeroSlide",
+      "nodeType": "usg:heroSlide",
+      "displayName": "Hero Slide",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 2,
+      "clusterPages": ["home", "espace-exposant"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Single carousel slide with image, small title, richtext, CTA", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 35" }],
+      "fields": [
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": true },
+        { "name": "smallTitle", "type": "string", "i18n": true, "mandatory": false },
+        { "name": "body", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "j:linkType", "type": "string, choicelist[linkTypeInitializer]", "i18n": false, "mandatory": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "SectionHub",
+      "nodeType": "usg:sectionHub",
+      "displayName": "Section Hub Page",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 3,
+      "clusterPages": ["evenement", "exposants-et-animations", "infos-pratiques", "billetterie"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Card grid listing child subpages (image + title + description + CTA)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/evenement.html:line 20" }],
+      "fields": [
+        { "name": "childPages", "type": "weakreference, multiple", "mandatory": false }
+      ]
+    },
+    {
+      "name": "Breadcrumb",
+      "nodeType": "usg:breadcrumb",
+      "displayName": "Breadcrumb",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 20,
+      "clusterPages": ["all interior pages"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Breadcrumb navigation trail", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/evenement.html:line 15" }],
+      "fields": []
+    },
+    {
+      "name": "ImgContentBlock",
+      "nodeType": "usg:imgContentBlock",
+      "displayName": "Image Content Block",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 8,
+      "clusterPages": ["presse (4x)", "date-acces-plan", "acheter-mon-ticket (3x)"],
+      "views": [
+        { "name": "default", "file": "default.server.tsx", "purpose": "Image LEFT, icon + title + description + CTA on gray background", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/presse.html:line 35" },
+        { "name": "alt", "file": "alt.server.tsx", "purpose": "Text LEFT, image RIGHT variant", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/presse.html:line 45" }
+      ],
+      "fields": [
+        { "name": "iconClass", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": true },
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "body", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "j:linkType", "type": "string, choicelist[linkTypeInitializer]", "i18n": false, "mandatory": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "NewsArticle",
+      "nodeType": "usg:newsArticle",
+      "displayName": "News Article",
+      "areaType": "page",
+      "needsMainResource": true,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 1,
+      "clusterPages": ["actualites (listing, cards loaded dynamically via SXA search JS)"],
+      "views": [
+        { "name": "default", "file": "default.server.tsx", "purpose": "Card/teaser in news listing grid (image + title + date + themes)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/actualites.html (search-results config)" },
+        { "name": "fullPage", "file": "fullPage.server.tsx", "purpose": "Full article detail page (hero image + body content + author + tags)", "htmlFragmentSource": "inferred from search config (detail pages not crawlable, dynamically rendered)" }
+      ],
+      "fields": [
+        { "name": "title", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "publishDate", "type": "date", "i18n": false, "mandatory": false },
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": false },
+        { "name": "summary", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "bodyContent", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "author", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "PressRelease",
+      "nodeType": "usg:pressRelease",
+      "displayName": "Press Release",
+      "areaType": "page",
+      "needsMainResource": true,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 1,
+      "clusterPages": ["presse/communique-de-presse (not crawled, dynamically loaded)"],
+      "views": [
+        { "name": "default", "file": "default.server.tsx", "purpose": "Card in press release listing", "htmlFragmentSource": "inferred from presse page structure" },
+        { "name": "fullPage", "file": "fullPage.server.tsx", "purpose": "Full press release detail page", "htmlFragmentSource": "inferred (detail page not crawlable)" }
+      ],
+      "fields": [
+        { "name": "title", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "publishDate", "type": "date", "i18n": false, "mandatory": false },
+        { "name": "image", "type": "weakreference, picker[type='image']", "mandatory": false },
+        { "name": "summary", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "bodyContent", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "pressContact", "type": "string", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "InfoCard",
+      "nodeType": "usg:infoCard",
+      "displayName": "Info Card",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 3,
+      "clusterPages": ["date-acces-plan (3 cards)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Icon + title + content/richtext card", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/infos-pratiques/date-acces-plan.html" }],
+      "fields": [
+        { "name": "iconClass", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "title", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "body", "type": "string, richtext", "i18n": true, "mandatory": false },
+        { "name": "j:linkType", "type": "string, choicelist[linkTypeInitializer]", "i18n": false, "mandatory": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "PlainHtml",
+      "nodeType": "usg:plainHtml",
+      "displayName": "Plain HTML",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 5,
+      "clusterPages": ["home (ad)", "FAQ (tabbed widget)", "date-acces-plan (maps + impactco2)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Raw HTML/script embed for external widgets (ads, maps, JS apps)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 250" }],
+      "fields": [
+        { "name": "htmlContent", "type": "string, richtext", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "VideoContentBlock",
+      "nodeType": "usg:videoContentBlock",
+      "displayName": "Video Content Block",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 1,
+      "clusterPages": ["espace-exposant"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Video LEFT, heading + richtext RIGHT two-column layout", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/espace-exposant.html" }],
+      "fields": [
+        { "name": "videoUrl", "type": "string", "i18n": false, "mandatory": true },
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "body", "type": "string, richtext", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "TimelineCards",
+      "nodeType": "usg:timelineCards",
+      "displayName": "Timeline Cards",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "usg:timelineCard",
+      "clusterFrequency": 1,
+      "clusterPages": ["espace-exposant (6 timeline cards)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Grid of cards (heading + richtext, no images) for timeline/steps", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/espace-exposant.html" }],
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "TimelineCard",
+      "nodeType": "usg:timelineCard",
+      "displayName": "Timeline Card",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 6,
+      "clusterPages": ["espace-exposant (6 cards)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Single timeline step card (title + description)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/espace-exposant.html" }],
+      "fields": [
+        { "name": "title", "type": "string", "i18n": true, "mandatory": true },
+        { "name": "description", "type": "string, richtext", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "FacetFilter",
+      "nodeType": "usg:facetFilter",
+      "displayName": "Facet Filter",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 1,
+      "clusterPages": ["actualites"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Faceted search filter bar (dropdown facets + summary/filter chips)", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR/actualites.html (facet-aggregated)" }],
+      "fields": [
+        { "name": "facets", "type": "string, multiple", "i18n": false, "mandatory": false }
+      ]
+    },
+    {
+      "name": "SocialLink",
+      "nodeType": "usg:socialLink",
+      "displayName": "Social Link",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 5,
+      "clusterPages": ["header + footer (5 platforms)"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Single social media icon link", "htmlFragmentSource": ".reference/cache/_crawl/www.ultimate-supercar-garage.com/fr-FR.html:line 85" }],
+      "fields": [
+        { "name": "platform", "type": "string", "i18n": false, "mandatory": true },
+        { "name": "iconClass", "type": "string", "i18n": false, "mandatory": true },
+        { "name": "url", "type": "string", "i18n": false, "mandatory": true }
+      ]
+    },
+    {
+      "name": "JcrQuery",
+      "nodeType": "usg:jcrQuery",
+      "displayName": "JCR Query",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 0,
+      "clusterPages": ["mandatory component, used for listing actualites/presse dynamically"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Dynamic JCR content listing with type selector, sort, pagination", "htmlFragmentSource": null }],
+      "fields": [
+        { "name": "queryType", "type": "string, choicelist[jcrQueryTypeInitializer]", "i18n": false, "mandatory": true },
+        { "name": "sortField", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "sortDirection", "type": "string", "i18n": false, "mandatory": false },
+        { "name": "pageSize", "type": "long", "i18n": false, "mandatory": false },
+        { "name": "loadMoreLabel", "type": "string", "i18n": true, "mandatory": false }
+      ]
+    },
+    {
+      "name": "GridRow",
+      "nodeType": "usg:gridRow",
+      "displayName": "Grid Row",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "*",
+      "clusterFrequency": 0,
+      "clusterPages": ["mandatory layout component"],
+      "views": [{ "name": "default", "file": "default.server.tsx", "purpose": "Layout grid row container for child components", "htmlFragmentSource": null }],
+      "fields": []
+    }
+  ]
+}
