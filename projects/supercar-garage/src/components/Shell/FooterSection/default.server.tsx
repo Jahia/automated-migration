@@ -1,7 +1,7 @@
 import {
   buildNodeUrl,
-  getChildNodes,
   jahiaComponent,
+  RenderChildren,
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
@@ -44,6 +44,25 @@ function resolveLegalPageUrl(
   return undefined;
 }
 
+/** Standalone view for usg:ctaButton used as a footer link item. */
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "usg:ctaButton",
+    displayName: "CTA Button",
+  },
+  (_, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    const href = resolveLinkHref(currentNode);
+    const label = getStringProp(currentNode, "ctaLabel");
+    if (!label) return null;
+    return (
+      <div className="field-lien">
+        <a href={href}>{label}</a>
+      </div>
+    );
+  },
+);
+
 jahiaComponent(
   {
     componentType: "view",
@@ -51,7 +70,7 @@ jahiaComponent(
     displayName: "Footer Section",
   },
   (props: FooterSectionProps) => {
-    const { currentNode, renderContext, jcrSession } = useServerContext();
+    const { renderContext, jcrSession } = useServerContext();
     const siteKey = renderContext.getSite().getName();
 
     const legalPlanSiteUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "plan-du-site");
@@ -59,61 +78,22 @@ jahiaComponent(
     const legalDataUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "protection-donnees");
     const legalCookiesUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "cookies");
 
-    const socialLinks = getChildNodes(
-      currentNode,
-      -1,
-      0,
-      (n: JCRNodeWrapper) => n.isNodeType("usg:socialLink"),
-    );
-
-    const ctaButtons = getChildNodes(
-      currentNode,
-      -1,
-      0,
-      (n: JCRNodeWrapper) => n.isNodeType("usg:ctaButton"),
-    );
-
     return (
       <div className="component footerm2 container-fluid px-0 col-12">
         <div className="component-content">
           <div className="bg-top-footer">
             <div className="grid-1">
-              {/* Social links column */}
+              {/* Social links column — each usg:socialLink renders one <a> */}
               <div className="socials">
                 {props.socialHeading && (
                   <div className="field-texte-reseaux-sociaux">{props.socialHeading}</div>
                 )}
-                {socialLinks.map((link: JCRNodeWrapper) => {
-                  const href = resolveLinkHref(link);
-                  const iconClass = getStringProp(link, "iconClass");
-                  return (
-                    <a
-                      key={link.getPath()}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer nofollow"
-                      aria-label={getStringProp(link, "platform")}
-                    >
-                      <div>
-                        <i className={iconClass} aria-hidden="true" />
-                      </div>
-                    </a>
-                  );
-                })}
+                <RenderChildren filter="usg:socialLink" />
               </div>
 
-              {/* CTA links column */}
+              {/* CTA links column — each usg:ctaButton renders one <div class="field-lien"> */}
               <div className="link-container">
-                {ctaButtons.map((btn: JCRNodeWrapper) => {
-                  const href = resolveLinkHref(btn);
-                  const label = getStringProp(btn, "ctaLabel");
-                  if (!label) return null;
-                  return (
-                    <div key={btn.getPath()} className="field-lien">
-                      <a href={href}>{label}</a>
-                    </div>
-                  );
-                })}
+                <RenderChildren filter="usg:ctaButton" />
               </div>
 
               {/* Newsletter form */}

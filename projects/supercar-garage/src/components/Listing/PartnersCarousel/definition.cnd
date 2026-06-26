@@ -1,3 +1,3 @@
-[usg:partnersCarousel] > jnt:content, usgmix:pageComponent
+[usg:partnersCarousel] > jnt:content, usgmix:pageComponent, jmix:list, jmix:renderableList orderable
  - heading (string) i18n
  + * (usg:partnerLogo) = usg:partnerLogo

@@ -1,7 +1,6 @@
 import {
-  getChildNodes,
   jahiaComponent,
-  Render,
+  RenderChildren,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { HeroCarouselProps } from "./types.js";
@@ -66,13 +65,6 @@ jahiaComponent(
   ) => {
     const isEdit = renderContext.isEditMode();
 
-    const slides = getChildNodes(
-      currentNode,
-      -1,
-      0,
-      (n: JCRNodeWrapper) => n.isNodeType("usg:heroSlide"),
-    );
-
     const carouselId = `divCarousel_${currentNode.getIdentifier()}`;
     const dataProperties = JSON.stringify({
       timeout: timeout ?? 4000,
@@ -80,23 +72,13 @@ jahiaComponent(
       transition: transition ?? "FadeInTransition",
     });
 
-    // Edit mode: render all slides flat so editors can click each one
+    // Edit mode: render slides stacked so editors can click each one
     if (isEdit) {
       return (
         <div className="component carousel col-12">
           <div className="component-content">
             <div className={styles.editStack}>
-              {slides.length === 0 ? (
-                <p className={styles.emptyHint}>
-                  Hero Carousel - add Hero Slide children here.
-                </p>
-              ) : (
-                slides.map((slide: JCRNodeWrapper) => (
-                  <div key={slide.getIdentifier()} className={styles.editSlide}>
-                    <Render node={slide} />
-                  </div>
-                ))
-              )}
+              <RenderChildren filter="usg:heroSlide" />
             </div>
           </div>
         </div>
@@ -104,6 +86,7 @@ jahiaComponent(
     }
 
     // Live mode: render as a cycling carousel
+    // Each usg:heroSlide view emits its own <li className="slide"><div className="row">
     return (
       <>
         <div
@@ -115,20 +98,12 @@ jahiaComponent(
             <div data-id={carouselId} className="carousel-inner">
               <div className="background" />
               <ul className="slides">
-                {slides.map((slide: JCRNodeWrapper) => (
-                  <li key={slide.getIdentifier()} className="slide">
-                    <div className="row">
-                      <Render node={slide} />
-                    </div>
-                  </li>
-                ))}
+                <RenderChildren filter="usg:heroSlide" />
               </ul>
             </div>
           </div>
         </div>
-        {slides.length > 1 && (
-          <script dangerouslySetInnerHTML={{ __html: CAROUSEL_SCRIPT }} />
-        )}
+        <script dangerouslySetInnerHTML={{ __html: CAROUSEL_SCRIPT }} />
       </>
     );
   },

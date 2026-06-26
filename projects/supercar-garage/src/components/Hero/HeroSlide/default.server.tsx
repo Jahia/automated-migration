@@ -30,45 +30,49 @@ jahiaComponent(
     const showCta = ctaLabel && linkHref !== "#";
 
     return (
-      <div className="component Slide">
-        <div className="component-content">
-          {imageSrc && (
-            <img
-              src={imageSrc}
-              alt={imageAlt}
-              className="slide-img"
-              rel="preload"
-              fetchPriority="high"
-            />
-          )}
-          <div>
-            {smallTitle && (
-              <h2 className="field-slidesmalltitle">{smallTitle}</h2>
-            )}
-            {body && (
-              <div
-                className="field-description field-slidetext"
-                dangerouslySetInnerHTML={{ __html: body }}
-              />
-            )}
-            {showCta && (
-              <div className="btn btn-solid-primary mr-20 field-slide-link1">
-                <a href={linkHref} rel="noopener noreferrer">
-                  {ctaLabel}
-                </a>
+      <li className="slide">
+        <div className="row">
+          <div className="component Slide">
+            <div className="component-content">
+              {imageSrc && (
+                <img
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className="slide-img"
+                  rel="preload"
+                  fetchPriority="high"
+                />
+              )}
+              <div>
+                {smallTitle && (
+                  <h2 className="field-slidesmalltitle">{smallTitle}</h2>
+                )}
+                {body && (
+                  <div
+                    className="field-description field-slidetext"
+                    dangerouslySetInnerHTML={{ __html: body }}
+                  />
+                )}
+                {showCta && (
+                  <div className="btn btn-solid-primary mr-20 field-slide-link1">
+                    <a href={linkHref} rel="noopener noreferrer">
+                      {ctaLabel}
+                    </a>
+                  </div>
+                )}
               </div>
-            )}
+              {imageSrc && (
+                <img
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className="slide-img"
+                  aria-hidden="true"
+                />
+              )}
+            </div>
           </div>
-          {imageSrc && (
-            <img
-              src={imageSrc}
-              alt={imageAlt}
-              className="slide-img"
-              aria-hidden="true"
-            />
-          )}
         </div>
-      </div>
+      </li>
     );
   },
 );

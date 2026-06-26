@@ -38,18 +38,19 @@ jahiaComponent(
     const resolvedAlt = altText ?? "";
 
     return (
-      <a
-        href={linkHref !== "#" ? linkHref : undefined}
-        className="content col-4 col-md-3"
-        target={isExternal ? "_blank" : undefined}
-        rel={isExternal ? "nofollow noopener noreferrer" : undefined}
-      >
-        <img
-          src={imageUrl}
-          alt={resolvedAlt}
-          loading="lazy"
-        />
-      </a>
+      <li className="content col-4 col-md-3 slide-visible">
+        <a
+          href={linkHref !== "#" ? linkHref : undefined}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "nofollow noopener noreferrer" : undefined}
+        >
+          <img
+            src={imageUrl}
+            alt={resolvedAlt}
+            loading="lazy"
+          />
+        </a>
+      </li>
     );
   },
 );

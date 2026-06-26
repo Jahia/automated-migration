@@ -3,25 +3,11 @@ import {
   getChildNodes,
   getSiteLocales,
   jahiaComponent,
+  RenderChildren,
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { TopBarProps } from "./types.js";
-
-const getSocialHref = (node: JCRNodeWrapper): string => {
-  try {
-    const linkType = node.hasProperty("j:linkType")
-      ? node.getProperty("j:linkType").getString()
-      : "none";
-    if (linkType === "internal" && node.hasProperty("j:linknode")) {
-      return buildNodeUrl(node.getProperty("j:linknode").getNode() as JCRNodeWrapper);
-    }
-    if (linkType === "external" && node.hasProperty("j:url")) {
-      return node.getProperty("j:url").getString();
-    }
-  } catch (_) {}
-  return "#";
-};
 
 const getCtaHref = (node: JCRNodeWrapper): string => {
   try {
@@ -51,13 +37,6 @@ jahiaComponent(
     const siteLocales = getSiteLocales();
     const showLangSwitcher = Object.keys(siteLocales).length > 1;
 
-    const socialLinks = getChildNodes(
-      currentNode,
-      -1,
-      0,
-      (n: JCRNodeWrapper) => n.isNodeType("usg:socialLink"),
-    );
-
     const ctaButtons = getChildNodes(
       currentNode,
       -1,
@@ -81,28 +60,7 @@ jahiaComponent(
 
             {/* Social links - hidden on mobile */}
             <div className="d-md-down-none socials">
-              {socialLinks.map((social: JCRNodeWrapper) => {
-                const iconClass = social.hasProperty("iconClass")
-                  ? social.getProperty("iconClass").getString()
-                  : "";
-                const href = getSocialHref(social);
-                const platform = social.hasProperty("platform")
-                  ? social.getProperty("platform").getString()
-                  : "";
-                return (
-                  <a
-                    key={social.getPath()}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    href={href}
-                    aria-label={platform}
-                  >
-                    <div>
-                      {iconClass && <i className={iconClass}></i>}
-                    </div>
-                  </a>
-                );
-              })}
+              <RenderChildren filter="usg:socialLink" />
             </div>
 
             {/* CTA buttons - hidden on mobile */}

@@ -1,4 +1,4 @@
-[usg:footerSection] > jnt:content, usgmix:component, jmix:hiddenType
+[usg:footerSection] > jnt:content, usgmix:component, jmix:list, jmix:renderableList, jmix:hiddenType orderable
  - socialHeading (string) i18n
  - newsletterLabel (string) i18n
  - newsletterPlaceholder (string) i18n
