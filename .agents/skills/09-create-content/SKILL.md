@@ -267,6 +267,8 @@ curl -s -X POST http://localhost:8080/modules/mcp \
   }' | python3 -m json.tool
 ```
 
+> ⚠️ **Publish referenced DAM assets too — not just the content nodes.** Content references images/files by **weakreference**. Publishing a page does NOT automatically publish the image files it points at. If only the content is published, the weakref targets are absent from the LIVE workspace, the reference resolves to `null`, and **every image silently disappears on the live site** (no 404 in the network tab — the `<img>` is just never emitted, or `buildNodeUrl` is never called). After populating content, ALSO publish the media tree: `publication.publish` with `includeSubTree:true` on `/sites/SITEKEY/files` (and any `imported/`, `imported-images/` folders). Verify: `{jcr(workspace:LIVE){nodeById(uuid:"<image-uuid>"){path}}}` must return a path, not `ItemNotFoundException`. Symptom this prevents: "none of the images display in the content."
+
 ### Search for existing nodes
 
 ```bash

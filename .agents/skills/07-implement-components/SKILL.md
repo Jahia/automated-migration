@@ -387,3 +387,7 @@ Without `/icons` in static-resources the URL 404s and jContent shows a fallback.
 Icons: generate from **Lucide** (`lucide-static` SVGs → `rsvg-convert -w 32 -h 32`), stroke
 **black `#000000`** for contrast on jContent's white background (navy is too faint). Keep a copy in
 `settings/content-types-icons/` too (the documented convention) and keep the two in sync.
+
+## Video components: YouTube/Vimeo need an `<iframe>`, not `<video>`
+
+A native HTML5 `<video><source type="video/youtube" src="https://youtube.com/watch?v=ID"></video>` does NOT play — `video/youtube` is not a real MIME type and `<video>` can't load a YouTube page. The element just renders black/empty. Embed via an iframe instead: parse the 11-char id from the `j:url` (`watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`) and render `<iframe src="https://www.youtube-nocookie.com/embed/<id>?...">`. For a background/hero video use `autoplay=1&mute=1&loop=1&playlist=<id>&controls=0&playsinline=1` (the `playlist=<id>` is required for `loop` on a single video) and wrap it in a `position:relative; aspect-ratio:16/9` container with the iframe `position:absolute; inset:0; width:100%; height:100%`. Verify a real `<iframe>` is in the DOM (count iframes), not just a `.video` wrapper.
