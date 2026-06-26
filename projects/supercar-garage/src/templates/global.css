@@ -151,25 +151,114 @@ header {
    cta-1 = primary (gold, ticket). cta-2 = secondary (outline) — its label was
    invisible (dark text on the black header); give it white text + a border. */
 .header-navigation .cta-area .cta-2 {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
   border: 1px solid #ffffff;
   border-radius: 999px;
   padding: 1rem 1.8rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .header-navigation .cta-area .cta-2 .field-cta-title-2,
 .header-navigation .cta-area .cta-2 i {
   color: #ffffff !important;
+  transition: color 0.2s ease;
+}
+/* cta-2 (outline) hover: fill white, text/icon go dark */
+.header-navigation .cta-area a:hover .cta-2,
+.header-navigation .cta-area a:focus-visible .cta-2 {
+  background-color: #ffffff;
+}
+.header-navigation .cta-area a:hover .cta-2 .field-cta-title-2,
+.header-navigation .cta-area a:hover .cta-2 i {
+  color: #080807 !important;
 }
 .header-navigation .cta-area .cta-1 {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
   background-color: #9f6e36;
+  border: 1px solid #9f6e36;
   border-radius: 999px;
   padding: 1rem 1.8rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .header-navigation .cta-area .cta-1 .field-cta-title-1,
 .header-navigation .cta-area .cta-1 i {
   color: #080807 !important;
+  transition: color 0.2s ease;
+}
+/* cta-1 (gold) hover: lighten the gold, keep dark text (never goes all-black) */
+.header-navigation .cta-area a:hover .cta-1,
+.header-navigation .cta-area a:focus-visible .cta-1 {
+  background-color: #c08a45 !important;
+  border-color: #c08a45 !important;
+}
+.header-navigation .cta-area a:hover .cta-1 .field-cta-title-1,
+.header-navigation .cta-area a:hover .cta-1 i {
+  color: #080807 !important;
 }
 .header-navigation .cta-area a {
   text-decoration: none;
+}
+
+/* ── Logo: smaller than the theme's 12rem; no negative margin ── */
+#header .header-navigation > .component-content .grid a[title="Header-Navigation 1"] .logo img {
+  height: 5.2rem !important;
+  max-width: 20rem !important;
+  margin: 0 !important;
+  object-fit: contain;
+}
+
+/* ── Language switcher (top bar): current locale + hover dropdown ── */
+.top-navbar .language-selector {
+  position: relative;
+}
+.top-navbar .language-selector .language-selector-select-item {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.top-navbar .language-selector .language-selector-select-item::after {
+  content: "▾";
+  font-size: 1rem;
+  line-height: 1;
+}
+/* The theme adds a caret via `content:"\f0d7"` (a Font Awesome codepoint) but in
+   the Roboto heading font, so it renders as a missing-glyph box. Suppress it —
+   our ::after above provides the caret. */
+.top-navbar .language-selector .language-selector-select-link::after {
+  content: none !important;
+}
+.top-navbar .language-selector .language-selector-item-container {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 6rem;
+  margin: 0;
+  padding: 0.4rem 0;
+  list-style: none;
+  background: #ffffff;
+  box-shadow: 0 0.8rem 1.6rem rgba(0, 0, 0, 0.3);
+  z-index: 1200;
+}
+.top-navbar .language-selector:hover .language-selector-item-container,
+.top-navbar .language-selector:focus-within .language-selector-item-container {
+  display: block;
+}
+.top-navbar .language-selector .language-selector-item a {
+  display: block;
+  padding: 0.4rem 1.2rem;
+  color: #080807 !important;
+  text-decoration: none;
+}
+.top-navbar .language-selector .language-selector-item a:hover {
+  background: #f2f2f2;
+}
+.top-navbar .language-selector .language-selector-item.is-active a {
+  font-weight: 700;
 }
 
 a {

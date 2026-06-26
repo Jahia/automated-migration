@@ -68,7 +68,7 @@ jahiaComponent(
               {exposerLabel && (
                 <a title="" href={exposerHref} target="">
                   <div className="call-back">
-                    <i className="fa-regular fa-store"></i>
+                    <i className="fa-solid fa-store" aria-hidden="true"></i>
                     <div className="field-texte-1">{exposerLabel}</div>
                   </div>
                 </a>
@@ -76,7 +76,7 @@ jahiaComponent(
               {presseLabel && (
                 <a title="" href={presseHref} target="">
                   <div className="d-md-down-none">
-                    <i className="fa-regular fa-microphone-stand"></i>
+                    <i className="fa-solid fa-newspaper" aria-hidden="true"></i>
                     <div className="field-texte-2">{presseLabel}</div>
                   </div>
                 </a>
@@ -91,7 +91,7 @@ jahiaComponent(
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
               >
                 <div className="search">
-                  <i className="fa-regular fa-magnifying-glass" aria-hidden="true"></i>
+                  <i className="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 </div>
               </button>
 
