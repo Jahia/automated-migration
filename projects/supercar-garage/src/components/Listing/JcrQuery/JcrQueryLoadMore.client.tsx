@@ -7,9 +7,10 @@ interface Props {
   queryId: string;
   pageSize: number;
   total: number;
+  label?: string;
 }
 
-export default function JcrQueryLoadMore({ queryId, pageSize, total }: Props) {
+export default function JcrQueryLoadMore({ queryId, pageSize, total, label = "Load more" }: Props) {
   const [visible, setVisible] = useState(pageSize);
 
   const handleLoadMore = useCallback(() => {
@@ -43,7 +44,7 @@ export default function JcrQueryLoadMore({ queryId, pageSize, total }: Props) {
         className={styles.button}
         onClick={handleLoadMore}
       >
-        Load more
+        {label}
       </button>
       <span className={styles.count}>
         {visible} / {total}

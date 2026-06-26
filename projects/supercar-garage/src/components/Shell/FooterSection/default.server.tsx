@@ -5,6 +5,7 @@ import {
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
+import type { JCRSessionWrapper } from "org.jahia.services.content";
 import type { FooterSectionProps } from "./types.js";
 
 function resolveLinkHref(node: JCRNodeWrapper): string {
@@ -29,6 +30,20 @@ function getStringProp(node: JCRNodeWrapper, name: string): string {
   }
 }
 
+function resolveLegalPageUrl(
+  session: JCRSessionWrapper,
+  siteKey: string,
+  slug: string,
+): string | undefined {
+  try {
+    const path = `/sites/${siteKey}/home/${slug}`;
+    if (session.nodeExists(path)) {
+      return buildNodeUrl(session.getNode(path) as JCRNodeWrapper);
+    }
+  } catch (_) {}
+  return undefined;
+}
+
 jahiaComponent(
   {
     componentType: "view",
@@ -36,7 +51,13 @@ jahiaComponent(
     displayName: "Footer Section",
   },
   (props: FooterSectionProps) => {
-    const { currentNode } = useServerContext();
+    const { currentNode, renderContext, jcrSession } = useServerContext();
+    const siteKey = renderContext.getSite().getName();
+
+    const legalPlanSiteUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "plan-du-site");
+    const legalMentionsUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "mentions-legales");
+    const legalDataUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "protection-donnees");
+    const legalCookiesUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "cookies");
 
     const socialLinks = getChildNodes(
       currentNode,
@@ -192,22 +213,38 @@ jahiaComponent(
           <div className="ml">
             {props.legalPlanSite && (
               <div className="field-lien">
-                <span>{props.legalPlanSite}</span>
+                {legalPlanSiteUrl ? (
+                  <a href={legalPlanSiteUrl}>{props.legalPlanSite}</a>
+                ) : (
+                  <span>{props.legalPlanSite}</span>
+                )}
               </div>
             )}
             {props.legalMentions && (
               <div className="field-lien">
-                <span>{props.legalMentions}</span>
+                {legalMentionsUrl ? (
+                  <a href={legalMentionsUrl}>{props.legalMentions}</a>
+                ) : (
+                  <span>{props.legalMentions}</span>
+                )}
               </div>
             )}
             {props.legalData && (
               <div className="field-lien">
-                <span>{props.legalData}</span>
+                {legalDataUrl ? (
+                  <a href={legalDataUrl}>{props.legalData}</a>
+                ) : (
+                  <span>{props.legalData}</span>
+                )}
               </div>
             )}
             {props.legalCookies && (
               <div className="field-lien">
-                <span>{props.legalCookies}</span>
+                {legalCookiesUrl ? (
+                  <a href={legalCookiesUrl}>{props.legalCookies}</a>
+                ) : (
+                  <span>{props.legalCookies}</span>
+                )}
               </div>
             )}
           </div>

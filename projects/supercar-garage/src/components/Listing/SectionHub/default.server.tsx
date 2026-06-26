@@ -14,6 +14,7 @@ function getPageDescription(page: JCRNodeWrapper): string | null {
   try {
     if (page.hasProperty("description")) return page.getProperty("description").getString();
     if (page.hasProperty("j:description")) return page.getProperty("j:description").getString();
+    if (page.hasProperty("jcr:description")) return page.getProperty("jcr:description").getString();
   } catch (_) {}
   return null;
 }

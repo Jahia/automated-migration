@@ -127,11 +127,15 @@ jahiaComponent(
 
             {/* Language selector + search */}
             <div className="d-flex">
-              <a title="" href="" target="">
+              <button
+                type="button"
+                aria-label="Rechercher"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+              >
                 <div className="search">
-                  <i className=""></i>
+                  <i className="fa-regular fa-magnifying-glass" aria-hidden="true"></i>
                 </div>
-              </a>
+              </button>
 
               {showLangSwitcher && (
                 <div className="component language-selector">

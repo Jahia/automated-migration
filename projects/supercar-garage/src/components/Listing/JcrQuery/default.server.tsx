@@ -107,7 +107,7 @@ jahiaComponent(
         {loadMore && !isEdit && (
           <Island
             component={JcrQueryLoadMore}
-            props={{ queryId, pageSize: PAGE_SIZE, total: itemCount }}
+            props={{ queryId, pageSize: PAGE_SIZE, total: itemCount, label: t("jcrQuery.loadMore") }}
           />
         )}
       </div>
