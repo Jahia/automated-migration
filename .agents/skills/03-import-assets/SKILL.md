@@ -26,6 +26,11 @@ html, body { overflow-x: hidden; overflow-y: auto !important; height: auto !impo
 
 Verify with a FIXED-viewport browser (not a full-page screenshot, which bypasses overflow): scroll and confirm `window.scrollY` actually changes. Also watch for `position:fixed`/`100vh` hero/background elements that overlay content.
 
+
+### Watch for overloaded tokens + dark-bar text contrast
+
+The tokenizer can map ONE token (e.g. `--color-bg`) onto BOTH a background (dark) and a text colour on dark bars (should be light) — flip it either way and something breaks. Don't re-point the token; instead force the correct text colour on the specific dark bars in `global.css` (e.g. `.top-navbar, .header-navigation { color:#fff !important }`), keeping any white-bg dropdown panels dark. Also restore expected sticky/fixed positioning the source had (e.g. a sticky social top-bar). Verify header/top-bar text contrast on the rendered dark theme — dark-on-dark text is a frequent migration miss.
+
 ## Agent identity
 - **Agent name:** Assetron
 - **Reference style:** Logistics / cargo
