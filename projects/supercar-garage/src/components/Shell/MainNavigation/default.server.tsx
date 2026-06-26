@@ -11,10 +11,16 @@ import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { MainNavigationProps } from "./types.js";
 import styles from "./mainNavigation.module.css";
 
-const getNavItems = (node: JCRNodeWrapper): JCRNodeWrapper[] =>
-  getChildNodes(node, -1, 0, (n: JCRNodeWrapper) =>
-    n.isNodeType("jnt:page"),
-  );
+// Pages excluded from main nav (they appear in the TopBar instead)
+const NAV_EXCLUDED = new Set(["espace-exposant", "presse"]);
+
+const getNavItems = (node: JCRNodeWrapper, isHome = false): JCRNodeWrapper[] =>
+  getChildNodes(node, -1, 0, (n: JCRNodeWrapper) => {
+    if (!n.isNodeType("jnt:page")) return false;
+    // For home level-1: exclude topbar-only pages
+    if (isHome && NAV_EXCLUDED.has(n.getName())) return false;
+    return true;
+  });
 
 const getItemUrl = (node: JCRNodeWrapper): string => {
   try {
@@ -52,7 +58,7 @@ jahiaComponent(
     const site = renderContext.getSite() as unknown as JCRNodeWrapper;
     const homePage = site.getNode("home") as JCRNodeWrapper;
     const mainNode = renderContext.getMainResource().getNode() as JCRNodeWrapper;
-    const level1Items = getNavItems(homePage);
+    const level1Items = getNavItems(homePage, true);
 
     const currentLang = currentResource.getLocale().getLanguage();
     const siteLocales = getSiteLocales();
