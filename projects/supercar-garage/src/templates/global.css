@@ -147,65 +147,69 @@ header {
   display: none;
 }
 
-/* ── Header CTA buttons ──
-   cta-1 = primary (gold, ticket). cta-2 = secondary (outline) — its label was
-   invisible (dark text on the black header); give it white text + a border. */
+/* ── Header CTA buttons — exact original spec, via design tokens ──
+   --secondary-color (#9F6E36) and --btn-radius (30px) come from the theme :root.
+   cta-2 (Exposer): transparent + white rounded border, white text;
+     hover → white bg, text --secondary-color.
+   cta-1 (M'inscrire): bg --secondary-color, white text;
+     hover → white bg, text --secondary-color. */
+.header-navigation .cta-area a {
+  text-decoration: none;
+}
 .header-navigation .cta-area .cta-2 {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  border: 1px solid #ffffff;
-  border-radius: 999px;
+  background-color: transparent;
+  border: 1px solid #ffffff !important;
+  border-radius: var(--btn-radius);
   padding: 1rem 1.8rem;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .header-navigation .cta-area .cta-2 .field-cta-title-2,
 .header-navigation .cta-area .cta-2 i {
   color: #ffffff !important;
   transition: color 0.2s ease;
 }
-/* cta-2 (outline) hover: fill white, text/icon go dark */
 .header-navigation .cta-area a:hover .cta-2,
 .header-navigation .cta-area a:focus-visible .cta-2 {
   background-color: #ffffff;
+  border-color: #ffffff;
 }
 .header-navigation .cta-area a:hover .cta-2 .field-cta-title-2,
 .header-navigation .cta-area a:hover .cta-2 i {
-  color: #080807 !important;
+  color: var(--secondary-color) !important;
 }
 .header-navigation .cta-area .cta-1 {
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  background-color: #9f6e36;
-  border: 1px solid #9f6e36;
-  border-radius: 999px;
+  background-color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+  border-radius: var(--btn-radius);
   padding: 1rem 1.8rem;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 .header-navigation .cta-area .cta-1 .field-cta-title-1,
 .header-navigation .cta-area .cta-1 i {
-  color: #080807 !important;
+  color: #ffffff !important;
   transition: color 0.2s ease;
 }
-/* cta-1 (gold) hover: lighten the gold, keep dark text (never goes all-black) */
 .header-navigation .cta-area a:hover .cta-1,
 .header-navigation .cta-area a:focus-visible .cta-1 {
-  background-color: #c08a45 !important;
-  border-color: #c08a45 !important;
+  background-color: #ffffff !important;
+  border-color: #ffffff !important;
 }
 .header-navigation .cta-area a:hover .cta-1 .field-cta-title-1,
 .header-navigation .cta-area a:hover .cta-1 i {
-  color: #080807 !important;
-}
-.header-navigation .cta-area a {
-  text-decoration: none;
+  color: var(--secondary-color) !important;
 }
 
-/* ── Logo: smaller than the theme's 12rem; no negative margin ── */
+/* ── Logo: 200×70 (original spec); no negative margin ── */
 #header .header-navigation > .component-content .grid a[title="Header-Navigation 1"] .logo img {
-  height: 5.2rem !important;
-  max-width: 20rem !important;
+  height: 70px !important;
+  width: auto !important;
+  max-width: 200px !important;
   margin: 0 !important;
   object-fit: contain;
 }
