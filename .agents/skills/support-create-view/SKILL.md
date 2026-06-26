@@ -151,6 +151,11 @@ import { buildNodeUrl } from "@jahia/javascript-modules-library";
 
 > ⚠️ **Caching rule**: Never render properties of a **weakreference** node directly in the same view. Doing so will produce stale output because Jahia's cache is based on the referencing node, not the referenced one. Instead, render the referenced node using `<RenderChild>` (or a dedicated sub-view), or call `addCacheDependency` explicitly.
 
+
+### Nav/breadcrumb that read OTHER nodes' props must declare cache dependencies
+
+A MainNavigation/breadcrumb that reads sibling/child PAGE properties (jcr:title, etc.) via getChildNodes+getProperty is cached as a fragment keyed on the nav node — so when an editor changes a page title, the nav shows the STALE title until a redeploy/cache flush. Either call `addCacheDependency` for each page the view reads, or render those pages via `<Render>` (which wires dependencies automatically), or mark the nav fragment non-cacheable. Symptom seen: live page jcr:title updated correctly but the nav kept the old label until `yarn jahia-deploy` flushed the module render cache.
+
 ### `RenderChildren` — render child nodes with optional pagination and filtering
 
 ```tsx
