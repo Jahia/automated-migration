@@ -13,6 +13,8 @@ allowed-tools: Bash, Read, Write, WebFetch
 
 Takes full-page screenshots of every page on the reference site and its corresponding Jahia render, compares them, and produces a ranked punch list of visual gaps. This is the final ISO fidelity gate before declaring a migration complete.
 
+> **Counts lie. Look at the render.** Never declare a component or page "done" from HTML grep counts or element tallies (`grep -c header-navigation` = 9 ✓). A count cannot see a transparent background, dark-on-dark text, a misplaced language switcher, a logo with no margin, a dropdown that pins to the viewport edge, or an icon rendering as an empty box. Those are exactly the defects a user spots in two seconds and then asks "why do I have to list all that?" The discipline: **render the actual page, screenshot it at 1440px (top / scrolled / hover states), open the image, and compare it to the reference image** — and inspect computed styles (`getComputedStyle`) for background/color/position when something looks off. Verify *before* reporting, not after the user complains. A passing build + non-zero element count is necessary, never sufficient.
+
 ---
 
 ## Agent identity
