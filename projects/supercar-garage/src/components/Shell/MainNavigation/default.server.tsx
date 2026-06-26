@@ -4,6 +4,7 @@ import {
   getChildNodes,
   getSiteLocales,
   jahiaComponent,
+  Render,
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
@@ -11,11 +12,9 @@ import type { MainNavigationProps } from "./types.js";
 import styles from "./mainNavigation.module.css";
 
 const getNavItems = (node: JCRNodeWrapper): JCRNodeWrapper[] =>
-  getChildNodes(node, -1, 0, (n: JCRNodeWrapper) => {
-    if (!n.isNodeType("jmix:navMenuItem")) return false;
-    if (n.isNodeType("jmix:navMenu")) return false;
-    return true;
-  });
+  getChildNodes(node, -1, 0, (n: JCRNodeWrapper) =>
+    n.isNodeType("jnt:page"),
+  );
 
 const getItemUrl = (node: JCRNodeWrapper): string => {
   try {
@@ -46,7 +45,7 @@ jahiaComponent(
     nodeType: "usg:mainNavigation",
     displayName: "Main Navigation",
   },
-  (props: MainNavigationProps) => {
+  (props: MainNavigationProps, { currentNode }) => {
     const { renderContext, currentResource } = useServerContext();
     const isEdit = renderContext.isEditMode();
 
@@ -70,15 +69,50 @@ jahiaComponent(
           ? props["j:url"]
           : buildNodeUrl(homePage);
 
-    const ctaPrimaryLink =
-      props["j:linkType"] === "internal" && props["j:linknode"]
-        ? buildNodeUrl(props["j:linknode"])
-        : props["j:linkType"] === "external" && props["j:url"]
-          ? props["j:url"]
-          : "#";
+    // CTA buttons come from child usg:ctaButton nodes (link + label per button)
+    const ctaButtons = getChildNodes(
+      currentNode,
+      -1,
+      0,
+      (n: JCRNodeWrapper) => n.isNodeType("usg:ctaButton"),
+    );
+
+    const getCtaHref = (n: JCRNodeWrapper): string => {
+      try {
+        const lt = n.hasProperty("j:linkType") ? n.getProperty("j:linkType").getString() : "none";
+        if (lt === "internal" && n.hasProperty("j:linknode"))
+          return buildNodeUrl(n.getProperty("j:linknode").getNode() as JCRNodeWrapper);
+        if (lt === "external" && n.hasProperty("j:url"))
+          return n.getProperty("j:url").getString();
+      } catch (_) {}
+      return "#";
+    };
+
+    const getCtaLabel = (n: JCRNodeWrapper): string => {
+      try {
+        if (n.hasProperty("ctaLabel")) return n.getProperty("ctaLabel").getString();
+      } catch (_) {}
+      return "";
+    };
+
+    // First button = primary (ticket / inscription), second = secondary (exposer)
+    const [ctaPrimaryBtn, ctaSecondaryBtn] = ctaButtons;
+    const ctaPrimaryLabel = ctaPrimaryBtn ? getCtaLabel(ctaPrimaryBtn) : props.ctaPrimaryLabel;
+    const ctaSecondaryLabel = ctaSecondaryBtn ? getCtaLabel(ctaSecondaryBtn) : props.ctaSecondaryLabel;
+    const ctaPrimaryLink = ctaPrimaryBtn ? getCtaHref(ctaPrimaryBtn) : "#";
+    const ctaSecondaryLink = ctaSecondaryBtn ? getCtaHref(ctaSecondaryBtn) : "#";
+
+    // Render sibling topBar node if it exists (lives next to the nav node under homePage)
+    let topBarNode: JCRNodeWrapper | null = null;
+    try {
+      if (homePage.hasNode("topbar")) {
+        topBarNode = homePage.getNode("topbar") as JCRNodeWrapper;
+      }
+    } catch (_) {}
 
     return (
       <header>
+        {topBarNode && <Render node={topBarNode} />}
         <div id="header">
           <div className="component header-navigation container-fluid">
             <div className="component-content">
@@ -97,14 +131,14 @@ jahiaComponent(
                 </div>
 
                 <div className="cta-area">
-                  {props.ctaPrimaryLabel && (
-                    <a href={ctaPrimaryLink} className="cta-1">
-                      <div>{props.ctaPrimaryLabel}</div>
+                  {ctaSecondaryLabel && (
+                    <a href={ctaSecondaryLink} className="cta-2">
+                      <div>{ctaSecondaryLabel}</div>
                     </a>
                   )}
-                  {props.ctaSecondaryLabel && (
-                    <a href={ctaPrimaryLink} className="cta-2">
-                      <div>{props.ctaSecondaryLabel}</div>
+                  {ctaPrimaryLabel && (
+                    <a href={ctaPrimaryLink} className="cta-1">
+                      <div>{ctaPrimaryLabel}</div>
                     </a>
                   )}
                 </div>
@@ -202,10 +236,10 @@ jahiaComponent(
                             );
                           })}
 
-                          {props.ctaPrimaryLabel && (
+                          {ctaPrimaryLabel && (
                             <li className="item level1 desktop-hidden">
                               <div className="navigation-title">
-                                <a href={ctaPrimaryLink}>{props.ctaPrimaryLabel}</a>
+                                <a href={ctaPrimaryLink}>{ctaPrimaryLabel}</a>
                               </div>
                             </li>
                           )}

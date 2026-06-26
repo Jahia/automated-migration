@@ -4,11 +4,11 @@
    - from an uploaded override stylesheet linked last.
    Semantic names are a heuristic first guess — rename/remap freely. */
 :root {
-  --color-primary: #c08a55f2;
-  --color-secondary: #c08a55a6;
-  --color-accent: #ff0000b2;
-  --color-text: #000000;
-  --color-bg: #ffffff;
+  --color-primary: #9F6E36;
+  --color-secondary: #9F6E36;
+  --color-accent: #ff0000;
+  --color-text: #ffffff;
+  --color-bg: #080807;
 
   --color-01: #ffffff1a; /* used 20x */
   --color-02: #ffffff66; /* used 19x */
@@ -89,8 +89,8 @@
   --color-77: #b68b3b8f; /* used 1x */
   --color-78: #b68b3b4c; /* used 1x */
   --color-79: #ffffff8f; /* used 1x */
-  --font-body: "Font Awesome 6 Pro";
-  --font-heading: "Font Awesome 6 Sharp";
+  --font-body: Roboto,Arial,sans-serif;
+  --font-heading: Roboto,Arial,sans-serif;
   --font-01: inherit;
   --font-02: "FontAwesome";
   --font-03: "Font Awesome 5 Pro";
