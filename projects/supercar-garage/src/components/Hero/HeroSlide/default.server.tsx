@@ -61,14 +61,6 @@ jahiaComponent(
                   </div>
                 )}
               </div>
-              {imageSrc && (
-                <img
-                  src={imageSrc}
-                  alt={imageAlt}
-                  className="slide-img"
-                  aria-hidden="true"
-                />
-              )}
             </div>
           </div>
         </div>
