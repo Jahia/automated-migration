@@ -38,6 +38,28 @@ header {
   z-index: 1000;
   background-color: #080807;
 }
+/* The header (logo + nav) sits on a solid black bar at all times — not just
+   when sticky. The imported theme keeps `.header-navigation` transparent until
+   `#header.is-sticky`; we want it black from the start, with top breathing room
+   so the logo is not crammed against the social bar. */
+#header,
+#header .header-navigation {
+  background-color: #080807;
+}
+#header .header-navigation {
+  padding-top: 2.4rem;
+  padding-bottom: 0.6rem;
+}
+/* The topbar is a SEPARATE AbsoluteArea here, so the theme's sticky shift
+   (translateY(-3.2rem), meant to hide an in-header topbar) would pull the nav
+   partly off-screen. Neutralise it; just keep the solid black background. */
+#header.is-sticky {
+  transform: none !important;
+}
+#header.is-sticky .header-navigation {
+  background-color: #080807;
+  padding-top: 1.2rem;
+}
 .top-navbar,
 .top-navbar .row,
 .top-navbar a,
@@ -52,10 +74,87 @@ header {
 .header-navigation li.level1 > a {
   color: #ffffff !important;
 }
-/* …but the level-1 dropdown panel has a white background, so keep its links dark */
-.header-navigation li.level1 > ul a,
-.header-navigation li.level1 ul .level2 > a {
+/* Level-1 nav links: white label, gold underline on hover/active */
+.header-navigation .navigation-main .level1 > .navigation-title > a {
+  display: inline-block;
+  padding: 0.6rem 0;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ── Submenu dropdown panel ──
+   The minified theme does not position the dropdown for this markup, so define
+   it explicitly: a white panel absolutely positioned under its level-1 parent,
+   hidden until hover/focus. The right-most item opens leftwards so it does not
+   overflow the viewport (this was rendering as an orange strip pinned right). */
+.header-navigation .navigation-main .level1.submenu {
+  position: relative;
+}
+.header-navigation .navigation-main .level1.submenu > ul.clearfix {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 24rem;
+  flex-direction: column;
+  margin: 0;
+  padding: 1rem 0;
+  list-style: none;
+  background: #ffffff !important;
+  box-shadow: 0 1.2rem 2.4rem -0.5rem rgba(0, 0, 0, 0.35);
+  z-index: 1100;
+}
+.header-navigation .navigation-main .level1.submenu:hover > ul.clearfix,
+.header-navigation .navigation-main .level1.submenu > .navigation-title > a:hover + ul.clearfix,
+.header-navigation .navigation-main .level1.submenu.submenu-open > ul.clearfix {
+  display: flex;
+}
+.header-navigation .navigation-main .level1.submenu.last > ul.clearfix,
+.header-navigation .navigation-main .level1:last-child > ul.clearfix {
+  left: auto;
+  right: 0;
+}
+.header-navigation .navigation-main .level2 {
+  white-space: nowrap;
+}
+.header-navigation .navigation-main .level2 > .navigation-title > a {
+  display: block;
+  padding: 0.6rem 1.6rem;
+  font-weight: 500;
+  text-decoration: none;
   color: #080807 !important;
+}
+.header-navigation .navigation-main .level2 > .navigation-title > a:hover {
+  color: #9f6e36 !important;
+}
+/* The first level-2 item is a mobile-only duplicate of the parent link */
+.header-navigation .navigation-main .level2.desktop-hidden {
+  display: none;
+}
+
+/* ── Header CTA buttons ──
+   cta-1 = primary (gold, ticket). cta-2 = secondary (outline) — its label was
+   invisible (dark text on the black header); give it white text + a border. */
+.header-navigation .cta-area .cta-2 {
+  border: 1px solid #ffffff;
+  border-radius: 999px;
+  padding: 1rem 1.8rem;
+}
+.header-navigation .cta-area .cta-2 .field-cta-title-2,
+.header-navigation .cta-area .cta-2 i {
+  color: #ffffff !important;
+}
+.header-navigation .cta-area .cta-1 {
+  background-color: #9f6e36;
+  border-radius: 999px;
+  padding: 1rem 1.8rem;
+}
+.header-navigation .cta-area .cta-1 .field-cta-title-1,
+.header-navigation .cta-area .cta-1 i {
+  color: #080807 !important;
+}
+.header-navigation .cta-area a {
+  text-decoration: none;
 }
 
 a {

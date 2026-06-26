@@ -2,14 +2,11 @@ import {
   buildModuleFileUrl,
   buildNodeUrl,
   getChildNodes,
-  getSiteLocales,
   jahiaComponent,
-  Render,
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { MainNavigationProps } from "./types.js";
-import styles from "./mainNavigation.module.css";
 
 // Pages excluded from main nav (they appear in the TopBar instead)
 const NAV_EXCLUDED = new Set(["espace-exposant", "presse"]);
@@ -17,7 +14,6 @@ const NAV_EXCLUDED = new Set(["espace-exposant", "presse"]);
 const getNavItems = (node: JCRNodeWrapper, isHome = false): JCRNodeWrapper[] =>
   getChildNodes(node, -1, 0, (n: JCRNodeWrapper) => {
     if (!n.isNodeType("jnt:page")) return false;
-    // For home level-1: exclude topbar-only pages
     if (isHome && NAV_EXCLUDED.has(n.getName())) return false;
     return true;
   });
@@ -45,6 +41,8 @@ const getItemTitle = (node: JCRNodeWrapper): string => {
   return node.getName();
 };
 
+const parity = (i: number) => (i % 2 === 0 ? "odd" : "even");
+
 jahiaComponent(
   {
     componentType: "view",
@@ -52,17 +50,13 @@ jahiaComponent(
     displayName: "Main Navigation",
   },
   (props: MainNavigationProps, { currentNode }) => {
-    const { renderContext, currentResource } = useServerContext();
+    const { renderContext } = useServerContext();
     const isEdit = renderContext.isEditMode();
 
     const site = renderContext.getSite() as unknown as JCRNodeWrapper;
     const homePage = site.getNode("home") as JCRNodeWrapper;
     const mainNode = renderContext.getMainResource().getNode() as JCRNodeWrapper;
     const level1Items = getNavItems(homePage, true);
-
-    const currentLang = currentResource.getLocale().getLanguage();
-    const siteLocales = getSiteLocales();
-    const showLangSwitcher = Object.keys(siteLocales).length > 1;
 
     const logoSrc = props.logo
       ? buildNodeUrl(props.logo)
@@ -101,131 +95,136 @@ jahiaComponent(
       return "";
     };
 
-    // First button = primary (ticket / inscription), second = secondary (exposer)
+    // First child = primary (cta-1: ticket / inscription, right),
+    // second child = secondary (cta-2: store / exposer, left).
     const [ctaPrimaryBtn, ctaSecondaryBtn] = ctaButtons;
     const ctaPrimaryLabel = ctaPrimaryBtn ? getCtaLabel(ctaPrimaryBtn) : props.ctaPrimaryLabel;
     const ctaSecondaryLabel = ctaSecondaryBtn ? getCtaLabel(ctaSecondaryBtn) : props.ctaSecondaryLabel;
     const ctaPrimaryLink = ctaPrimaryBtn ? getCtaHref(ctaPrimaryBtn) : "#";
     const ctaSecondaryLink = ctaSecondaryBtn ? getCtaHref(ctaSecondaryBtn) : "#";
 
-    // topBar is its own AbsoluteArea in Layout.tsx (independently editable in jContent),
-    // so it is NOT rendered here.
+    // topBar is its own AbsoluteArea in Layout.tsx (independently editable, and
+    // it holds the social links + language selector), so it is NOT rendered here.
     return (
       <header>
         <div id="header">
           <div className="component header-navigation container-fluid">
             <div className="component-content">
               <div className="grid">
-                <a href={logoHref} title="Header-Navigation 1" className="logo" aria-label="Ultimate Supercar Garage">
-                  <img src={logoSrc} alt="Ultimate Supercar Garage" />
+                <a href={logoHref} title="Header-Navigation 1" aria-label="Ultimate Supercar Garage">
+                  <div className="logo">
+                    <img className="img-responsive" src={logoSrc} alt="Ultimate Supercar Garage" />
+                  </div>
                 </a>
 
                 <div className="title-headline">
-                  {props.eventDate && (
-                    <span className="field-date">{props.eventDate}</span>
-                  )}
-                  {props.eventVenue && (
-                    <span className="field-lieu">{props.eventVenue}</span>
-                  )}
+                  {props.eventDate && <div className="field-date">{props.eventDate}</div>}
+                  {props.eventVenue && <div className="field-lieu">{props.eventVenue}</div>}
                 </div>
 
                 <div className="cta-area">
                   {ctaSecondaryLabel && (
-                    <a href={ctaSecondaryLink} className="cta-2">
-                      <div>{ctaSecondaryLabel}</div>
+                    <a href={ctaSecondaryLink} title={ctaSecondaryLabel}>
+                      <div className="cta-2">
+                        <i className="fa-solid fa-store" aria-hidden="true"></i>
+                        <div className="field-cta-title-2">{ctaSecondaryLabel}</div>
+                      </div>
                     </a>
                   )}
                   {ctaPrimaryLabel && (
-                    <a href={ctaPrimaryLink} className="cta-1">
-                      <div>{ctaPrimaryLabel}</div>
+                    <a href={ctaPrimaryLink} title={ctaPrimaryLabel}>
+                      <div className="cta-1">
+                        <i className="fa-solid fa-ticket" aria-hidden="true"></i>
+                        <div className="field-cta-title-1">{ctaPrimaryLabel}</div>
+                      </div>
                     </a>
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  className="nav-burger"
-                  data-mobile-nav-toggle
-                  aria-label="Menu"
-                  aria-expanded="false"
-                  aria-controls="main-nav"
-                >
-                  <span aria-hidden="true"></span>
-                </button>
+                <div className="component plain-html height0">
+                  <div className="component-content">
+                    <div
+                      className="hamburger"
+                      id="hamburger"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Menu"
+                      aria-expanded="false"
+                      aria-controls="main-nav"
+                    >
+                      <span className="line"></span>
+                      <span className="line"></span>
+                      <span className="line"></span>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="navigation-main">
-                  <div className="component navigation initialized">
+                  <div className="component navigation">
                     <div className="component-content">
-                      <nav id="main-nav" role="navigation" aria-label="Main navigation" data-expanded="false">
+                      <nav id="main-nav" aria-label="Navigation principale">
                         <ul className="clearfix">
-                          {level1Items.map((item: JCRNodeWrapper) => {
-                            const isMenuText = item.isNodeType("jnt:navMenuText");
-                            const level2Items = isEdit || isMenuText ? [] : getNavItems(item);
+                          {level1Items.map((item: JCRNodeWrapper, i: number) => {
+                            const level2Items = isEdit ? [] : getNavItems(item);
                             const hasL2 = level2Items.length > 0;
                             const isActive =
-                              !isMenuText &&
                               item.isNodeType("jnt:page") &&
                               (item.getPath() === mainNode.getPath() ||
                                 mainNode.getPath().startsWith(item.getPath() + "/"));
+                            const cls = [
+                              "level1",
+                              hasL2 ? "submenu" : "",
+                              `item${i}`,
+                              parity(i),
+                              i === 0 ? "first" : "",
+                              i === level1Items.length - 1 ? "last" : "",
+                              "rel-level1",
+                              isActive ? "active" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ");
 
                             return (
-                              <li
-                                key={item.getPath()}
-                                className={`item level1${hasL2 ? " submenu" : ""}${isActive ? " active" : ""}`}
-                              >
+                              <li key={item.getPath()} className={cls}>
+                                <i className="" aria-hidden="true"></i>
                                 <div className="navigation-title field-navigationtitle">
-                                  {isMenuText ? (
-                                    <span>{getItemTitle(item)}</span>
-                                  ) : (
-                                    <a
-                                      href={getItemUrl(item)}
-                                      data-nav-path={item.getPath()}
-                                      aria-current={isActive ? "page" : undefined}
-                                    >
-                                      {getItemTitle(item)}
-                                    </a>
-                                  )}
+                                  <a
+                                    href={getItemUrl(item)}
+                                    title={getItemTitle(item)}
+                                    data-nav-path={item.getPath()}
+                                    aria-current={isActive ? "page" : undefined}
+                                  >
+                                    {getItemTitle(item)}
+                                  </a>
                                 </div>
                                 {hasL2 && (
                                   <ul className="clearfix">
-                                    {level2Items.map((sub: JCRNodeWrapper) => {
-                                      const level3Items = isEdit ? [] : getNavItems(sub);
-                                      const hasL3 = level3Items.length > 0;
-                                      const isSubActive =
-                                        sub.isNodeType("jnt:page") &&
-                                        (sub.getPath() === mainNode.getPath() ||
-                                          mainNode.getPath().startsWith(sub.getPath() + "/"));
-
+                                    {/* mobile-only duplicate of the parent link */}
+                                    <li className="desktop-hidden level2 item0 odd first rel-level2">
+                                      <i className="" aria-hidden="true"></i>
+                                      <div className="navigation-title field-navigationtitle">
+                                        <a href={getItemUrl(item)}>{getItemTitle(item)}</a>
+                                      </div>
+                                    </li>
+                                    {level2Items.map((sub: JCRNodeWrapper, j: number) => {
+                                      const k = j + 1;
+                                      const subCls = [
+                                        "level2",
+                                        `item${k}`,
+                                        parity(k),
+                                        j === level2Items.length - 1 ? "last" : "",
+                                        "rel-level2",
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" ");
                                       return (
-                                        <li
-                                          key={sub.getPath()}
-                                          className={`item level2${hasL3 ? " submenu" : ""}`}
-                                        >
+                                        <li key={sub.getPath()} className={subCls}>
+                                          <i className="" aria-hidden="true"></i>
                                           <div className="navigation-title field-navigationtitle">
-                                            <a
-                                              href={getItemUrl(sub)}
-                                              data-nav-path={sub.getPath()}
-                                              aria-current={isSubActive ? "page" : undefined}
-                                            >
+                                            <a href={getItemUrl(sub)} data-nav-path={sub.getPath()}>
                                               {getItemTitle(sub)}
                                             </a>
                                           </div>
-                                          {hasL3 && (
-                                            <ul className={`clearfix ${styles.level3Dropdown}`}>
-                                              {level3Items.map((deep: JCRNodeWrapper) => (
-                                                <li key={deep.getPath()} className={`item level3 ${styles.level3Item}`}>
-                                                  <div className="navigation-title field-navigationtitle">
-                                                    <a
-                                                      href={getItemUrl(deep)}
-                                                      data-nav-path={deep.getPath()}
-                                                    >
-                                                      {getItemTitle(deep)}
-                                                    </a>
-                                                  </div>
-                                                </li>
-                                              ))}
-                                            </ul>
-                                          )}
                                         </li>
                                       );
                                     })}
@@ -234,39 +233,7 @@ jahiaComponent(
                               </li>
                             );
                           })}
-
-                          {ctaPrimaryLabel && (
-                            <li className="item level1 desktop-hidden">
-                              <div className="navigation-title">
-                                <a href={ctaPrimaryLink}>{ctaPrimaryLabel}</a>
-                              </div>
-                            </li>
-                          )}
                         </ul>
-
-                        {showLangSwitcher && (
-                          <ul aria-label="Language selection" className={styles.langSwitcher}>
-                            {Object.keys(siteLocales).map((langCode) => {
-                              const isCurrent = langCode === currentLang;
-                              const url = buildNodeUrl(
-                                renderContext.getMainResource().getNode() as JCRNodeWrapper,
-                                { language: langCode },
-                              );
-                              return (
-                                <li key={langCode}>
-                                  <a
-                                    href={url}
-                                    lang={langCode.toUpperCase()}
-                                    aria-current={isCurrent ? "true" : undefined}
-                                    className={isCurrent ? styles.langLinkActive : styles.langLink}
-                                  >
-                                    {langCode.toUpperCase()}
-                                  </a>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
                       </nav>
                     </div>
                   </div>
@@ -277,12 +244,14 @@ jahiaComponent(
         </div>
 
         <script dangerouslySetInnerHTML={{ __html: `(function(){
-  var toggle = document.querySelector('[data-mobile-nav-toggle]');
+  var toggle = document.getElementById('hamburger');
   var navMain = document.querySelector('.navigation-main');
   var nav = document.getElementById('main-nav');
+  var headerEl = document.getElementById('header');
   var mq = window.matchMedia('(max-width: 991.98px)');
   function closeMenu(){
     if (navMain) navMain.classList.remove('is-open');
+    if (headerEl) headerEl.classList.remove('nav-open');
     document.body.style.overflow = '';
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
   }
@@ -290,11 +259,12 @@ jahiaComponent(
     toggle.addEventListener('click', function(e) {
       e.stopPropagation();
       var open = navMain.classList.toggle('is-open');
+      if (headerEl) headerEl.classList.toggle('nav-open', open);
       toggle.setAttribute('aria-expanded', String(open));
       document.body.style.overflow = open ? 'hidden' : '';
     });
   }
-  document.querySelectorAll('#main-nav li.level1.submenu > .navigation-title, #main-nav li.level2.submenu > .navigation-title').forEach(function(t) {
+  document.querySelectorAll('#main-nav li.level1.submenu > .navigation-title').forEach(function(t) {
     t.addEventListener('click', function(e) {
       if (!mq.matches) return;
       e.preventDefault();
@@ -313,9 +283,17 @@ jahiaComponent(
   mq.addEventListener('change', function(ev) {
     if (!ev.matches) {
       closeMenu();
-      document.querySelectorAll('.level1.submenu-open, .level2.submenu-open').forEach(function(x) { x.classList.remove('submenu-open'); });
+      document.querySelectorAll('.level1.submenu-open').forEach(function(x) { x.classList.remove('submenu-open'); });
     }
   });
+  // Toggle #header.is-sticky once the social top-bar has scrolled away
+  var topbar = document.querySelector('.top-navbar');
+  function onScroll(){
+    var threshold = topbar ? topbar.offsetHeight : 32;
+    if (headerEl) headerEl.classList.toggle('is-sticky', window.scrollY > threshold);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
   var raw = window.location.pathname;
   var jcrPath = raw.replace(/^\\/(?:fr|en)(\\/|$)/, '$1').replace(/\\.html$/, '').replace(/\\/$/, '') || '/';
   document.querySelectorAll('[data-nav-path]').forEach(function(link) {
