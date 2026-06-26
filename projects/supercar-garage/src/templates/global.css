@@ -11,10 +11,14 @@ body {
    has no such inner scroller, so that rule TRAPS the whole page at the top and
    blocks scrolling (and makes lower components unreachable in jContent Page
    Builder). Restore normal document scrolling. */
+/* Restore normal viewport scrolling (the theme set body{overflow:hidden;
+   height:100%}). Keep overflow VISIBLE on html+body so the viewport is the
+   scroll container — any hidden/auto/scroll/clip here disables position:sticky
+   on the header or blocks scrolling. Horizontal overflow is contained by the
+   `* { max-width:100% }` rule above. */
 html,
 body {
-  overflow-x: hidden;
-  overflow-y: auto !important;
+  overflow: visible !important;
   height: auto !important;
 }
 
@@ -23,10 +27,16 @@ body {
    the text is invisible (dark on black). --color-bg is also used as a dark
    BACKGROUND in 100+ rules, so it can't be flipped; instead force white text on
    the dark bars directly, and make the social top bar sticky. */
+/* Sticky behaviour like the reference: the social top-bar scrolls AWAY, while
+   the main header + nav stick to the top (black bg) once you scroll past it. */
 .top-bar.top-navbar {
+  position: static;
+}
+header {
   position: sticky;
   top: 0;
   z-index: 1000;
+  background-color: #080807;
 }
 .top-navbar,
 .top-navbar .row,
