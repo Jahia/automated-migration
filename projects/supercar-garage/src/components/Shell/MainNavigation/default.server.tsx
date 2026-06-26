@@ -108,17 +108,10 @@ jahiaComponent(
     const ctaPrimaryLink = ctaPrimaryBtn ? getCtaHref(ctaPrimaryBtn) : "#";
     const ctaSecondaryLink = ctaSecondaryBtn ? getCtaHref(ctaSecondaryBtn) : "#";
 
-    // Render sibling topBar node if it exists (lives next to the nav node under homePage)
-    let topBarNode: JCRNodeWrapper | null = null;
-    try {
-      if (homePage.hasNode("topbar")) {
-        topBarNode = homePage.getNode("topbar") as JCRNodeWrapper;
-      }
-    } catch (_) {}
-
+    // topBar is its own AbsoluteArea in Layout.tsx (independently editable in jContent),
+    // so it is NOT rendered here.
     return (
       <header>
-        {topBarNode && <Render node={topBarNode} />}
         <div id="header">
           <div className="component header-navigation container-fluid">
             <div className="component-content">

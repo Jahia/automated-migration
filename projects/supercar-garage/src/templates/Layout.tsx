@@ -132,6 +132,7 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
         ) : null}
       </head>
       <body>
+        <AbsoluteArea name="topbar" nodeType="usg:topBar" parent={homePage} readOnly="children" />
         <AbsoluteArea name="nav" nodeType="usg:mainNavigation" parent={homePage} readOnly="children" />
         <main id="main-content">{children}</main>
         <AbsoluteArea name="footer" nodeType="usg:footerSection" parent={homePage} readOnly="children" />
