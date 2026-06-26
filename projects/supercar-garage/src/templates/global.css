@@ -6,6 +6,18 @@ body {
   line-height: 1.5;
 }
 
+/* The imported theme sets `body{overflow:hidden;height:100%}` because the
+   original site scrolled inside a JS-managed inner container. The migrated site
+   has no such inner scroller, so that rule TRAPS the whole page at the top and
+   blocks scrolling (and makes lower components unreachable in jContent Page
+   Builder). Restore normal document scrolling. */
+html,
+body {
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  height: auto !important;
+}
+
 a {
   color: #06a;
 }
