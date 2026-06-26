@@ -218,7 +218,24 @@ jahiaComponent(
 );
 ```
 
-### `getChildNodes` — iterate over child nodes in code
+### `getChildNodes` — iterate over child nodes in code (READ-ONLY derivation ONLY)
+
+> 🚨 **EDITABILITY RULE (non-negotiable).** `getChildNodes(...).map(...)` to raw markup renders on the
+> public site but the children are **NOT editable in jContent / Page Builder** — editors cannot select,
+> add, reorder, or edit them. Use `getChildNodes` **only** for read-only *structural derivation* where the
+> "children" are not editable content of this node — e.g. building a nav menu from the site's `jnt:page`
+> tree. For any **editable child content the component owns** (carousel slides, top-bar social links,
+> partner logos, gallery items, CTA buttons, FAQ items, list cards, …) you MUST render with
+> **`<RenderChildren />`** (or `<RenderChild name="x" />`, or an `<Area>`), and the parent type must be a
+> `jmix:list, jmix:renderableList orderable` container with a `+ * (ns:childType)` child definition. That is
+> the ONLY way the children get Page Builder edit wrappers. This is exactly what made a migration
+> "inexploitable" — socials/slides built with getChildNodes+`<a>` couldn't be edited. Compare the working
+> sial-paris `sialp:topBar` (`jmix:list, jmix:renderableList orderable` + `+ * (sialp:socialLink)`, rendered
+> with `<RenderChildren />`) vs a broken `getChildNodes(...).map(...<a>...)` topbar.
+>
+> **Validate in the editor, not just the public render:** after building, open the page in jContent Page
+> Builder and confirm every component (header, top-bar, footer, hero/carousel, each section) is selectable
+> and its children add/reorder. A page that renders publicly but is unselectable in jContent has FAILED.
 
 ```tsx
 import { getChildNodes, buildNodeUrl, jahiaComponent } from "@jahia/javascript-modules-library";
