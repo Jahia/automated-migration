@@ -32,17 +32,32 @@ body {
 .top-bar.top-navbar {
   position: static;
 }
+/* The imported theme makes `#header` position:fixed — it was designed to CONTAIN
+   the social top-bar inside the same fixed overlay. Here the social bar is a
+   SEPARATE area placed ABOVE the header, so a fixed #header sits on top and
+   covers it (the logo overlaps the social icons). Make #header STICKY instead:
+   at rest it flows in the document directly below the social bar; once the
+   social bar scrolls away it sticks to the top. This is exactly the requested
+   behaviour — social bar scrolls off, header stays. */
+/* `<header>` is a direct child of <body>, so making IT sticky lets it stick for
+   the whole page scroll (its containing block is the body). `#header` must NOT
+   be the sticky element: the theme makes it position:fixed (covering the social
+   bar) and, if made sticky, it is constrained to the short <header> box and
+   scrolls away after ~200px. So: <header> sticky, #header relative. */
 header {
   position: sticky;
   top: 0;
   z-index: 1000;
   background-color: #080807;
 }
+#header {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  background-color: #080807;
+}
 /* The header (logo + nav) sits on a solid black bar at all times — not just
-   when sticky. The imported theme keeps `.header-navigation` transparent until
-   `#header.is-sticky`; we want it black from the start, with top breathing room
-   so the logo is not crammed against the social bar. */
-#header,
+   when sticky, with top breathing room so the logo is not crammed. */
 #header .header-navigation {
   background-color: #080807;
 }
