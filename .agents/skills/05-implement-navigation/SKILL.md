@@ -313,7 +313,10 @@ The imported theme's header is laid out with **CSS grid named areas** (e.g. `.he
 - CTA buttons: `<a><div class="cta-2"><i.../><div class="field-cta-title-2">…</div></div></a>` (and `cta-1`). A bare `<div>{label}</div>` gets none of the button styling.
 - Submenu dropdown: each `<li class="level1 itemN odd/even first/last rel-level1 submenu">` with the panel as a **direct child** `<ul class="clearfix">`. The dropdown panel needs an explicit white `background` (use `!important` — the theme sets a dark bg that wins otherwise) and `position:absolute`; the **right-most** item must open leftwards (`right:0;left:auto`) or it pins to the viewport edge.
 - The language switcher belongs in the **top bar only** — do not also render it in the nav (it shows as a stray block below the menu).
-- Font Awesome **Pro** icons (`fa-regular fa-store`, `fa-ticket-simple`) render as empty boxes against the free CDN; use the free **solid** equivalents (`fa-solid fa-store`, `fa-solid fa-ticket`). `fa-brands` (socials) are free and work.
+- Font Awesome **Pro** icons (`fa-regular fa-store`, `fa-ticket-simple`, `fa-microphone-stand`) render as empty boxes against the free CDN; use the free **solid** equivalents (`fa-solid fa-store`, `fa-solid fa-ticket`, `fa-solid fa-newspaper`, `fa-solid fa-magnifying-glass`). `fa-brands` (socials) are free and work.
+- The tokenizer can leave a theme **pseudo-element glyph** that points at a FA codepoint but with a *non-FA* `font-family` (e.g. `.language-selector-select-link:after{font-family:var(--font-heading);content:"\f0d7"}`) — it renders as a missing-glyph box. Suppress it (`content:none !important`) and supply your own caret, or restore the FA font-family. Watch for these on language switchers, accordions, and "read more" links.
+- Header CTA buttons need explicit **hover states** — without them the theme's generic `a:hover` can turn the whole button black or do nothing. Define hover on the wrapping `<a>` (e.g. outline button fills white + dark text; gold button lightens, keeps dark text) with a `transition`.
+- Don't inherit the theme's giant logo (`height:12rem` + negative margins). Set a sane explicit height (~5rem) and `margin:0` on `.logo img`.
 
 ### Sticky header + separate social top-bar (split-region architecture)
 
