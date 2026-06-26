@@ -15,6 +15,17 @@ Copies static assets from the source website into the module. Invoked by `/3-ass
 
 ---
 
+
+### Imported `body{overflow:hidden}` traps scrolling
+
+Many source themes set `body{overflow:hidden;height:100%}` (or `100vh`) because the original scrolled inside a JS-managed inner container. The migrated Jahia page has no such inner scroller, so this rule TRAPS the whole page at the top — you cannot scroll to lower components on the public site OR in jContent Page Builder. After importing CSS, ALWAYS add an override in `src/templates/global.css` (it bundles last and wins):
+
+```css
+html, body { overflow-x: hidden; overflow-y: auto !important; height: auto !important; }
+```
+
+Verify with a FIXED-viewport browser (not a full-page screenshot, which bypasses overflow): scroll and confirm `window.scrollY` actually changes. Also watch for `position:fixed`/`100vh` hero/background elements that overlay content.
+
 ## Agent identity
 - **Agent name:** Assetron
 - **Reference style:** Logistics / cargo
