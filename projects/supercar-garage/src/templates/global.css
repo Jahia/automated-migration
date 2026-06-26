@@ -173,8 +173,8 @@ header {
 }
 .header-navigation .cta-area a:hover .cta-2,
 .header-navigation .cta-area a:focus-visible .cta-2 {
-  background-color: #ffffff;
-  border-color: #ffffff;
+  background-color: #ffffff !important;
+  border-color: #ffffff !important;
 }
 .header-navigation .cta-area a:hover .cta-2 .field-cta-title-2,
 .header-navigation .cta-area a:hover .cta-2 i {
