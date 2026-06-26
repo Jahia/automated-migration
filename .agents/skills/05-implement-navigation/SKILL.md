@@ -305,3 +305,12 @@ Consequences you MUST handle, or the menu is dead below the desktop breakpoint:
 - [ ] Mobile toggle via `data-mobile-nav-toggle` — SiteHeader sets it, nav reads it
 - [ ] Resource bundle has label + ui.tooltip for the component
 - [ ] `yarn build && yarn jahia-deploy` — component appears in Jahia content picker
+
+## Transcribe the reference header DOM 1:1 — the imported CSS depends on it
+
+The imported theme's header is laid out with **CSS grid named areas** (e.g. `.header-navigation>.component-content .grid{grid-template-areas:"logo infos ctas" "menu menu menu"}`), and the cells are selected by **exact markup** the tokenizer captured: `a[title="Header-Navigation 1"]` → `grid-area:logo`, `.title-headline` → infos, `.cta-area` → ctas, `.navigation-main` → menu. If you invent your own header structure, nothing lands in the right cell and the layout collapses (logo crammed, CTAs floating, header height 0). **Read the cached reference `.header-navigation` block and transcribe its DOM exactly**, substituting only dynamic data. Specific things that bite:
+- Logo must be `<a title="Header-Navigation 1"><div class="logo"><img class="img-responsive"></div></a>` — the `.logo` class on an inner div, not the `<a>`; the `a[title=...]` selector is what assigns `grid-area:logo`.
+- CTA buttons: `<a><div class="cta-2"><i.../><div class="field-cta-title-2">…</div></div></a>` (and `cta-1`). A bare `<div>{label}</div>` gets none of the button styling.
+- Submenu dropdown: each `<li class="level1 itemN odd/even first/last rel-level1 submenu">` with the panel as a **direct child** `<ul class="clearfix">`. The dropdown panel needs an explicit white `background` (use `!important` — the theme sets a dark bg that wins otherwise) and `position:absolute`; the **right-most** item must open leftwards (`right:0;left:auto`) or it pins to the viewport edge.
+- The language switcher belongs in the **top bar only** — do not also render it in the nav (it shows as a stray block below the menu).
+- Font Awesome **Pro** icons (`fa-regular fa-store`, `fa-ticket-simple`) render as empty boxes against the free CDN; use the free **solid** equivalents (`fa-solid fa-store`, `fa-solid fa-ticket`). `fa-brands` (socials) are free and work.
