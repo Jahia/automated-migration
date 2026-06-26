@@ -1,3 +1,19 @@
+/*
+ * Force a high-contrast text colour on the facet dropdown selects.
+ * The dark site background (#080807) makes the browser-default grey option
+ * text (#6d6e76) fail WCAG AA contrast (ratio 3.95). Setting explicit white
+ * text ensures the ratio is >7:1 on the dark background.
+ */
+:global(.facet-dropdown-select) {
+  color: #ffffff;
+  background-color: #080807;
+}
+
+:global(.facet-dropdown-select option) {
+  color: #080807;
+  background-color: #ffffff;
+}
+
 /* Edit-mode wrapper — not shown in live rendering */
 .editWrapper {
   border: 2px dashed #bbb;

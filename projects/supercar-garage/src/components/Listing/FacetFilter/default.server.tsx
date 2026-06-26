@@ -108,6 +108,7 @@ jahiaComponent(
                         id={selectId}
                         name="DropDownOptions"
                         aria-label={facet.label}
+                        style={{ color: "#ffffff", backgroundColor: "#080807" }}
                       >
                         <option value="">{facet.label}</option>
                       </select>

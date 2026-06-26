@@ -1,3 +1,36 @@
+/*
+ * WCAG AA contrast fix: the vendor CSS uses `color: var(--color-bg)` for
+ * level1 nav links. On this dark site --color-bg = #080807 (near-black), which
+ * makes nav text nearly invisible against the dark header/body (ratio ~1.04).
+ * Override level1 links to white (#ffffff) so they pass 4.5:1 against the
+ * dark background (#080807). Apply !important to win over the vendor sheet.
+ *
+ * Also fix the level2 submenu dropdown: vendor sets background:var(--color-bg)
+ * = #080807, so we set an explicit white background and ensure the level2
+ * link text is dark enough for 4.5:1 on that white background.
+ */
+
+/* Level1 desktop nav links — must be white against the dark transparent header */
+:global(.header-navigation .navigation-main nav > ul.clearfix > li.item.level1:not(.desktop-hidden) > .navigation-title > a) {
+  color: #ffffff !important;
+}
+
+/* Level1 submenu dropdown — white background so dark text is readable */
+:global(.header-navigation .navigation-main nav .level1 > ul.clearfix) {
+  background-color: #ffffff !important;
+}
+
+:global(.header-navigation .navigation-main nav .level1 > ul.clearfix .level2 .navigation-title > a) {
+  color: #1a1a1a !important;
+}
+
+/* Mobile: nav panel background is already white; level1 links need dark text there */
+@media (max-width: 991.98px) {
+  :global(.header-navigation .navigation-main nav > ul.clearfix > li.item.level1:not(.desktop-hidden) > .navigation-title > a) {
+    color: #080807 !important;
+  }
+}
+
 .langSwitcher {
   display: flex;
   list-style: none;

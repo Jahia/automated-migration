@@ -131,7 +131,12 @@ jahiaComponent(
                       maxLength={255}
                     />
                     <label>
-                      <input type="checkbox" name="newsletter-optin" value="true" />
+                      <input
+                        type="checkbox"
+                        name="newsletter-optin"
+                        value="true"
+                        aria-label={props.newsletterConsentLabel ?? "J'accepte de recevoir la newsletter"}
+                      />
                       {props.newsletterConsentLabel && (
                         <span>{props.newsletterConsentLabel}</span>
                       )}
