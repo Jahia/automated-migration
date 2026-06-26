@@ -3,16 +3,35 @@
   margin-bottom: 1.5rem;
 }
 
-/* Flat grid used only in edit mode */
+/* Flat grid used only in edit mode — render each logo as a fixed, bordered
+   thumbnail so editors can clearly see, click, and reorder each one (the
+   live carousel hides all but a few, which is unmanageable in Page Builder). */
 .editGrid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 1rem;
   padding: 0.5rem;
+  background: #fff;
+}
+
+.editGrid :global(.content),
+.editGrid > :global(li) {
+  list-style: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  background: #fafafa;
 }
 
 .editGrid img {
   max-width: 100%;
+  max-height: 56px;
+  width: auto;
   height: auto;
   display: block;
+  object-fit: contain;
 }
