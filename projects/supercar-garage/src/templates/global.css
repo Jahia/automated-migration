@@ -282,6 +282,34 @@ header {
   border: 0;
 }
 
+/* ── Partners (constructor logos) carousel ──
+   The theme pins `.partners-carrousel .slider-container{grid-auto-columns:100%}`
+   (1 logo per view), overriding `slider-item-show5`. Show several per view so
+   it reads as a logo strip; each logo sized to fit. */
+.partners-carrousel .slider-container {
+  grid-auto-columns: 50% !important;
+}
+@media (min-width: 768px) {
+  .partners-carrousel .slider-container {
+    grid-auto-columns: 20% !important;
+  }
+}
+.partners-carrousel .slider-container > li {
+  min-height: auto !important;
+  overflow: visible !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+}
+.partners-carrousel .slider-container > li img {
+  max-height: 70px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
 a {
   color: #06a;
 }
