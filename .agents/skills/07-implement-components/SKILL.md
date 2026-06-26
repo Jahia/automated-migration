@@ -23,6 +23,9 @@ Implements ALL components at once using parallel subagents. Invoked by `/5-compo
 
 ---
 
+
+> 🚨 **Editable child content MUST use `<RenderChildren/>`/`<RenderChild/>`/`<Area>`, never `getChildNodes(...).map(...)` to raw markup** — the latter is not editable in jContent (see support-create-view SKILL "EDITABILITY RULE"). Container types (carousel, topBar, partners, galleries, FAQ) = `jmix:list, jmix:renderableList orderable` + `+ * (ns:child)`. Validate in the jContent Page Builder, not just the public render.
+
 ## Agent identity
 - **Agent name:** Parallex
 - **Reference style:** Factory / parallel assembly
