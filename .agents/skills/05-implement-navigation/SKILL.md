@@ -314,3 +314,9 @@ The imported theme's header is laid out with **CSS grid named areas** (e.g. `.he
 - Submenu dropdown: each `<li class="level1 itemN odd/even first/last rel-level1 submenu">` with the panel as a **direct child** `<ul class="clearfix">`. The dropdown panel needs an explicit white `background` (use `!important` — the theme sets a dark bg that wins otherwise) and `position:absolute`; the **right-most** item must open leftwards (`right:0;left:auto`) or it pins to the viewport edge.
 - The language switcher belongs in the **top bar only** — do not also render it in the nav (it shows as a stray block below the menu).
 - Font Awesome **Pro** icons (`fa-regular fa-store`, `fa-ticket-simple`) render as empty boxes against the free CDN; use the free **solid** equivalents (`fa-solid fa-store`, `fa-solid fa-ticket`). `fa-brands` (socials) are free and work.
+
+### Sticky header + separate social top-bar (split-region architecture)
+
+The reference theme wraps the social top-bar AND the nav in ONE `#header` that it makes `position:fixed`. If you split them into separate AbsoluteAreas (social bar editable independently from the nav), two things bite:
+- **The fixed `#header` covers the separate social bar** (the logo sits on top of the social icons). Override `#header` to `position:relative !important` so it flows below the social bar.
+- **Sticky must go on the right element.** The desired behaviour is "social bar scrolls away, header sticks." Put `position:sticky;top:0` on the element that is a **direct child of `<body>`** (here the nav's `<header>`), NOT on `#header` — a sticky element is constrained to its containing block, so a sticky `#header` inside a ~200px `<header>` box unsticks and scrolls away after ~200px. Verify by scrolling 700px and asserting the header's `getBoundingClientRect().top === 0` while the social bar's top is negative.
