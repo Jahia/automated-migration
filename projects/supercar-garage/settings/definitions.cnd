@@ -17,8 +17,16 @@
  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
  - ctaLabel (string) i18n
 
-// Marker mixin — content types opt into the JcrQuery type dropdown by extending this
-[usgmix:queryContent] mixin
+// Note: usgmix:queryContent is NOT declared in the CND because it causes an OSGi
+// self-referencing trap in the MANIFEST.MF generation (Require-Capability referencing
+// a type the bundle itself provides). Content types that should appear in the
+// JcrQuery type dropdown extend jmix:mainResource; the JcrQuery subnodetypes
+// filter targets jmix:mainResource.
+
+// Page media mixin — add to jnt:page nodes to allow banner image for SectionHub cards
+[usgmix:pageMedia] mixin
+ - bannerImage (weakreference, picker[type='image']) < jmix:image
+ - thumbnailImage (weakreference, picker[type='image']) < jmix:image
 
 // Site theme mixin — add to the site node (jnt:virtualsite) so editors can
 // re-theme the whole site by overriding the :root tokens.
