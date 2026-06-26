@@ -18,6 +18,36 @@ body {
   height: auto !important;
 }
 
+/* Top social bar + header sit on the dark (#080807) theme. The imported CSS
+   colors their text with var(--color-bg) — which is the DARK body colour — so
+   the text is invisible (dark on black). --color-bg is also used as a dark
+   BACKGROUND in 100+ rules, so it can't be flipped; instead force white text on
+   the dark bars directly, and make the social top bar sticky. */
+.top-bar.top-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+.top-navbar,
+.top-navbar .row,
+.top-navbar a,
+.top-navbar i,
+.top-navbar .language-selector,
+.top-navbar .top-ctas a,
+.header-navigation,
+.header-navigation > .component-content,
+.header-navigation a,
+.header-navigation .field-date,
+.header-navigation .field-lieu,
+.header-navigation li.level1 > a {
+  color: #ffffff !important;
+}
+/* …but the level-1 dropdown panel has a white background, so keep its links dark */
+.header-navigation li.level1 > ul a,
+.header-navigation li.level1 ul .level2 > a {
+  color: #080807 !important;
+}
+
 a {
   color: #06a;
 }
