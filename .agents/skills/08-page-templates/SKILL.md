@@ -18,6 +18,17 @@ allowed-tools: Bash, Read, Write, Edit
 
 ---
 
+
+## Template architecture (home vs inner) — REQUIRED
+
+Real sites have at least TWO page templates, plus shared shell:
+- **Layout.tsx**: AbsoluteAreas for the shared **top-bar, navigation, footer** (parent = home page node). Shared regions are AbsoluteAreas, never hardcoded or <Render>ed inside another component.
+- **home.server.tsx** (template name `home`): the home page — leads with hero/carousel; content in an editable `<Area name="main"/>`. Assign the home page to it (`j:templateName=home`).
+- **basic.server.tsx** (template name `basic`, every inner page): renders, in order, the **page banner title** (page `jcr:title` + an editable per-page banner image, e.g. `nsMix:pageMedia#bannerImage`) → a **breadcrumb** derived from the page hierarchy (walk parents up to home) → the editable `<Area name="main"/>`. This mirrors how almost every CMS site structures inner pages (banner + breadcrumb + content) and is what editors expect.
+- **MainResource/default.server.tsx**: full-page detail (`jmix:mainResource`, priority -1) rendering `<Render view="fullPage"/>` inside Layout.
+
+A single bare `<Area main/>` template used for every page (no home template, no banner, no breadcrumb) is WRONG and reads as an unfinished migration. Validate in jContent that the banner/breadcrumb render and the main area is editable.
+
 ## Overview
 
 A **page template** defines the full layout of a page. It is registered with `componentType: "template"` and always targets `jnt:page`. Templates contain **Areas** (per-page content) and **AbsoluteAreas** (shared across all pages, e.g. footer, navbar).
