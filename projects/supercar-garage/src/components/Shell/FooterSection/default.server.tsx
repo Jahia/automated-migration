@@ -79,8 +79,14 @@ jahiaComponent(
     const legalCookiesUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "cookies");
 
     return (
-      <div className="component footerm2 container-fluid px-0 col-12">
-        <div className="component-content">
+      <footer>
+        {/* `#footer` is REQUIRED — the entire footer theme is scoped under it
+            (`#footer .bg-top-footer .grid-1` …). Without it the footer is unstyled. */}
+        <div id="footer">
+          <div className="container">
+            <div className="row">
+              <div className="component footerm2 container-fluid px-0 col-12">
+                <div className="component-content">
           <div className="bg-top-footer">
             <div className="grid-1">
               {/* Social links column — each usg:socialLink renders one <a> */}
@@ -233,8 +239,12 @@ jahiaComponent(
               </div>
             )}
           </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </footer>
     );
   },
 );
