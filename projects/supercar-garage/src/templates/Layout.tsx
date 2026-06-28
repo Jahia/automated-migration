@@ -44,6 +44,7 @@ function getWeakRef(node: JCRNodeWrapper, name: string): JCRNodeWrapper | null {
 export const Layout = ({ title, children }: { title: string; children: ReactNode }) => {
   const { currentResource, renderContext } = useServerContext();
   const lang = currentResource.getLocale().getLanguage();
+  const isEdit = renderContext.isEditMode();
 
   // Read site node for theme mixin props
   const siteNode = renderContext.getSite() as unknown as JCRNodeWrapper;
@@ -136,6 +137,19 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
         <AbsoluteArea name="nav" nodeType="usg:mainNavigation" parent={homePage} readOnly="children" />
         <main id="main-content">{children}</main>
         <AbsoluteArea name="footer" nodeType="usg:footerSection" parent={homePage} readOnly="children" />
+
+        {/* Scroll-reveal: the imported theme hides many components with
+            `.<comp>:not(.slide-in){opacity:0;transform:translateY(5rem)}` and
+            relies on JS to add `.slide-in` when they enter the viewport. The
+            theme's own observer (main-theme.js) is not loaded, so without this
+            every content image/block stays invisible. In edit mode we reveal
+            everything immediately so the Page Builder is not full of blank
+            sections; in live we animate on scroll with a safety fallback. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var SEL=".activity-sectors,.contact-block,.content-block,.content-block-vertical-image,.content-list-image-block,.event-list,.img-content-block-r,.img-content-block-r-v2,.item-content-popin-picture,.item-list,.partners-2-list,.search-results";var EDIT=${isEdit ? "true" : "false"};function run(){var els=[].slice.call(document.querySelectorAll(SEL));if(EDIT||!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("slide-in");});return;}var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add("slide-in");io.unobserve(e.target);}});},{rootMargin:"0px 0px -8% 0px",threshold:0.05});els.forEach(function(e){io.observe(e);});setTimeout(function(){els.forEach(function(e){e.classList.add("slide-in");});},4000);}if(document.readyState!=="loading"){run();}else{document.addEventListener("DOMContentLoaded",run);}})();`,
+          }}
+        />
       </body>
     </html>
   );
