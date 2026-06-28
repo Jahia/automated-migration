@@ -1,5 +1,5 @@
 [usg:jcrQuery] > jnt:content, mix:title, usgmix:pageComponent, jmix:list, jmix:cache
- - type (string, choicelist[subnodetypes = 'jnt:page', resourceBundle]) indexed=no mandatory
+ - type (string, choicelist[subnodetypes = 'jmix:mainResource', resourceBundle]) indexed=no mandatory
  - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated indexed=no
    < 'jcr:created', 'jcr:lastModified', 'j:lastPublished'
  - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated indexed=no
