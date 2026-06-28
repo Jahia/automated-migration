@@ -581,3 +581,19 @@ Only add this override if the audit actually finds conflicting selectors. Do not
 - [ ] workflow-output/component-css-selectors.txt written
 - [ ] workflow-output/js-conflict-report.txt written — carousel components flagged as interactive: true
 - [ ] Edit-mode safety override added if broad selectors found
+
+## Scroll-reveal animations: content hidden at `opacity:0` until JS adds a reveal class
+
+Imported themes routinely hide components until they scroll into view, with rules like:
+```css
+.content-block:not(.slide-in) .img-cover { transform: translateY(5rem); opacity: 0; }
+```
+The element only becomes visible once a reveal class (commonly `.slide-in`) is added to the component by an IntersectionObserver in the theme's JS. In a migrated module that theme JS is usually NOT loaded, so **every animated component stays invisible forever** — symptom: "I see the images in the source but they don't render." (`naturalWidth` is fine; computed `opacity` is 0.)
+
+Find every reveal selector and its trigger class:
+```bash
+grep -aoE "\.[a-z][a-z0-9-]*(\.[a-z-]+)?:not\(\.slide-in\)" static/css/main-theme.css | sed 's/:not(.slide-in)//' | sort -u
+```
+Then add a small **self-contained IntersectionObserver in `Layout.tsx`** (don't load the whole theme JS — it usually has jQuery/other deps and side effects) that adds the reveal class to those component selectors on intersection. Two musts:
+- **Edit mode**: reveal everything immediately (`renderContext.isEditMode()` → add the class on load) so the Page Builder isn't full of blank sections.
+- **Safety fallback**: a `setTimeout` that reveals anything still hidden after a few seconds, so a missed/failed observer never leaves content permanently invisible.
