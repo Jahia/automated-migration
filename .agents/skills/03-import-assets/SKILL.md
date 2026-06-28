@@ -590,10 +590,20 @@ Imported themes routinely hide components until they scroll into view, with rule
 ```
 The element only becomes visible once a reveal class (commonly `.slide-in`) is added to the component by an IntersectionObserver in the theme's JS. In a migrated module that theme JS is usually NOT loaded, so **every animated component stays invisible forever** — symptom: "I see the images in the source but they don't render." (`naturalWidth` is fine; computed `opacity` is 0.)
 
-Find every reveal selector and its trigger class:
-```bash
-grep -aoE "\.[a-z][a-z0-9-]*(\.[a-z-]+)?:not\(\.slide-in\)" static/css/main-theme.css | sed 's/:not(.slide-in)//' | sort -u
+Find EVERY reveal component class. A plain grep misses selectors with multiple `:not()` (e.g. `.img-content-block-l:not(.img-content-block-r-v2):not(.slide-in)`), so split rules and grab the leading class of any comma-part containing `:not(.slide-in)`:
+```python
+import re
+css=open("static/css/main-theme.css",encoding="utf-8",errors="ignore").read()
+classes=set()
+for sel in re.findall(r'([^{}]+)\{[^}]*\}', css):
+    if ':not(.slide-in)' in sel:
+        for part in sel.split(','):
+            if ':not(.slide-in)' in part:
+                m=re.match(r'\s*(\.[a-zA-Z0-9_-]+)', part)
+                if m: classes.add(m.group(1))
+print(sorted(classes))
 ```
+Include ALL of them in the observer selector list — a missed class = that whole component stays invisible. (Also size carousel/logo images explicitly: the theme grid can collapse logo columns to ~15px; a plain flex row with `max-height`/`max-width` on the `img` is more predictable.)
 Then add a small **self-contained IntersectionObserver in `Layout.tsx`** (don't load the whole theme JS — it usually has jQuery/other deps and side effects) that adds the reveal class to those component selectors on intersection. Two musts:
 - **Edit mode**: reveal everything immediately (`renderContext.isEditMode()` → add the class on load) so the Page Builder isn't full of blank sections.
 - **Safety fallback**: a `setTimeout` that reveals anything still hidden after a few seconds, so a missed/failed observer never leaves content permanently invisible.
