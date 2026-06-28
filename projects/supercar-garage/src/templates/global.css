@@ -286,28 +286,46 @@ header {
    The theme pins `.partners-carrousel .slider-container{grid-auto-columns:100%}`
    (1 logo per view), overriding `slider-item-show5`. Show several per view so
    it reads as a logo strip; each logo sized to fit. */
+/* The theme's grid (`grid-auto-columns`) collapses each logo column to its
+   tiny content. Use a plain horizontal flex row with explicit, uniform logo
+   sizing instead — predictable and overrides swiffy's `>*{width:100%}`. */
 .partners-carrousel .slider-container {
-  grid-auto-columns: 50% !important;
-}
-@media (min-width: 768px) {
-  .partners-carrousel .slider-container {
-    grid-auto-columns: 20% !important;
-  }
+  display: flex !important;
+  flex-wrap: nowrap;
+  gap: 1.5rem;
+  align-items: center;
+  width: 100% !important;
+  max-width: 110rem;
+  margin: 0 auto;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
 }
 .partners-carrousel .slider-container > li {
-  min-height: auto !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-height: 0 !important;
+  height: 90px !important;
   overflow: visible !important;
   display: flex !important;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem 1.5rem;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 1.5rem !important;
+  scroll-snap-align: start;
+}
+.partners-carrousel .slider-container > li > a,
+.partners-carrousel .slider-container > li > a > div {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 100% !important;
 }
 .partners-carrousel .slider-container > li img {
-  max-height: 70px;
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
-  margin: 0 auto;
+  width: auto !important;
+  height: auto !important;
+  max-height: 56px !important;
+  max-width: 180px !important;
+  object-fit: contain !important;
+  margin: 0 auto !important;
 }
 
 a {
