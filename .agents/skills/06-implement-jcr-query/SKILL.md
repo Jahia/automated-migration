@@ -349,3 +349,12 @@ jahiaComponent(
 - [ ] Reference implementation: soprahr `mysoprahr/src/components/JcrQuery` (canonical); sial-paris `Structural/JcrQuery` (replicated)
 - [ ] Resource bundle has all field labels + `ui.tooltip` for every field
 - [ ] `yarn build && yarn jahia-deploy` — both types appear in Jahia content picker
+
+## News / articles / press = `jmix:mainResource` structured content, NOT sub-pages
+
+A recurring migration mistake: modelling news/articles/events as child **pages** (empty `jnt:page` shells) and relying on an SXA-style facet/search widget to "list" them. In Jahia that's wrong:
+- Anything that needs a **listing card AND its own full-page URL** must be a `jmix:mainResource` content type (e.g. `ns:newsArticle > jnt:content, mix:title, jmix:mainResource, jmix:tagged`), created in a `jnt:contentFolder` (e.g. `/sites/<site>/contents/actualites`), and rendered full-page by the MainResource template.
+- List them with a `ns:jcrQuery` (`type`, `startNode`, `criteria`, `sortDirection`, `j:subNodesView`) whose card view is the content type's `default` view. The query is `select * from [type] where isdescendantnode(startNode)`.
+- An imported **SXA `facetFilter`** (dropdowns hitting `/sxa/search/...`) is a search UI with **no backend in Jahia** — it renders empty controls and never lists content. Don't treat it as a listing; pair the page with a real `jcrQuery` (the facet bar can stay as decoration or be removed).
+- Make the `jcrQuery` `type` picker usable by editors: `choicelist[subnodetypes='jmix:mainResource']` — NOT `subnodetypes='jnt:page'`, or editors can't select content types and the listing can only be wired by a developer via raw mutations.
+Symptom this prevents: "I have no news — structured content / jmix:mainResource ???"
