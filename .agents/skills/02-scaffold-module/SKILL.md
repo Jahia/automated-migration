@@ -100,7 +100,25 @@ EOF
 
 ## Add shared CND foundations
 
-Before implementing any components, add these to `settings/definitions.cnd`:
+Before implementing any components, add these to `settings/definitions.cnd`.
+
+> 🚨 **`definitions.cnd` MUST start with the full namespace header.** The real
+> `npm init @jahia/module` scaffold includes it; a hand-built / scripted fallback
+> scaffold (used when the interactive `npm init` stalls an agent) MUST NOT omit it.
+> If `mix:title`, `j:linkType`, etc. are used without `<mix=...>` / `<j=...>` declared,
+> Jahia's CND reader warns "missing namespace URI definition" and the module **fails
+> to install** (generic `IOException`). Required header:
+>
+> ```cnd
+> <jcr = 'http://www.jcp.org/jcr/1.0'>
+> <nt  = 'http://www.jcp.org/jcr/nt/1.0'>
+> <mix = 'http://www.jcp.org/jcr/mix/1.0'>
+> <j   = 'http://www.jahia.org/jahia/1.0'>
+> <jnt = 'http://www.jahia.org/jahia/nt/1.0'>
+> <jmix = 'http://www.jahia.org/jahia/mix/1.0'>
+> <<ns> = 'https://jahia.com/<module>/nt/1.0'>
+> <<ns>Mix = 'https://jahia.com/<module>/mix/1.0'>
+> ```
 
 ```cnd
 // Replace <ns> with the actual namespace prefix (e.g. carnival, bjhome, mysite)
