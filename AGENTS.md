@@ -186,17 +186,19 @@ Hallucination here = **claiming something is done / verified / matches the
 original without proof**. It is not acceptable. The operator should never have to
 be your diff tool. Follow this every step:
 
-1. **Get the reference YOURSELF before building.** Fetch/render the original page
-   (curl / WebFetch / the browser) and parse it — work from the page in front of
-   you, **never from memory of what the site "probably" looks like**. A
-   human-provided saved copy (MHTML / paste) is a **fallback, not the default**:
-   reach for it only when you genuinely cannot retrieve the full page
-   (bot-protection like Cloudflare, a login wall, JS-only content). When you hit
-   that wall, **`halt` and ask the operator for the page** — there is always a
-   human in the loop, and asking is correct; diffing from a guessed or
-   half-remembered page is the hallucination you must avoid. Don't standardise on
-   "the human will hand me an MHTML" — standardise on "I capture it, and ask only
-   when I can't."
+1. **Get the reference YOURSELF before building — browser-first for dynamic
+   sites.** Work from the page in front of you, **never from memory of what the
+   site "probably" looks like**. For any site whose listings / facet values /
+   article bodies / images load via JS, or that sits behind a WAF (Cloudflare),
+   the **wget/curl cache is only the static shell** — the content that matters
+   most is not in it. Use the **browser as the primary capture** (Chrome MCP:
+   `navigate` + `get_page_text` + `javascript_tool`) per
+   `.agents/skills/capture-reference/SKILL.md`, and save the captured truth to
+   `orchestration/reference/<project>/` *before* modelling or creating content.
+   Fabricating summaries / titles / taxonomy / images from a partial cache is the
+   #1 source of wrong content. A human-provided saved copy (MHTML / paste) is a
+   last-resort fallback. When even the browser can't reach a page, **`halt` and
+   ask the operator** — asking is correct; guessing is the hallucination to avoid.
 
 2. **Prove, don't claim.** Every "done / verified / looks like the reference"
    statement must be backed by **probe output or a measured artifact** — a probe

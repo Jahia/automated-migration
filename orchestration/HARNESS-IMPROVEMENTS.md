@@ -53,7 +53,7 @@ right, in the right workspace, against the real source."**
 
 ## Skills
 
-- [ ] **New `capture-reference` (browser-first)** — for JS/WAF sites, Chrome MCP
+- [x] **New `capture-reference` (browser-first)** *(DONE — skill + wired into analyze step + AGENTS rule 1 + 01-analyze pointer)* — for JS/WAF sites, Chrome MCP
   is the *primary* capture: snapshot every page's rendered DOM, real text
   (`get_page_text`), image URLs, and taxonomy/facet values to disk BEFORE
   modeling. Demote wget-cache to "static fallback".
@@ -101,8 +101,11 @@ right, in the right workspace, against the real source."**
 1. ~~`render-truth.sh` + wire as a gate~~ ✅ **done** (probe + `.mjs`, gated in
    AGENTS.md rule 3 + skill 12; verified: catches broken img / hidden / collapsed
    / playerless-video on a fixture, passes the fixed supercar pages)
-2. browser-first `capture-reference` skill ← **next**
-3. `publish-parity.sh` + the `languages:[…]` publish rule
-4. `edit-frame.sh`
-5. `fidelity-live.sh` replacing `fidelity.sh`
-6. decompose loop steps + `no-stub` gate
+2. ~~render gate at EACH page/shell creation~~ ✅ **done** (`render-all.sh` in the
+   deploy + content steps)
+3. ~~`publish-parity.sh` + the `languages:[…]` publish rule~~ ✅ **done** (probe +
+   wired into content step; verified PASS on supercar: 22 weakrefs, 0 broken)
+4. ~~browser-first `capture-reference` skill~~ ✅ **done**
+5. `edit-frame.sh` ← **next**
+6. `fidelity-live.sh` replacing `fidelity.sh`
+7. decompose loop steps + `no-stub` gate
