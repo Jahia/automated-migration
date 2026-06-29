@@ -54,7 +54,8 @@ which is already past the WAF.
    navigate <article url>
    get_page_text <tabId>           # → real title + full body, all sections
    ```
-   Save each to `orchestration/reference/<project>/<slug>.txt`.
+   Save each to `projects/<project>/.reference/captured/<slug>.txt` (check it
+   isn't already there first — reuse if so).
 
 2. **Listing + the COMPLETE item list** — on the listing page, wait for the JS
    search to populate, then `javascript_tool` to extract every card's slug,
@@ -104,12 +105,22 @@ which is already past the WAF.
 - Wait for the JS search to populate (the cards appear a few seconds after the
   facets) before extracting the item list.
 
-## Output
+## Output — persist into the PER-PROJECT cache (never re-fetch / re-drive Chrome)
 
-Write captured truth to `orchestration/reference/<project>/`:
-- `<slug>.txt` per page (title + body)
-- `items.json` — the complete list (slug, title, image URL, categories, date)
-- `facets.json` — each facet's values + counts
+Write captured truth under **`projects/<project>/.reference/`** — the same
+per-project cache the curl scraper uses — so a re-run reuses it instead of
+re-driving the browser:
+- `projects/<project>/.reference/captured/<slug>.txt` — rendered body per page
+  (gitignored, like `.reference/cache/`)
+- `projects/<project>/.reference/items.json` — the complete list (slug, title,
+  image URL, categories, date) — **committed**
+- `projects/<project>/.reference/facets.json` — each facet's values + counts —
+  **committed**
+
+> **Reuse rule:** before any curl OR browser capture, check
+> `projects/<project>/.reference/` (`cache/` for curl hits, `captured/` +
+> `items.json`/`facets.json` for browser captures). A hit is reused; never
+> re-hit the origin or re-drive Chrome for something already captured.
 
 These feed `content-data.json` and the content-creation step. **A page's content
 is not "modelled" until it was captured from the live source, not remembered.**
