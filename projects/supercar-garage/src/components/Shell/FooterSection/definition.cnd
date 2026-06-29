@@ -4,9 +4,9 @@
  - newsletterPlaceholder (string) i18n
  - newsletterConsentLabel (string) i18n
  - newsletterSubmitLabel (string) i18n
- - partnerLogo1 (weakreference, picker[type='image'])
- - partnerLogo2 (weakreference, picker[type='image'])
- - partnerLogo3 (weakreference, picker[type='image'])
+ - partnerLogo1 (weakreference, picker[type='image']) < jmix:image
+ - partnerLogo2 (weakreference, picker[type='image']) < jmix:image
+ - partnerLogo3 (weakreference, picker[type='image']) < jmix:image
  - partnerLabel1 (string) i18n
  - partnerLabel2 (string) i18n
  - partnerLabel3 (string) i18n

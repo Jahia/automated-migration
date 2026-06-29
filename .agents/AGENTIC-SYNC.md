@@ -35,9 +35,16 @@ skills (`07-implement-components`, `08-page-templates`, `11-debug`, `10-review`,
 `support-create-view`) remain the migration **workflow** — they reference `dev/`.
 Where jahiaMigration's `dev/` version is bigger/better (accessibility,
 query-content, import-from, build-component, create-template-set, start-local),
-we keep ours. Agentic nuggets still to fold into ours next pass: the
-`@jahia-cnd-author` sub-agent invocation (build-component) and the MCP
-`site.create`/`site.list` flow (create-template-set, start-local).
+**we keep ours** — we are more advanced on those subjects. We do NOT fold the
+smaller agentic versions (or their nuggets) back in; our versions lead.
+
+### Local adaptation of `check-cnd.mjs`
+
+`jahia-dev-review-cnd/scripts/check-cnd.mjs` is locally adapted: the
+`weakrefNoConstraint` rule **exempts `startNode` and `excludeNodes`** — query-root
+reference fields that legitimately point to arbitrary containers (our "full node
+browser" convention). All other weakrefs still require a `< type` constraint.
+When re-syncing from upstream, re-apply this exemption.
 
 ## Reviewer + gates (added after the supercar "fiasco")
 

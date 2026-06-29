@@ -1,5 +1,5 @@
 [usg:mainNavigation] > jnt:content, usgmix:component, jmix:hiddenType orderable
- - logo (weakreference, picker[type='image']) mandatory
+ - logo (weakreference, picker[type='image']) mandatory < jmix:image
  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
  - eventDate (string) i18n
  - eventVenue (string) i18n

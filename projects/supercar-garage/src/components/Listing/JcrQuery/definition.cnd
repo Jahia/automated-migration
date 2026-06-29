@@ -7,7 +7,7 @@
  - maxItems (long) indexed=no
  - startNode (weakreference) indexed=no
  - excludeNodes (weakreference) multiple indexed=no
- - filter (weakreference, category[autoSelectParent=false]) multiple indexed=no
+ - filter (weakreference, category[autoSelectParent=false]) multiple indexed=no < jnt:category
  - noResultText (string) i18n indexed=no
  - j:subNodesView (string, choicelist[templates=subnodes,resourceBundle,image,dependentProperties='type']) nofulltext indexed=no
  - j:linkType (string, choicelist[linkTypeInitializer]) indexed=no

@@ -60,8 +60,14 @@ function checkFile(filePath, content) {
       });
     }
 
-    // weakrefNoConstraint: (weakreference) with no < constraint on same line
-    if (/\(weakreference[,)]/.test(trimmed) && !/<\s*\S/.test(trimmed)) {
+    // weakrefNoConstraint: (weakreference) with no < constraint on same line.
+    // LOCAL ADAPTATION (jahiaMigration): exempt query-root reference fields —
+    // startNode/excludeNodes legitimately point to arbitrary containers (the
+    // documented "full node browser" convention), so a single type constraint
+    // would be wrong. See .agents/AGENTIC-SYNC.md.
+    const __wname = (trimmed.match(/^-\s*([A-Za-z0-9_:]+)\s*\(weakreference/) || [])[1];
+    const __EXEMPT_WEAKREF = new Set(["startNode", "excludeNodes"]);
+    if (/\(weakreference[,)]/.test(trimmed) && !/<\s*\S/.test(trimmed) && !__EXEMPT_WEAKREF.has(__wname)) {
       issues.push({
         file: filePath, line: lineNum,
         pattern: "weakrefNoConstraint",
