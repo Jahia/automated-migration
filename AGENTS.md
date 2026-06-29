@@ -99,9 +99,22 @@ unavailable - and when you fall back, say so in your `summary`.
      per-page source manifest `orchestration/images/<project>.json`.
   2. **Import** each image with the MCP tool **`media.upload.url`** (siteKey,
      sourceUrl=HTTPS, folder=existing, fileName). This creates ONE DAM node with a
-     CONSISTENT UUID across default+live. Do NOT use the `import-image` servlet for
-     referenced images - it creates DIFFERENT UUIDs per workspace, so weakreferences
-     break in live and you fall back to a URL string (the bug we spent days on).
+     CONSISTENT UUID across default+live.
+     - **Distant / WAF'd images** (e.g. the reference site's `/-/media/...` CDN
+       that blocks the loop's headless fetch): use the **image-proxy** —
+       `POST $JAHIA_HOST/modules/jahia-image-proxy/import-image` with
+       `sourceUrl` (the live `/-/media` URL), `destPath`, `filename`. It fetches
+       server-side with browser headers + Referer and **reaches WAF'd CDNs that
+       `media.upload.url` can't** (verified: it pulled supercar's `/-/media`
+       images the cache never had). This is the easy retrieval path for remote
+       reference images.
+     - **The UUID caveat is about WORKSPACES, not the tool:** import the file
+       **once into `default`**, set the weakref to that UUID, then **publish the
+       file** so the SAME UUID becomes live (`publish-parity.sh` verifies it
+       resolves). Do NOT import the same file separately into `default` AND `live`
+       — that is what creates divergent UUIDs and breaks weakrefs (the bug we
+       spent days on). If a file refuses to publish, re-import it fresh under a
+       new name (see `feedback_publish_referenced_assets`).
   3. **Reference** the node via the component's WEAKREFERENCE field
      (`image`/`backgroundImage`/`logo`/`photo`), set via
      `setValue(type: WEAKREFERENCE, value: <uuid>)`, then publish the node.
@@ -148,12 +161,18 @@ Before mapping, list the catalog:
 `bash orchestration/probes/inventory.sh <project_path> <namespace>` - prints
 every type and its existing views.
 
-This is enforced. `orchestration/component-baseline.txt` is the approved type
-set (41 types). The content step runs
-`bash orchestration/probes/no-new-types.sh <project_path> <namespace> <baseline>`;
-it fails if any type exists that is not in the baseline. New views never add a
-type, so they pass. To legitimately add a type, the operator approves the halt
-and the baseline is regenerated with `inventory.sh --write`.
+This is enforced, **per project** (agnostic). After the type set is approved
+(Gate 1), the content-types step writes the project's own baseline:
+`bash orchestration/probes/inventory.sh <project_path> <ns> --write projects/<project>/component-baseline.txt`.
+The content step then runs
+`bash orchestration/probes/no-new-types.sh <project_path> <ns> projects/<project>/component-baseline.txt`;
+it fails if content/page discovery introduces a type not in that project's
+baseline. New views never add a type, so they pass. Two other reuse gates run at
+content-types time: `dup-shapes.sh` (no two types share a property shape) and
+`cnd-review.sh`. To legitimately add a type, the operator approves the `halt` and
+the per-project baseline is regenerated with `inventory.sh --write`.
+(`orchestration/component-baseline.txt` is sial-paris legacy — not used by new
+projects.)
 
 ---
 
@@ -292,6 +311,7 @@ All under `orchestration/probes/`, run from repo root:
 | `publish-parity.sh <project_path> <site> [langs]` | **PUBLISH COMPLETENESS** — every weakref'd asset resolves in LIVE + every translation present in EDIT is published (catches unpublished DAM + the `languages:[...]` gap) |
 | `edit-frame.sh <project_path> <site> <lang> [page]` | shared regions (nav/footer/topbar) render AND are editable in Page Builder, not blank (AbsoluteArea-needs-children) |
 | `no-stub.sh <project_path> [namespace]` | **NO STUBS** — every `*.server.tsx` view emits real markup (no TODO/placeholder/null-only shells), and every CND type has a registered view. Catches the loop generating shells it never fills (the supercar 29/32-stub fiasco) |
+| `dup-shapes.sh <project_path> [namespace]` | **REUSE/VIEWS** — fails when two CND types share the same property shape (they should be ONE type + additional views, AGENTS §2b). Catches markup-driven type duplication at the source |
 | `cnd-review.sh <project_path>` | **CND quality** (agentic `check-cnd.mjs`) — best-practice antipatterns with file:line; complements `cnd-patterns.sh` |
 | `site-review.sh <project_path> <site> <lang> <pages\|@sitemap>` | **a11y + SEO** (agentic `review-pages.mjs`, axe-core) — scores each page, fails on critical/serious a11y or missing SEO baseline |
 | `artifact.sh <file> [forbidden_regex]` | output file exists (and lacks a forbidden pattern, e.g. `critical`) |

@@ -20,6 +20,15 @@ Turns a website into a structured Jahia component blueprint by clustering HTML p
 > NOT in it. Run **`/capture-reference`** (`.agents/skills/capture-reference/SKILL.md`)
 > before clustering/modelling, and build `content-data.json` from the captured
 > truth. Never fabricate content/titles/taxonomy/images from a partial cache.
+>
+> **A curl HTTP 200 is NOT proof of a complete capture.** For a JS-rendered page
+> the 200 body is the pre-hydration shell (empty `#app`/`#root`, no cards). Before
+> clustering, do a **completeness check**: render the page in the browser and
+> compare its section/card/text volume to the curl body — if the browser shows
+> materially more, the curl capture is a shell; **use the browser render as the
+> corpus source of truth** for that page. Distant images (`/-/media/...`) are
+> retrieved server-side via the **image-proxy** (`import-image`), which reaches
+> WAF'd CDNs the loop's fetch can't — see `capture-reference` Step 4 / AGENTS §2a.
 
 ---
 
@@ -614,19 +623,51 @@ Store this corpus as `/tmp/section-corpus.json`:
 
 ---
 
-## Step 3: Cluster by structural similarity
+## Step 3: Cluster by DATA SHAPE, not markup (the Jahia reuse rule)
 
-Group corpus entries by **class signature similarity**. Two blocks belong to the same cluster if:
-- Their root CSS class strings share ≥2 significant tokens (ignore utility tokens like `col-*`, `container`, `row`, `component`, `content`)
-- OR their child structure is identical (same tag pattern, same child count range)
+> A Jahia content type is defined by its **data** (the editable fields), not its
+> markup. Two sections that hold the **same fields** are the **same type rendered
+> by different views** — never two types. Cluster by **property shape**; treat
+> markup/layout differences as **view variants within a type**. Clustering by CSS
+> class (the old approach) splits identical data into near-duplicate types and is
+> the root cause of "similar components instead of views". Enforced by
+> `dup-shapes.sh`.
 
-For each cluster:
-- Assign a **component name** (derived from the dominant CSS class)
-- Count **frequency** — how many pages contain this pattern
-- List **pages** where it appears
-- Identify **variation axes** — what differs across instances: text only? image? modifier class? child count?
+### 3a — derive each block's property shape
+For every corpus block, list the fields a **contributor** would edit (not the markup):
+- text / heading / rich text → `string` / `text` / `richtext`
+- image → `weakreference` (`< jmix:image`)
+- link or button → `j:linkType` (`linkTypeInitializer`)
+- repeated sub-items → a child node type
+- tags/categories → built-in `jmix:tagged` / `j:defaultCategory` (never custom fields)
 
-Minimum frequency threshold: a pattern that appears on only 1 page may still be a real component (e.g. a contact form unique to the contact page). Include it but flag `frequency: 1`.
+Normalize to a sorted **shape signature**, e.g. `cta, image, summary, title`.
+Ignore CSS classes, colours, spacing and layout — those are *view* concerns.
+
+### 3b — group by shape signature → one type, many views
+Group blocks with the **same (or subset-compatible) shape signature** into ONE
+component type, even when their markup/classes differ entirely. The distinct
+markup variants in the group become **views**:
+
+| Across the corpus | Decision |
+|---|---|
+| same shape, same markup | one type, `default` view (+frequency) |
+| same shape, different markup/layout | one type, **add a named view** (`featured`, `compact`, `right`…) |
+| shape is a superset (one extra field) | same type, make the extra field **optional** |
+| genuinely different field set | a different type |
+
+### 3c — name + frequency
+Name the type from its **role** (`Hero`, `EditorialBlock`, `NewsArticle`), never
+from a CSS class. Count frequency across pages; list the pages and **which view**
+each instance maps to.
+
+> Anti-pattern: making `HeroLeft` and `HeroRight` two types because the classes
+> differ. Same fields (title + image + cta) → ONE `Hero` type with `default` +
+> `right` views.
+
+Minimum frequency: a one-page pattern can still be a real component (e.g. a
+contact form) — include it, flag `frequency: 1`. But first check it isn't just a
+**view** of a type you already have.
 
 ---
 
