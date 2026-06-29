@@ -38,7 +38,7 @@ right, in the right workspace, against the real source."**
 - [x] **publish-parity.sh** *(DONE — wired into the content step + AGENTS publish-completeness rule)* — every weakreference (images, linknodes) and every
   i18n property on published content resolves in **LIVE** for each language.
   Catches: unpublished DAM, the `languages:[fr]` gap, stubborn 404 files.
-- [ ] **edit-frame.sh `<page>`** — load `/cms/editframe/...`; each shared region
+- [x] **edit-frame.sh `<page>`** *(DONE — wired into content step; verified PASS on supercar home)* — load `/cms/editframe/...`; each shared region
   (header/nav/footer) and each listing renders non-empty AND shows editable
   markers. Catches: AbsoluteArea-needs-children, blank footer in Page Builder.
 - [ ] **fidelity-live.sh** — diff against the **live** reference via browser
@@ -106,6 +106,6 @@ right, in the right workspace, against the real source."**
 3. ~~`publish-parity.sh` + the `languages:[…]` publish rule~~ ✅ **done** (probe +
    wired into content step; verified PASS on supercar: 22 weakrefs, 0 broken)
 4. ~~browser-first `capture-reference` skill~~ ✅ **done**
-5. `edit-frame.sh` ← **next**
-6. `fidelity-live.sh` replacing `fidelity.sh`
+5. ~~`edit-frame.sh`~~ ✅ **done**
+6. `fidelity-live.sh` replacing `fidelity.sh` ← **next**
 7. decompose loop steps + `no-stub` gate
