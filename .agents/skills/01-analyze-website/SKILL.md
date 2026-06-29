@@ -637,7 +637,7 @@ Store this corpus as `/tmp/section-corpus.json`:
 For every corpus block, list the fields a **contributor** would edit (not the markup):
 - text / heading / rich text → `string` / `text` / `richtext`
 - image → `weakreference` (`< jmix:image`)
-- link or button → `j:linkType` (`linkTypeInitializer`)
+- link, button, **or a media URL (video / audio / file)** → `j:linkType` (`linkTypeInitializer`) — never a custom `url`/`videoUrl` string field. A video embed is just a contributor link; the view parses the `j:url` (e.g. YouTube id → iframe).
 - repeated sub-items → a child node type
 - tags/categories → built-in `jmix:tagged` / `j:defaultCategory` (never custom fields)
 

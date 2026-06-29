@@ -29,10 +29,16 @@ for f in glob.glob(os.path.join(src, "**", "*.cnd"), recursive=True):
             cur = m.group(1); types.setdefault(cur, [])
             continue
         if cur is None: continue
-        p = re.match(r"\s*-\s*([A-Za-z][A-Za-z0-9_]*)\s*\(", line)   # a property (not + child node)
+        # a DECLARED property line: "- name (..." or "- j:linkType (..."
+        p = re.match(r"\s*-\s*([A-Za-z][A-Za-z0-9_:]*)\s*\(", line)
         if p:
             name = p.group(1)
-            if name.startswith(("j:", "jcr:")): continue            # skip system props
+            # skip only true system props. A DECLARED contributor field like
+            # `j:linkType` (the linkTypeInitializer pattern — used for video/media
+            # URLs too) is part of the data shape and DOES distinguish a type.
+            # Injected props (j:url, j:linknode, j:defaultCategory, j:tagList) are
+            # added by mixins and never appear in CND text, so they aren't seen.
+            if name.startswith("jcr:") or name == "j:nodename": continue
             types[cur].append(name)
 
 # only consider this module's namespace when given
