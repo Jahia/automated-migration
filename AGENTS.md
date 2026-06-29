@@ -49,6 +49,17 @@ projects. **Every run targets exactly one project**, given to you in the step
   Jahia returns `Permission denied` even with correct credentials.
 - Writes go to the `default` workspace; live visitors read `live`. **Always
   publish after a mutation**, then verify against the `live` render.
+- **Publish completeness** (a publish returning `true` ≠ visible on live):
+  - i18n content (jcr:title, rich text, link targets) only reaches live when you
+    publish **WITH** the language — `publish(languages:["<lang>"], publishSubNodes:true)`
+    / MCP `"languages":["<lang>"]`. Omit it and EDIT updates while LIVE stays stale.
+  - Publishing a page does NOT publish the DAM images / linked nodes / categories
+    it references by weakreference — publish those too (`/sites/<site>/files`,
+    `/sites/systemsite/categories`), or the reference resolves to null and the
+    asset silently never renders.
+  - Prove it with `bash orchestration/probes/publish-parity.sh <project_path> <site> <langs>`
+    — fails on any weakref that doesn't resolve in LIVE or any translation
+    present in EDIT but missing in LIVE.
 
 ---
 
