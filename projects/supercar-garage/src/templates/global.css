@@ -328,6 +328,85 @@ header {
   margin: 0 auto !important;
 }
 
+/* ── News cards (usg:newsArticle default view, listed by jcrQuery) ──
+   The card uses SXA `.search-result-item` markup that has NO styling outside the
+   SXA search container, so it renders as bare text. Give it self-contained card
+   styling (dark theme), working with or without a cover image. */
+.search-result-item {
+  background: #111110;
+  border: 1px solid #2a2a28;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.search-result-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.5);
+}
+.search-result-item .search-result-link {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: #ffffff !important;
+  text-decoration: none;
+}
+.search-result-item .labels {
+  display: flex;
+  flex-direction: column;
+}
+.search-result-item .labels img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+.search-result-item .labels > div {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 1.6rem 1.6rem 0;
+}
+.search-result-item .label-type,
+.search-result-item .label-theme {
+  background: var(--secondary-color);
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.search-result-item .label-theme {
+  background: transparent;
+  border: 1px solid var(--secondary-color);
+  color: var(--secondary-color);
+}
+.search-result-item time {
+  display: block;
+  padding: 1.4rem 1.6rem 0;
+  color: #9a9a98 !important;
+  font-size: 1.3rem;
+}
+.search-result-item .field-title {
+  padding: 0.6rem 1.6rem;
+  font-size: 1.9rem;
+  line-height: 1.25;
+  color: #ffffff;
+}
+.search-result-item .field-description {
+  padding: 0 1.6rem 1.2rem;
+  color: #c9c9c7 !important;
+  font-size: 1.4rem;
+  flex: 1 1 auto;
+}
+.search-result-item > .search-result-link > .text-muted {
+  padding: 0 1.6rem 1.6rem;
+  color: #8a8a88 !important;
+  font-size: 1.3rem;
+}
+
 a {
   color: #06a;
 }
