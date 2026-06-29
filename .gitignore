@@ -11,3 +11,6 @@
 
 # Maven build output (never commit compiled artifacts)
 **/target/
+
+# Probe output (fidelity/render screenshots)
+orchestration/artifacts/

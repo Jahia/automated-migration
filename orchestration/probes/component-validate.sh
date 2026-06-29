@@ -118,7 +118,10 @@ for line in open(cnd, encoding="utf-8", errors="ignore"):
     mp = re.match(r"-\s*([\w:]+)\s*\(", s)
     if mp and cur:
         prop = mp.group(1)
-        if prop.startswith("jcr:") or prop in ("j:nodename",):
+        # Exempt fields Jahia labels itself (same set cnd-review exempts):
+        # jcr:* / j:* (incl. j:linkType via linkTypeInitializer, j:subNodesView,
+        # j:linknode) and the startNode/excludeNodes query-root plumbing fields.
+        if prop.startswith("jcr:") or prop.startswith("j:") or prop in ("startNode", "excludeNodes"):
             continue
         k = f"{cur}.{key(prop)}="
         for blob, lab in ((en, "en"), (fr, "fr")):

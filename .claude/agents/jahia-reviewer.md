@@ -23,12 +23,13 @@ Run each from the repo root and record PASS/FAIL + the key line of output:
 bash orchestration/probes/cnd-review.sh   <project_path>                       # CND best-practice antipatterns
 bash orchestration/probes/cnd-patterns.sh <project_path> <namespace>           # migration CND rules
 bash orchestration/probes/no-stub.sh      <project_path> <namespace>           # no stubbed/empty views
+bash orchestration/probes/components-all.sh <project_path> <namespace>         # per-component: source paired + no-stub + en/fr i18n, names any incomplete one
 bash orchestration/probes/render-all.sh   <project_path> <site> <lang> <@sitemap>   # every page renders clean
 bash orchestration/probes/publish-parity.sh <project_path> <site> <lang>       # assets + translations live
 bash orchestration/probes/edit-frame.sh   <project_path> <site> <lang> home    # shared regions editable in Page Builder
 bash orchestration/probes/site-review.sh  <project_path> <site> <lang> <@sitemap>   # a11y + SEO
-# per page, JS-rendered fidelity vs the captured reference DOM:
-bash orchestration/probes/fidelity-live.sh projects/<p>/.reference/captured/<slug>.html <live_page_url>   # sections + cards + facets
+# JS-rendered fidelity for EVERY page vs its captured reference DOM (loops fidelity-live):
+bash orchestration/probes/fidelity-all.sh  <project_path> <site> <lang> <@sitemap>   # sections + cards + facets per page
 ```
 
 Any non-zero exit = a FAIL finding. Do **not** rationalize a failure away.

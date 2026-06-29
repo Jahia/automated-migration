@@ -1,0 +1,69 @@
+# Le Salon de la Photo - target sitemap - paths relative to /sites/lesalondelaphoto/home
+# Source: https://www.lesalondelaphoto.com/sitemap.xml (fr-FR tree).
+# NODE NAMES ARE LOWERCASE: Jahia lowercases jnt:page node names on create.
+# STRUCTURAL PAGES ONLY. News articles (actualite-photo/actus/*, agenda-photo/*) and
+# press releases (presse-createur-contenus/communiques-dossiers-presse/cp-*) are
+# jmix:mainResource CONTENT, created in the content step and listed via jcrQuery - NOT pages.
+# Legal/utility (cookies, mentions-legales-et-cgu, plan-du-site, protection-donnees) and
+# campagnes/* are deferred to vanity URLs / content. Gate 1 (analyze) confirms this tree.
+home
+
+# --- actualite-photo ---
+actualite-photo
+actualite-photo/actus
+actualite-photo/agenda-photo
+
+# --- animations-ateliers ---
+animations-ateliers
+animations-ateliers/animations
+animations-ateliers/animations/foire-internationale-de-bievres
+animations-ateliers/animations/lectures-portfolio
+animations-ateliers/animations/photos-spots
+animations-ateliers/animations/world-premiere
+animations-ateliers/expositions-photos
+animations-ateliers/expositions-photos/grande-expo
+animations-ateliers/expositions-photos/zooms
+animations-ateliers/programme-salon
+animations-ateliers/rencontres-photo
+animations-ateliers/rencontres-photo/forum-pros
+
+# --- billetterie ---
+billetterie
+
+# --- exposants ---
+exposants
+exposants/boostez-visibilite
+exposants/contacts
+exposants/offres-stands
+exposants/participation-reussie
+exposants/salon
+exposants/salon/faq
+exposants/salon/offre-salon
+exposants/salon/rse
+
+# --- infos-pratiques ---
+infos-pratiques
+infos-pratiques/catalogue
+infos-pratiques/comment-venir-au-salon
+infos-pratiques/dates-acces-horaires
+infos-pratiques/faq
+infos-pratiques/photo-pass
+
+# --- presse-createur-contenus ---
+presse-createur-contenus
+presse-createur-contenus/accreditation
+presse-createur-contenus/communiques-dossiers-presse
+presse-createur-contenus/kit-media
+
+# --- salon ---
+salon
+salon/a-propos
+salon/partenaires
+salon/profil-visiteur
+salon/profil-visiteur/amateur-averti
+salon/profil-visiteur/createur-contenus
+salon/profil-visiteur/professionnel
+salon/qui-expose
+salon/qui-visite
+salon/rse
+salon/rse/souffleurs-de-sens

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# fidelity.sh — DEPRECATED (curl/static, headings-only). Superseded by
+# fidelity-all.sh (loops fidelity-live.sh, JS-rendered both sides). It passed
+# visually-wrong pages once JS ran, so it is NO LONGER wired into any plan step.
+# Kept only as a no-browser fallback. Do not re-wire it; use fidelity-all.sh.
+#
 # fidelity.sh — ANTI-HALLUCINATION gate.
 #
 # The agent must not *claim* a page "looks like the original". This probe PROVES
