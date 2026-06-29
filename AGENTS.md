@@ -287,7 +287,15 @@ All under `orchestration/probes/`, run from repo root:
 | `deploy.sh <project_path>` | build + `yarn jahia-deploy` succeed |
 | `content.sh <project_path> <site> <lang> <page1,page2,...>` | each page's LIVE `<main>` text > 400 chars |
 | `fidelity.sh <reference.mhtml\|html> <live_url> [min_pct]` | **ANTI-HALLUCINATION** — every reference section heading is present in the local render, and the card/list count isn't far below the reference. Proves "looks like the original" instead of claiming it |
+| `render-truth.sh <url> [--edit]` | **OBSERVABLE RENDER** (headless) — fails on broken images (`naturalWidth=0`), content stuck at `opacity:0` after scroll, collapsed shared regions, playerless video. Saves a screenshot. `--edit` for the Page Builder frame |
+| `render-all.sh <project_path> <site> <lang> <pages\|@sitemap>` | render-truth over EVERY page — the per-page render gate (run at each page creation, not at the end) |
+| `publish-parity.sh <project_path> <site> [langs]` | **PUBLISH COMPLETENESS** — every weakref'd asset resolves in LIVE + every translation present in EDIT is published (catches unpublished DAM + the `languages:[...]` gap) |
+| `edit-frame.sh <project_path> <site> <lang> [page]` | shared regions (nav/footer/topbar) render AND are editable in Page Builder, not blank (AbsoluteArea-needs-children) |
+| `cnd-review.sh <project_path>` | **CND quality** (agentic `check-cnd.mjs`) — best-practice antipatterns with file:line; complements `cnd-patterns.sh` |
+| `site-review.sh <project_path> <site> <lang> <pages\|@sitemap>` | **a11y + SEO** (agentic `review-pages.mjs`, axe-core) — scores each page, fails on critical/serious a11y or missing SEO baseline |
 | `artifact.sh <file> [forbidden_regex]` | output file exists (and lacks a forbidden pattern, e.g. `critical`) |
+
+> `render-truth`/`render-all`/`publish-parity`/`edit-frame` come from the migration-harness retro; `cnd-review`/`site-review` are agentic gates (`check-cnd.mjs` / `review-pages.mjs`) — see `.agents/AGENTIC-SYNC.md`. For CND authoring, prefer the `jahia-cnd-author` skill (loads the 9 `references/cnd-*.md` docs) and validate with `cnd-review.sh` until clean.
 
 If a probe is wrong for a project, fix the probe script (it is versioned) rather
 than skipping verification.
