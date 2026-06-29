@@ -85,7 +85,7 @@ for line in open(cnd, encoding="utf-8", errors="ignore"):
     if mt and mt.group(1).startswith(ns):
         cur = f"{mt.group(1)}_{mt.group(2)}"
         for blob, lab in ((en, "en"), (fr, "fr")):
-            if f"{cur}=" not in blob:
+            if not re.search(rf'\b{re.escape(cur)}\s*=', blob):
                 missing.append(f"[{lab}] type label {cur}")
         continue
     if mt:
@@ -100,9 +100,9 @@ for line in open(cnd, encoding="utf-8", errors="ignore"):
         #  - startNode / excludeNodes — query-root plumbing on listing components
         if prop.startswith("jcr:") or prop.startswith("j:") or prop in ("startNode", "excludeNodes"):
             continue
-        k = f"{cur}.{key(prop)}="
+        k = f"{cur}.{key(prop)}"
         for blob, lab in ((en, "en"), (fr, "fr")):
-            if k not in blob:
+            if not re.search(rf'\b{re.escape(k)}\s*=', blob):
                 missing.append(f"[{lab}] {cur}.{prop}")
 print("; ".join(missing))
 PY

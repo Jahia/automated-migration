@@ -346,45 +346,40 @@ A `fullPage` view that is missing or broken will show a blank page when editors 
 
 ---
 
-## Validation gate — one component at a time (MANDATORY)
+## Validation gate (MANDATORY) — the build-time gate is `components-all.sh`
 
-A component is **not done until it passes its full probe**, and you do **not** start the
-next component until it does. After adding/modifying any component (CND, view, resource
-bundle, or content), run from the repo root:
+At THIS step there is **no content/pages and the module is not deployed yet** (deploy is the
+next epic, content the one after). So the gate here is the **build-time** check that loops
+**every** component and FAILS naming any that is stubbed, viewless, or missing an en/fr label —
+so a "29/32 stubbed, build still green" can never pass. Implement components ONE at a time
+(never batch-stub then build at the end), then run from the repo root:
 
 ```
-orchestration/probes/component-validate.sh <project_path> <namespace> <ComponentDir> <smoke_page> <site_key> <lang>
-# e.g. orchestration/probes/component-validate.sh projects/sial-paris sialp WhitePaper tendances/livres-blancs sial-paris fr
+orchestration/probes/components-all.sh <project_path> <namespace>
+# e.g. orchestration/probes/components-all.sh projects/lesalondelaphoto lsp
 ```
 
-It runs the whole chain and exits non-zero on any failure: **source present → no duplicate
-default-view (the crash that 404s the whole site) → CND patterns for that component → en+fr
-resource keys for the type and every property → build → deploy → bundle ACTIVE → a non-home
-page renders HTTP 200 → engine log free of `already exist`**.
+It runs the per-component checks — **source pairing** (every CND has a view) → **no-stub**
+(each view emits real JSX) → **en+fr i18n** for the type and each own-namespace property — over
+the full set, then builds the module once. Fix every component it names before the step is done.
 
-- Always pass a real `smoke_page` that uses the component and the `site_key`. The render
-  smoke on a **non-home** page is what catches a duplicate-view/registration crash (home
-  alone keeps rendering and hides it).
 - One default view per (nodeType): a second `jahiaComponent({componentType:'view', nodeType})`
   with no distinct `name:` throws `already exist` at module load and breaks every page using
   a not-yet-registered template. `grep -rn "nodeType: 'ns:foo'" src/` before adding a view.
 
-### End-of-step backstop — every component at once
+### `component-validate.sh` is a POST-CONTENT gate — NOT for this step
 
-`component-validate.sh` proves ONE component (incl. deploy + render). Before declaring the
-whole step done, run the cheap batch gate that loops **every** component and FAILS naming any
-that is stubbed, viewless, or missing an en/fr label — so a "29/32 stubbed, build still green"
-can never pass:
+`component-validate.sh <project> <ns> <ComponentDir> <smoke_page> <site> <lang>` runs the FULL
+chain including **deploy + a non-home page render (HTTP 200)**. That render smoke is what catches
+a duplicate-view/registration crash (home alone hides it) — **but it needs the module deployed
+AND a real page that uses the component**. Neither exists at the components step, so it will
+404 here. Use it **after** the deploy + content steps, to validate or debug one deployed
+component against a live page:
 
 ```
-orchestration/probes/components-all.sh <project_path> <namespace>
-# e.g. orchestration/probes/components-all.sh projects/supercar-garage usg
+# AFTER content exists:
+orchestration/probes/component-validate.sh projects/sial-paris sialp WhitePaper tendances/livres-blancs sial-paris fr
 ```
-
-It runs the per-component checks (source pairing → no-stub → en+fr i18n for the type and each
-own-namespace property) over the full set, then builds the module once. It is strictly stronger
-than the old `build.sh` + `no-stub.sh` pair and replaces them as this step's gate. It does NOT
-deploy — keep using `component-validate.sh` per component while you iterate.
 
 ---
 
