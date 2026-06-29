@@ -291,6 +291,7 @@ All under `orchestration/probes/`, run from repo root:
 | `render-all.sh <project_path> <site> <lang> <pages\|@sitemap>` | render-truth over EVERY page — the per-page render gate (run at each page creation, not at the end) |
 | `publish-parity.sh <project_path> <site> [langs]` | **PUBLISH COMPLETENESS** — every weakref'd asset resolves in LIVE + every translation present in EDIT is published (catches unpublished DAM + the `languages:[...]` gap) |
 | `edit-frame.sh <project_path> <site> <lang> [page]` | shared regions (nav/footer/topbar) render AND are editable in Page Builder, not blank (AbsoluteArea-needs-children) |
+| `no-stub.sh <project_path> [namespace]` | **NO STUBS** — every `*.server.tsx` view emits real markup (no TODO/placeholder/null-only shells), and every CND type has a registered view. Catches the loop generating shells it never fills (the supercar 29/32-stub fiasco) |
 | `cnd-review.sh <project_path>` | **CND quality** (agentic `check-cnd.mjs`) — best-practice antipatterns with file:line; complements `cnd-patterns.sh` |
 | `site-review.sh <project_path> <site> <lang> <pages\|@sitemap>` | **a11y + SEO** (agentic `review-pages.mjs`, axe-core) — scores each page, fails on critical/serious a11y or missing SEO baseline |
 | `artifact.sh <file> [forbidden_regex]` | output file exists (and lacks a forbidden pattern, e.g. `critical`) |
