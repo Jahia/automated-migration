@@ -35,7 +35,7 @@ right, in the right workspace, against the real source."**
   `<iframe>`/`<video>`, a collapsed shared region; WARN on low contrast. Saves a
   screenshot artifact. Catches: reveal, transparent/0-height header, broken/tiny
   images, missing video, dark-on-dark.
-- [ ] **publish-parity.sh** — every weakreference (images, linknodes) and every
+- [x] **publish-parity.sh** *(DONE — wired into the content step + AGENTS publish-completeness rule)* — every weakreference (images, linknodes) and every
   i18n property on published content resolves in **LIVE** for each language.
   Catches: unpublished DAM, the `languages:[fr]` gap, stubborn 404 files.
 - [ ] **edit-frame.sh `<page>`** — load `/cms/editframe/...`; each shared region
