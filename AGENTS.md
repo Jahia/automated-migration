@@ -193,12 +193,21 @@ be your diff tool. Follow this every step:
    screenshot. **Forcing one DOM element open, measuring one number, or your own
    narration is NOT verification.** If you didn't measure it, say "not verified".
 
-3. **Run the fidelity gate per page.** A page is not done until
-   `fidelity.sh <reference_url> <live_url>` passes — pass the **original URL** and
-   the probe captures it for you; only pass a saved file when the original is
-   bot-protected/gated. It checks every reference section heading is present
-   locally and card/list counts aren't far below the reference — catching a whole
-   section silently missing (a video block, a card listing rendered as plain text).
+3. **Run BOTH per-page gates — content fidelity AND render truth.** A page is not
+   done until both exit 0:
+   - `fidelity.sh <reference_url> <live_url>` — every reference section heading is
+     present locally and card/list counts aren't far below the reference (catches
+     a whole section silently missing). Pass the **original URL** (the probe
+     captures it); only pass a saved file when the original is bot-protected.
+   - `render-truth.sh <live_url>` — loads the page in a headless browser, scrolls
+     through it, and FAILS on render-only defects that counts/grep cannot see:
+     broken images (`naturalWidth==0`), content stuck hidden (`opacity:0` after
+     scroll = a scroll-reveal with no JS), collapsed shared regions (a header/
+     footer at 0 height), and video sections with no working `<iframe>`/`<video>`
+     player (`<video><source type="video/youtube">` never plays). It writes a
+     screenshot artifact. Run it on a `/cms/editframe/...` URL with `--edit` to
+     verify shared regions render in Page Builder too. **A passing build or a
+     non-zero grep count is NOT a substitute for this gate.**
 
 4. **Verify on the surface that actually tells the truth:**
    - Smoke-render a **non-home** page — home alone masks site-wide registration
