@@ -38,6 +38,15 @@ query-content, import-from, build-component, create-template-set, start-local),
 **we keep ours** — we are more advanced on those subjects. We do NOT fold the
 smaller agentic versions (or their nuggets) back in; our versions lead.
 
+### Local addition to `jahia-cnd-author/references/cnd-modeling-decisions.md`
+
+Appended a **"Layout / rendering variation: property vs view vs new type"**
+section: prefer a `choicelist` **layout property** (contributor flips it in
+Content Editor) for per-instance toggles (image left/right, columns, colour),
+a named **view** only for structurally different markup, a new **type** only for
+a different field set. Mirrored into `01-analyze` Step 3b/4b and AGENTS §2b (1b).
+Re-apply after re-sync.
+
 ### Local adaptation of `check-cnd.mjs`
 
 `jahia-dev-review-cnd/scripts/check-cnd.mjs` is locally adapted: the

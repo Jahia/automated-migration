@@ -146,10 +146,15 @@ NOT create a component per section. You map each section onto an existing
 Order of preference when fitting a discovered section:
 
 1. **Reuse an existing type as-is.** Same fields → same type. Just place a node.
-2. **Add a new view to an existing type.** Markup differs but the properties
-   match → add `<variant>.server.tsx` next to `default.server.tsx` and select it
-   with the node's view (e.g. `editorialBlock` already has `default`, `rightImg`,
-   `verticalImage`; `newsArticle` has `default`, `card`, `fullPage`). No CND change.
+1b. **Set a layout property** (best UX). If the section differs only by a
+   per-instance toggle (image left/right, columns, colour, size), the type should
+   carry a `(string, choicelist) < …` layout property the view branches on — the
+   contributor flips it in Content Editor. No new view, no new type. Prefer this.
+2. **Add a new view to an existing type.** Markup is **structurally** different
+   but the properties match → add `<variant>.server.tsx` next to
+   `default.server.tsx`, selected at placement (e.g. `newsArticle`: `default`,
+   `card`, `fullPage`). No CND change. (Use a view, not a property, only when the
+   markup truly diverges — not for a simple left/right flip.)
 3. **Extend an existing type** with an optional property only if a field is
    genuinely missing and the type is otherwise the right fit.
 4. **Create a new type** - last resort. Only when no existing type's property

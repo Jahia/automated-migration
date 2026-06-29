@@ -85,3 +85,29 @@ Views: [default / card / fullPage / small]
 Used where: [page area / content folder / child of <Parent>]
 Repeatable children: [no / yes: describe]
 ```
+
+## Layout / rendering variation: property vs view vs new type
+
+When sections look different but hold the **same data** (text + image left vs
+right, 1/2/3 columns, a colour/`variant`, a size), absorb the variation at the
+lowest level. **Always optimise for the contributor's UX.**
+
+| Lever | Use when the variation is… | Who controls it | Cost |
+|---|---|---|---|
+| **Layout property** (`(string, choicelist) < 'left','right'`) | a **per-instance toggle** an editor flips (image side, columns, colour, size, `displayMode`) | the **contributor**, in Content Editor, on the node | one field; view branches |
+| **Named view** (`x.server.tsx`) | **structurally different markup** for the same data (`card` vs `fullPage`, hero vs teaser) | the **integrator / template** at placement | one file; no CND change |
+| **New type** | the **data shape** genuinely differs (different fields) | operator-approved `halt` | a whole type |
+
+**Prefer the property.** A text+image-left/right block is **one type with an
+`imagePosition (string, choicelist) = 'left' < 'left','right'` property**, not two
+views and never two types — the editor sets it inline, sees the choice in the
+form, and never has to know about "views". Reach for a view only when the markup
+truly diverges; reach for a new type only when the fields differ.
+
+```cnd
+- imagePosition (string, choicelist) = 'left' autocreated < 'left', 'right'
+- columns (string, choicelist) = '3' autocreated < '1', '2', '3'
+- variant (string, choicelist) = 'default' autocreated < 'default', 'highlight'
+```
+The view reads it: `className={`block image-${imagePosition ?? 'left'}`}`. Give
+every such field an i18n label + `ui.tooltip` so the choice is self-explanatory.
