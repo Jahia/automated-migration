@@ -132,4 +132,52 @@ right, in the right workspace, against the real source."**
     `step_components`, the reviewer, and skill 07. Verified: PASS on supercar (32
     components), FAILS naming a stub/viewless/missing-i18n fixture. Same i18n
     `j:*`/query-root exemption applied to `component-validate.sh` so the two agree.
-11. ← **next (open, your call):** AIStartupKit branch `agentic-sync-0.4.0` — push done, PR/merge?
+11. (open, your call) AIStartupKit branch `agentic-sync-0.4.0` — push done, PR/merge?
+
+## Deploy-blocker findings (lesalondelaphoto, 2026-06-29) — the gates miss real install failures
+
+The module built clean and passed `cnd.sh` + `cnd-review.sh`, yet was **undeployable**.
+The Docker logs (`jcontent-8230:/usr/local/tomcat/logs/jahia.log`) revealed a CHAIN of
+**5 distinct CND/packaging faults**, each hidden behind a generic
+`InstallModule: Cannot install package.tgz = java.io.IOException`, then an OSGi
+`BundleException`. None were caught by the existing probes:
+
+1. **Missing namespace declarations** — a hand-built `definitions.cnd` lacked
+   `jcr`/`nt`/`mix`/`j`; `mix:title` as a *supertype* couldn't resolve. (The real
+   `npm init @jahia/module` scaffold includes the full header; our deterministic
+   scaffold must too.)
+2. **Self-referencing nodetype mixin** — declaring `<ns>mix:queryContent` AND
+   extending/referencing it = a `Require-Capability` on a type the bundle provides
+   → install fails. Use the built-in `jmix:mainResource`; `JcrQuery` `subnodetypes`
+   targets `jmix:mainResource`. (supercar's CND already documents this.)
+3. **Duplicate type definition** — `lsp:ctaButton` declared in both
+   `definitions.cnd` and a component dir → CND reader throws. (The skill-07 dedup
+   step the agent skipped.)
+4. **Choicelist property order** — `(string, choicelist) < 'a','b' = 'x'`
+   (constraints before default) is rejected; correct order is
+   `= 'x' autocreated < 'a','b'`.
+5. **Whitespace in a `subnodetypes` CSV** — `'jnt:page, jmix:mainResource'` (space
+   after comma) generated `Require-Capability (nodetypes= jmix:mainResource)` with a
+   leading space → never matches the provider → OSGi resolution fails. Must be
+   `'jnt:page,jmix:mainResource'` (no spaces).
+
+- [ ] **`cnd-deploy.sh` gate (HIGH VALUE)** — the cnd probes check antipatterns +
+  `yarn build`, but NEVER exercise Jahia's install-time CND parse + OSGi resolution.
+  Add a gate that actually deploys and asserts the bundle is **ACTIVE/registered as
+  a template set** (`site.template_sets` contains it) — run at `step_content_types`
+  or `step_deploy`, NOT only via `component-validate` (too late). This single gate
+  would have caught all 5 faults at the right step.
+- [ ] **`check-cnd.mjs` additions** — detect: duplicate type across files; choicelist
+  constraints-before-default; whitespace inside `subnodetypes=`/initializer CSVs;
+  a self-referencing `<ns>mix:*` used in its own `subnodetypes`. Cheap, static, would
+  have caught faults 2–5 pre-deploy.
+- [ ] **Deterministic scaffold must include the full namespace header**
+  (`jcr/nt/mix/j/jnt/jmix/<ns>/<ns>mix`) — the interactive `npm init` stalls the
+  agent, so the fallback scaffold (hand/script-built) must not omit it (fault 1).
+- [ ] **Wire site creation into the autonomous flow** — `site.create` (MCP) is an
+  interactive `00-migration-start` step the loop's `step_connect` skips, so every
+  pre-content render gate (`step_deploy /home`, content) 404s. `step_deploy` (or a
+  new step) should `site.create` the siteKey with the module's template set if absent.
+- [x] **Session reuse** — fresh `curl -u` per probe call blew the authenticated-visitor
+  license cap (77/25). Probes that hit Jahia must reuse one session cookie (login once,
+  reuse `JSESSIONID`), not auth per request. *(captured; helper TODO)*

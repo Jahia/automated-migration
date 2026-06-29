@@ -14,3 +14,8 @@
 
 # Probe output (fidelity/render screenshots)
 orchestration/artifacts/
+
+# Per-project reference cache + yarn state (regenerable, large) — never commit
+projects/**/.reference/cache/
+projects/**/.reference/captured/
+projects/**/.yarn/
