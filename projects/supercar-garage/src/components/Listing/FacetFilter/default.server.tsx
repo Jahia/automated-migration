@@ -5,27 +5,31 @@ import type { FacetFilterProps } from "./types.js";
 import styles from "./component.module.css";
 
 /**
- * Each entry in `facets` is a pipe-separated string:
- *   "field|label|searchResultsSignature|endpoint"
- * Example: "Themes-Actualites|Themes|allactus|/fr-FR/sxa/search/facets/"
- *
- * Fall back gracefully when any segment is missing.
+ * Each entry in `facets` is a pipe-separated string: "field|label|...".
+ * The field name decides which card attribute this dropdown filters:
+ *   contains "theme" → data-theme,  contains "type" → data-type.
+ * The dropdowns are populated client-side from the rendered news cards'
+ * `data-theme` / `data-type` attributes (set by the newsArticle card view),
+ * and filtering is a client-side show/hide of `.search-result-item` cards.
+ * This replaces the old SXA search facets, which had no backend in Jahia.
  */
 interface ParsedFacet {
   field: string;
   label: string;
-  sig: string;
-  endpoint: string;
+  attr: string;
 }
 
 function parseFacet(raw: string): ParsedFacet {
   const parts = raw.split("|");
-  return {
-    field: parts[0] ?? "",
-    label: parts[1] ?? parts[0] ?? "",
-    sig: parts[2] ?? "default",
-    endpoint: parts[3] ?? "/sxa/search/facets/",
-  };
+  const field = parts[0] ?? "";
+  const label = parts[1] ?? field;
+  const lower = field.toLowerCase();
+  const attr = lower.includes("theme")
+    ? "data-theme"
+    : lower.includes("type")
+      ? "data-type"
+      : `data-${lower.replace(/[^a-z0-9]/g, "-")}`;
+  return { field, label, attr };
 }
 
 jahiaComponent(
@@ -45,9 +49,6 @@ jahiaComponent(
       .filter((f) => typeof f === "string" && f.trim().length > 0)
       .map(parseFacet);
 
-    // Derive search signature from the first facet (all facets on the same bar share one sig).
-    const sig = parsed[0]?.sig ?? "default";
-
     if (isEdit) {
       return (
         <div className={`component facet-aggregated ${styles.editWrapper}`}>
@@ -60,9 +61,7 @@ jahiaComponent(
               {parsed.map((f) => (
                 <li key={f.field} className={styles.editItem}>
                   <code>{f.field}</code>
-                  {f.label && f.label !== f.field && (
-                    <span className={styles.editLabel}> — {f.label}</span>
-                  )}
+                  <span className={styles.editLabel}> → filtre par {f.attr}</span>
                 </li>
               ))}
             </ul>
@@ -75,70 +74,74 @@ jahiaComponent(
       <div className="component facet-aggregated filter-actu col-12 container-bp">
         <div className="component-content">
           {parsed.map((facet) => {
-            const dataProps = JSON.stringify({
-              endpoint: facet.endpoint,
-              f: facet.field,
-              searchResultsSignature: facet.sig,
-              emptyValueText: "",
-              sortOrder: "SortByNames",
-            });
-
-            const selectId = `facet-select-${facet.field.toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
-
+            const selectId = `facet-${facet.attr}`;
             return (
-              <div key={facet.field} className="col-md-3">
-                <div
-                  className={`component facet-dropdown facet-${facet.field.toLowerCase().replace(/[^a-z0-9]/g, "-")} facet-component`}
-                  data-properties={dataProps}
-                >
-                  <div className="component-content">
-                    <div className="facet-heading">
-                      <h4 className="facet-title">{facet.label}</h4>
-                      <span
-                        className="clear-filter"
-                        role="button"
-                        aria-label={t("facetFilter.clearFilter", { label: facet.label })}
-                      >
-                        x
-                      </span>
-                    </div>
-                    <div>
-                      <select
-                        className="facet-dropdown-select"
-                        id={selectId}
-                        name="DropDownOptions"
-                        aria-label={facet.label}
-                        style={{ color: "#ffffff", backgroundColor: "#080807" }}
-                      >
-                        <option value="">{facet.label}</option>
-                      </select>
-                    </div>
-                  </div>
+              <div key={facet.field} className="col-md-3 facet-dropdown">
+                <div className="facet-heading">
+                  <h4 className="facet-title">{facet.label}</h4>
                 </div>
+                <select
+                  className="facet-dropdown-select"
+                  id={selectId}
+                  data-filter-attr={facet.attr}
+                  aria-label={facet.label}
+                >
+                  <option value="">{facet.label}</option>
+                </select>
               </div>
             );
           })}
 
-          <div className="offset-md-3 col-md-3">
-            <div
-              className="component facet-summary"
-              data-properties={JSON.stringify({ searchResultsSignature: sig })}
-            >
-              <div className="component-content">
-                <div className="facet-heading">
-                  <h4 className="facet-title"></h4>
-                  <span className="clear-filter" role="button" aria-hidden="true">
-                    x
-                  </span>
-                </div>
-                <div className="facet-summary-placeholder"></div>
-                <div className="bottom-remove-filter">
-                  <button type="button">{t("facetFilter.reset")}</button>
-                </div>
-              </div>
-            </div>
+          <div className="col-md-3 facet-reset">
+            <button type="button" className="facet-reset-btn">
+              {t("facetFilter.reset")}
+            </button>
           </div>
         </div>
+
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+  function init(){
+    var selects = [].slice.call(document.querySelectorAll('.filter-actu select[data-filter-attr]'));
+    if(!selects.length) return;
+    var cards = [].slice.call(document.querySelectorAll('.search-result-item'));
+    if(!cards.length){ setTimeout(init,300); return; }
+    selects.forEach(function(sel){
+      if(sel.options.length>1) return; // already populated
+      var attr = sel.getAttribute('data-filter-attr');
+      var labelSel = attr === 'data-theme' ? '.label-theme' : '.label-type';
+      var map = {};
+      cards.forEach(function(c){
+        var v = c.getAttribute(attr); if(!v) return;
+        var el = c.querySelector(labelSel);
+        var lbl = (el && el.textContent.trim()) || v;
+        if(!map[v]) map[v] = { label: lbl, count: 0 };
+        map[v].count++;
+      });
+      Object.keys(map).sort().forEach(function(k){
+        var o = document.createElement('option');
+        o.value = k; o.textContent = map[k].label + ' (' + map[k].count + ')';
+        sel.appendChild(o);
+      });
+    });
+    function apply(){
+      cards.forEach(function(c){
+        var show = selects.every(function(sel){
+          var v = sel.value; if(!v) return true;
+          return c.getAttribute(sel.getAttribute('data-filter-attr')) === v;
+        });
+        c.style.display = show ? '' : 'none';
+      });
+    }
+    selects.forEach(function(sel){ sel.addEventListener('change', apply); });
+    var reset = document.querySelector('.filter-actu .facet-reset-btn');
+    if(reset) reset.addEventListener('click', function(){ selects.forEach(function(s){ s.value=''; }); apply(); });
+  }
+  if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
+})();`,
+          }}
+        />
       </div>
     );
   },

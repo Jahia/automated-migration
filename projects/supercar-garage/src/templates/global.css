@@ -407,6 +407,50 @@ header {
   font-size: 1.3rem;
 }
 
+/* ── Actualités filter bar (Thèmes / Type category dropdowns) ── */
+.filter-actu > .component-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-end;
+  padding: 1.5rem 0 2.5rem;
+}
+.filter-actu .facet-dropdown {
+  flex: 1 1 22rem;
+  min-width: 18rem;
+}
+.filter-actu .facet-title {
+  color: #ffffff;
+  font-size: 1.4rem;
+  margin: 0 0 0.5rem;
+}
+.filter-actu .facet-dropdown-select {
+  width: 100%;
+  background: #080807;
+  color: #ffffff;
+  border: 1px solid var(--secondary-color);
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+  font-size: 1.4rem;
+}
+.filter-actu .facet-reset {
+  flex: 0 0 auto;
+}
+.filter-actu .facet-reset-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+  border-radius: 999px;
+  padding: 0.9rem 1.8rem;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.filter-actu .facet-reset-btn:hover {
+  background: var(--secondary-color);
+  color: #ffffff;
+}
+
 a {
   color: #06a;
 }

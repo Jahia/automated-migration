@@ -3,8 +3,38 @@ import {
   jahiaComponent,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
-import { useTranslation } from "react-i18next";
 import type { NewsArticleProps } from "./types.js";
+
+interface Cat {
+  name: string;
+  title: string;
+}
+
+/** Read j:defaultCategory and split into theme vs type by the branch the
+ *  category lives in (actualites-themes / actualites-types). */
+function readCategories(node: JCRNodeWrapper): { theme?: Cat; type?: Cat } {
+  const out: { theme?: Cat; type?: Cat } = {};
+  try {
+    if (!node.hasProperty("j:defaultCategory")) return out;
+    const values = node.getProperty("j:defaultCategory").getValues();
+    for (let i = 0; i < values.length; i++) {
+      let cat: JCRNodeWrapper;
+      try {
+        cat = values[i].getNode() as JCRNodeWrapper;
+      } catch (_) {
+        continue;
+      }
+      const path = cat.getPath();
+      const title = cat.hasProperty("jcr:title")
+        ? cat.getProperty("jcr:title").getString()
+        : cat.getName();
+      const entry: Cat = { name: cat.getName(), title };
+      if (path.includes("actualites-themes")) out.theme = entry;
+      else if (path.includes("actualites-types")) out.type = entry;
+    }
+  } catch (_) {}
+  return out;
+}
 
 jahiaComponent(
   {
@@ -16,14 +46,14 @@ jahiaComponent(
     { "jcr:title": title, publishDate, image, summary, author }: NewsArticleProps,
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
-    const { t } = useTranslation();
     const cardUrl = buildNodeUrl(currentNode);
     const imageSrc = image ? buildNodeUrl(image) : undefined;
+    const { theme, type } = readCategories(currentNode);
 
     let formattedDate: string | undefined;
     if (publishDate) {
       try {
-        formattedDate = new Date(publishDate).toLocaleDateString(undefined, {
+        formattedDate = new Date(publishDate).toLocaleDateString("fr-FR", {
           year: "numeric",
           month: "long",
           day: "numeric",
@@ -33,36 +63,18 @@ jahiaComponent(
       }
     }
 
-    let tags: string[] = [];
-    try {
-      if (currentNode.hasProperty("j:tagList")) {
-        const tagValues = currentNode.getProperty("j:tagList").getValues();
-        for (let i = 0; i < tagValues.length; i++) {
-          tags.push(tagValues[i].getString());
-        }
-      }
-    } catch (_) {}
-
     return (
-      <article className="search-result-item">
+      <article
+        className="search-result-item"
+        data-theme={theme?.name ?? ""}
+        data-type={type?.name ?? ""}
+      >
         <a href={cardUrl} className="search-result-link">
           <div className="labels">
-            {imageSrc && (
-              <img
-                src={imageSrc}
-                alt={title ?? ""}
-                loading="lazy"
-              />
-            )}
+            {imageSrc && <img src={imageSrc} alt={title ?? ""} loading="lazy" />}
             <div>
-              <span className="label-type">
-                {t("newsArticle.badge")}
-              </span>
-              {tags.map((tag) => (
-                <span key={tag} className="label-theme">
-                  {tag}
-                </span>
-              ))}
+              {type && <span className="label-type">{type.title}</span>}
+              {theme && <span className="label-theme">{theme.title}</span>}
             </div>
           </div>
 
@@ -72,9 +84,7 @@ jahiaComponent(
             </time>
           )}
 
-          {title && (
-            <h3 className="field-title">{title}</h3>
-          )}
+          {title && <h3 className="field-title">{title}</h3>}
 
           {summary && (
             <div
@@ -83,9 +93,7 @@ jahiaComponent(
             />
           )}
 
-          {author && (
-            <p className="text-muted">{author}</p>
-          )}
+          {author && <p className="text-muted">{author}</p>}
         </a>
       </article>
     );
