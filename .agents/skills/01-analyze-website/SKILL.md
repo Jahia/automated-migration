@@ -652,9 +652,16 @@ markup variants in the group become **views**:
 | Across the corpus | Decision |
 |---|---|
 | same shape, same markup | one type, `default` view (+frequency) |
-| same shape, different markup/layout | one type, **add a named view** (`featured`, `compact`, `right`…) |
+| same shape, differs only by a **per-instance toggle** (image left/right, columns, colour, size) | one type + a **layout property** (`(string, choicelist) < 'left','right'`) the view branches on — **the contributor flips it in Content Editor.** Prefer this; it's the best UX. |
+| same shape, **structurally different markup** (card vs full page, hero vs teaser) | one type, **add a named view** (`card`, `featured`, `compact`…) chosen at placement |
 | shape is a superset (one extra field) | same type, make the extra field **optional** |
 | genuinely different field set | a different type |
+
+> Reach for a **layout property** before a view, and a view before a new type.
+> A text+image left/right block is ONE type with an `imagePosition` choicelist —
+> not two views, never two types. (See `jahia-cnd-author` →
+> `references/cnd-modeling-decisions.md`.) We always optimise for the
+> contributor's editing experience.
 
 ### 3c — name + frequency
 Name the type from its **role** (`Hero`, `EditorialBlock`, `NewsArticle`), never
@@ -693,7 +700,8 @@ Every component must have at least one view. Assign views based on how the compo
 |---|---|
 | Only appears inside a page area | `default` only |
 | Appears as a card in a listing AND has a full detail page | `default` (card) + `fullPage` (detail page) |
-| Appears in different visual sizes/layouts | `default` + named variant (e.g. `featured`, `compact`) |
+| Differs by a per-instance toggle (image side, columns, colour, size) | **no extra view** — add a `choicelist` **layout property** the `default` view branches on (contributor sets it inline) |
+| Structurally different markup for the same data | `default` + named variant (e.g. `featured`, `compact`) |
 | `jmix:mainResource` content | **Always** `default` + `fullPage` — no exceptions |
 
 Document for each component:
