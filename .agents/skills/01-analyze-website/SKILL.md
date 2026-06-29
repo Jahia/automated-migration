@@ -14,6 +14,13 @@ allowed-tools: Bash, Read, Write, WebFetch
 
 Turns a website into a structured Jahia component blueprint by clustering HTML patterns across the full page corpus — not just the home page.
 
+> ⚠️ **Capture from the live site FIRST (browser-first).** For JS-rendered or
+> WAF'd sites the wget/curl cache is only the static shell — listings, facet
+> values, full article bodies, the complete item list, and real image URLs are
+> NOT in it. Run **`/capture-reference`** (`.agents/skills/capture-reference/SKILL.md`)
+> before clustering/modelling, and build `content-data.json` from the captured
+> truth. Never fabricate content/titles/taxonomy/images from a partial cache.
+
 ---
 
 ## Agent identity
