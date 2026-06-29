@@ -27,12 +27,25 @@ site-review after deploy.
 204 — ours), `jahia-dev-import-from` (302 vs 244 — ours), `build-component`,
 `create-template-set`, `start-local` (small diffs).
 
-## Intentionally NOT mirrored into dev/
+## dev/ now mirrors ALL 18 agentic skills ("most complete")
 
-`create-view`, `create-page-template`, `debug`, `review` — jahiaMigration's
-numbered migration skills (`07-implement-components`, `08-page-templates`,
-`11-debug`, `10-review`, `support-create-view`) are the local, migration-tuned
-equivalents.
+`create-view`, `create-page-template`, `debug`, `review` were added so `dev/` is
+the complete, agnostic Jahia dev-knowledge reference. The numbered migration
+skills (`07-implement-components`, `08-page-templates`, `11-debug`, `10-review`,
+`support-create-view`) remain the migration **workflow** — they reference `dev/`.
+Where jahiaMigration's `dev/` version is bigger/better (accessibility,
+query-content, import-from, build-component, create-template-set, start-local),
+we keep ours. Agentic nuggets still to fold into ours next pass: the
+`@jahia-cnd-author` sub-agent invocation (build-component) and the MCP
+`site.create`/`site.list` flow (create-template-set, start-local).
+
+## Reviewer + gates (added after the supercar "fiasco")
+
+- **`.claude/agents/jahia-reviewer.md`** — adversarial reviewer agent: runs every
+  gate probe + reviews faithful-DOM/editability/content-fidelity/i18n, writes
+  `REVIEW.md`, APPROVE only when all green. Wired into the review step.
+- **`orchestration/probes/no-stub.sh`** — fails on stub/placeholder/null-only
+  views + viewless CND types. Wired into the components step + the review step.
 
 ## Convergence to watch (orchestration)
 
