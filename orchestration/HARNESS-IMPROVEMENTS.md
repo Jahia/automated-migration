@@ -73,8 +73,13 @@ right, in the right workspace, against the real source."**
   step's `PROBE:` asserts render-truth + publish-parity, not "build succeeded").
 - [ ] Decompose heavy steps (asset import, view implementation, content) into
   per-artifact units with per-artifact gates, so a stubbed 29/32 fails at once.
-- [ ] Per-page sign-off gate: render-truth + fidelity-live + publish-parity,
-  producing a screenshot-vs-reference artifact.
+- [x] **Render gate runs at EACH page/shell creation, not a final sweep** —
+  `render-all.sh` loops `render-truth` over every page; wired into the DEPLOY
+  step (shell `/home`) and the CONTENT step (`@sitemap`, per page) in
+  plan-template + supercar plan; AGENTS rule 3 + skill 09 DoD updated.
+- [ ] Per-page sign-off gate: also add fidelity-live + publish-parity to the
+  per-page loop (render-truth is in; the other two land with items 3 and 5),
+  producing a screenshot-vs-reference artifact per page.
 - [ ] Human visual checkpoints at milestones (after layout, after content), not
   only at the end.
 - [ ] Final **completeness-critic** pass: "does every declared artifact exist
