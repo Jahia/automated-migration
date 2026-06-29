@@ -358,3 +358,10 @@ A recurring migration mistake: modelling news/articles/events as child **pages**
 - An imported **SXA `facetFilter`** (dropdowns hitting `/sxa/search/...`) is a search UI with **no backend in Jahia** — it renders empty controls and never lists content. Don't treat it as a listing; pair the page with a real `jcrQuery` (the facet bar can stay as decoration or be removed).
 - Make the `jcrQuery` `type` picker usable by editors: `choicelist[subnodetypes='jmix:mainResource']` — NOT `subnodetypes='jnt:page'`, or editors can't select content types and the listing can only be wired by a developer via raw mutations.
 Symptom this prevents: "I have no news — structured content / jmix:mainResource ???"
+
+## Facet filters = Jahia categories, filtered client-side
+
+When the reference has "Thèmes / Type" facet dropdowns (SXA search), model them as **Jahia categories**, not SXA search (no backend). Categories are built in (`j:defaultCategory`, weakreference multiple — never declare in CND). Create a category tree with one branch per facet (e.g. `/sites/systemsite/categories/actualites-themes/*` and `/actualites-types/*`), categorize each content node with one value per branch, and:
+- In the content **card view**, read `j:defaultCategory`, split by which branch each category's path is under (theme vs type), render the real category title as the badge, AND emit `data-theme` / `data-type` attributes on the card root.
+- In the **filter component**, render one `<select>` per facet and a small inline script that populates each dropdown from the rendered cards' `data-*` values (label from the card badge text, with counts) and shows/hides `.search-result-item` cards on change (AND across selects) — plus a reset button. This reproduces the reference dropdowns (e.g. `Le salon (5)`, `Actualité (4)`, `Le saviez-vous ? (1)`) with no search backend.
+When migrating, get the real facet values + the full item list from the LIVE site via the browser (Chrome MCP, WAF fallback) — the SXA listing + facet counts load via JS and are NOT in the wget cache.
