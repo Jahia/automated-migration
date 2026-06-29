@@ -213,7 +213,7 @@ be your diff tool. Follow this every step:
    most is not in it. Use the **browser as the primary capture** (Chrome MCP:
    `navigate` + `get_page_text` + `javascript_tool`) per
    `.agents/skills/capture-reference/SKILL.md`, and save the captured truth to
-   `orchestration/reference/<project>/` *before* modelling or creating content.
+   `projects/<project>/.reference/` *before* modelling or creating content.
    Fabricating summaries / titles / taxonomy / images from a partial cache is the
    #1 source of wrong content. A human-provided saved copy (MHTML / paste) is a
    last-resort fallback. When even the browser can't reach a page, **`halt` and
