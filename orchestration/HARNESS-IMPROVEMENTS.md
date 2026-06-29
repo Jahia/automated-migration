@@ -107,5 +107,15 @@ right, in the right workspace, against the real source."**
    wired into content step; verified PASS on supercar: 22 weakrefs, 0 broken)
 4. ~~browser-first `capture-reference` skill~~ ✅ **done**
 5. ~~`edit-frame.sh`~~ ✅ **done**
-6. `fidelity-live.sh` replacing `fidelity.sh` ← **next**
-7. decompose loop steps + `no-stub` gate
+6. ~~`no-stub.sh` gate~~ ✅ **done** (wired into components + review steps)
+7. ~~agentic v0.4.0 sync~~ ✅ **done** — dev/ mirrors all 18 skills; cnd-author,
+   review-cnd→`cnd-review.sh`, site-review→`site-review.sh`, jcr-sql2; reviewer
+   agent; conventions; `.agents/agentic-sync.sh` + `AGENTIC-SYNC.md` (both repos)
+8. ~~analysis review~~ ✅ **done** — data-shape clustering (not markup),
+   `dup-shapes.sh` reuse/views gate, per-project agnostic `no-new-types` baseline,
+   browser-first + scrape-completeness, image-proxy for distant images,
+   layout-property (property>view>type) modeling lever
+9. `fidelity-live.sh` replacing the weak `fidelity.sh` ← **next probe**
+10. decompose loop heavy steps (assets / views / content) into **per-artifact**
+    units so a stub fails at once — last orchestration restructure
+11. (open, your call) AIStartupKit branch `agentic-sync-0.4.0` — push done, PR/merge?
