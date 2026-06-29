@@ -1,0 +1,4 @@
+[lsp:newsArticle] > jnt:content, lspmix:pageComponent, mix:title, jmix:mainResource, jmix:tagged, lspmix:media
+ - publishDate (date)
+ - summary (string) i18n
+ - body (string, richtext) i18n mandatory

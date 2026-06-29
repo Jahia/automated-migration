@@ -1,0 +1,16 @@
+// Auto-queries and renders content by type, as configurable cards.
+// jcr:title comes from mix:title - not declared explicitly.
+// jmix:renderableList is NOT used: it injects j:linknode/j:url and limits views to built-in ones.
+[lsp:jcrQuery] > jnt:content, lspmix:pageComponent, jmix:list, mix:title, jmix:cache
+ - type (string, choicelist[subnodetypes = 'jnt:page,jmix:mainResource', resourceBundle]) indexed=no mandatory
+ - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated indexed=no < 'jcr:created', 'jcr:lastModified', 'j:lastPublished'
+ - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated indexed=no < 'asc', 'desc'
+ - maxItems (long) indexed=no
+ - startNode (weakreference) indexed=no
+ - excludeNodes (weakreference) multiple indexed=no
+ - filter (weakreference, category[autoSelectParent=false]) multiple indexed=no
+ - noResultText (string) i18n indexed=no
+ - j:subNodesView (string, choicelist[templates=subnodes,resourceBundle,image,dependentProperties='type']) nofulltext indexed=no
+ - j:linkType (string, choicelist[linkTypeInitializer]) indexed=no
+ - loadMore (boolean) = false indexed=no
+ - categoryFilter (boolean) = false indexed=no

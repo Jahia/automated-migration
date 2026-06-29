@@ -1,0 +1,16 @@
+lsp:agendaItem
+lsp:cardGrid
+lsp:ctaButton
+lsp:editorialBlock
+lsp:externalEmbed
+lsp:footer
+lsp:footerLink
+lsp:gridRow
+lsp:hero
+lsp:heroCarousel
+lsp:jcrQuery
+lsp:mainNav
+lsp:newsArticle
+lsp:partnerCarousel
+lsp:partnerItem
+lsp:promoBlock

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<content
+  xmlns:j="http://www.jahia.org/jahia/1.0"
+  xmlns:jcr="http://www.jcp.org/jcr/1.0"
+  >
+  <modules jcr:primaryType="jnt:modules">
+    <lesalondelaphoto>
+      <home
+        j:isHomePage="true"
+        j:templateName="home"
+        jcr:primaryType="jnt:page"
+        >
+        <j:translation_en
+          jcr:language="en"
+          jcr:mixinTypes="mix:title"
+          jcr:primaryType="jnt:translation"
+          jcr:title="Home"
+          />
+        <j:translation_fr
+          jcr:language="fr"
+          jcr:mixinTypes="mix:title"
+          jcr:primaryType="jnt:translation"
+          jcr:title="Accueil"
+          />
+        <hero jcr:primaryType="jnt:content"/>
+        <main jcr:primaryType="jnt:content"/>
+      </home>
+
+      <contents jcr:primaryType="jnt:contentFolder">
+        <articles jcr:primaryType="jnt:contentFolder"
+          jcr:mixinTypes="jmix:contributeMode" j:contributeTypes="lsp:newsArticle">
+          <j:translation_en jcr:language="en" jcr:primaryType="jnt:translation" jcr:title="Articles"/>
+          <j:translation_fr jcr:language="fr" jcr:primaryType="jnt:translation" jcr:title="Articles"/>
+        </articles>
+        <agenda jcr:primaryType="jnt:contentFolder"
+          jcr:mixinTypes="jmix:contributeMode" j:contributeTypes="lsp:agendaItem">
+          <j:translation_en jcr:language="en" jcr:primaryType="jnt:translation" jcr:title="Agenda"/>
+          <j:translation_fr jcr:language="fr" jcr:primaryType="jnt:translation" jcr:title="Agenda"/>
+        </agenda>
+      </contents>
+
+      <drafts jcr:primaryType="jnt:page" j:templateName="basic"
+        jcr:mixinTypes="jmix:systemNameReadonly jmix:nolive">
+        <j:translation_en jcr:language="en" jcr:mixinTypes="mix:title"
+          jcr:primaryType="jnt:translation" jcr:title="Drafts"/>
+        <j:translation_fr jcr:language="fr" jcr:mixinTypes="mix:title"
+          jcr:primaryType="jnt:translation" jcr:title="Brouillons"/>
+      </drafts>
+
+    </lesalondelaphoto>
+  </modules>
+</content>
