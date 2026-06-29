@@ -882,3 +882,24 @@ already provides `j:defaultCategory`).
 ALWAYS verify the value persisted in **EDIT and LIVE** afterwards (`property(name:"j:defaultCategory"){values}`)
 — a "successful" MCP response is not proof the weakref stuck. This is the anti-hallucination
 rule in practice: prove it, don't trust the OK.
+
+## Definition of Done — render-gate EACH page as you create it
+
+Do NOT batch verification to the end. After you fill a page's content (and after
+the components on it are placed), **render-gate that page before moving to the
+next**:
+
+```bash
+bash orchestration/probes/render-truth.sh "$JAHIA_HOST/sites/<site>/<path>.html"
+```
+
+It fails on broken images, content stuck at `opacity:0`, collapsed regions, and
+playerless video — the defects that are invisible to char-count/grep checks. The
+whole-site gate (run before the step is done) is:
+
+```bash
+bash orchestration/probes/render-all.sh projects/<project> <site> <lang> @<sitemap>
+```
+
+A page is not "created" until it renders clean AND `fidelity.sh` (vs the live
+reference) passes. Catching a defect on page 1 must not wait until page 30.
