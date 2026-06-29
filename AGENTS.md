@@ -238,10 +238,13 @@ be your diff tool. Follow this every step:
    (loops `render-truth` over every page and fails on the first bad one); the
    deploy step render-gates the shell (`render-all ... /home`). A page is not done
    until both of these exit 0:
-   - `fidelity.sh <reference_url> <live_url>` — every reference section heading is
-     present locally and card/list counts aren't far below the reference (catches
-     a whole section silently missing). Pass the **original URL** (the probe
-     captures it); only pass a saved file when the original is bot-protected.
+   - `fidelity.sh <reference_url> <live_url>` — cheap curl pass: every reference
+     section heading is present locally and card/list counts aren't far below the
+     reference (catches a whole section silently missing). **For JS-rendered
+     content prefer `fidelity-live.sh <captured.html> <live_url>`** — it renders
+     both sides in a real browser and diffs sections + card counts + **facet
+     values**, against the persisted `.reference/captured/<slug>.html` (no WAF,
+     no re-fetch). curl-`fidelity.sh` is the static fallback.
    - `render-truth.sh <live_url>` — loads the page in a headless browser, scrolls
      through it, and FAILS on render-only defects that counts/grep cannot see:
      broken images (`naturalWidth==0`), content stuck hidden (`opacity:0` after
@@ -310,7 +313,8 @@ All under `orchestration/probes/`, run from repo root:
 | `templates.sh <project_path>` | Layout has >=2 `AbsoluteArea` (header+footer) |
 | `deploy.sh <project_path>` | build + `yarn jahia-deploy` succeed |
 | `content.sh <project_path> <site> <lang> <page1,page2,...>` | each page's LIVE `<main>` text > 400 chars |
-| `fidelity.sh <reference.mhtml\|html> <live_url> [min_pct]` | **ANTI-HALLUCINATION** — every reference section heading is present in the local render, and the card/list count isn't far below the reference. Proves "looks like the original" instead of claiming it |
+| `fidelity.sh <reference.mhtml\|html> <live_url> [min_pct]` | **ANTI-HALLUCINATION** (curl, static) — every reference section heading is present locally + card counts. The cheap first pass |
+| `fidelity-live.sh <referenceSrc> <live_url>` | **JS-rendered fidelity** — renders the local page AND a reference (the captured `.reference/captured/<slug>.html`, or a URL) in headless Chromium and diffs **sections + listing/card counts + facet values** (warns on image shortfall / reorder). Catches what curl-`fidelity.sh` can't once JS runs. Saves a ref-vs-local screenshot pair |
 | `render-truth.sh <url> [--edit]` | **OBSERVABLE RENDER** (headless) — fails on broken images (`naturalWidth=0`), content stuck at `opacity:0` after scroll, collapsed shared regions, playerless video. Saves a screenshot. `--edit` for the Page Builder frame |
 | `render-all.sh <project_path> <site> <lang> <pages\|@sitemap>` | render-truth over EVERY page — the per-page render gate (run at each page creation, not at the end) |
 | `publish-parity.sh <project_path> <site> [langs]` | **PUBLISH COMPLETENESS** — every weakref'd asset resolves in LIVE + every translation present in EDIT is published (catches unpublished DAM + the `languages:[...]` gap) |

@@ -41,7 +41,7 @@ right, in the right workspace, against the real source."**
 - [x] **edit-frame.sh `<page>`** *(DONE — wired into content step; verified PASS on supercar home)* — load `/cms/editframe/...`; each shared region
   (header/nav/footer) and each listing renders non-empty AND shows editable
   markers. Catches: AbsoluteArea-needs-children, blank footer in Page Builder.
-- [ ] **fidelity-live.sh** — diff against the **live** reference via browser
+- [x] **fidelity-live.sh** *(DONE — JS-rendered diff vs captured DOM; verified)* — diff against the **live** reference via browser
   (not cache): section order, card/item counts, facet values. Replaces the weak
   `fidelity.sh` (headings-only — passed visually-wrong pages).
 - [ ] **no-stub.sh** — every CND type has a non-trivial view (LOC/AST threshold,
@@ -115,7 +115,7 @@ right, in the right workspace, against the real source."**
    `dup-shapes.sh` reuse/views gate, per-project agnostic `no-new-types` baseline,
    browser-first + scrape-completeness, image-proxy for distant images,
    layout-property (property>view>type) modeling lever
-9. `fidelity-live.sh` replacing the weak `fidelity.sh` ← **next probe**
-10. decompose loop heavy steps (assets / views / content) into **per-artifact**
+9. ~~`fidelity-live.sh`~~ ✅ **done** — JS-rendered diff (sections+cards+facets) vs the captured reference DOM; reviewer + AGENTS rule 3 use it
+10. ← **next:** decompose loop heavy steps (assets / views / content) into **per-artifact**
     units so a stub fails at once — last orchestration restructure
 11. (open, your call) AIStartupKit branch `agentic-sync-0.4.0` — push done, PR/merge?
