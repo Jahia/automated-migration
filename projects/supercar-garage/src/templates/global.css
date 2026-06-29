@@ -407,13 +407,21 @@ header {
   font-size: 1.3rem;
 }
 
-/* ── Actualités filter bar (Thèmes / Type category dropdowns) ── */
+/* ── Actualités filter bar (Thèmes / Type category dropdowns) ──
+   Align the bar to the same content container as the news cards (the jcrQuery
+   `.wrapper`: max-width 1340px, centered, 1rem horizontal padding) so the
+   dropdowns line up horizontally with the cards below. */
+.filter-actu {
+  width: 100%;
+  max-width: 1340px;
+  margin: 0 auto;
+}
 .filter-actu > .component-content {
   display: flex;
   flex-wrap: wrap;
   gap: 1.5rem;
   align-items: flex-end;
-  padding: 1.5rem 0 2.5rem;
+  padding: 1.5rem 1rem 2.5rem;
 }
 .filter-actu .facet-dropdown {
   flex: 1 1 22rem;
