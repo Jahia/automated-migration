@@ -369,6 +369,23 @@ page renders HTTP 200 → engine log free of `already exist`**.
   with no distinct `name:` throws `already exist` at module load and breaks every page using
   a not-yet-registered template. `grep -rn "nodeType: 'ns:foo'" src/` before adding a view.
 
+### End-of-step backstop — every component at once
+
+`component-validate.sh` proves ONE component (incl. deploy + render). Before declaring the
+whole step done, run the cheap batch gate that loops **every** component and FAILS naming any
+that is stubbed, viewless, or missing an en/fr label — so a "29/32 stubbed, build still green"
+can never pass:
+
+```
+orchestration/probes/components-all.sh <project_path> <namespace>
+# e.g. orchestration/probes/components-all.sh projects/supercar-garage usg
+```
+
+It runs the per-component checks (source pairing → no-stub → en+fr i18n for the type and each
+own-namespace property) over the full set, then builds the module once. It is strictly stronger
+than the old `build.sh` + `no-stub.sh` pair and replaces them as this step's gate. It does NOT
+deploy — keep using `component-validate.sh` per component while you iterate.
+
 ---
 
 ## Content-type icons (jContent picker) — serving them in a JS module

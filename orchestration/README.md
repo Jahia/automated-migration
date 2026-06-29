@@ -5,6 +5,13 @@ This directory wires the jahiaMigration harness into the
 under a hardened, proof-driven engine instead of the in-repo `/migration-workflow`
 Conductor (which depended on the LLM choosing to respect it).
 
+> **Operator runbook:** to actually start the engine, author a plan from the
+> template, launch a run and answer its human gates, follow
+> [`.agents/skills/run-orchestration-loop/SKILL.md`](../.agents/skills/run-orchestration-loop/SKILL.md).
+> Engine setup, plan schema, and REST API are documented in the engine's own
+> [`README.md`](../../llm-orchestration-loop/README.md). **The engine listens on
+> port 8001** (matches `run.sh`'s `ORCH_URL`).
+
 ## Why this exists
 
 The loop's verifier runs whatever shell commands a step's agent returns in
@@ -39,7 +46,9 @@ orchestration/
     ├── templates.sh       # Layout has header+footer AbsoluteArea
     ├── deploy.sh          # build + yarn jahia-deploy
     ├── content.sh         # every page's LIVE <main> text > 400 chars (accepts @sitemap)
-    ├── fidelity.sh        # ANTI-HALLUCINATION: reference (mhtml/html) vs local render — every reference section heading present + card counts not far below; proves "looks like the original"
+    ├── fidelity-all.sh    # FIDELITY GATE (wired): loops fidelity-live over @sitemap, each page vs its captured reference DOM; the gate in step_visual_diff + reviewer
+    ├── fidelity-live.sh   # JS-rendered diff (sections+cards+facets) for ONE page vs captured .reference/captured/<slug>.html; called by fidelity-all
+    ├── fidelity.sh        # DEPRECATED (curl/static, headings-only) — superseded by fidelity-all/-live; no-browser fallback only
     ├── mcp.sh             # Jahia MCP server up with >=1 tool
     ├── inventory.sh       # list the module's content types + views (reuse catalog)
     ├── no-new-types.sh    # reuse guard: fail if a type appears outside the baseline

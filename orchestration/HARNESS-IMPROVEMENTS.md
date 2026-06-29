@@ -71,15 +71,25 @@ right, in the right workspace, against the real source."**
 
 - [ ] Swap build-only gates for the probes above as HARD per-step gates (a
   step's `PROBE:` asserts render-truth + publish-parity, not "build succeeded").
-- [ ] Decompose heavy steps (asset import, view implementation, content) into
+- [x] Decompose heavy steps (asset import, view implementation, content) into
   per-artifact units with per-artifact gates, so a stubbed 29/32 fails at once.
+  *(DONE — `components-all.sh`: loops every component, FAILS naming any stubbed /
+  viewless / unlabelled one, builds once. The loop engine (`run.sh` → external
+  port 8001, static plan) can't fan out a dynamic step per discovered component
+  without an engine change, so the within-repo fix is this batch per-component
+  gate + the §5a mandate to validate one component at a time via
+  `component-validate.sh`. Wired into `step_components` in plan-template + supercar
+  plan, the reviewer agent, and skill 07.)*
 - [x] **Render gate runs at EACH page/shell creation, not a final sweep** —
   `render-all.sh` loops `render-truth` over every page; wired into the DEPLOY
   step (shell `/home`) and the CONTENT step (`@sitemap`, per page) in
   plan-template + supercar plan; AGENTS rule 3 + skill 09 DoD updated.
-- [ ] Per-page sign-off gate: also add fidelity-live + publish-parity to the
-  per-page loop (render-truth is in; the other two land with items 3 and 5),
-  producing a screenshot-vs-reference artifact per page.
+- [x] Per-page sign-off gate: also add fidelity-live + publish-parity to the
+  per-page loop. *(DONE — `fidelity-all.sh` loops `fidelity-live` over `@sitemap`
+  (each page vs its captured reference DOM), wired into `step_visual_diff` +
+  the reviewer; `publish-parity.sh` is in the content step. `render-truth` per
+  page via `render-all`. fidelity-all FAILs if no page was captured, so it can't
+  pass on an empty capture.)*
 - [ ] Human visual checkpoints at milestones (after layout, after content), not
   only at the end.
 - [ ] Final **completeness-critic** pass: "does every declared artifact exist
@@ -116,6 +126,10 @@ right, in the right workspace, against the real source."**
    browser-first + scrape-completeness, image-proxy for distant images,
    layout-property (property>view>type) modeling lever
 9. ~~`fidelity-live.sh`~~ ✅ **done** — JS-rendered diff (sections+cards+facets) vs the captured reference DOM; reviewer + AGENTS rule 3 use it
-10. ← **next:** decompose loop heavy steps (assets / views / content) into **per-artifact**
-    units so a stub fails at once — last orchestration restructure
-11. (open, your call) AIStartupKit branch `agentic-sync-0.4.0` — push done, PR/merge?
+10. ~~decompose loop heavy steps into **per-artifact** units so a stub fails at once~~
+    ✅ **done** — `components-all.sh` per-component completeness gate (loops every
+    component, names any stub/viewless/unlabelled one, builds once); wired into
+    `step_components`, the reviewer, and skill 07. Verified: PASS on supercar (32
+    components), FAILS naming a stub/viewless/missing-i18n fixture. Same i18n
+    `j:*`/query-root exemption applied to `component-validate.sh` so the two agree.
+11. ← **next (open, your call):** AIStartupKit branch `agentic-sync-0.4.0` — push done, PR/merge?

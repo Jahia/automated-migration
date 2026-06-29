@@ -1,0 +1,102 @@
+{
+  "_README": "Template for a new migration run. Copy to plans/<PROJECT>.plan.json and replace every __PLACEHOLDER__. Then: bash orchestration/run.sh plans/<PROJECT>.plan.json. Placeholders: lesalondelaphoto (folder under projects/, e.g. acme), https://www.lesalondelaphoto.com/fr-FR (reference URL), lsp (CND namespace, e.g. acme), lspmix (e.g. acmemix), lesalondelaphoto (Jahia siteKey), fr (primary language, e.g. en), @orchestration/sitemaps/lesalondelaphoto.txt (comma-separated page slugs, home first), /Users/stephane/Runtimes/0.Modules/jahiaMigration (absolute path to jahiaMigration). Prereq: projects/lesalondelaphoto/.env must define JAHIA_USER, JAHIA_HOST, and JAHIA_MCP_TOKEN (gitignored). The structure mirrors plans/sial-paris.plan.json; keep the PROBE: lines verbatim.",
+  "goal": "Migrate https://www.lesalondelaphoto.com/fr-FR to a Jahia JS module (project: lesalondelaphoto, namespace lsp, siteKey lesalondelaphoto, language fr). Each step is proven by its PROBE command; a step is done only when the probe exits 0.",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+  "model": "deepseek/deepseek-v4-pro",
+  "github_repo": "smonier/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_foundation",
+      "title": "Foundation: connect + analyze",
+      "goal": "Confirm Jahia reachable and produce a complete component/content manifest.",
+      "review_config": { "max_review_rounds": 2, "auto_approve_on_max_rounds": true, "review_criteria": ["server reachable", "manifest + content-data exist", "scope reviewed (Gate 1)"] },
+      "stories": [
+        {
+          "id": "story_analyze",
+          "title": "Analyze the reference site",
+          "description": "Verify connectivity, then analyze https://www.lesalondelaphoto.com/fr-FR into a manifest and content data.",
+          "steps": [
+            { "id": "step_connect", "title": "Verify Jahia connection (Gate 0)", "task_type": "verify", "agent": "code", "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/00-migration-start/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/connect.sh projects/lesalondelaphoto"], "max_attempts": 2 },
+            { "id": "step_analyze", "title": "Analyze -> manifest (Gate 1: HALT)", "task_type": "analyze", "agent": "code", "depends_on": ["step_connect"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "siteUrl": "https://www.lesalondelaphoto.com/fr-FR", "namespace": "lsp", "mixNamespace": "lspmix", "skill": ".agents/skills/01-analyze-website/SKILL.md" }, "acceptance_criteria": ["Use the namespace provided in inputs (lsp / lspmix) for EVERY nodeType in component-manifest.json — do NOT invent a different prefix.", "Content with its own navigable URL (news/blog articles, press releases, events, products) are jmix:mainResource detail content types: needsMainResource:true with both a default (card) and fullPage view.", "BROWSER-FIRST CAPTURE (anti-hallucination): if the site is JS-rendered or behind a WAF, the wget cache is only the static shell. Per .agents/skills/capture-reference/SKILL.md, capture via the browser (Chrome MCP) each page's real rendered text, the COMPLETE item list, real image URLs, and facet/taxonomy values + counts, into projects/lesalondelaphoto/.reference/captured/. Build content-data.json from this captured truth — never fabricate summaries/titles/taxonomy/images.", "Write ALL 4 SKILL Step 8 outputs: analysis.md, component-manifest.json, content-data.json, asset-inventory.json.", "PROBE: bash orchestration/probes/analyze.sh projects/lesalondelaphoto", "Gate 1: present section map + field splits, return status halt."], "max_attempts": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_scaffold_assets",
+      "title": "Scaffold + assets",
+      "goal": "Scaffold module (namespace lsp) and import assets into static/.",
+      "review_config": { "max_review_rounds": 2, "auto_approve_on_max_rounds": true, "review_criteria": ["build clean", "namespace confirmed (Gate 2)", "Layout stylesheets exist", "CSS tokenized into :root theme vars (css-tokens gate)"] },
+      "stories": [
+        { "id": "story_scaffold", "title": "Scaffold the module", "description": "Create module namespace lsp; confirm build.", "depends_on": ["story_analyze"], "steps": [
+          { "id": "step_scaffold", "title": "Scaffold (Gate 2: HALT)", "task_type": "build", "agent": "code", "depends_on": ["step_analyze"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "moduleName": "lesalondelaphoto", "namespace": "lsp", "mixNamespace": "lspmix", "skill": ".agents/skills/02-scaffold-module/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/build.sh projects/lesalondelaphoto", "Gate 2: present structure + namespace, return status halt."], "max_attempts": 3 }
+        ] },
+        { "id": "story_assets", "title": "Import assets", "description": "Copy CSS/JS/fonts/images into static/.", "depends_on": ["story_scaffold"], "steps": [
+          { "id": "step_assets", "title": "Import assets", "task_type": "build", "agent": "code", "depends_on": ["step_scaffold"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/03-import-assets/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/assets.sh projects/lesalondelaphoto", "CSS is tokenized into :root theme vars + a site-theme mixin + Layout override wiring (re-theming needs no redeploy): PROBE: bash orchestration/probes/css-tokens.sh projects/lesalondelaphoto"], "max_attempts": 3 }
+        ] }
+      ]
+    },
+    {
+      "id": "epic_content_model",
+      "title": "Content model: types + navigation + listing",
+      "goal": "CND types, 3-level navigation, JCRQuery + GridRow in namespace lsp.",
+      "review_config": { "max_review_rounds": 2, "auto_approve_on_max_rounds": true, "review_criteria": ["types in definitions.cnd with en+fr labels + ui.tooltip", "nav 3 levels via Navigation Menu component", "JCRQuery + GridRow shipped; tags/categories use built-ins"] },
+      "stories": [
+        { "id": "story_content_types", "title": "Define content types", "description": "CND + types.ts for every manifest component, i18n labels + ui.tooltip.", "depends_on": ["story_assets"], "steps": [
+          { "id": "step_content_types", "title": "Define CND types", "task_type": "build", "agent": "code", "depends_on": ["step_assets"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "namespace": "lsp", "skill": ".agents/skills/04-define-content-types/SKILL.md" }, "acceptance_criteria": ["Use /jahia-cnd-author (loads the CND reference docs) for non-trivial modeling; weakreferences need a TYPE constraint (e.g. `< jmix:image`), not just a picker.", "PROBE: bash orchestration/probes/cnd.sh projects/lesalondelaphoto lsp", "PROBE: bash orchestration/probes/cnd-patterns.sh projects/lesalondelaphoto lsp", "PROBE: bash orchestration/probes/cnd-review.sh projects/lesalondelaphoto", "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/lesalondelaphoto lsp", "After Gate 1/types approval, write the per-project reuse baseline: PROBE: bash orchestration/probes/inventory.sh projects/lesalondelaphoto lsp --write projects/lesalondelaphoto/component-baseline.txt"], "max_attempts": 3 }
+        ] },
+        { "id": "story_navigation", "title": "3-level navigation", "description": "MainNavigation backed by JCR page tree, 3 levels.", "depends_on": ["story_content_types"], "steps": [
+          { "id": "step_navigation", "title": "Implement MainNavigation", "task_type": "build", "agent": "code", "depends_on": ["step_content_types"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/05-implement-navigation/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto Navigation"], "max_attempts": 3 }
+        ] },
+        { "id": "story_listing", "title": "JCRQuery + GridRow", "description": "Listing + grid layout components.", "depends_on": ["story_content_types"], "steps": [
+          { "id": "step_jcr_query", "title": "JCRQuery component", "task_type": "build", "agent": "code", "depends_on": ["step_content_types"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/06-implement-jcr-query/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto JCRQuery"], "max_attempts": 3 },
+          { "id": "step_grid_row", "title": "GridRow component", "task_type": "build", "agent": "code", "depends_on": ["step_jcr_query"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/06-implement-jcr-query/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto GridRow"], "max_attempts": 3 }
+        ] }
+      ]
+    },
+    {
+      "id": "epic_components_templates",
+      "title": "Components + templates + deploy",
+      "goal": "Implement all components verbatim, build templates, deploy ACTIVE.",
+      "review_config": { "max_review_rounds": 2, "auto_approve_on_max_rounds": true, "review_criteria": ["every component has a view + label", "Layout header+footer AbsoluteArea", "module ACTIVE; shell renders (Gate 3)"] },
+      "stories": [
+        { "id": "story_components", "title": "All components", "description": "Implement every manifest component with verbatim reference class names + i18n.", "depends_on": ["story_navigation", "story_listing"], "steps": [
+          { "id": "step_components", "title": "Implement components", "task_type": "build", "agent": "code", "depends_on": ["step_navigation", "step_grid_row"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/07-implement-components/SKILL.md" }, "acceptance_criteria": ["Implement and validate ONE component at a time — do NOT batch-stub every component then build at the end. After finishing each component, run its full per-component gate: PROBE: bash orchestration/probes/component-validate.sh projects/lesalondelaphoto lsp <ComponentDir> home lesalondelaphoto fr", "Per-component completeness gate over EVERY component (loops each, FAILS naming any stubbed / unlabelled / viewless component, builds the module once): PROBE: bash orchestration/probes/components-all.sh projects/lesalondelaphoto lsp"], "max_attempts": 3 }
+        ] },
+        { "id": "story_templates", "title": "Templates + deploy", "description": "Layout + page templates, then deploy.", "depends_on": ["story_components"], "steps": [
+          { "id": "step_templates", "title": "Layout + templates", "task_type": "build", "agent": "code", "depends_on": ["step_components"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/08-page-templates/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/templates.sh projects/lesalondelaphoto"], "max_attempts": 3 },
+          { "id": "step_deploy", "title": "Deploy (Gate 3: HALT)", "task_type": "build", "agent": "code", "depends_on": ["step_templates"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "skill": ".agents/skills/support-deploy/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/deploy.sh projects/lesalondelaphoto", "Render-gate the deployed shell (header/nav/footer must not be collapsed/broken): PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr /home", "Gate 3: present deployed shell screenshot, return status halt."], "max_attempts": 3 }
+        ] }
+      ]
+    },
+    {
+      "id": "epic_content_quality",
+      "title": "Content + review + accessibility",
+      "goal": "Create + publish all content, review, accessibility audit.",
+      "review_config": { "max_review_rounds": 3, "auto_approve_on_max_rounds": false, "review_criteria": ["every page live <main> > 400 chars", "review 0 critical (Gate 5)", "axe 0 critical/serious"] },
+      "stories": [
+        { "id": "story_content", "title": "Create + publish content", "description": "Create and publish all pages (@orchestration/sitemaps/lesalondelaphoto.txt) to live.", "depends_on": ["story_templates"], "steps": [
+          { "id": "step_content", "title": "Create content (Gate 4: HALT)", "task_type": "build", "agent": "code", "depends_on": ["step_deploy"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "siteKey": "lesalondelaphoto", "language": "fr", "pages": "@orchestration/sitemaps/lesalondelaphoto.txt", "transport": "jahia-mcp", "skill": ".agents/skills/09-create-content/SKILL.md" }, "acceptance_criteria": ["Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.", "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Import via MCP media.upload.url (consistent UUID), set the WEAKREFERENCE field (image/backgroundImage/logo/photo), clear any *ExternalUrl string. Canonical tools: orchestration/images/set_hero_refs.py and set_image_refs.py lesalondelaphoto lesalondelaphoto lsp. Capture source URLs via browser (site blocks the agent).", "PROBE: bash orchestration/probes/mcp.sh projects/lesalondelaphoto", "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt", "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp", "Render-gate EACH page as you finish it (do not defer to the end). The step is not done until every page renders clean: PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt", "Publish completeness: every weakref'd asset (image/logo/link/category) must resolve in LIVE and every translation must be published (publish WITH languages:[fr]): PROBE: bash orchestration/probes/publish-parity.sh projects/lesalondelaphoto lesalondelaphoto fr", "Editability: shared regions (nav/footer/topbar) must render AND be editable in Page Builder, not blank (AbsoluteAreas need child content nodes): PROBE: bash orchestration/probes/edit-frame.sh projects/lesalondelaphoto lesalondelaphoto fr home", "Quality: every page passes a11y (axe-core, no critical/serious) + SEO baseline (title, meta, single h1, img alt): PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt", "Reuse guard: content/page discovery must NOT add types beyond the approved per-project baseline (reuse a type or add a view instead): PROBE: bash orchestration/probes/no-new-types.sh projects/lesalondelaphoto lsp projects/lesalondelaphoto/component-baseline.txt", "Gate 4: present reference vs Jahia screenshots, return status halt."], "max_attempts": 3 }
+        ] },
+        { "id": "story_review", "title": "Review + accessibility", "description": "Code review + axe-core audit; write reports.", "depends_on": ["story_content"], "steps": [
+          { "id": "step_review", "title": "Code review (Gate 5: HALT)", "task_type": "review", "agent": "code", "depends_on": ["step_content"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "report": "projects/lesalondelaphoto/workflow-output/review/REVIEW.md", "skill": ".agents/skills/10-review/SKILL.md", "agentDef": ".claude/agents/jahia-reviewer.md" }, "acceptance_criteria": ["Use the jahia-reviewer agent (.claude/agents/jahia-reviewer.md): run ALL gate probes (no-stub, cnd-review, render-all, publish-parity, edit-frame, site-review) and review faithful-DOM/editability/content-fidelity/i18n; write REVIEW.md with a verdict. APPROVE only if every gate is green and no critical/major finding stands.", "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/review/REVIEW.md", "PROBE: bash orchestration/probes/no-stub.sh projects/lesalondelaphoto lsp", "PROBE: bash orchestration/probes/cnd-review.sh projects/lesalondelaphoto", "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/lesalondelaphoto lsp", "Reuse guard against the FROZEN baseline (do NOT re-write it here — it was frozen at step_content_types): PROBE: bash orchestration/probes/no-new-types.sh projects/lesalondelaphoto lsp projects/lesalondelaphoto/component-baseline.txt", "Gate 5: present findings, return status halt."], "max_attempts": 3 },
+          { "id": "step_accessibility", "title": "Accessibility audit", "task_type": "review", "agent": "code", "depends_on": ["step_review"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "report": "projects/lesalondelaphoto/workflow-output/a11y/A11Y.md", "skill": ".agents/skills/dev/jahia-dev-accessibility/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/a11y/A11Y.md \"critical|serious\""], "max_attempts": 3 }
+        ] }
+      ]
+    },
+    {
+      "id": "epic_fidelity_golive",
+      "title": "Visual diff + vanity URLs",
+      "goal": "Section-by-section visual diff with 0 critical gaps + vanity redirect map.",
+      "review_config": { "max_review_rounds": 2, "auto_approve_on_max_rounds": true, "review_criteria": ["fidelity-all green: every captured page matches the reference on sections + card counts + facets", "SUMMARY.md, 0 critical gaps", "redirect map generated"] },
+      "stories": [
+        { "id": "story_visual_diff", "title": "Visual diff", "description": "Screenshot reference vs Jahia per page; ISO punch list.", "depends_on": ["story_review"], "steps": [
+          { "id": "step_visual_diff", "title": "Visual diff", "task_type": "review", "agent": "code", "depends_on": ["step_accessibility"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "summary": "projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md", "skill": ".agents/skills/12-visual-diff/SKILL.md" }, "acceptance_criteria": ["Structural fidelity is a HARD gate, JS-rendered both sides: every page that has a captured reference DOM must match it on sections + listing/card counts + facet values (capture-reference must have run): PROBE: bash orchestration/probes/fidelity-all.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt", "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md \"critical\""], "max_attempts": 3 }
+        ] },
+        { "id": "story_vanity", "title": "Vanity URLs", "description": "Map old URLs to Jahia pages; nginx redirect map.", "depends_on": ["story_visual_diff"], "steps": [
+          { "id": "step_vanity", "title": "Vanity-URL redirect map", "task_type": "build", "agent": "code", "depends_on": ["step_visual_diff"], "inputs": { "project": "lesalondelaphoto", "project_path": "projects/lesalondelaphoto", "redirects": "projects/lesalondelaphoto/workflow-output/vanity/redirects.map", "skill": ".agents/skills/13-vanity-urls/SKILL.md" }, "acceptance_criteria": ["PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/vanity/redirects.map"], "max_attempts": 3 }
+        ] }
+      ]
+    }
+  ]
+}

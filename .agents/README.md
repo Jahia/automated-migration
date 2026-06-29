@@ -32,6 +32,8 @@ Skill file: [`migration-workflow/SKILL.md`](skills/migration-workflow/SKILL.md)
 
 | Skill folder | Purpose |
 |---|---|
+| `run-orchestration-loop/` | **Operator runbook** — start the loop engine, author a plan from the template, submit, watch, answer the human gates. Read BEFORE running a migration. |
+| `capture-reference/` | Browser-first capture of the real reference site (text, complete item list, facets, image URLs) into the per-project `.reference/` cache |
 | `support-create-view/` | Implement a React view (.server.tsx + CSS Module) |
 | `support-deploy/` | Build + deploy module to local Jahia |
 
