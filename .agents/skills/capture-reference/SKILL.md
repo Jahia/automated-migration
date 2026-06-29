@@ -110,8 +110,12 @@ which is already past the WAF.
 Write captured truth under **`projects/<project>/.reference/`** — the same
 per-project cache the curl scraper uses — so a re-run reuses it instead of
 re-driving the browser:
-- `projects/<project>/.reference/captured/<slug>.txt` — rendered body per page
+- `projects/<project>/.reference/captured/<slug>.txt` — rendered body text per page
   (gitignored, like `.reference/cache/`)
+- `projects/<project>/.reference/captured/<slug>.html` — the **rendered DOM**
+  (`document.documentElement.outerHTML` after the JS settles), gitignored. This is
+  the reference for `fidelity-live.sh` (it renders this file vs the local Jahia
+  page and diffs sections / card counts / facet values).
 - `projects/<project>/.reference/items.json` — the complete list (slug, title,
   image URL, categories, date) — **committed**
 - `projects/<project>/.reference/facets.json` — each facet's values + counts —

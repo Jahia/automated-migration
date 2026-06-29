@@ -27,6 +27,8 @@ bash orchestration/probes/render-all.sh   <project_path> <site> <lang> <@sitemap
 bash orchestration/probes/publish-parity.sh <project_path> <site> <lang>       # assets + translations live
 bash orchestration/probes/edit-frame.sh   <project_path> <site> <lang> home    # shared regions editable in Page Builder
 bash orchestration/probes/site-review.sh  <project_path> <site> <lang> <@sitemap>   # a11y + SEO
+# per page, JS-rendered fidelity vs the captured reference DOM:
+bash orchestration/probes/fidelity-live.sh projects/<p>/.reference/captured/<slug>.html <live_page_url>   # sections + cards + facets
 ```
 
 Any non-zero exit = a FAIL finding. Do **not** rationalize a failure away.
