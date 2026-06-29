@@ -193,8 +193,14 @@ be your diff tool. Follow this every step:
    screenshot. **Forcing one DOM element open, measuring one number, or your own
    narration is NOT verification.** If you didn't measure it, say "not verified".
 
-3. **Run BOTH per-page gates — content fidelity AND render truth.** A page is not
-   done until both exit 0:
+3. **Run BOTH per-page gates — content fidelity AND render truth — AT EACH
+   component/page creation, never as a final sweep.** As soon as a page is filled
+   (or a component is placed on its page), render-gate THAT page before moving to
+   the next; a defect caught on page 1 must not be discovered only after page 30.
+   The content step's gate is `render-all.sh <project> <site> <lang> @sitemap`
+   (loops `render-truth` over every page and fails on the first bad one); the
+   deploy step render-gates the shell (`render-all ... /home`). A page is not done
+   until both of these exit 0:
    - `fidelity.sh <reference_url> <live_url>` — every reference section heading is
      present locally and card/list counts aren't far below the reference (catches
      a whole section silently missing). Pass the **original URL** (the probe
