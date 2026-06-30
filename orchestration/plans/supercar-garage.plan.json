@@ -342,7 +342,8 @@
                 "skill": ".agents/skills/08-page-templates/SKILL.md"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/templates.sh projects/supercar-garage"
+                "PROBE: bash orchestration/probes/templates.sh projects/supercar-garage",
+                "2-3 page templates by ROLE (home/section/detail); restrict each Area with allowedNodeTypes (.agents/skills/08-page-templates): PROBE: bash orchestration/probes/template-govern.sh projects/supercar-garage"
               ],
               "max_attempts": 3
             },

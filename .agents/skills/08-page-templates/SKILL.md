@@ -29,6 +29,49 @@ Real sites have at least TWO page templates, plus shared shell:
 
 A single bare `<Area main/>` template used for every page (no home template, no banner, no breadcrumb) is WRONG and reads as an unfinished migration. Validate in jContent that the banner/breadcrumb render and the main area is editable.
 
+## Determining the template SET (cluster pages by role, not by content)
+
+You do not get one template per page — you group pages whose **skeleton** is the same.
+Templates repeat across page **roles**; components vary by content. Cluster the scraped
+sitemap into roles using structural tells, then map each role to one template:
+
+| Role | Tells in the scraped DOM | Template |
+|---|---|---|
+| **Home / landing** | NO breadcrumb; full-width hero/carousel; many section areas | `home` |
+| **Standard / section** | breadcrumb + a page-title banner; one main content column (the bulk of pages) | `basic` |
+| **Detail / mainResource** | article/event body (title + body + tags + prev/next) | `MainResource` |
+
+Concrete signal (verified): on lesalondelaphoto the **home page has 0 breadcrumbs** while
+**every inner page has one** (and a `title` banner) — that single tell splits home from
+the rest. For Sitecore SXA the Sitecore page-design maps ~1:1 to these skeletons.
+
+**Aim for 2–3 templates.** Each template is a governance contract, so fewer = stronger
+guardrails. Add a 4th only when a section's *skeleton* genuinely differs (a campaign/
+landing page, a facet-search listing) — NOT because the *content* differs (that's a
+component view, not a new template). Assign `j:templateName` per page from this mapping.
+
+## Restrict each Area — the contribution contract (`allowedNodeTypes`)
+
+Templates guide contribution by restricting what can be dropped in each region. The
+`<Area>` component takes **`allowedNodeTypes: string[]`** — use it on EVERY area:
+
+```tsx
+<Area name="hero" allowedNodeTypes={["ns:hero", "ns:heroCarousel"]} />
+<Area name="main" allowedNodeTypes={["ns:editorialBlock", "ns:cardGrid", "ns:jcrQuery", /* …content components… */]} />
+```
+
+Rules for what goes where:
+- **Hero/landing area** → only the landing hero/carousel types.
+- **Main content area** → the body content components (editorial, cards, listings, promo…).
+- **Never** list child-only types (cta/social/footerLink/slide — they extend the plain
+  component mixin, not `pageComponent`), shell types (nav/footer live in Layout as
+  AbsoluteAreas), or `jmix:mainResource` detail types (folder content, listed via jcrQuery).
+- The **mixin hierarchy** is the coarse lever (`nsmix:pageComponent` = page-droppable;
+  plain `nsmix:component` = child-only); `allowedNodeTypes` is the per-area fine lever.
+
+Gate: `bash orchestration/probes/template-govern.sh <project_path>` — fails if the page
+template count is unreasonable or any Area accepts ANY content (no `allowedNodeTypes`).
+
 ## Overview
 
 A **page template** defines the full layout of a page. It is registered with `componentType: "template"` and always targets `jnt:page`. Templates contain **Areas** (per-page content) and **AbsoluteAreas** (shared across all pages, e.g. footer, navbar).
