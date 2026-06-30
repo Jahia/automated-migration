@@ -44,7 +44,7 @@
         "fa-basket-shopping"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 320,
+      "instances": 327,
       "pages": [
         "a-propos.html",
         "accreditation.html",
@@ -70,7 +70,7 @@
       "listItems": 26,
       "hasIcons": [],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 113,
+      "instances": 118,
       "pages": [
         "a-propos.html",
         "accreditation.html",
@@ -100,7 +100,7 @@
         "fa-solid"
       ],
       "modelHint": null,
-      "instances": 103,
+      "instances": 115,
       "pages": [
         "a-propos.html",
         "accreditation.html",
@@ -124,7 +124,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 100,
+      "instances": 105,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -160,7 +160,7 @@
         "fa-person-walking"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 61,
+      "instances": 66,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -195,7 +195,7 @@
         "fa-ticket-simple"
       ],
       "modelHint": null,
-      "instances": 61,
+      "instances": 66,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -227,7 +227,7 @@
         "fa-ticket-simple"
       ],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 61,
+      "instances": 66,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -251,7 +251,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 61,
+      "instances": 66,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -290,7 +290,7 @@
         "fa-youtube"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 61,
+      "instances": 66,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -318,7 +318,7 @@
       "listItems": 5,
       "hasIcons": [],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 59,
+      "instances": 64,
       "pages": [
         "Infos-Pratiques.html",
         "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
@@ -352,7 +352,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 57,
+      "instances": 62,
       "pages": [
         "Infos-Pratiques.html",
         "a-propos.html",
@@ -378,7 +378,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 41,
+      "instances": 46,
       "pages": [
         "a-propos.html",
         "accreditation.html",
@@ -404,7 +404,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 41,
+      "instances": 46,
       "pages": [
         "a-propos.html",
         "accreditation.html",
@@ -451,13 +451,41 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 17,
+      "instances": 18,
       "pages": [
         "affiche-salon-de-la-photo-paris-2025.html",
         "foire-internationale-de-bievres.html",
         "grande-expo.html",
+        "lectures-portfolio.html",
         "lee-miller.html",
         "participation-reussie.html"
+      ]
+    },
+    {
+      "type": "search-results",
+      "aliases": [
+        "actus",
+        "container-bp",
+        "search-results",
+        "speakers"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 12,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html",
+        "animations.html",
+        "communiques-dossiers-presse.html",
+        "expositions-photos.html",
+        "fr-FR.html",
+        "photo-pass.html",
+        "rencontres-photo.html"
       ]
     },
     {
@@ -481,33 +509,6 @@
         "affiche-salon-de-la-photo-paris-2025.html",
         "grande-expo.html",
         "photo-pass.html",
-        "zooms.html"
-      ]
-    },
-    {
-      "type": "search-results",
-      "aliases": [
-        "actus",
-        "container-bp",
-        "search-results",
-        "speakers"
-      ],
-      "fields": [],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 0,
-      "listItems": 0,
-      "hasIcons": [],
-      "modelHint": null,
-      "instances": 11,
-      "pages": [
-        "actus.html",
-        "agenda-photo.html",
-        "animations.html",
-        "expositions-photos.html",
-        "fr-FR.html",
-        "photo-pass.html",
-        "rencontres-photo.html",
         "zooms.html"
       ]
     },
@@ -568,6 +569,34 @@
       ]
     },
     {
+      "type": "content-block",
+      "aliases": [
+        "content-block",
+        "left-img",
+        "order-sm",
+        "right-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 2,
+      "listItems": 6,
+      "hasIcons": [],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
+      "instances": 10,
+      "pages": [
+        "foire-internationale-de-bievres.html",
+        "offre-salon.html",
+        "qui-expose.html",
+        "qui-visite.html",
+        "souffleurs-de-sens.html",
+        "world-premiere.html"
+      ]
+    },
+    {
       "type": "simple-title",
       "aliases": [
         "simple-title"
@@ -586,33 +615,6 @@
         "fr-FR.html",
         "photo-pass.html",
         "recherche.html"
-      ]
-    },
-    {
-      "type": "content-block",
-      "aliases": [
-        "content-block",
-        "left-img",
-        "order-sm",
-        "right-img"
-      ],
-      "fields": [
-        "description",
-        "title"
-      ],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 2,
-      "listItems": 6,
-      "hasIcons": [],
-      "modelHint": "repeating list items → child component (jmix:list + child type)",
-      "instances": 8,
-      "pages": [
-        "foire-internationale-de-bievres.html",
-        "offre-salon.html",
-        "qui-expose.html",
-        "qui-visite.html",
-        "souffleurs-de-sens.html"
       ]
     },
     {
@@ -635,6 +637,30 @@
       "pages": [
         "exposants.html",
         "fr-FR.html"
+      ]
+    },
+    {
+      "type": "facet-dropdown",
+      "aliases": [
+        "facet-component",
+        "facet-dropdown",
+        "facet-themes-actualites",
+        "facet-themespagearticle",
+        "facet-type",
+        "facet-typepagearticle"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 6,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html",
+        "communiques-dossiers-presse.html"
       ]
     },
     {
@@ -686,26 +712,33 @@
       ]
     },
     {
-      "type": "facet-dropdown",
+      "type": "item-content-popin-picture",
       "aliases": [
-        "facet-component",
-        "facet-dropdown",
-        "facet-themes-actualites",
-        "facet-themespagearticle",
-        "facet-type",
-        "facet-typepagearticle"
+        "container-bp",
+        "item-content-popin-picture"
       ],
-      "fields": [],
+      "fields": [
+        "description",
+        "icone-description",
+        "titre"
+      ],
       "childTypes": [],
       "isContainer": false,
-      "linkSeries": 0,
-      "listItems": 0,
-      "hasIcons": [],
-      "modelHint": null,
+      "linkSeries": 7,
+      "listItems": 15,
+      "hasIcons": [
+        "fa-arrow-pointer",
+        "fa-billboard",
+        "fa-brands",
+        "fa-camera-retro",
+        "fa-check",
+        "fa-duotone"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
       "instances": 4,
       "pages": [
-        "actus.html",
-        "agenda-photo.html"
+        "boostez-visibilite.html",
+        "kit-media.html"
       ]
     },
     {
@@ -740,32 +773,46 @@
       ]
     },
     {
-      "type": "item-content-popin-picture",
+      "type": "facet-aggregated",
       "aliases": [
         "container-bp",
-        "item-content-popin-picture"
+        "facet-aggregated",
+        "filter-actu"
       ],
-      "fields": [
-        "description",
-        "icone-description",
-        "titre"
+      "fields": [],
+      "childTypes": [
+        "facet-dropdown",
+        "facet-summary"
       ],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 3,
-      "listItems": 15,
-      "hasIcons": [
-        "fa-arrow-pointer",
-        "fa-check",
-        "fa-duotone",
-        "fa-map-location-dot",
-        "fa-microphone",
-        "fa-regular"
-      ],
-      "modelHint": "link series → child component (label + j:linkType)",
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 3,
       "pages": [
-        "boostez-visibilite.html"
+        "actus.html",
+        "agenda-photo.html",
+        "communiques-dossiers-presse.html"
+      ]
+    },
+    {
+      "type": "facet-summary",
+      "aliases": [
+        "facet-summary"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 3,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html",
+        "communiques-dossiers-presse.html"
       ]
     },
     {
@@ -891,47 +938,6 @@
       "pages": [
         "partenaires.html",
         "photo-pass.html"
-      ]
-    },
-    {
-      "type": "facet-aggregated",
-      "aliases": [
-        "container-bp",
-        "facet-aggregated",
-        "filter-actu"
-      ],
-      "fields": [],
-      "childTypes": [
-        "facet-dropdown",
-        "facet-summary"
-      ],
-      "isContainer": true,
-      "linkSeries": 0,
-      "listItems": 0,
-      "hasIcons": [],
-      "modelHint": null,
-      "instances": 2,
-      "pages": [
-        "actus.html",
-        "agenda-photo.html"
-      ]
-    },
-    {
-      "type": "facet-summary",
-      "aliases": [
-        "facet-summary"
-      ],
-      "fields": [],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 0,
-      "listItems": 0,
-      "hasIcons": [],
-      "modelHint": null,
-      "instances": 2,
-      "pages": [
-        "actus.html",
-        "agenda-photo.html"
       ]
     },
     {
