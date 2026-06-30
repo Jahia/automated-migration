@@ -340,7 +340,8 @@
                 "skill": ".agents/skills/08-page-templates/SKILL.md"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/templates.sh projects/__PROJECT__"
+                "PROBE: bash orchestration/probes/templates.sh projects/__PROJECT__",
+                "2-3 page templates by ROLE (home/section/detail); restrict each Area with allowedNodeTypes (.agents/skills/08-page-templates): PROBE: bash orchestration/probes/template-govern.sh projects/__PROJECT__"
               ],
               "max_attempts": 3
             },
