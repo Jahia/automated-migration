@@ -60,6 +60,8 @@
                 "Content with its own navigable URL (news/blog articles, press releases, events, products) are jmix:mainResource detail content types: needsMainResource:true with both a default (card) and fullPage view.",
                 "BROWSER-FIRST CAPTURE (anti-hallucination): if the site is JS-rendered or behind a WAF, the wget cache is only the static shell. Per .agents/skills/capture-reference/SKILL.md, capture via the browser (Chrome MCP) each page's real rendered text, the COMPLETE item list, real image URLs, and facet/taxonomy values + counts, into projects/__PROJECT__/.reference/captured/. Build content-data.json from this captured truth — never fabricate summaries/titles/taxonomy/images.",
                 "Write ALL 4 SKILL Step 8 outputs: analysis.md, component-manifest.json, content-data.json, asset-inventory.json.",
+                "If the source is Sitecore SXA (.component / .component-content / field-* in the cached DOM), components are DECLARED in the markup — do NOT eyeball-discover them. Per .agents/skills/sitecore-sxa/SKILL.md, run the deterministic extractor (python3 orchestration/lib/sxa-extract.py projects/<p>/.reference/cache > projects/<p>/.reference/sxa-components.json) and account for EVERY extracted component in component-manifest.json: each Jahia type carries sxaSource:[...]; deliberately-skipped generics go in a top-level sxaIgnored:[...]. No silent drops.",
+                "PROBE: bash orchestration/probes/sxa-coverage.sh projects/__PROJECT__",
                 "PROBE: bash orchestration/probes/analyze.sh projects/__PROJECT__",
                 "Gate 1: present section map + field splits, return status halt."
               ],

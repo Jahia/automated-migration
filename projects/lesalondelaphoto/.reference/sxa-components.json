@@ -1,0 +1,876 @@
+{
+  "sourceIsSxa": true,
+  "componentTypeCount": 42,
+  "components": [
+    {
+      "type": "content",
+      "aliases": [
+        "basic-vertical-space",
+        "block-3-icons",
+        "container-bp",
+        "content",
+        "hover",
+        "img-content-block-l",
+        "img-content-block-r-v2",
+        "pages-pushes",
+        "text-gray-850"
+      ],
+      "fields": [
+        "content",
+        "description",
+        "description-1",
+        "description-2",
+        "description-3",
+        "heading",
+        "icon-1",
+        "icon-2",
+        "icon-3",
+        "image-push",
+        "title",
+        "title-1",
+        "title-2",
+        "title-3"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 320,
+      "pages": [
+        "a-propos.html",
+        "accreditation.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "agenda-photo.html",
+        "amateur-averti.html",
+        "animations.html",
+        "billet.html",
+        "billetterie.html"
+      ]
+    },
+    {
+      "type": "rich-text",
+      "aliases": [
+        "rich-text"
+      ],
+      "fields": [
+        "description"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 113,
+      "pages": [
+        "a-propos.html",
+        "accreditation.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "amateur-averti.html",
+        "billet.html",
+        "billetterie.html",
+        "billetterie?o=ADLG-ORGANIQUE_SITEWEB-ORGANIC.html",
+        "boostez-visibilite.html"
+      ]
+    },
+    {
+      "type": "link",
+      "aliases": [
+        "link"
+      ],
+      "fields": [
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 103,
+      "pages": [
+        "a-propos.html",
+        "accreditation.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "agenda-photo.html",
+        "amateur-averti.html",
+        "animations.html",
+        "billet.html"
+      ]
+    },
+    {
+      "type": "plain-html",
+      "aliases": [
+        "plain-html"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 100,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "top-bar",
+      "aliases": [
+        "top-bar",
+        "top-navbar"
+      ],
+      "fields": [
+        "texte",
+        "texte-1",
+        "texte-2"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 61,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "header-navigation",
+      "aliases": [
+        "header-navigation"
+      ],
+      "fields": [
+        "cta-title-1",
+        "date",
+        "lieu"
+      ],
+      "childTypes": [
+        "navigation",
+        "plain-html"
+      ],
+      "isContainer": true,
+      "instances": 61,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "navigation",
+      "aliases": [
+        "container-bp",
+        "navigation",
+        "sitemap"
+      ],
+      "fields": [
+        "navigationtitle"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 61,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "image-de-fond",
+      "aliases": [
+        "image-de-fond"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 61,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "footer",
+      "aliases": [
+        "footer"
+      ],
+      "fields": [
+        "email",
+        "lien",
+        "texte-1",
+        "texte-email",
+        "texte-newsletter",
+        "texte-reseaux-sociaux",
+        "validation-valid"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 61,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "breadcrumb",
+      "aliases": [
+        "breadcrumb",
+        "navigation-title"
+      ],
+      "fields": [
+        "navigationtitle",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 59,
+      "pages": [
+        "Infos-Pratiques.html",
+        "Visite-soufflee-pour-malvoyants-et-non-voyants.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html"
+      ]
+    },
+    {
+      "type": "title",
+      "aliases": [
+        "banner-title",
+        "banner-title2",
+        "banner-title3",
+        "banner-title4",
+        "small-banner",
+        "title"
+      ],
+      "fields": [
+        "arriere-titre",
+        "date-de-publication",
+        "sous-titre",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 57,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "accreditation.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "agenda-photo.html",
+        "amateur-averti.html"
+      ]
+    },
+    {
+      "type": "snippet",
+      "aliases": [
+        "snippet"
+      ],
+      "fields": [],
+      "childTypes": [
+        "previous-next"
+      ],
+      "isContainer": true,
+      "instances": 41,
+      "pages": [
+        "a-propos.html",
+        "accreditation.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "agenda-photo.html",
+        "amateur-averti.html",
+        "animations.html",
+        "billet.html"
+      ]
+    },
+    {
+      "type": "previous-next",
+      "aliases": [
+        "previous-next"
+      ],
+      "fields": [],
+      "childTypes": [
+        "link"
+      ],
+      "isContainer": true,
+      "instances": 41,
+      "pages": [
+        "a-propos.html",
+        "accreditation.html",
+        "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "agenda-photo.html",
+        "amateur-averti.html",
+        "animations.html",
+        "billet.html"
+      ]
+    },
+    {
+      "type": "accordion",
+      "aliases": [
+        "accordion",
+        "container-bp"
+      ],
+      "fields": [],
+      "childTypes": [
+        "content"
+      ],
+      "isContainer": true,
+      "instances": 19,
+      "pages": [
+        "faq.html"
+      ]
+    },
+    {
+      "type": "image",
+      "aliases": [
+        "container-bp",
+        "image"
+      ],
+      "fields": [
+        "imagecaption"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 17,
+      "pages": [
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "foire-internationale-de-bievres.html",
+        "grande-expo.html",
+        "lee-miller.html",
+        "participation-reussie.html"
+      ]
+    },
+    {
+      "type": "content-block-vertical-image",
+      "aliases": [
+        "content-block-vertical-image",
+        "left-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 12,
+      "pages": [
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "grande-expo.html",
+        "photo-pass.html",
+        "zooms.html"
+      ]
+    },
+    {
+      "type": "search-results",
+      "aliases": [
+        "actus",
+        "container-bp",
+        "search-results",
+        "speakers"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 11,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html",
+        "animations.html",
+        "expositions-photos.html",
+        "fr-FR.html",
+        "photo-pass.html",
+        "rencontres-photo.html",
+        "zooms.html"
+      ]
+    },
+    {
+      "type": "picture-grid",
+      "aliases": [
+        "container-bp",
+        "picture-grid"
+      ],
+      "fields": [
+        "description",
+        "picturegriditemcta",
+        "picturegriditemdescription",
+        "picturegriditemsoustitre",
+        "picturegriditemtitre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 11,
+      "pages": [
+        "billet.html",
+        "billetterie.html",
+        "billetterie?o=ADLG-ORGANIQUE_SITEWEB-ORGANIC.html",
+        "exposants.html",
+        "fr-FR.html",
+        "lien-billetterie.html"
+      ]
+    },
+    {
+      "type": "page-list",
+      "aliases": [
+        "level-2",
+        "page-list"
+      ],
+      "fields": [
+        "content",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 10,
+      "pages": [
+        "Infos-Pratiques.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "animations-ateliers.html",
+        "decouvrir-salon.html",
+        "infos-pratiques.html",
+        "salon.html"
+      ]
+    },
+    {
+      "type": "simple-title",
+      "aliases": [
+        "simple-title"
+      ],
+      "fields": [
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 8,
+      "pages": [
+        "fr-FR.html",
+        "photo-pass.html",
+        "recherche.html"
+      ]
+    },
+    {
+      "type": "content-block",
+      "aliases": [
+        "content-block",
+        "left-img",
+        "order-sm",
+        "right-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 8,
+      "pages": [
+        "foire-internationale-de-bievres.html",
+        "offre-salon.html",
+        "qui-expose.html",
+        "qui-visite.html",
+        "souffleurs-de-sens.html"
+      ]
+    },
+    {
+      "type": "Slide",
+      "aliases": [
+        "Slide"
+      ],
+      "fields": [
+        "description",
+        "slidesmalltitle",
+        "slidetext"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 7,
+      "pages": [
+        "exposants.html",
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "partners-2-list",
+      "aliases": [
+        "container-bp",
+        "partners-2-list"
+      ],
+      "fields": [
+        "description",
+        "lien-partenaire-2",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 5,
+      "pages": [
+        "comment-venir-au-salon.html",
+        "partenaires.html",
+        "photo-pass.html"
+      ]
+    },
+    {
+      "type": "container",
+      "aliases": [
+        "col-12",
+        "container"
+      ],
+      "fields": [],
+      "childTypes": [
+        "content",
+        "facet-aggregated",
+        "simple-title"
+      ],
+      "isContainer": true,
+      "instances": 4,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html",
+        "recherche.html"
+      ]
+    },
+    {
+      "type": "facet-dropdown",
+      "aliases": [
+        "facet-component",
+        "facet-dropdown",
+        "facet-themes-actualites",
+        "facet-themespagearticle",
+        "facet-type",
+        "facet-typepagearticle"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 4,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "video-content-block",
+      "aliases": [
+        "bg-gray-1",
+        "video-content-block"
+      ],
+      "fields": [
+        "arriere-titre",
+        "description",
+        "title"
+      ],
+      "childTypes": [
+        "plain-html",
+        "video"
+      ],
+      "isContainer": true,
+      "instances": 3,
+      "pages": [
+        "exposants.html",
+        "fr-FR.html",
+        "retouche-photo-ia.html"
+      ]
+    },
+    {
+      "type": "item-content-popin-picture",
+      "aliases": [
+        "container-bp",
+        "item-content-popin-picture"
+      ],
+      "fields": [
+        "description",
+        "icone-description",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 3,
+      "pages": [
+        "boostez-visibilite.html"
+      ]
+    },
+    {
+      "type": "image-content-block-description",
+      "aliases": [
+        "container-bp",
+        "image-content-block-description"
+      ],
+      "fields": [
+        "description",
+        "description-longue",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 3,
+      "pages": [
+        "offres-stands.html"
+      ]
+    },
+    {
+      "type": "carousel",
+      "aliases": [
+        "carousel"
+      ],
+      "fields": [],
+      "childTypes": [
+        "Slide"
+      ],
+      "isContainer": true,
+      "instances": 2,
+      "pages": [
+        "exposants.html",
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "quicklinks",
+      "aliases": [
+        "bg-gray-1",
+        "quicklinks"
+      ],
+      "fields": [
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 2,
+      "pages": [
+        "exposants.html",
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "contact-block",
+      "aliases": [
+        "contact-block",
+        "container-bp"
+      ],
+      "fields": [
+        "email",
+        "fonction",
+        "lien-blog",
+        "prenom-nom",
+        "telephone"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 2,
+      "pages": [
+        "contacts.html",
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "tabs",
+      "aliases": [
+        "tabs"
+      ],
+      "fields": [],
+      "childTypes": [
+        "content",
+        "partners-2-list",
+        "search-results"
+      ],
+      "isContainer": true,
+      "instances": 2,
+      "pages": [
+        "partenaires.html",
+        "photo-pass.html"
+      ]
+    },
+    {
+      "type": "facet-aggregated",
+      "aliases": [
+        "container-bp",
+        "facet-aggregated",
+        "filter-actu"
+      ],
+      "fields": [],
+      "childTypes": [
+        "facet-dropdown",
+        "facet-summary"
+      ],
+      "isContainer": true,
+      "instances": 2,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "facet-summary",
+      "aliases": [
+        "facet-summary"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 2,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "partners-carrousel",
+      "aliases": [
+        "partners-carrousel"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "key-figures",
+      "aliases": [
+        "animated-key-figures",
+        "bg-gray-1",
+        "key-figures"
+      ],
+      "fields": [
+        "chiffre-1",
+        "chiffre-2",
+        "chiffre-3",
+        "chiffre-4",
+        "description-1",
+        "description-2",
+        "description-3",
+        "description-4"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "exposants.html"
+      ]
+    },
+    {
+      "type": "video",
+      "aliases": [
+        "video"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "exposants.html"
+      ]
+    },
+    {
+      "type": "date-lieu-horaires",
+      "aliases": [
+        "container-bp",
+        "date-lieu-horaires"
+      ],
+      "fields": [
+        "description-1",
+        "description-2",
+        "description-3",
+        "titre-1",
+        "titre-2",
+        "titre-3"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "dates-acces-horaires.html"
+      ]
+    },
+    {
+      "type": "banner2",
+      "aliases": [
+        "banner2"
+      ],
+      "fields": [
+        "description",
+        "sous-titre",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "actus.html"
+      ]
+    },
+    {
+      "type": "load-more",
+      "aliases": [
+        "load-more"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "actus.html"
+      ]
+    },
+    {
+      "type": "anchors-links",
+      "aliases": [
+        "anchors-links"
+      ],
+      "fields": [],
+      "childTypes": [
+        "link"
+      ],
+      "isContainer": true,
+      "instances": 1,
+      "pages": [
+        "boostez-visibilite.html"
+      ]
+    },
+    {
+      "type": "event-list",
+      "aliases": [
+        "container-bp",
+        "event-list"
+      ],
+      "fields": [
+        "sous-description",
+        "titre-1"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "instances": 1,
+      "pages": [
+        "offre-salon.html"
+      ]
+    }
+  ]
+}

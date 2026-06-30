@@ -1,0 +1,959 @@
+{
+  "namespace": "lsp",
+  "mixNamespace": "lspmix",
+  "sourceUrl": "https://www.lesalondelaphoto.com/fr-FR",
+  "pagesCrawled": 62,
+  "components": [
+    {
+      "name": "Hero",
+      "nodeType": "lsp:hero",
+      "displayName": "Hero",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 20,
+      "clusterPages": [
+        "/fr-FR",
+        "/fr-FR/salon/a-propos",
+        "/fr-FR/actualite-photo/actualites",
+        "/fr-FR/animations-ateliers"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Full-width hero banner with background image, heading overlay, and optional CTA button. Used as page hero and carousel slide.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component Slide)"
+        },
+        {
+          "name": "card",
+          "file": "card.server.tsx",
+          "purpose": "Image card with overlay title and link. Used in picture-grid sections (Photos Spots, Grandes Rencontres, etc.)",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component picture-grid .card)"
+        },
+        {
+          "name": "compact",
+          "file": "compact.server.tsx",
+          "purpose": "Text-only button card with title and link. Used for quicklinks CTAs (Acheter mon billet, Liste exposants, Infos pratiques).",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component quicklinks)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "image",
+          "type": "weakreference, picker[type='image']",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "heading",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "subheading",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        },
+        {
+          "name": "link",
+          "type": "j:linkType (string, choicelist[linkTypeInitializer])",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "Slide",
+        "banner2",
+        "quicklinks"
+      ]
+    },
+    {
+      "name": "EditorialBlock",
+      "nodeType": "lsp:editorialBlock",
+      "displayName": "Editorial Block",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 55,
+      "clusterPages": [
+        "nearly every page"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Rich text block with optional heading and image. Used for body content on inner pages.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/a-propos.html (component rich-text)"
+        },
+        {
+          "name": "sectionTitle",
+          "file": "sectionTitle.server.tsx",
+          "purpose": "Section heading with no body or image. Used as visual section separators on the home page (e.g. '(Re)découvrez le programme').",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component simple-title)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "heading",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "body",
+          "type": "string, richtext",
+          "i18n": true,
+          "mandatory": false
+        },
+        {
+          "name": "image",
+          "type": "weakreference, picker[type='image']",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "imagePosition",
+          "type": "string, choicelist",
+          "i18n": false,
+          "mandatory": false,
+          "defaultValue": "left",
+          "constraints": [
+            "left",
+            "right"
+          ],
+          "layoutProperty": true,
+          "purpose": "LAYOUT PROPERTY: image alignment relative to the text, flipped per-instance by the contributor. default.server.tsx reads it and toggles a CSS modifier class (.img-left/.img-right). Do NOT create separate left/right views or a new type."
+        }
+      ],
+      "sxaSource": [
+        "rich-text",
+        "content",
+        "content-block",
+        "simple-title",
+        "content-block-vertical-image",
+        "image-content-block-description",
+        "title"
+      ]
+    },
+    {
+      "name": "PromoBlock",
+      "nodeType": "lsp:promoBlock",
+      "displayName": "Promo Block",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 5,
+      "clusterPages": [
+        "/fr-FR"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Split layout with video embed on one side, text + CTA button on the other. Used for promotional video sections.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component video-content-block)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "heading",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        },
+        {
+          "name": "videoLink",
+          "type": "j:linkType (string, choicelist[linkTypeInitializer])",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "link",
+          "type": "j:linkType (string, choicelist[linkTypeInitializer])",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "video-content-block",
+        "video"
+      ]
+    },
+    {
+      "name": "PartnerItem",
+      "nodeType": "lsp:partnerItem",
+      "displayName": "Partner Logo",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 24,
+      "clusterPages": [
+        "/fr-FR",
+        "/fr-FR/salon/partenaires"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Logo image with optional link. Used in partners carousel and partners page.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component partners-carrousel)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "logo",
+          "type": "weakreference, picker[type='image']",
+          "i18n": false,
+          "mandatory": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "link",
+          "type": "j:linkType (string, choicelist[linkTypeInitializer])",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "partners-2-list"
+      ]
+    },
+    {
+      "name": "NewsArticle",
+      "nodeType": "lsp:newsArticle",
+      "displayName": "News Article",
+      "areaType": "page",
+      "needsMainResource": true,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 3,
+      "clusterPages": [
+        "/fr-FR/actualite-photo/actus",
+        "/fr-FR/actualite-photo/actualites"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Card/teaser shown in news listing grid. Image + title + date + summary.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/actus.html"
+        },
+        {
+          "name": "fullPage",
+          "file": "fullPage.server.tsx",
+          "purpose": "Full article detail page with hero image, title, date, body content, and tags.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/actus/affiche-salon-de-la-photo-paris-2025.html"
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "image",
+          "type": "weakreference, picker[type='image']",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "publishDate",
+          "type": "date",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "summary",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        },
+        {
+          "name": "body",
+          "type": "string, richtext",
+          "i18n": true,
+          "mandatory": true
+        }
+      ]
+    },
+    {
+      "name": "AgendaItem",
+      "nodeType": "lsp:agendaItem",
+      "displayName": "Agenda Item",
+      "areaType": "page",
+      "needsMainResource": true,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 5,
+      "clusterPages": [
+        "/fr-FR/actualite-photo/agenda-photo"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Card/teaser shown in agenda listing. Image + title + date + location.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/agenda-photo.html"
+        },
+        {
+          "name": "fullPage",
+          "file": "fullPage.server.tsx",
+          "purpose": "Full event detail page with hero image, title, date, location, body content, and external link.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/agenda-photo/lee-miller.html"
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "image",
+          "type": "weakreference, picker[type='image']",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "location",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        },
+        {
+          "name": "body",
+          "type": "string, richtext",
+          "i18n": true,
+          "mandatory": true
+        },
+        {
+          "name": "link",
+          "type": "j:linkType (string, choicelist[linkTypeInitializer])",
+          "i18n": false,
+          "mandatory": false
+        }
+      ]
+    },
+    {
+      "name": "MainNav",
+      "nodeType": "lsp:mainNav",
+      "displayName": "Main Navigation",
+      "areaType": "absolute",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 62,
+      "clusterPages": [
+        "every page (global header)"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "3-level dropdown navigation with logo and CTA buttons. Uses Jahia Navigation Menu component (getChildNodes).",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component header-navigation)"
+        }
+      ],
+      "fields": [],
+      "sxaSource": [
+        "header-navigation",
+        "navigation"
+      ]
+    },
+    {
+      "name": "Footer",
+      "nodeType": "lsp:footer",
+      "displayName": "Footer",
+      "areaType": "absolute",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "lsp:footerLink",
+      "clusterFrequency": 62,
+      "clusterPages": [
+        "every page (global footer)"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Multi-column footer with navigation links, legal links, and social icons.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (<footer>)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "footerText",
+          "type": "string, richtext",
+          "i18n": true,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "footer"
+      ]
+    },
+    {
+      "name": "JCRQuery",
+      "nodeType": "lsp:jcrQuery",
+      "displayName": "JCR Query",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 0,
+      "clusterPages": [
+        "mandatory per AGENTS rule #16"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Configurable listing component. Type selector, sort, filter, load-more, category chips.",
+          "htmlFragmentSource": "N/A (mandatory convention)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "queryType",
+          "type": "string, choicelist[resourceBundle]",
+          "i18n": false,
+          "mandatory": true
+        },
+        {
+          "name": "sortBy",
+          "type": "string, choicelist[resourceBundle]",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "pageSize",
+          "type": "string",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "search-results",
+        "page-list",
+        "event-list"
+      ]
+    },
+    {
+      "name": "GridRow",
+      "nodeType": "lsp:gridRow",
+      "displayName": "Grid Row",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 0,
+      "clusterPages": [
+        "mandatory per AGENTS rule #16"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Responsive grid layout for JCRQuery results.",
+          "htmlFragmentSource": "N/A (mandatory convention)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "columns",
+          "type": "string, choicelist '2','3','4' = '3'",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "container"
+      ]
+    },
+    {
+      "name": "HeroCarousel",
+      "nodeType": "lsp:heroCarousel",
+      "displayName": "Hero Carousel",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": true,
+      "childType": "lsp:hero",
+      "clusterFrequency": 1,
+      "clusterPages": [
+        "/fr-FR (home page)"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Bootstrap carousel that renders children (lsp:hero) as slides with autoplay and transitions.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component carousel)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "autoplay",
+          "type": "boolean",
+          "i18n": false,
+          "mandatory": false
+        },
+        {
+          "name": "interval",
+          "type": "string",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "carousel"
+      ]
+    },
+    {
+      "name": "PartnerCarousel",
+      "nodeType": "lsp:partnerCarousel",
+      "displayName": "Partner Carousel",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": true,
+      "isContainer": true,
+      "childType": "lsp:partnerItem",
+      "clusterFrequency": 1,
+      "clusterPages": [
+        "/fr-FR (home page)"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Swiffy slider carousel rendering partner logos with navigation dots and autoplay.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component partners-carrousel)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "partners-carrousel"
+      ]
+    },
+    {
+      "name": "CardGrid",
+      "nodeType": "lsp:cardGrid",
+      "displayName": "Card Grid",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "lsp:hero",
+      "clusterFrequency": 3,
+      "clusterPages": [
+        "/fr-FR (home, multiple sections)",
+        "/fr-FR/animations-ateliers"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Responsive grid layout rendering lsp:hero children in card view.",
+          "htmlFragmentSource": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html (component picture-grid)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        },
+        {
+          "name": "columns",
+          "type": "string, choicelist '2','3','4' = '3'",
+          "i18n": false,
+          "mandatory": false
+        }
+      ],
+      "sxaSource": [
+        "picture-grid"
+      ]
+    },
+    {
+      "name": "ExternalEmbed",
+      "nodeType": "lsp:externalEmbed",
+      "displayName": "External Embed (iframe)",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "clusterFrequency": 2,
+      "clusterPages": [
+        "exposants",
+        "billetterie"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Renders a sandboxed, titled <iframe> embedding the external platform (event.lesalondelaphoto.com). Used for the exposants exhibitor list and the billetterie ticketing page.",
+          "htmlFragmentSource": "N/A (Gate 1 operator decision: keep the embedded experience via iframe)"
+        }
+      ],
+      "fields": [
+        {
+          "name": "j:linkType",
+          "type": "string, choicelist[linkTypeInitializer]",
+          "i18n": false,
+          "mandatory": true,
+          "defaultValue": "external",
+          "purpose": "linkTypeInitializer (external) — Jahia injects j:url with the embed target; the view reads j:url as the iframe src. NEVER a plain string URL."
+        },
+        {
+          "name": "embedTitle",
+          "type": "string",
+          "i18n": true,
+          "mandatory": true,
+          "purpose": "Accessible iframe title (required for a11y)."
+        },
+        {
+          "name": "embedHeight",
+          "type": "long",
+          "i18n": false,
+          "mandatory": false,
+          "defaultValue": "800",
+          "purpose": "Iframe height in px."
+        }
+      ]
+    },
+    {
+      "name": "TopBar",
+      "nodeType": "lsp:topBar",
+      "displayName": "TopBar",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "lsp:socialLink",
+      "sxaSource": [
+        "top-bar",
+        "top-navbar"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "texte",
+        "texte-1",
+        "texte-2"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Top utility strip: social links + CTA links (Devenir exposant / espace exposant) + search. Singleton in an AbsoluteArea above the nav."
+        }
+      ]
+    },
+    {
+      "name": "ContactBlock",
+      "nodeType": "lsp:contactBlock",
+      "displayName": "ContactBlock",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "contact-block"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "email",
+        "fonction",
+        "lien-blog",
+        "prenom-nom",
+        "telephone"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Newsletter / contact block (prenom-nom, email, telephone, fonction, lien-blog)."
+        }
+      ]
+    },
+    {
+      "name": "KeyFigures",
+      "nodeType": "lsp:keyFigures",
+      "displayName": "KeyFigures",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "key-figures"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "chiffre-1",
+        "chiffre-2",
+        "chiffre-3",
+        "chiffre-4",
+        "description-1",
+        "description-2",
+        "description-3",
+        "description-4"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Stat band: chiffre-1..4 + description-1..4 (key figures)."
+        }
+      ]
+    },
+    {
+      "name": "Accordion",
+      "nodeType": "lsp:accordion",
+      "displayName": "Accordion",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "lsp:accordionItem",
+      "sxaSource": [
+        "accordion"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Accordion container of collapsible content items."
+        }
+      ]
+    },
+    {
+      "name": "Tabs",
+      "nodeType": "lsp:tabs",
+      "displayName": "Tabs",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "lsp:editorialBlock",
+      "sxaSource": [
+        "tabs"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Tabbed container of content panels."
+        }
+      ]
+    },
+    {
+      "name": "DateLieuHoraires",
+      "nodeType": "lsp:dateLieuHoraires",
+      "displayName": "DateLieuHoraires",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "date-lieu-horaires"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "description-1",
+        "description-2",
+        "description-3",
+        "titre-1",
+        "titre-2",
+        "titre-3"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Practical-info block: titre/description x3 (dates, lieu, horaires)."
+        }
+      ]
+    },
+    {
+      "name": "InfoCard",
+      "nodeType": "lsp:infoCard",
+      "displayName": "InfoCard",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "item-content-popin-picture"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "description",
+        "icone-description",
+        "titre"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Icon + title + description card (item-content-popin-picture)."
+        }
+      ]
+    },
+    {
+      "name": "PageHeader",
+      "nodeType": "lsp:pageHeader",
+      "displayName": "PageHeader",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "title"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "arriere-titre",
+        "date-de-publication",
+        "sous-titre",
+        "titre"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Page/article title banner: titre, sous-titre, arriere-titre, date-de-publication."
+        }
+      ]
+    },
+    {
+      "name": "ImageBlock",
+      "nodeType": "lsp:imageBlock",
+      "displayName": "ImageBlock",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "image"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "imagecaption"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "Standalone image with caption (imagecaption)."
+        }
+      ]
+    },
+    {
+      "name": "AnchorsLinks",
+      "nodeType": "lsp:anchorsLinks",
+      "displayName": "AnchorsLinks",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": true,
+      "childType": "lsp:ctaButton",
+      "sxaSource": [
+        "anchors-links"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "In-page jump/anchor links bar."
+        }
+      ]
+    }
+  ],
+  "gate1Decisions": {
+    "approvedBy": "operator",
+    "editorialBlock": "imagePosition layout property (left/right)",
+    "externalSystems": "exposants+billetterie via iframe (lsp:externalEmbed)",
+    "locale": "FR content; EN+FR labels"
+  },
+  "sxaIgnored": [
+    "link",
+    "plain-html",
+    "breadcrumb",
+    "snippet",
+    "previous-next",
+    "image-de-fond",
+    "facet-dropdown",
+    "facet-aggregated",
+    "facet-summary",
+    "load-more"
+  ],
+  "sxaIgnoredReason": {
+    "link": "generic link — modelled via j:linkType/linkTypeInitializer on hosting components",
+    "plain-html": "raw HTML widget (hamburger etc.) — theme/template level, not editable content",
+    "breadcrumb": "rendered by the page template from the JCR page tree",
+    "snippet": "SXA structural wrapper, no own fields",
+    "previous-next": "article prev/next nav — page-template level on mainResource detail",
+    "image-de-fond": "background-image holder — a property on the hosting component / template",
+    "facet-dropdown": "SXA search facet — no Jahia backend; categories + chips replace it (see mainResource-listings memory)",
+    "facet-aggregated": "SXA search facet — no backend",
+    "facet-summary": "SXA search facet — no backend",
+    "load-more": "a jcrQuery loadMore property, not a separate component"
+  }
+}
