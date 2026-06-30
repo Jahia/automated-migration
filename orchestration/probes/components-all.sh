@@ -135,6 +135,21 @@ if [ -n "$hardurls" ]; then
   fail "components-all: $(printf '%s\n' "$hardurls" | grep -c .) hardcoded URL(s) — use href={buildNodeUrl(node)} / href={cta.url} or render a link child (AGENTS rules 8+13). Footer social/CTA links must be contributor-editable (e.g. socialLink children), not baked-in <a href>."
 fi
 
+# ── placeholder data: URI images ──────────────────────────────────────────────
+# A data: URI image (e.g. an inline SVG placeholder logo with baked-in brand text)
+# is content masquerading as code: it can NEVER be replaced by the content phase
+# (the markup is hardcoded), so the real DAM asset is never wired and the site
+# ships a fake logo — "far from reality". Brand/content images must be a
+# content-driven weakref rendered via buildNodeUrl(imageNode), with a CND image
+# field. Flags any src="data:image...". (Components here use FA classes for icons,
+# not data URIs, so this is unambiguous.)
+placeholders="$(grep -rnoE 'src="data:image[^"]{0,40}' "$src/components" --include='*.server.tsx' --include='*.client.tsx' 2>/dev/null | sed "s#$proj/##" | head -20)"
+if [ -n "$placeholders" ]; then
+  echo "Placeholder data: URI images (must be a content-driven DAM image weakref):" >&2
+  printf '  ✗ %s\n' "$placeholders" >&2
+  fail "components-all: $(printf '%s\n' "$placeholders" | grep -c .) hardcoded data: URI image(s) — add a CND image field (weakreference) and render buildNodeUrl(imageNode); wire the real asset in content. A baked-in placeholder logo can never be fixed by the content phase."
+fi
+
 # component dir = any directory under src/components that holds a view or a CND
 # (bash 3.2 on macOS has no `mapfile` — use the read-loop idiom the other probes use)
 dirs=()
