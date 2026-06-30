@@ -25,7 +25,16 @@ h3 { font-size: 1.5rem; font-weight: 700; line-height: 1.35; }
 /* hero slide title 32/800 */
 .carousel-inner .Slide h2, .field-slidesmalltitle { font-size: 2rem; font-weight: 800; }
 
-/* carousel: keep the 2000px slide image inside the viewport (bootstrap .row
- * negative margins were pushing it ~30px past the edge -> horizontal scroll) */
+/* carousel: the bootstrap `.row` negative margins (-15px each side) push the slide
+ * exactly 30px past the viewport at EVERY width -> horizontal scroll. The slide is a
+ * single full-width item, not a multi-column row, so zero those margins at the source
+ * (eliminating the overflow, not just clipping it) so it adapts to any screen size. */
+.carousel-inner .row { margin-left: 0; margin-right: 0; }
+.carousel-inner .Slide,
+.carousel-inner .component-content,
+.slide-img { max-width: 100%; }
+.slide-img { width: 100%; height: auto; display: block; }
 .carousel-inner { overflow: hidden; }
-.slide-img { max-width: 100%; height: auto; display: block; }
+
+/* belt-and-suspenders: never allow the page itself to scroll sideways */
+html, body { max-width: 100%; overflow-x: hidden; }
