@@ -46,6 +46,12 @@ done
 if [ "${#unrestricted[@]}" -gt 0 ]; then
   echo "Unrestricted page-template areas (no allowedNodeTypes — contribution not guided):"
   printf '  ✗ %s\n' "${unrestricted[@]}"
-  fail "template-govern: ${#unrestricted[@]} area(s) accept ANY content — add allowedNodeTypes to restrict each region"
+  fail "template-govern: ${#unrestricted[@]} area(s) accept ANY content — add allowedNodeTypes to restrict each region (a restricted slot or an OPEN gridRow-led palette — both are fine, a free-for-all is not)"
 fi
-pass "template-govern: $npages page template(s) + MainResource; every Area restricts its content (allowedNodeTypes)"
+# soft nudge: an OPEN composition surface should include the gridRow layout primitive.
+# (file-level heuristic — open areas reference a broad palette const we don't resolve here.)
+for f in "${pages[@]}"; do
+  grep -q "allowedNodeTypes" "$f" || continue
+  grep -qiE ":gridRow|gridRow" "$f" || echo "  note: ${f#$proj/} restricts areas but references no gridRow — open composition surfaces need the gridRow layout primitive" >&2
+done
+pass "template-govern: $npages page template(s) + MainResource; every Area declares allowedNodeTypes (restricted slot or open gridRow-led palette)"
