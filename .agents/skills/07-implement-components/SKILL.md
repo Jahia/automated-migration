@@ -26,6 +26,8 @@ Implements ALL components at once using parallel subagents. Invoked by `/5-compo
 
 > 🚨 **Editable child content MUST use `<RenderChildren/>`/`<RenderChild/>`/`<Area>`, never `getChildNodes(...).map(...)` to raw markup** — the latter is not editable in jContent (see support-create-view SKILL "EDITABILITY RULE"). Container types (carousel, topBar, partners, galleries, FAQ) = `jmix:list, jmix:renderableList orderable` + `+ * (ns:child)`. Validate in the jContent Page Builder, not just the public render.
 
+> 🚨 **PRESERVE the source `field-*` CSS hooks (the imported theme styles them).** The view must keep the source's `<div className="field-<name>">` classes and put the value in a prop — `<div className="field-slidetext">{props.subheading}</div>`. NEVER strip or rename `field-*` to satisfy the hardcoded-text gate (that removes the theme styling → unstyled pages). The two gates coexist: keep the class (CSS contract), prop the value (no hardcoded text). Enforced by `css-hooks.sh` (faithful field-* hooks the CSS targets) + the class-agnostic hardcoded-text check. Also reproduce the `.component .component-content` nesting from the source.
+
 ## Agent identity
 - **Agent name:** Parallex
 - **Reference style:** Factory / parallel assembly
