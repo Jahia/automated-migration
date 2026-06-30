@@ -150,6 +150,55 @@ if [ -n "$placeholders" ]; then
   fail "components-all: $(printf '%s\n' "$placeholders" | grep -c .) hardcoded data: URI image(s) — add a CND image field (weakreference) and render buildNodeUrl(imageNode); wire the real asset in content. A baked-in placeholder logo can never be fixed by the content phase."
 fi
 
+# ── t() runtime-key completeness ──────────────────────────────────────────────
+# Moving hardcoded text to {t('key')} only helps if the key is TRANSLATED. The
+# CND .properties files (checked per-component below) cover editor field labels;
+# t() keys live in settings/locales/<lang>.json and are a SEPARATE i18n system.
+# An empty/partial JSON means every t('key') renders as the raw key
+# ("mainNav.tickets") to visitors — the exact regression a text→t() move causes if
+# the keys are never populated. Assert every t('key') used in a view exists in EN
+# AND FR locale JSON. (AGENTS rules 7 + 18: locale files kept in sync.)
+i18nmiss="$(python3 - "$src" "$proj/settings/locales" <<'PY'
+import os, re, json, sys
+srcdir, locdir = sys.argv[1], sys.argv[2]
+keys = set()
+kpat = re.compile(r"\bt\(\s*['\"]([A-Za-z0-9_.:-]+)['\"]")
+for dp, _, fs in os.walk(srcdir):
+    for fn in fs:
+        if fn.endswith((".tsx", ".ts")):
+            for line in open(os.path.join(dp, fn), encoding="utf-8", errors="ignore"):
+                for m in kpat.finditer(line):
+                    keys.add(m.group(1))
+def flat(o, p=""):
+    out = set()
+    if isinstance(o, dict):
+        for k, v in o.items():
+            out |= flat(v, p + k + ".") if isinstance(v, dict) else {p + k}
+    return out
+def load(lang):
+    fp = os.path.join(locdir, lang + ".json")
+    try: return flat(json.load(open(fp)))
+    except Exception: return set()
+en, fr = load("en"), load("fr")
+miss = []
+for k in sorted(keys):
+    gaps = [l for l, s in (("en", en), ("fr", fr)) if k not in s]
+    if gaps:
+        miss.append(f"{k}  (missing: {','.join(gaps)})")
+print(f"USED={len(keys)} EN={len(en)} FR={len(fr)}")
+for m in miss:
+    print(m)
+PY
+)"
+i18nstat="$(printf '%s\n' "$i18nmiss" | head -1)"
+i18nbad="$(printf '%s\n' "$i18nmiss" | tail -n +2 | grep -c . )"
+if [ "${i18nbad:-0}" -gt 0 ]; then
+  echo "Untranslated t() keys (render as raw keys to visitors) — $i18nstat:" >&2
+  printf '%s\n' "$i18nmiss" | tail -n +2 | sed 's/^/  ✗ /' >&2
+  fail "components-all: $i18nbad t() key(s) missing from settings/locales/en.json or fr.json — populate every key in BOTH files (AGENTS rules 7+18). Empty locale JSON = raw keys like 'mainNav.tickets' shown to users."
+fi
+echo "  · i18n t() keys: $i18nstat — all present in en+fr"
+
 # component dir = any directory under src/components that holds a view or a CND
 # (bash 3.2 on macOS has no `mapfile` — use the read-loop idiom the other probes use)
 dirs=()

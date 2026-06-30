@@ -676,7 +676,7 @@
       "name": "TopBar",
       "nodeType": "lsp:topBar",
       "displayName": "TopBar",
-      "areaType": "page",
+      "areaType": "absolute",
       "needsMainResource": false,
       "interactive": false,
       "isContainer": true,
@@ -710,7 +710,8 @@
           "i18n": true,
           "purpose": "e.g. #SalonPhotoetVideo"
         }
-      ]
+      ],
+      "placementNote": "Shared site chrome (language switcher + utility nav) above the main nav — placed as an AbsoluteArea in Layout, like mainNav/footer. Corrected from page (mis-classified at analysis)."
     },
     {
       "name": "ContactBlock",
