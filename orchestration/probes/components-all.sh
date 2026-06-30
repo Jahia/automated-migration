@@ -69,6 +69,40 @@ PY
   echo "  · manifest coverage: every approved component type is declared in the CND"
 fi
 
+# ── hardcoded SXA field literals ──────────────────────────────────────────────
+# An SXA `field-*` className wrapping a LITERAL string (not a {expr}) is a
+# visitor-readable label baked into the view — it cannot be edited or translated
+# (AGENTS rule 24, the recurring "far from reality" failure). A correct field
+# renders a prop: `<div className="field-x">{props.x}</div>`. Flag every field-*
+# div whose content is a non-empty literal. (Low false-positive: well-built
+# components all use {expr}; only baked-in text matches.)
+hardcoded="$(python3 - "$src/components" <<'PY'
+import os, re, sys
+root = sys.argv[1]
+# opening tag with a field-* class, then capture text up to the next '<'
+pat = re.compile(r'className="[^"]*\bfield-[^"]*"\s*>([^<]*)<')
+hits = []
+for dirpath, _, files in os.walk(root):
+    for fn in files:
+        if not fn.endswith(".server.tsx"):
+            continue
+        p = os.path.join(dirpath, fn)
+        for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
+            for m in pat.finditer(line):
+                txt = m.group(1).strip()
+                # literal = has visible text and is NOT a JSX expression
+                if txt and "{" not in txt:
+                    hits.append(f"{p}:{i}: {txt[:50]}")
+for h in hits:
+    print(h)
+PY
+)"
+if [ -n "$hardcoded" ]; then
+  echo "Hardcoded visitor strings in field-* divs (must be contributor-editable CND props):" >&2
+  printf '  ✗ %s\n' "$hardcoded" | sed "s#$proj/##" >&2
+  fail "components-all: $(printf '%s\n' "$hardcoded" | grep -c .) hardcoded field literal(s) — replace with a {prop} backed by a CND field (AGENTS rule 24); no baked-in labels"
+fi
+
 # component dir = any directory under src/components that holds a view or a CND
 # (bash 3.2 on macOS has no `mapfile` — use the read-loop idiom the other probes use)
 dirs=()
