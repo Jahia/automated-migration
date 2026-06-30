@@ -121,13 +121,38 @@ class Loader:
                 out["j:linkType"] = "external"
         return out
 
-    def load_page(self, page, limit=None, dry=False):
+    def clean_area(self, area_path):
+        """Delete existing content children of an area so the load is idempotent."""
+        try:
+            d = self.m.call("content.list", {"parentPath": area_path, "locale": "fr"})
+        except Exception:
+            return 0
+        kids = d.get("children", d.get("nodes", [])) if isinstance(d, dict) else []
+        n = 0
+        for k in kids:
+            p = k.get("path") if isinstance(k, dict) else None
+            if not p:
+                continue
+            try:
+                self.m.call("content.delete", {"path": p})
+                n += 1
+            except Exception as e:
+                print(f"    ! delete {p} failed: {e}", file=sys.stderr)
+        return n
+
+    def load_page(self, page, limit=None, dry=False, clean=False):
         pdata = self.content.get("pages", {}).get(page)
         if not pdata:
             print(f"  no content-data for page '{page}'"); return (0, 0)
         instances = pdata.get("instances", [])
         page_base = f"/sites/{self.site}/home" if page == "home" else f"/sites/{self.site}/home/{page}"
         main_area = f"{page_base}/main"
+        if clean and not dry:
+            areas = [main_area, f"/sites/{self.site}/home/nav",
+                     f"/sites/{self.site}/home/footer", f"/sites/{self.site}/home/topBar"]
+            removed = sum(self.clean_area(a) for a in (areas if page == "home" else [main_area]))
+            if removed:
+                print(f"  cleaned {removed} existing node(s) from {page} areas")
         created = published = 0
         created_path = {}  # instance index -> created JCR path (so children nest under their container)
 
@@ -179,12 +204,13 @@ class Loader:
 
 def main():
     if len(sys.argv) < 3:
-        sys.exit("usage: load_content.py <project> <site> [--page home] [--limit N] [--dry]")
+        sys.exit("usage: load_content.py <project> <site> [--page home] [--limit N] [--clean] [--dry]")
     project, site = sys.argv[1], sys.argv[2]
     args = sys.argv[3:]
     page = args[args.index("--page") + 1] if "--page" in args else None
     limit = int(args[args.index("--limit") + 1]) if "--limit" in args else None
     dry = "--dry" in args
+    clean = "--clean" in args
     ld = Loader(project, site)
     if not ld.type_map:
         sys.exit("load_content: empty SXA->lsp type map (manifest missing sxaSource)")
@@ -192,7 +218,7 @@ def main():
     tot_c = tot_p = 0
     for pg in pages:
         print(f"== page {pg} ==")
-        c, p = ld.load_page(pg, limit=limit, dry=dry)
+        c, p = ld.load_page(pg, limit=limit, dry=dry, clean=clean)
         tot_c += c; tot_p += p
     print(f"\nload_content: created {tot_c}, published {tot_p} node(s){' [dry]' if dry else ''}")
 
