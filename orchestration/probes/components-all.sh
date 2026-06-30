@@ -35,6 +35,40 @@ load_env "$proj" 2>/dev/null || true
 enp="$(find "$proj/settings/resources" -name "*_en.properties" 2>/dev/null | head -1)"
 frp="$(find "$proj/settings/resources" -name "*_fr.properties" 2>/dev/null | head -1)"
 
+# ── manifest coverage ─────────────────────────────────────────────────────────
+# The per-component loop below only validates dirs that EXIST — it cannot see a
+# component that was silently dropped (no dir created at all). That dropped-
+# component path is exactly the "far from reality" failure. So first assert that
+# every nodeType in the approved analysis manifest is actually declared in the
+# module's CND. Names each missing one. (Skips quietly if no manifest.)
+manifest="$proj/workflow-output/component-manifest.json"
+if [ -f "$manifest" ]; then
+  declared="$(grep -rhoE "\[${ns}:[a-zA-Z0-9]+\]" "$proj/src" "$proj/settings" 2>/dev/null | tr -d '[]' | sort -u)"
+  want="$(python3 - "$manifest" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1]))
+want = set()
+for c in m.get("components", []):
+    nt = c.get("nodeType")
+    if nt: want.add(nt)
+    ct = c.get("childType"); cts = list(c.get("childTypes") or [])
+    if isinstance(ct, str): cts.append(ct)
+    for t in cts:
+        if isinstance(t, str) and ":" in t: want.add(t)
+    for ch in (c.get("children") or []):
+        if isinstance(ch, dict) and ch.get("nodeType"): want.add(ch["nodeType"])
+for t in sorted(want): print(t)
+PY
+)"
+  missing="$(comm -23 <(printf '%s\n' "$want" | sort -u) <(printf '%s\n' "$declared" | sort -u) || true)"
+  if [ -n "$missing" ]; then
+    echo "Manifest components with NO CND type declared (silently dropped):" >&2
+    printf '  ✗ %s\n' $missing >&2
+    fail "components-all: $(printf '%s\n' "$missing" | grep -c .) approved manifest component(s) are missing from the module — implement them (CND + view), do not drop them"
+  fi
+  echo "  · manifest coverage: every approved component type is declared in the CND"
+fi
+
 # component dir = any directory under src/components that holds a view or a CND
 # (bash 3.2 on macOS has no `mapfile` — use the read-loop idiom the other probes use)
 dirs=()
