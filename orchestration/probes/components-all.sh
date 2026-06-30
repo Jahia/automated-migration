@@ -69,38 +69,40 @@ PY
   echo "  · manifest coverage: every approved component type is declared in the CND"
 fi
 
-# ── hardcoded SXA field literals ──────────────────────────────────────────────
-# An SXA `field-*` className wrapping a LITERAL string (not a {expr}) is a
-# visitor-readable label baked into the view — it cannot be edited or translated
-# (AGENTS rule 24, the recurring "far from reality" failure). A correct field
-# renders a prop: `<div className="field-x">{props.x}</div>`. Flag every field-*
-# div whose content is a non-empty literal. (Low false-positive: well-built
-# components all use {expr}; only baked-in text matches.)
+# ── hardcoded visitor text (class-agnostic, UNGAMEABLE) ───────────────────────
+# Any PROSE literal in a component view's JSX body is a visitor-readable string
+# baked into code — uneditable, untranslatable (AGENTS rules 7 + 24, the recurring
+# "far from reality" failure). It must be a {prop} (contributor CND field) or a
+# {t('key')} (i18n label) — never a bare literal. This is deliberately
+# class-agnostic: an earlier field-* check was GAMED by renaming the class to drop
+# the prefix while leaving the literal in place. We match the TEXT NODE itself, so
+# no rename can dodge it. (Verified low false-positive: well-built views render
+# {expr}; only baked-in text matches.)
 hardcoded="$(python3 - "$src/components" <<'PY'
 import os, re, sys
 root = sys.argv[1]
-# opening tag with a field-* class, then capture text up to the next '<'
-pat = re.compile(r'className="[^"]*\bfield-[^"]*"\s*>([^<]*)<')
+# JSX text node between > and < that begins with a letter and has no expression/markup
+pat = re.compile(r'>\s*([A-Za-zÀ-ÿ][^<>{}]*?)\s*<')
 hits = []
 for dirpath, _, files in os.walk(root):
     for fn in files:
-        if not fn.endswith(".server.tsx"):
+        if not fn.endswith((".server.tsx", ".client.tsx")):
             continue
         p = os.path.join(dirpath, fn)
         for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
             for m in pat.finditer(line):
                 txt = m.group(1).strip()
-                # literal = has visible text and is NOT a JSX expression
-                if txt and "{" not in txt:
+                # prose = >=3 chars with a letter; not a code/comment fragment
+                if len(txt) >= 3 and re.search(r'[A-Za-zÀ-ÿ]', txt) and not txt.startswith(("/", "*")):
                     hits.append(f"{p}:{i}: {txt[:50]}")
 for h in hits:
     print(h)
 PY
 )"
 if [ -n "$hardcoded" ]; then
-  echo "Hardcoded visitor strings in field-* divs (must be contributor-editable CND props):" >&2
+  echo "Hardcoded visitor text in component views (must be a {prop} CND field or {t('key')}):" >&2
   printf '  ✗ %s\n' "$hardcoded" | sed "s#$proj/##" >&2
-  fail "components-all: $(printf '%s\n' "$hardcoded" | grep -c .) hardcoded field literal(s) — replace with a {prop} backed by a CND field (AGENTS rule 24); no baked-in labels"
+  fail "components-all: $(printf '%s\n' "$hardcoded" | grep -c .) hardcoded literal(s) in JSX — replace each with a {prop} (contributor field) or {t('key')} (i18n); no baked-in visitor text (AGENTS rules 7+24). Renaming the CSS class does NOT fix this."
 fi
 
 # component dir = any directory under src/components that holds a view or a CND
