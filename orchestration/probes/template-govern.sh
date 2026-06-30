@@ -54,4 +54,38 @@ for f in "${pages[@]}"; do
   grep -q "allowedNodeTypes" "$f" || continue
   grep -qiE ":gridRow|gridRow" "$f" || echo "  note: ${f#$proj/} restricts areas but references no gridRow — open composition surfaces need the gridRow layout primitive" >&2
 done
-pass "template-govern: $npages page template(s) + MainResource; every Area declares allowedNodeTypes (restricted slot or open gridRow-led palette)"
+
+# ── shared-region (AbsoluteArea) governance ───────────────────────────────────
+# Every component the analysis marks areaType=absolute (site chrome: nav, footer,
+# top bar) is SHARED across all pages and must be placed once as an <AbsoluteArea>
+# (in Layout or a template) — otherwise it never renders (the "topNav is missing"
+# bug: a shared component modelled but never placed). And a shared region must be
+# EDITABLE: readOnly="children" on it blanks/locks it in Page Builder so editors
+# can't manage nav/footer content. Check both against the manifest.
+manifest="$proj/workflow-output/component-manifest.json"
+absdecl="$(grep -rhoE '<AbsoluteArea[^>]*nodeType="[^"]+"' "$tdir" 2>/dev/null | grep -oE 'nodeType="[^"]+"' | sed 's/nodeType="//; s/"//' | sort -u)"
+if [ -f "$manifest" ]; then
+  absreq="$(python3 - "$manifest" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1]))
+for c in m.get("components", []):
+    if c.get("areaType") == "absolute" and c.get("nodeType"):
+        print(c["nodeType"])
+PY
+)"
+  unplaced="$(comm -23 <(printf '%s\n' "$absreq" | sort -u | grep -v '^$') <(printf '%s\n' "$absdecl" | sort -u | grep -v '^$') || true)"
+  if [ -n "$unplaced" ]; then
+    echo "Shared (areaType=absolute) components not placed as an <AbsoluteArea>:" >&2
+    printf '  ✗ %s\n' $unplaced >&2
+    fail "template-govern: $(printf '%s\n' "$unplaced" | grep -c .) shared component(s) modelled but never placed — add <AbsoluteArea nodeType=\"<type>\" parent={homePage}/> in Layout (like nav/footer). A shared component that is never placed never renders."
+  fi
+fi
+# readOnly on a shared region locks editing — never on nav/footer/topbar AbsoluteAreas
+ro="$(grep -rnE '<AbsoluteArea[^>]*readOnly' "$tdir" 2>/dev/null | sed "s#$proj/##")"
+if [ -n "$ro" ]; then
+  echo "AbsoluteArea with readOnly (shared region not editable in Page Builder):" >&2
+  printf '  ✗ %s\n' "$ro" >&2
+  fail "template-govern: shared AbsoluteArea uses readOnly — remove it so editors can manage nav/footer/top-bar content in Page Builder"
+fi
+
+pass "template-govern: $npages page template(s) + MainResource; every Area declares allowedNodeTypes; shared (absolute) components placed + editable"
