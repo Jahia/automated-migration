@@ -52,7 +52,11 @@ def main():
             if jcr: ok += 1
             else: fail += 1
             print(f"  [{status}] {page}/{img['file']}" + ("" if jcr else f"  -> {raw}"))
-            result[page].append({"src": src, "role": img.get("role"), "jcrPath": jcr})
+            # record `file` + `alt` — the join key the content loader uses to rewire
+            # an instance's image (content-data file) -> this imported DAM jcrPath.
+            result[page].append({"file": img["file"], "src": src,
+                                  "role": img.get("role"), "alt": img.get("alt", ""),
+                                  "jcrPath": jcr})
     outp = f"orchestration/images/{project}.imported.json"
     json.dump(result, open(outp, "w"), indent=2)
     print(f"\nImported {ok} ok, {fail} failed. Wrote {outp}")

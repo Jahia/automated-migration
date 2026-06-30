@@ -489,7 +489,8 @@
                 "Editability: shared regions (nav/footer/topbar) must render AND be editable in Page Builder, not blank (AbsoluteAreas need child content nodes): PROBE: bash orchestration/probes/edit-frame.sh projects/__PROJECT__ __SITE_KEY__ __LANG__ home",
                 "Quality: every page passes a11y (axe-core, no critical/serious) + SEO baseline (title, meta, single h1, img alt): PROBE: bash orchestration/probes/site-review.sh projects/__PROJECT__ __SITE_KEY__ __LANG__ __PAGES__",
                 "Reuse guard: content/page discovery must NOT add types beyond the approved per-project baseline (reuse a type or add a view instead): PROBE: bash orchestration/probes/no-new-types.sh projects/__PROJECT__ __NAMESPACE__ projects/__PROJECT__/component-baseline.txt",
-                "Gate 4: present reference vs Jahia screenshots, return status halt."
+                "Gate 4: present reference vs Jahia screenshots, return status halt.",
+                "PROBE: bash orchestration/probes/no-graphql-writes.sh projects/__PROJECT__"
               ],
               "max_attempts": 3
             }
