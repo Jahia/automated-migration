@@ -50,27 +50,46 @@ guardrails. Add a 4th only when a section's *skeleton* genuinely differs (a camp
 landing page, a facet-search listing) — NOT because the *content* differs (that's a
 component view, not a new template). Assign `j:templateName` per page from this mapping.
 
-## Restrict each Area — the contribution contract (`allowedNodeTypes`)
+## Areas come in two flavours — restricted slots and OPEN composition surfaces
 
-Templates guide contribution by restricting what can be dropped in each region. The
-`<Area>` component takes **`allowedNodeTypes: string[]`** — use it on EVERY area:
+The `<Area>` component takes **`allowedNodeTypes: string[]`**. Use it on EVERY area, but
+the right list depends on the area's intent:
 
-```tsx
-<Area name="hero" allowedNodeTypes={["ns:hero", "ns:heroCarousel"]} />
-<Area name="main" allowedNodeTypes={["ns:editorialBlock", "ns:cardGrid", "ns:jcrQuery", /* …content components… */]} />
-```
+- **Restricted slot** — a fixed role (a hero band, a CTA strip): narrow list of the few
+  types that belong there.
+  ```tsx
+  <Area name="hero" allowedNodeTypes={["ns:hero", "ns:heroCarousel"]} />
+  ```
+- **OPEN composition surface** — a flexible page body where the contributor *builds the
+  layout from components*. This is the common case for standard/inner pages and any
+  "flexible"/landing template. It is NOT a fixed slot, but it is NOT a free-for-all
+  either: allow the **broad content palette led by the layout primitive `ns:gridRow`**
+  (rows/columns) + every body content component — the contributor composes freely with
+  those. Define it once and reuse:
+  ```tsx
+  // OPEN palette: gridRow (layout) + all body content components.
+  const OPEN_PALETTE = ["ns:gridRow", "ns:editorialBlock", "ns:cardGrid", "ns:jcrQuery",
+                        "ns:promoBlock", "ns:partnerCarousel", "ns:keyFigures", /* …all body components… */];
+  <Area name="main" allowedNodeTypes={OPEN_PALETTE} />
+  ```
 
-Rules for what goes where:
-- **Hero/landing area** → only the landing hero/carousel types.
-- **Main content area** → the body content components (editorial, cards, listings, promo…).
-- **Never** list child-only types (cta/social/footerLink/slide — they extend the plain
-  component mixin, not `pageComponent`), shell types (nav/footer live in Layout as
-  AbsoluteAreas), or `jmix:mainResource` detail types (folder content, listed via jcrQuery).
-- The **mixin hierarchy** is the coarse lever (`nsmix:pageComponent` = page-droppable;
-  plain `nsmix:component` = child-only); `allowedNodeTypes` is the per-area fine lever.
+So a template can be **structured** (mostly restricted slots), **open** (one broad
+`gridRow`-led canvas — "structured by components only"), or a mix (home = a restricted
+hero slot + an open main). A dedicated `flexible` template = just an open canvas (no
+breadcrumb/title) for campaign/landing pages.
+
+**Always excluded from any page area** (even open ones): child-only types (cta/social/
+footerLink/slide — they extend the plain `nsmix:component`, not `pageComponent`), shell
+types (nav/footer = Layout AbsoluteAreas), and `jmix:mainResource` detail types (folder
+content, listed via jcrQuery). The **mixin hierarchy** is the coarse lever
+(`nsmix:pageComponent` = page-droppable; plain `nsmix:component` = child-only);
+`allowedNodeTypes` is the per-area fine lever; **`gridRow` is the layout primitive that
+makes an open area composable.**
 
 Gate: `bash orchestration/probes/template-govern.sh <project_path>` — fails if the page
-template count is unreasonable or any Area accepts ANY content (no `allowedNodeTypes`).
+template count is unreasonable or any Area declares no `allowedNodeTypes` (a silent
+free-for-all). It also warns if an OPEN area (broad palette) omits the `gridRow` layout
+primitive.
 
 ## Overview
 
