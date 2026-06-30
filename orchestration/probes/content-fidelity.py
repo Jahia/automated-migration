@@ -102,13 +102,22 @@ if "en" in LANGS:
         notes.append(f"en: {fr_only}/{len(sample)} sampled nodes missing EN title (under threshold)")
 
 # ── 5. cleanup — no debris ────────────────────────────────────────────────────
+# Scan BOTH content and pages: debris pages (e.g. "test-home", "test-2") pollute
+# the navigation menu (built from the page tree) and are the most visible "far
+# from reality" artifact, yet are jnt:page not jnt:content — so the content scan
+# alone misses them.
+pages_dbg = nodes(f"select * from [jnt:page] where {SCOPE}") or []
 debris = []
-for n in (content or []):
+def is_debris(base):
+    return (base.startswith("test") or base in ("test2", "test-home")
+            or "-old" in base or base.endswith("-old") or base.startswith("untitled")
+            or base.startswith("copy-of") or base.startswith("temp"))
+for n in (content or []) + pages_dbg:
     base = n["path"].rsplit("/", 1)[-1].lower()
-    if base.startswith("test") or base in ("test2", "test-home") or "-old" in base or base.startswith("untitled"):
+    if is_debris(base):
         debris.append(n["path"])
 if debris:
-    fails.append(f"cleanup: {len(debris)} test/temp/old debris node(s): {', '.join(debris[:6])}")
+    fails.append(f"cleanup: {len(debris)} test/temp/old debris node(s) (content+pages; pollute nav): {', '.join(sorted(set(debris))[:8])}")
 
 # ── report ────────────────────────────────────────────────────────────────────
 for n in notes:
