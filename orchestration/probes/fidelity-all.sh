@@ -29,6 +29,9 @@ pages_arg="${4:?pages or @sitemap file required}"
 load_env "$proj"
 
 capdir="$proj/.reference/captured"
+# SSR sites need no browser capture: the wget crawl cache IS the server-rendered
+# reference DOM. fall back to it when captured/ is absent or has no match.
+crawldir="$proj/.reference/cache/_crawl"
 
 # Resolve the page list: @file → read lines (strip comments/CR), else split commas.
 pages=()
@@ -53,6 +56,18 @@ find_ref() {
   for c in "${cands[@]}"; do
     [ -f "$capdir/$c.html" ] && { echo "$capdir/$c.html"; return 0; }
   done
+  # SSR fallback: locate the page in the wget crawl cache by slug.
+  # home → the crawl root (<host>/<lang>.html); else first match for <slug>.html.
+  if [ -d "$crawldir" ]; then
+    local slug="${p##*/}"
+    if [ "$p" = "home" ]; then
+      local hit; hit="$(find "$crawldir" -maxdepth 2 -name '*.html' 2>/dev/null \
+        | grep -E '/[a-z]{2}(-[A-Z]{2})?\.html$' | head -1)"
+      [ -n "$hit" ] && { echo "$hit"; return 0; }
+    fi
+    local hit; hit="$(find "$crawldir" -name "$slug.html" 2>/dev/null | head -1)"
+    [ -n "$hit" ] && { echo "$hit"; return 0; }
+  fi
   return 1
 }
 
@@ -61,7 +76,8 @@ for path in "${pages[@]}"; do
   p="${path#/}"; p="${p%.html}"
   case "$p" in
     sites/*) url="$JAHIA_HOST/$p.html" ;;
-    *)       url="$JAHIA_HOST/sites/$site/$p.html" ;;
+    home)    url="$JAHIA_HOST/sites/$site/home.html" ;;
+    *)       url="$JAHIA_HOST/sites/$site/home/$p.html" ;;
   esac
   checked=$((checked+1))
   if ref="$(find_ref "$path")"; then
@@ -83,7 +99,7 @@ echo "fidelity-all: $checked page(s) — $gated gated, ${#skipped[@]} without a 
 [ "${#skipped[@]}" -gt 0 ] && echo "  no reference for: ${skipped[*]}"
 
 if [ "$gated" -eq 0 ]; then
-  fail "fidelity-all: NO page had a captured reference under $capdir — capture-reference never ran, so fidelity was never checked. Capture the reference DOM first."
+  fail "fidelity-all: NO page had a reference DOM under $capdir or the crawl cache $crawldir — neither capture-reference nor the wget crawl produced reference HTML, so fidelity was never checked. Capture/crawl the reference first."
 fi
 if [ "${#failed[@]}" -gt 0 ]; then
   fail "fidelity-all: ${#failed[@]}/$gated gated page(s) are materially below the reference: ${failed[*]}"
