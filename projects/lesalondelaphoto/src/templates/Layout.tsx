@@ -90,6 +90,10 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
         {/* Vite-compiled module styles */}
         <AddResources type="css" resources={buildModuleFileUrl("dist/assets/style.css")} />
 
+        {/* Corrections — LAST: restore base typography the re-aggregation reordered
+            + contain the carousel image (see site-corrections.css). */}
+        <AddResources type="css" resources={buildModuleFileUrl("static/css/site-corrections.css")} />
+
         {/* FA Pro 6 font-family remap — point Pro names at FA Free CDN files */}
         <style
           dangerouslySetInnerHTML={{

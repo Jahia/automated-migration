@@ -1,0 +1,26 @@
+/* site-corrections.css — loaded LAST to win the cascade.
+ *
+ * Jahia re-aggregates the imported theme stylesheets into one file, which changed
+ * the rule order: a `body{font-size:12px}` rule and the Meyer reset's
+ * `font-size:100%` end up overriding the intended base sizes, so on the live page
+ * body computed 12px and h2 collapsed to 12px. The original site (measured from the
+ * MHTML) is body 16px, h2 32px/800, h3 24px/700. Restore those measured values.
+ * These mirror rules already present in the theme — we only re-assert their order. */
+
+body { font-size: 16px; }
+
+h1 { font-size: 2.5rem; font-weight: 900; line-height: 1.1; }
+h2 { font-size: 2rem; font-weight: 800; line-height: 1.35; }
+h3 { font-size: 1.5rem; font-weight: 700; line-height: 1.35; }
+
+/* picture-grid cards: titles 32/800, subtitles 24/700 (measured from reference) */
+.picture-grid .card-body h2 { font-size: 2rem; font-weight: 800; line-height: 1.2; }
+.picture-grid .card-body h3 { font-size: 1.5rem; font-weight: 700; }
+
+/* hero slide title 32/800 */
+.carousel-inner .Slide h2, .field-slidesmalltitle { font-size: 2rem; font-weight: 800; }
+
+/* carousel: keep the 2000px slide image inside the viewport (bootstrap .row
+ * negative margins were pushing it ~30px past the edge -> horizontal scroll) */
+.carousel-inner { overflow: hidden; }
+.slide-img { max-width: 100%; height: auto; display: block; }
