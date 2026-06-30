@@ -62,24 +62,41 @@ def clean(t):
 
 class SXAContent(html.parser.HTMLParser):
     """Per-page SXA instances: each .component -> {type, fields:{name:text}, images, links}."""
+    # repeated item wrappers that are NOT .component-wrapped (cards in a picture-grid,
+    # partner logos, popin items). Each such element inside a component is a CHILD
+    # item — without this the items collapse into the parent and the grid renders empty.
+    ITEM_MARKERS = {"card", "vignette", "mosaic-item", "partner-item", "popin-item",
+                    "tab-pane", "accordion-item", "speaker", "conference-item"}
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.instances = []
         self.compstack = []          # (instance_idx, divdepth)
+        self.itemstack = []          # (instance_idx, divdepth) — repeated items within a component
         self.divdepth = 0
         self.fieldstack = []         # (instance_idx, fieldname, divdepth)
         self.in_a = None             # (instance_idx, href, text_parts)
 
+    def _cur(self):
+        """The instance fields/images/links attach to: deepest item, else component."""
+        if self.itemstack:
+            return self.itemstack[-1][0]
+        return self.compstack[-1][0] if self.compstack else None
+
     def _start_component(self, toks):
         after = [t for t in toks if not LAYOUT.match(t)]
         ctype = after[0] if after else "unknown"
-        # parent = the enclosing component instance (top of the stack), if any —
-        # this preserves container nesting (carousel -> slides, tabs -> items) the
-        # loader needs to recreate the JCR hierarchy instead of a flat list.
-        parent = self.compstack[-1][0] if self.compstack else None
+        parent = self._cur()
         self.instances.append({"type": ctype, "parent": parent,
                                "fields": {}, "images": [], "links": []})
         self.compstack.append((len(self.instances) - 1, self.divdepth))
+
+    def _start_item(self, marker):
+        # an item is a child of its enclosing component
+        parent = self.compstack[-1][0] if self.compstack else None
+        self.instances.append({"type": marker, "parent": parent, "item": True,
+                               "fields": {}, "images": [], "links": []})
+        self.itemstack.append((len(self.instances) - 1, self.divdepth))
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -88,20 +105,22 @@ class SXAContent(html.parser.HTMLParser):
             self.divdepth += 1
             if "component" in toks and "component-content" not in toks:
                 self._start_component(toks)
-        if not self.compstack:
+            elif self.compstack and (set(toks) & self.ITEM_MARKERS):
+                self._start_item(next(t for t in toks if t in self.ITEM_MARKERS))
+        cur = self._cur()
+        if cur is None:
             return
-        cur = self.compstack[-1][0]
         # field-<name> element -> capture its text into fields[name]
         for t in toks:
             if t.startswith("field-"):
                 self.fieldstack.append((cur, t[len("field-"):], self.divdepth))
-        # images inside this component
+        # images inside this component/item
         if tag == "img":
             src = a.get("src") or a.get("data-src") or ""
             if src and IMG_EXT.search(src) and not src.startswith("data:"):
                 self.instances[cur]["images"].append(
                     {"file": filename_for(src), "alt": clean(a.get("alt", ""))})
-        # links inside this component
+        # links inside this component/item
         if tag == "a" and a.get("href"):
             self.in_a = (cur, a["href"], [])
 
@@ -131,6 +150,8 @@ class SXAContent(html.parser.HTMLParser):
         if tag == "div":
             if self.fieldstack and self.fieldstack[-1][2] == self.divdepth:
                 self.fieldstack.pop()
+            if self.itemstack and self.itemstack[-1][1] == self.divdepth:
+                self.itemstack.pop()
             if self.compstack and self.compstack[-1][1] == self.divdepth:
                 self.compstack.pop()
             self.divdepth -= 1
@@ -211,6 +232,21 @@ def main():
         if detect_sxa(txt):
             p = SXAContent()
             p.feed(txt)
+            # distribute a grid container's images to its item children positionally:
+            # picture-grids render the card image in a sibling `.card-img`, so the
+            # images land on the parent in order while the text lands on the cards.
+            kids_of = {}
+            for j, inst in enumerate(p.instances):
+                if inst.get("parent") is not None:
+                    kids_of.setdefault(inst["parent"], []).append(j)
+            for pi, kids in kids_of.items():
+                items = [k for k in kids if p.instances[k].get("item")]
+                par = p.instances[pi]
+                if items and par["images"] and all(not p.instances[k]["images"] for k in items):
+                    for n, k in enumerate(items):
+                        if n < len(par["images"]):
+                            p.instances[k]["images"].append(par["images"][n])
+                    par["images"] = par["images"][len(items):]  # keep any extras on parent
             # keep ALL instances (stable indices for `parent` refs) — flag which are
             # empty leaves so the loader can skip them while preserving containers.
             parents = {i["parent"] for i in p.instances if i.get("parent") is not None}

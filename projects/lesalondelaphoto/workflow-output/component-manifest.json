@@ -69,7 +69,8 @@
       "sxaSource": [
         "Slide",
         "banner2",
-        "quicklinks"
+        "quicklinks",
+        "card"
       ]
     },
     {
@@ -625,6 +626,30 @@
       ]
     },
     {
+      "name": "CtaButton",
+      "nodeType": "lsp:ctaButton",
+      "displayName": "CTA Button",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "sxaSource": [
+        "link"
+      ],
+      "recovered": true,
+      "fieldsFromSxa": [
+        "title"
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "CTA button with link and label. Used for internal page links and external links."
+        }
+      ]
+    },
+    {
       "name": "ExternalEmbed",
       "nodeType": "lsp:externalEmbed",
       "displayName": "External Embed (iframe)",
@@ -993,8 +1018,6 @@
     "locale": "FR content; EN+FR labels"
   },
   "sxaIgnored": [
-    "link",
-    "plain-html",
     "breadcrumb",
     "snippet",
     "previous-next",
@@ -1005,8 +1028,6 @@
     "load-more"
   ],
   "sxaIgnoredReason": {
-    "link": "generic link — modelled via j:linkType/linkTypeInitializer on hosting components",
-    "plain-html": "raw HTML widget (hamburger etc.) — theme/template level, not editable content",
     "breadcrumb": "rendered by the page template from the JCR page tree",
     "snippet": "SXA structural wrapper, no own fields",
     "previous-next": "article prev/next nav — page-template level on mainResource detail",

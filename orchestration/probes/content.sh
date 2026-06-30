@@ -27,8 +27,11 @@ pages="${4:?comma-separated pages or @sitemap-file required}"   # @file or csv; 
 load_env "$proj"
 
 # 1. Real JCR state: images / listings / shell / EN / no debris.
-echo "── content-fidelity (live JCR: images / listings / shell / EN / debris):"
-bash "$HERE/content-fidelity.sh" "$proj" "$site" "fr,en"
+# Pass the SOURCE language only — a single-language (e.g. fr-FR) source has no
+# English to migrate, so do NOT demand EN. Faithful French is the goal; adding a
+# language is a separate task. (content-fidelity skips the EN check unless 'en' is here.)
+echo "── content-fidelity (live JCR: images / listings / shell / debris):"
+bash "$HERE/content-fidelity.sh" "$proj" "$site" "$lang"
 
 # 2. Reference comparison: does each live page actually reproduce the real source
 #    page (sections / cards / images), rendered both sides in Chromium?
