@@ -67,6 +67,20 @@ if [ -z "$shot" ]; then
   shot="$HERE/../artifacts/render-truth_${slug}.png"
 fi
 
+# Raw-HTML error scan (runs BEFORE the visual check): Jahia renders query / module
+# / JCR errors into the markup, sometimes inside HTML COMMENTS — invisible to a
+# DOM/visual check, yet proof the page is broken. The agent flagged exactly this
+# ("error visible in HTML" for an unprefixed JCR-SQL2 type); this enforces it.
+raw="$(curl -s --max-time 30 ${JAHIA_USER:+-u "$JAHIA_USER"} -H "Origin: ${JAHIA_HOST:-http://localhost:8080}" "$url" 2>/dev/null)"
+if [ -n "$raw" ]; then
+  errln="$(printf '%s' "$raw" | grep -ioE '(node type does not exist|invalidqueryexception|repositoryexception|pathnotfoundexception|itemnotfoundexception|javax\.jcr\.[A-Za-z]+exception|org\.jahia\.[A-Za-z.]*exception|error rendering [^<]{0,60})[^<]{0,90}' | head -3)"
+  if [ -n "$errln" ]; then
+    echo "render-truth: error markers in HTML for $url (invisible in DOM but the page is broken):"
+    printf '  ✗ %s\n' "$errln"
+    fail "render-truth: $url contains JCR/query/render error markers in the HTML — fix the underlying error (e.g. an unprefixed JCR-SQL2 node type like [newsArticle] → [lsp:newsArticle])"
+  fi
+fi
+
 out="$(node "$HERE/render-truth.mjs" "$url" "$shot" $edit_flag 2>&1)"
 code=$?
 echo "$out"
