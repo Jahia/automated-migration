@@ -32,8 +32,11 @@ capture (any HTML)  ──►  detect CMS  ──►  extract media (generic)  �
 | `lib/source_detect.py <project>` | captured DOM | `<project>.source.json` (sitecore-sxa / drupal / wordpress / aem / generic) | yes |
 | `lib/extract_media.py <project> <site>` | captured DOM | `images/<project>.json` (per-page image manifest: src, file, role) | **fully generic** — parses `<img>`/srcset/`<source>`/`url()`/og:image |
 | `lib/extract_content.py <project> <site>` | captured DOM | `content/<project>.content-data.json` (per-page real field values / blocks) | generic + adapter (SXA `field-*` precise) |
-| `images/import.py <project>` | `images/<project>.json` | `images/<project>.imported.json` (page → DAM jcrPath) | yes (jahia-image-proxy servlet) |
-| `images/set_image_refs.py` / `set_hero_refs.py` | imported.json | image weakrefs set on content | yes |
+| `images/import.py <project>` | `images/<project>.json` | `images/<project>.imported.json` (page → file → DAM jcrPath) | yes (jahia-image-proxy: server-side fetch, gets WAF'd origins) |
+| `lib/mcp_client.py` | — | the ONE sanctioned write path (JSON-RPC tools/call; content.create/update/translate, publish, set_weakref) | yes |
+| `lib/load_content.py <project> <site>` | content-data + imported.json + manifest | JCR nodes created via MCP, image weakrefs wired AT CREATE TIME, published | yes — **deterministic, MCP-only** |
+
+> Legacy `images/set_*_refs.py` (GraphQL rewiring) are superseded by `load_content.py` (MCP) — flagged by `no-graphql-writes.sh` for cleanup.
 
 ## Where it sits in the workflow (the plan)
 
