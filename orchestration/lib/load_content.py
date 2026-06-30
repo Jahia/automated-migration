@@ -129,33 +129,49 @@ class Loader:
         page_base = f"/sites/{self.site}/home" if page == "home" else f"/sites/{self.site}/home/{page}"
         main_area = f"{page_base}/main"
         created = published = 0
+        created_path = {}  # instance index -> created JCR path (so children nest under their container)
+
+        def parent_for(idx, inst, nt):
+            # nest under the container instance if it was created; else the area
+            pi = inst.get("parent")
+            if pi is not None and pi in created_path:
+                return created_path[pi]
+            return area_for(nt, self.manifest, self.site) or main_area
+
+        # process in document order so a container is created before its children
         for idx, inst in enumerate(instances):
             if limit and created >= limit:
                 break
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
-                continue  # unmapped helper (carousel/navigation containers handled elsewhere)
+                continue  # unmapped helper
             pdef = self.props_of(nt)
             if not pdef["names"]:
                 continue
             props = self.map_props(page, inst, pdef)
-            if not props:
-                continue  # nothing real to set
-            parent = area_for(nt, self.manifest, self.site) or main_area
+            is_container = any(c.get("nodeType") == nt and c.get("isContainer")
+                               for c in self.manifest.get("components", []))
+            # skip empty leaves, but ALWAYS create containers (they hold children)
+            if not props and not is_container:
+                continue
+            parent = parent_for(idx, inst, nt)
             name = f"{nt.split(':')[-1]}-{page}-{idx}"
             if dry:
-                print(f"  [dry] {parent}/{name} <- {nt}  props={list(props)}  "
-                      f"img={'yes' if any(k in pdef['weakref'] for k in props) else 'no'}")
+                nest = "(nested)" if inst.get("parent") in created_path else ""
+                print(f"  [dry] {parent}/{name} <- {nt} {nest} props={list(props)}")
+                created_path[idx] = f"{parent}/{name}"
                 created += 1
                 continue
             try:
                 r = self.m.create(parent, nt, props, name=name, locale="fr")
                 path = r.get("path") if isinstance(r, dict) else None
-                created += 1
                 if path:
+                    created_path[idx] = path
+                    created += 1
                     self.m.publish(path)
                     published += 1
-                    print(f"  + {path}  ({props.get('heading', list(props.values())[0])[:48]})")
+                    label = props.get("heading") or (list(props.values())[0] if props else nt)
+                    print(f"  + {path}  ({str(label)[:48]})")
             except Exception as e:
                 print(f"  ! create {name} ({nt}) failed: {e}", file=sys.stderr)
         return (created, published)

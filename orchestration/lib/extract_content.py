@@ -73,7 +73,12 @@ class SXAContent(html.parser.HTMLParser):
     def _start_component(self, toks):
         after = [t for t in toks if not LAYOUT.match(t)]
         ctype = after[0] if after else "unknown"
-        self.instances.append({"type": ctype, "fields": {}, "images": [], "links": []})
+        # parent = the enclosing component instance (top of the stack), if any —
+        # this preserves container nesting (carousel -> slides, tabs -> items) the
+        # loader needs to recreate the JCR hierarchy instead of a flat list.
+        parent = self.compstack[-1][0] if self.compstack else None
+        self.instances.append({"type": ctype, "parent": parent,
+                               "fields": {}, "images": [], "links": []})
         self.compstack.append((len(self.instances) - 1, self.divdepth))
 
     def handle_starttag(self, tag, attrs):
@@ -206,8 +211,12 @@ def main():
         if detect_sxa(txt):
             p = SXAContent()
             p.feed(txt)
-            inst = [i for i in p.instances if i["fields"] or i["images"] or i["links"]]
-            data["pages"][slug] = {"adapter": "sxa", "instances": inst}
+            # keep ALL instances (stable indices for `parent` refs) — flag which are
+            # empty leaves so the loader can skip them while preserving containers.
+            parents = {i["parent"] for i in p.instances if i.get("parent") is not None}
+            for idx, i in enumerate(p.instances):
+                i["empty"] = not (i["fields"] or i["images"] or i["links"]) and idx not in parents
+            data["pages"][slug] = {"adapter": "sxa", "instances": p.instances}
             sxa_pages += 1
         else:
             p = GenericContent()
