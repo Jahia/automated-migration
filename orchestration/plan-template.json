@@ -479,6 +479,7 @@
               },
               "acceptance_criteria": [
                 "LOAD content from orchestration/content/<project>.content-data.json and wire imported media from orchestration/images/<project>.imported.json — do NOT improvise text or invent placeholder content (the captured source is the source of truth).",
+                "Run the DETERMINISTIC MCP loader to create content from the extracted source: python3 orchestration/lib/load_content.py __PROJECT__ __SITE__  — it creates each node via MCP content.create with real field values AND wires the imported image weakref at create time (lib/mcp_client.py), then publishes. Do NOT hand-write GraphQL or improvise content.",
                 "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.",
                 "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Import via MCP media.upload.url (consistent UUID), set the WEAKREFERENCE field (image/backgroundImage/logo/photo), clear any *ExternalUrl string. Canonical tools: orchestration/images/set_hero_refs.py and set_image_refs.py __PROJECT__ __SITE_KEY__ __NAMESPACE__. Capture source URLs via browser (site blocks the agent).",
                 "PROBE: bash orchestration/probes/mcp.sh projects/__PROJECT__",
