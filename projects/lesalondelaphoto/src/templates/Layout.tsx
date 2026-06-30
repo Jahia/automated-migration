@@ -49,6 +49,8 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
   // AbsoluteArea parent MUST be the home page node — NOT renderContext.getSite()
   const homePage = siteNode.getNode("home") as JCRNodeWrapper;
 
+  const description = getProp(currentResource as unknown as JCRNodeWrapper, "jcr:description");
+
   const themePrimaryColor = getProp(siteNode, "themePrimaryColor");
   const themeSecondaryColor = getProp(siteNode, "themeSecondaryColor");
   const themeAccentColor = getProp(siteNode, "themeAccentColor");
@@ -98,16 +100,31 @@ export const Layout = ({ title, children }: { title: string; children: ReactNode
         {/* 3. Site-node :root{} inline override — editor-managed theme tokens */}
         <style dangerouslySetInnerHTML={{ __html: inlineRootBlock }} />
 
+        {/* Text fonts: the reference uses Roboto (body) + Rubik (headings). The theme
+            CSS names them but never loaded them, so it fell back to serif. Load them. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Rubik:wght@400;500;700&display=swap"
+        />
+
         <title>{title}</title>
+        {description && <meta name="description" content={description} />}
+        {!description && <meta name="description" content={title} />}
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
         {/* 4. Uploaded override stylesheet — wins the cascade (loaded last) */}
         {themeOverrideCss ? <link rel="stylesheet" href={buildNodeUrl(themeOverrideCss)} /> : null}
       </head>
       <body>
-        <AbsoluteArea name="nav" nodeType="lsp:mainNav" parent={homePage} readOnly="children" />
-        <main id="main-content">{children}</main>
-        <AbsoluteArea name="footer" nodeType="lsp:footer" parent={homePage} readOnly="children" />
+        <AbsoluteArea name="topBar" nodeType="lsp:topBar" parent={homePage} />
+        <AbsoluteArea name="nav" nodeType="lsp:mainNav" parent={homePage}/>
+        <main id="main-content">
+          <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: "0", margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: "0" }}>{title}</h1>
+          {children}
+        </main>
+        <AbsoluteArea name="footer" nodeType="lsp:footer" parent={homePage} />
 
         {/* swiffy-slider auto-init (carousels load via AddResources, init can miss late-injected DOM) */}
         <AddResources type="javascript" resources={buildModuleFileUrl("static/js/swiffy-slider.js")} />

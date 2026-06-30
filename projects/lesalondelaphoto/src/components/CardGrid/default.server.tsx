@@ -20,30 +20,16 @@ jahiaComponent(
       n.isNodeType("lsp:hero"),
     );
 
+    // Faithful transcription of the reference `.component.picture-grid.container-bp.col-12`:
+    // cards render DIRECTLY in .component-content (the card view emits the <div> wrapper).
+    // No inline CSS grid — the imported theme CSS lays the picture-grid out (support-create-view).
+    void cols;
     return (
       <div className="component picture-grid container-bp col-12">
         <div className="component-content">
-          {heading && (
-            <div className="component simple-title mb-50 mt-50 col-12">
-              <div className="component-content">
-                <div className="focus-title" />
-                <h2 className="field-titre">{heading}</h2>
-              </div>
-            </div>
-          )}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-              gap: "24px",
-            }}
-          >
-            {children.map((child) => (
-              <div key={child.getIdentifier()}>
-                <Render node={child as JCRNodeWrapper} view="card" readOnly />
-              </div>
-            ))}
-          </div>
+          {children.map((child) => (
+            <Render key={child.getIdentifier()} node={child as JCRNodeWrapper} view="card" />
+          ))}
         </div>
       </div>
     );
