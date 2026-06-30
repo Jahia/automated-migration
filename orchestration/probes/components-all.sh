@@ -105,6 +105,36 @@ if [ -n "$hardcoded" ]; then
   fail "components-all: $(printf '%s\n' "$hardcoded" | grep -c .) hardcoded literal(s) in JSX — replace each with a {prop} (contributor field) or {t('key')} (i18n); no baked-in visitor text (AGENTS rules 7+24). Renaming the CSS class does NOT fix this."
 fi
 
+# ── hardcoded navigable URLs ──────────────────────────────────────────────────
+# A literal href to a real URL (http(s):// or /path) is a baked-in link — it
+# breaks on environment/locale/vanity-URL changes and is not contributor-editable
+# (AGENTS rules 8 + 13/20). Links must come from content: href={buildNodeUrl(node)},
+# href={cta.url}, or a rendered link child. Exempts href="#..." (JS/anchor controls)
+# and href={expr} (already content-driven). The text gate above is satisfied by
+# moving text to t(); this catches the URL the agent leaves hardcoded next to it.
+hardurls="$(python3 - "$src/components" <<'PY'
+import os, re, sys
+root = sys.argv[1]
+pat = re.compile(r'href="(https?://[^"]*|/[^"#][^"]*)"')
+hits = []
+for dirpath, _, files in os.walk(root):
+    for fn in files:
+        if not fn.endswith((".server.tsx", ".client.tsx")):
+            continue
+        p = os.path.join(dirpath, fn)
+        for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
+            for m in pat.finditer(line):
+                hits.append(f"{p}:{i}: {m.group(1)[:60]}")
+for h in hits:
+    print(h)
+PY
+)"
+if [ -n "$hardurls" ]; then
+  echo "Hardcoded navigable URLs in component views (links must come from content):" >&2
+  printf '  ✗ %s\n' "$hardurls" | sed "s#$proj/##" >&2
+  fail "components-all: $(printf '%s\n' "$hardurls" | grep -c .) hardcoded URL(s) — use href={buildNodeUrl(node)} / href={cta.url} or render a link child (AGENTS rules 8+13). Footer social/CTA links must be contributor-editable (e.g. socialLink children), not baked-in <a href>."
+fi
+
 # component dir = any directory under src/components that holds a view or a CND
 # (bash 3.2 on macOS has no `mapfile` — use the read-loop idiom the other probes use)
 dirs=()
