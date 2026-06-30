@@ -7,7 +7,12 @@
  * MHTML) is body 16px, h2 32px/800, h3 24px/700. Restore those measured values.
  * These mirror rules already present in the theme — we only re-assert their order. */
 
-body { font-size: 16px; }
+body { font-size: 16px; font-family: Roboto, Arial, sans-serif; }
+
+/* top bar sits on a black background — icons/links must be white (they were
+ * falling back to the UA default link blue, rgb(0,0,238)) */
+.top-bar a, .top-bar .socials a, .top-bar .socials i,
+.top-bar .call-back, .top-bar .call-back i, .top-bar .search i { color: #fff; }
 
 h1 { font-size: 2.5rem; font-weight: 900; line-height: 1.1; }
 h2 { font-size: 2rem; font-weight: 800; line-height: 1.35; }

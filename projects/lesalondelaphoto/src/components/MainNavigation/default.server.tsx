@@ -80,7 +80,8 @@ jahiaComponent(
 
     return (
       <>
-        <div className="header-navigation container-fluid">
+        <div className="component header-navigation container-fluid">
+          <div className="component-content">
           <div className="grid">
             <a title="Header-Navigation 1" href={buildNodeUrl(homePage)}>
               <div className="logo">
@@ -116,8 +117,8 @@ jahiaComponent(
               <span className="line" />
             </div>
 
-            <div className="navigation-main">
-              <div className="navigation">
+            <div className="navigation-main ">
+              <div className="component navigation">
                 <div className="component-content">
                   <nav role="navigation" aria-label="Main navigation">
                     <ul className="clearfix">
@@ -232,6 +233,7 @@ jahiaComponent(
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
 
