@@ -23,6 +23,7 @@ Run each from the repo root and record PASS/FAIL + the key line of output:
 bash orchestration/probes/cnd-review.sh   <project_path>                       # CND best-practice antipatterns
 bash orchestration/probes/cnd-patterns.sh <project_path> <namespace>           # migration CND rules
 bash orchestration/probes/no-stub.sh      <project_path> <namespace>           # no stubbed/empty views
+bash orchestration/probes/content-fidelity.sh <project_path> <site> <langs>     # content matches reality: shell/images/listings/EN/no-debris
 bash orchestration/probes/components-all.sh <project_path> <namespace>         # per-component: source paired + no-stub + en/fr i18n, names any incomplete one
 bash orchestration/probes/render-all.sh   <project_path> <site> <lang> <@sitemap>   # every page renders clean
 bash orchestration/probes/publish-parity.sh <project_path> <site> <lang>       # assets + translations live

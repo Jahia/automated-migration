@@ -303,6 +303,7 @@
                 "PROBE: bash orchestration/probes/edit-frame.sh projects/lesalondelaphoto lesalondelaphoto fr home",
                 "PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
                 "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/review/REVIEW.md",
+                "Content matches reality (not just structure): shell populated, images set, listings have content, EN present, no debris: PROBE: bash orchestration/probes/content-fidelity.sh projects/lesalondelaphoto lesalondelaphoto fr,en",
                 "Gate: present findings, return status halt."
               ],
               "max_attempts": 3
