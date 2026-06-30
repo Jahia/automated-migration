@@ -74,6 +74,32 @@ For EVERY extracted type, decide one of:
 
 No silent drops: every extracted type is mapped or ignored.
 
+### Step 3b — a "field" is not always a property: field vs child vs mixin
+
+The extractor's `field-*` list is a starting point, not the final model. Decompose each
+component's content into the right Jahia construct:
+
+- **Property** — a single scalar/text/image/link field → a CND property.
+- **Child component (a SERIES)** — a *repeating* set of links or items is NOT flat
+  fields; it's `+ * (ns:childType)` on a `jmix:list` container. The extractor flags
+  these: `linkSeries`/`listItems` counts + `hasIcons` + a `modelHint`. Examples:
+  - top-bar's 5 social links (`hasIcons: fa-instagram, fa-facebook-f…`) → a reusable
+    **`ns:socialLink`** child (`platform`/`icon` + `j:linkType` external), not
+    `texte/texte-1/texte-2`.
+  - footer link columns, nav items, partner logos, card grids, key-figure stats,
+    accordion panels → each a child type under a `jmix:list` container.
+  - The CTA links ("Devenir exposant" + url) repeated across top-bar/hero/cards →
+    `ns:ctaButton` children.
+  - CAVEAT: a high `linkSeries` on `rich-text`/`content` is usually **inline links in
+    prose**, not a child series — judge by context (the hint is a signal, not a rule).
+- **Mixin** — a field GROUP that recurs across many components (link+label,
+  image+alt+caption, social block, SEO meta) → extract a module mixin
+  (`nsmix:cta`, `nsmix:media`, `nsmix:socials`) and have the types extend it, instead
+  of re-declaring the fields on each (matches the migration mixin-reuse rule).
+
+Rule of thumb: **one of something → property; many of something → child component;
+the same group on many things → mixin.**
+
 ### Recurring SXA component vocabulary (3 migrations: supercar, sial-paris, lesalondelaphoto)
 
 | SXA `.component` | Typical Jahia mapping |
