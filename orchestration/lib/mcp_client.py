@@ -64,8 +64,8 @@ class MCP:
         return [t if isinstance(t, str) else t.get("name") for t in d.get("tools", [])]
 
     # ── high-level helpers the loader / rewirer use ───────────────────────────
-    def get(self, path):
-        return self.call("content.get", {"path": path})
+    def get(self, path, locale="fr"):
+        return self.call("content.get", {"path": path, "locale": locale})
 
     def create(self, parent_path, node_type, properties, name=None, locale="fr"):
         args = {"parentPath": parent_path, "nodeType": node_type,
@@ -81,8 +81,8 @@ class MCP:
         """Wire an image/link weakreference to an imported DAM node (by absolute path)."""
         return self.update(path, {prop: target_path}, locale=locale)
 
-    def publish(self, path):
-        return self.call("publication.publish", {"path": path})
+    def publish(self, path, languages=("fr", "en")):
+        return self.call("publication.publish", {"path": path, "languages": list(languages)})
 
     def search(self, query):
         return self.call("content.search", {"query": query})
