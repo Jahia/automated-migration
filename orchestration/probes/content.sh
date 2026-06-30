@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
-# Step 9 probe: every page's LIVE <main> renders real content (>400 chars).
-# A lone hero stub counts as empty. This is the per-page checklist the
-# Conductor used; it is the step most prone to a false "completed".
-# Usage: content.sh <project_path> <site_key> <lang> <pages>
-#   <pages> is either a comma-separated list of relative paths, or @<file>
-#   pointing at a newline-separated sitemap (blank lines and #comments ignored).
-#   page "home" maps to /sites/<site>/home; "le-salon/x" -> /sites/<site>/home/le-salon/x
+# content.sh — create-content gate, grounded in REALITY (the actual source), not
+# an arbitrary threshold.
+#
+# The old check ("every page's <main> has >400 chars of text") was a fake proxy:
+# a page of placeholder filler passes it, and it says nothing about whether the
+# migration reproduces the real site. This gate instead measures the page against
+# the actual cached source and the real JCR state:
+#
+#   1. content-fidelity — the live JCR actually has it: image weakrefs SET,
+#      jmix:mainResource listings EXIST, nav/footer shell populated, EN present,
+#      no test/debris nodes. (queries the running instance)
+#   2. fidelity-all     — render the LIVE page AND the real reference (wget crawl
+#      cache) in headless Chromium and compare: missing sections, listing/card
+#      shortfall, missing facets, image shortfall. Saves a reference-vs-local
+#      screenshot pair per page. (compares to the ACTUAL source page)
+#
+# Usage: content.sh <project_path> <site_key> <lang> <pages|@sitemap>
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=_lib.sh
@@ -13,45 +23,16 @@ source "$HERE/_lib.sh"
 proj="${1:?project_path required}"
 site="${2:?site_key required}"
 lang="${3:?lang required}"
-pages="${4:?comma-separated pages or @sitemap-file required}"
-min_chars="${5:-400}"
+pages="${4:?comma-separated pages or @sitemap-file required}"   # @file or csv; passed through to fidelity-all
 load_env "$proj"
-# @file -> read newline-separated paths, drop blanks/comments, join with commas
-case "$pages" in
-  @*) file="${pages#@}"
-      [ -f "$file" ] || fail "sitemap file not found: $file"
-      pages="$(grep -vE '^[[:space:]]*(#|$)' "$file" | tr -d '\r' | tr '\n' ',' | sed 's/,$//')"
-      [ -n "$pages" ] || fail "sitemap file $file has no page paths" ;;
-esac
-python3 - "$JAHIA_HOST" "$JAHIA_USER" "$site" "$lang" "$pages" "$min_chars" <<'PY'
-import sys, subprocess, re
-host, user, site, lang, pages = sys.argv[1:6]
-min_chars = int(sys.argv[6])
-bad = []
-for p in pages.split(','):
-    p = p.strip()
-    if not p:
-        continue
-    node = f"/sites/{site}/home" if p == "home" else f"/sites/{site}/home/{p}"
-    url = f"{host}/cms/render/live/{lang}{node}.html"
-    html = subprocess.run(["curl", "-s", "-u", user, url],
-                          capture_output=True, text=True).stdout
-    m = re.search(r"<main[^>]*>(.*?)</main>", html, re.S | re.I)
-    txt = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", m.group(1))).strip() if m else ""
-    ok = len(txt) >= min_chars
-    print(f"  {p}: {len(txt)} chars (min {min_chars}) {'OK' if ok else 'THIN'}")
-    if not ok:
-        bad.append(p)
-if bad:
-    print("FAIL: empty/stub pages:", ", ".join(bad))
-    sys.exit(1)
-print("PASS: all pages clear the min-char check")
-PY
 
-# A >400-char <main> still passes a HOLLOW site: text but no images, empty
-# listings, debris pages, no EN. The create-content gate must enforce the full
-# reality check, not just char count. Chain into content-fidelity (it queries the
-# live JCR for image weakrefs / mainResource listings / shell children / EN /
-# debris). Without this, step_content "passes" the far-from-reality result.
-echo "── content-fidelity (deep check: images / listings / shell / EN / debris):"
+# 1. Real JCR state: images / listings / shell / EN / no debris.
+echo "── content-fidelity (live JCR: images / listings / shell / EN / debris):"
 bash "$HERE/content-fidelity.sh" "$proj" "$site" "fr,en"
+
+# 2. Reference comparison: does each live page actually reproduce the real source
+#    page (sections / cards / images), rendered both sides in Chromium?
+echo "── fidelity-all (live page vs the real cached reference, per page):"
+bash "$HERE/fidelity-all.sh" "$proj" "$site" "$lang" "$pages"
+
+pass "content: matches the live JCR reality AND the real reference source (no char-count proxy)"
