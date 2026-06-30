@@ -347,7 +347,8 @@
               },
               "acceptance_criteria": [
                 "Implement components ONE at a time — never batch-stub them all then build at the end. The build-time gate here is components-all.sh: it validates source-pairing + no-stub + en/fr i18n for EVERY component and builds once. NOTE: component-validate.sh additionally DEPLOYS and RENDERS a non-home page, so it only passes AFTER content/pages exist — it is a POST-CONTENT per-component debugging gate (used while iterating on a single deployed component), NOT run at this step.",
-                "Per-component completeness gate over EVERY component (loops each, FAILS naming any stubbed / unlabelled / viewless component, builds the module once): PROBE: bash orchestration/probes/components-all.sh projects/__PROJECT__ __NAMESPACE__"
+                "Per-component completeness gate over EVERY component (loops each, FAILS naming any stubbed / unlabelled / viewless component, builds the module once): PROBE: bash orchestration/probes/components-all.sh projects/__PROJECT__ __NAMESPACE__",
+                "PROBE: bash orchestration/probes/css-hooks.sh projects/__PROJECT__ __NS__"
               ],
               "max_attempts": 3
             }
@@ -527,7 +528,8 @@
                 "PROBE: bash orchestration/probes/cnd-review.sh projects/__PROJECT__",
                 "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/__PROJECT__ __NAMESPACE__",
                 "Reuse guard against the FROZEN baseline (do NOT re-write it here — it was frozen at step_content_types): PROBE: bash orchestration/probes/no-new-types.sh projects/__PROJECT__ __NAMESPACE__ projects/__PROJECT__/component-baseline.txt",
-                "Gate 5: present findings, return status halt."
+                "Gate 5: present findings, return status halt.",
+                "PROBE: bash orchestration/probes/css-hooks.sh projects/__PROJECT__ __NS__"
               ],
               "max_attempts": 3
             },

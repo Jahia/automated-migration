@@ -5,7 +5,9 @@ import {
   jahiaComponent,
   useServerContext,
 } from "@jahia/javascript-modules-library";
+import { useTranslation } from "react-i18next";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
+import type { MainNavProps } from "./types.js";
 import styles from "./mainNavigation.module.css";
 
 const getNavItems = (node: JCRNodeWrapper): JCRNodeWrapper[] =>
@@ -45,16 +47,36 @@ jahiaComponent(
     displayName: "Navigation principale",
     properties: { "jmix:hiddenType": "true" },
   },
-  () => {
+  (props: MainNavProps, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    const { t } = useTranslation();
     const { renderContext, currentResource } = useServerContext();
     const site = renderContext.getSite() as unknown as JCRNodeWrapper;
     const homePage = site.getNode("home") as JCRNodeWrapper;
     const level1Items = getNavItems(homePage);
 
+    let logoUrl: string | undefined;
+    try {
+      if (props.image) {
+        logoUrl = buildNodeUrl(props.image);
+      }
+    } catch { /* logo not set */ }
+
     const currentLang = currentResource.getLocale().getLanguage();
     const siteLocales = getSiteLocales();
     const localeEntries = Object.keys(siteLocales);
     const showLangSwitcher = localeEntries.length > 1;
+
+    let ctaUrl: string | undefined;
+    let ctaTarget = "";
+    try {
+      if (currentNode.hasProperty("j:linknode")) {
+        const linked = currentNode.getProperty("j:linknode").getNode() as JCRNodeWrapper;
+        ctaUrl = buildNodeUrl(linked);
+      } else if (currentNode.hasProperty("j:url")) {
+        ctaUrl = currentNode.getProperty("j:url").getString();
+        ctaTarget = "_blank";
+      }
+    } catch { /* link not set */ }
 
     return (
       <>
@@ -62,27 +84,31 @@ jahiaComponent(
           <div className="grid">
             <a title="Header-Navigation 1" href={buildNodeUrl(homePage)}>
               <div className="logo">
-                <img
-                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 50'%3E%3Crect fill='%231b72d0' width='200' height='50'/%3E%3Ctext fill='white' font-family='Arial' font-size='14' x='10' y='32'%3ELe Salon de la Photo%3C/text%3E%3C/svg%3E"
-                  alt="Le Salon de la Photo"
-                  className="img-responsive"
-                />
+                {logoUrl && (
+                  <img
+                    src={logoUrl}
+                    alt={t("mainNav.siteLogoAlt")}
+                    className="img-responsive"
+                  />
+                )}
               </div>
             </a>
 
             <div className="title-headline">
-              <div className="field-date">SALON PHOTO</div>
-              <div className="field-lieu">Paris</div>
+              <div className="field-date">{t("mainNav.brandLine1")}</div>
+              <div className="field-lieu">{t("mainNav.brandLine2")}</div>
             </div>
 
-            <div className="cta-area">
-              <a href="/fr-FR/billetterie" target="">
-                <div className="cta-1">
-                  <i className="fa-solid fa-ticket" />
-                  <div className="field-cta-title-1">Billetterie</div>
-                </div>
-              </a>
-            </div>
+            {ctaUrl && (
+              <div className="cta-area">
+                <a href={ctaUrl} target={ctaTarget}>
+                  <div className="cta-1">
+                    <i className="fa-solid fa-ticket" />
+                    <div className="cta-title-1">{t("mainNav.tickets")}</div>
+                  </div>
+                </a>
+              </div>
+            )}
 
             <div className="hamburger" id="hamburger">
               <span className="line" />
@@ -123,6 +149,7 @@ jahiaComponent(
                                   title={getItemTitle(item)}
                                   href={getItemUrl(item)}
                                   target=""
+                                  data-nav-path={item.getPath()}
                                 >
                                   {getItemTitle(item)}
                                 </a>
@@ -153,6 +180,7 @@ jahiaComponent(
                                           title={getItemTitle(sub)}
                                           href={getItemUrl(sub)}
                                           target=""
+                                          data-nav-path={sub.getPath()}
                                         >
                                           {getItemTitle(sub)}
                                         </a>
@@ -181,6 +209,7 @@ jahiaComponent(
                                                     title={getItemTitle(deep)}
                                                     href={getItemUrl(deep)}
                                                     target=""
+                                                    data-nav-path={deep.getPath()}
                                                   >
                                                     {getItemTitle(deep)}
                                                   </a>
