@@ -1,0 +1,377 @@
+{
+  "_README": "FOCUSED content-completion run for lesalondelaphoto — content epic DECOMPOSED per section (8 sections). Reuses already-deployed module + site + components (persist). Run: ORCH_URL=http://localhost:8001 bash orchestration/run.sh orchestration/plans/lesalondelaphoto-content.plan.json --start",
+  "goal": "Complete + publish all content for lesalondelaphoto (site lesalondelaphoto, fr), one section at a time, then review + fidelity. Module/site/components already exist.",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+  "model": "deepseek/deepseek-v4-pro",
+  "github_repo": "smonier/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_foundation",
+      "title": "Verify Jahia + module/site",
+      "goal": "Confirm Jahia reachable and the module/site are deployed.",
+      "review_config": {
+        "max_review_rounds": 1,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "server reachable"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_connect",
+          "title": "Connect",
+          "description": "Verify connectivity.",
+          "steps": [
+            {
+              "id": "step_connect",
+              "title": "Verify Jahia connection (Gate 0)",
+              "task_type": "verify",
+              "agent": "code",
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "skill": ".agents/skills/00-migration-start/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/connect.sh projects/lesalondelaphoto"
+              ],
+              "max_attempts": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_content_quality",
+      "title": "Create + publish content (per section)",
+      "goal": "Create + publish every page's content, one section per step; then review.",
+      "review_config": {
+        "max_review_rounds": 3,
+        "auto_approve_on_max_rounds": false,
+        "review_criteria": [
+          "every page live <main> > 400 chars",
+          "fidelity per section",
+          "axe 0 critical/serious"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_content_create",
+          "title": "Create content per section",
+          "description": "One step per sitemap section; idempotent; gated per slice.",
+          "depends_on": [
+            "story_connect"
+          ],
+          "steps": [
+            {
+              "id": "step_content_home",
+              "title": "Content: home (1 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "home",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (home). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr home",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr home",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_actualite_photo",
+              "title": "Content: actualite-photo (3 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_home"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_animations_ateliers",
+              "title": "Content: animations-ateliers (12 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_actualite_photo"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres,animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere,animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms,animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres,animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere,animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms,animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres,animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere,animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms,animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres,animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere,animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms,animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_billetterie",
+              "title": "Content: billetterie (1 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_animations_ateliers"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "billetterie",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (billetterie). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr billetterie",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr billetterie",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_exposants",
+              "title": "Content: exposants (9 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_billetterie"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "exposants,exposants/boostez-visibilite,exposants/contacts,exposants/offres-stands,exposants/participation-reussie,exposants/salon,exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (exposants,exposants/boostez-visibilite,exposants/contacts,exposants/offres-stands,exposants/participation-reussie,exposants/salon,exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr exposants,exposants/boostez-visibilite,exposants/contacts,exposants/offres-stands,exposants/participation-reussie,exposants/salon,exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr exposants,exposants/boostez-visibilite,exposants/contacts,exposants/offres-stands,exposants/participation-reussie,exposants/salon,exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_infos_pratiques",
+              "title": "Content: infos-pratiques (6 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_exposants"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon,infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon,infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon,infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon,infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_presse_createur_contenus",
+              "title": "Content: presse-createur-contenus (4 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_infos_pratiques"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse,presse-createur-contenus/kit-media",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse,presse-createur-contenus/kit-media). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse,presse-createur-contenus/kit-media",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse,presse-createur-contenus/kit-media",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_salon",
+              "title": "Content: salon (11 pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_presse_createur_contenus"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "salon,salon/a-propos,salon/partenaires,salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus,salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite,salon/rse,salon/rse/souffleurs-de-sens",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ONLY this section's pages (salon,salon/a-propos,salon/partenaires,salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus,salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite,salon/rse,salon/rse/souffleurs-de-sens). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr salon,salon/a-propos,salon/partenaires,salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus,salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite,salon/rse,salon/rse/souffleurs-de-sens",
+                "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr salon,salon/a-propos,salon/partenaires,salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus,salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite,salon/rse,salon/rse/souffleurs-de-sens",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        },
+        {
+          "id": "story_review",
+          "title": "Review + accessibility",
+          "description": "Full-sitemap gates + REVIEW.md.",
+          "depends_on": [
+            "story_content_create"
+          ],
+          "steps": [
+            {
+              "id": "step_review",
+              "title": "Content review (Gate: HALT)",
+              "task_type": "review",
+              "agent": "code",
+              "depends_on": [
+                "step_content_salon"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "report": "projects/lesalondelaphoto/workflow-output/review/REVIEW.md",
+                "skill": ".agents/skills/10-review/SKILL.md",
+                "agentDef": ".claude/agents/jahia-reviewer.md"
+              },
+              "acceptance_criteria": [
+                "Use the jahia-reviewer agent: run ALL gate probes over the WHOLE sitemap + write REVIEW.md.",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "PROBE: bash orchestration/probes/publish-parity.sh projects/lesalondelaphoto lesalondelaphoto fr",
+                "PROBE: bash orchestration/probes/edit-frame.sh projects/lesalondelaphoto lesalondelaphoto fr home",
+                "PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/review/REVIEW.md",
+                "Gate: present findings, return status halt."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_fidelity_golive",
+      "title": "Visual diff + vanity URLs",
+      "goal": "Per-page fidelity vs the captured reference, + redirect map.",
+      "review_config": {
+        "max_review_rounds": 2,
+        "auto_approve_on_max_rounds": true,
+        "review_criteria": [
+          "fidelity-all green",
+          "redirect map generated"
+        ]
+      },
+      "stories": [
+        {
+          "id": "story_fidelity",
+          "title": "Fidelity + vanity",
+          "description": "fidelity-all + vanity.",
+          "depends_on": [
+            "story_review"
+          ],
+          "steps": [
+            {
+              "id": "step_visual_diff",
+              "title": "Visual diff",
+              "task_type": "review",
+              "agent": "code",
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "skill": ".agents/skills/12-visual-diff/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/fidelity-all.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_vanity",
+              "title": "Vanity-URL redirect map",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_visual_diff"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "sitemap": "orchestration/sitemaps/lesalondelaphoto.txt",
+                "redirects": "projects/lesalondelaphoto/workflow-output/vanity/redirects.map",
+                "skill": ".agents/skills/13-vanity-urls/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/vanity/redirects.map"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
