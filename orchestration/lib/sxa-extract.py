@@ -46,6 +46,18 @@ class SXA(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         self._collect_fields(attrs)
+        # repeating-structure signals attributed to the innermost component: a series
+        # of <a> (social/text links) or <li> is a CHILD component, not flat field-*.
+        if self.compstack:
+            inner = self.components[self.compstack[-1][0]]
+            if tag == "a":
+                inner["links"] += 1
+            elif tag == "li":
+                inner["listItems"] += 1
+            elif tag == "i":
+                for c in (dict(attrs).get("class") or "").split():
+                    if c.startswith("fa-"):
+                        inner["icons"].add(c)
         if tag != "div":
             return
         self.divdepth += 1
@@ -57,6 +69,7 @@ class SXA(HTMLParser):
             parent = self.compstack[-1][0] if self.compstack else None
             self.components.append({
                 "type": sem[0], "aliases": sem, "fields": set(), "children": set(),
+                "links": 0, "listItems": 0, "icons": set(),
                 "parent": (self.components[parent]["type"] if parent is not None else None),
             })
             if parent is not None:
@@ -95,17 +108,31 @@ def main():
         p = SXA(); p.feed(html)
         page = os.path.basename(f)
         for c in p.components:
-            a = agg.setdefault(c["type"], {"fields": set(), "children": set(), "instances": 0, "pages": set(), "aliases": set()})
+            a = agg.setdefault(c["type"], {"fields": set(), "children": set(), "instances": 0, "pages": set(), "aliases": set(), "links": 0, "listItems": 0, "icons": set()})
             a["fields"] |= c["fields"]; a["children"] |= c["children"]
             a["instances"] += 1; a["pages"].add(page); a["aliases"] |= set(c["aliases"])
+            a["links"] = max(a["links"], c.get("links", 0))
+            a["listItems"] = max(a["listItems"], c.get("listItems", 0))
+            a["icons"] |= c.get("icons", set())
     inventory = []
     for t, a in sorted(agg.items(), key=lambda kv: -kv[1]["instances"]):
+        # a repeating set of links/items = a CHILD component (series), not flat fields
+        brand = any(i.startswith("fa-brand") or i in ("fa-instagram","fa-facebook-f","fa-linkedin-in","fa-x-twitter","fa-youtube") for i in a["icons"])
+        hint = None
+        if a["links"] >= 3:
+            hint = "social-link series → child component (platform/icon + j:linkType)" if brand else "link series → child component (label + j:linkType)"
+        elif a["listItems"] >= 3 and not a["children"]:
+            hint = "repeating list items → child component (jmix:list + child type)"
         inventory.append({
             "type": t,
             "aliases": sorted(a["aliases"]),
             "fields": sorted(a["fields"]),
             "childTypes": sorted(a["children"]),
             "isContainer": bool(a["children"]),
+            "linkSeries": a["links"],
+            "listItems": a["listItems"],
+            "hasIcons": sorted(a["icons"])[:6],
+            "modelHint": hint,
             "instances": a["instances"],
             "pages": sorted(a["pages"])[:8],
         })

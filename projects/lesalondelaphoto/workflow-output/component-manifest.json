@@ -425,7 +425,12 @@
       ],
       "sxaSource": [
         "footer"
-      ]
+      ],
+      "childTypes": [
+        "lsp:footerLink",
+        "lsp:socialLink"
+      ],
+      "decomposition": "link columns = + * (lsp:footerLink); socials = + * (lsp:socialLink); newsletter = fields (texte-newsletter, email)"
     },
     {
       "name": "JCRQuery",
@@ -692,6 +697,19 @@
           "file": "default.server.tsx",
           "purpose": "Top utility strip: social links + CTA links (Devenir exposant / espace exposant) + search. Singleton in an AbsoluteArea above the nav."
         }
+      ],
+      "childTypes": [
+        "lsp:socialLink",
+        "lsp:ctaButton"
+      ],
+      "decomposition": "socials = + * (lsp:socialLink); CTAs (Devenir exposant / espace exposant) = + * (lsp:ctaButton); hashtag = (string) i18n; search = j:linkType",
+      "fields": [
+        {
+          "name": "hashtag",
+          "type": "string",
+          "i18n": true,
+          "purpose": "e.g. #SalonPhotoetVideo"
+        }
       ]
     },
     {
@@ -922,6 +940,47 @@
           "name": "default",
           "file": "default.server.tsx",
           "purpose": "In-page jump/anchor links bar."
+        }
+      ]
+    },
+    {
+      "name": "SocialLink",
+      "nodeType": "lsp:socialLink",
+      "displayName": "Social Link",
+      "areaType": "page",
+      "needsMainResource": false,
+      "interactive": false,
+      "isContainer": false,
+      "childType": null,
+      "recovered": true,
+      "derivedFrom": "link-series in top-bar/footer .socials",
+      "fields": [
+        {
+          "name": "platform",
+          "type": "string, choicelist",
+          "constraints": [
+            "instagram",
+            "facebook",
+            "linkedin",
+            "x",
+            "youtube"
+          ],
+          "i18n": false,
+          "purpose": "Which network (drives the FA brand icon)."
+        },
+        {
+          "name": "j:linkType",
+          "type": "string, choicelist[linkTypeInitializer]",
+          "i18n": false,
+          "defaultValue": "external",
+          "purpose": "The profile URL (external)."
+        }
+      ],
+      "views": [
+        {
+          "name": "default",
+          "file": "default.server.tsx",
+          "purpose": "A single social icon link (fa-brands)."
         }
       ]
     }

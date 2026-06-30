@@ -33,6 +33,17 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 10,
+      "hasIcons": [
+        "fa-3x",
+        "fa-accessible-icon",
+        "fa-aperture",
+        "fa-badge-check",
+        "fa-ballot",
+        "fa-basket-shopping"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
       "instances": 320,
       "pages": [
         "a-propos.html",
@@ -55,6 +66,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 11,
+      "listItems": 26,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 113,
       "pages": [
         "a-propos.html",
@@ -77,6 +92,14 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 2,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-chevron-left",
+        "fa-chevron-right",
+        "fa-solid"
+      ],
+      "modelHint": null,
       "instances": 103,
       "pages": [
         "a-propos.html",
@@ -97,6 +120,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 100,
       "pages": [
         "Infos-Pratiques.html",
@@ -122,6 +149,17 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 8,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-brands",
+        "fa-facebook-f",
+        "fa-instagram",
+        "fa-linkedin-in",
+        "fa-magnifying-glass",
+        "fa-person-walking"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
       "instances": 61,
       "pages": [
         "Infos-Pratiques.html",
@@ -149,6 +187,14 @@
         "plain-html"
       ],
       "isContainer": true,
+      "linkSeries": 2,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-regular",
+        "fa-store",
+        "fa-ticket-simple"
+      ],
+      "modelHint": null,
       "instances": 61,
       "pages": [
         "Infos-Pratiques.html",
@@ -173,6 +219,14 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 48,
+      "listItems": 48,
+      "hasIcons": [
+        "fa-calculator",
+        "fa-regular",
+        "fa-ticket-simple"
+      ],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 61,
       "pages": [
         "Infos-Pratiques.html",
@@ -193,6 +247,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 61,
       "pages": [
         "Infos-Pratiques.html",
@@ -221,6 +279,17 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 17,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-brands",
+        "fa-facebook-f",
+        "fa-instagram",
+        "fa-linkedin-in",
+        "fa-x-twitter",
+        "fa-youtube"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
       "instances": 61,
       "pages": [
         "Infos-Pratiques.html",
@@ -245,6 +314,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 5,
+      "listItems": 5,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 59,
       "pages": [
         "Infos-Pratiques.html",
@@ -275,6 +348,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 57,
       "pages": [
         "Infos-Pratiques.html",
@@ -297,6 +374,10 @@
         "previous-next"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 41,
       "pages": [
         "a-propos.html",
@@ -319,6 +400,10 @@
         "link"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 41,
       "pages": [
         "a-propos.html",
@@ -342,6 +427,10 @@
         "content"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 14,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 19,
       "pages": [
         "faq.html"
@@ -358,6 +447,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 17,
       "pages": [
         "affiche-salon-de-la-photo-paris-2025.html",
@@ -379,6 +472,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 12,
       "pages": [
         "affiche-salon-de-la-photo-paris-2025.html",
@@ -398,6 +495,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 11,
       "pages": [
         "actus.html",
@@ -425,6 +526,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 11,
       "pages": [
         "billet.html",
@@ -447,6 +552,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 7,
+      "listItems": 7,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 10,
       "pages": [
         "Infos-Pratiques.html",
@@ -468,6 +577,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 8,
       "pages": [
         "fr-FR.html",
@@ -489,6 +602,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 2,
+      "listItems": 6,
+      "hasIcons": [],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
       "instances": 8,
       "pages": [
         "foire-internationale-de-bievres.html",
@@ -510,6 +627,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 7,
       "pages": [
         "exposants.html",
@@ -529,6 +650,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 13,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 5,
       "pages": [
         "comment-venir-au-salon.html",
@@ -549,6 +674,10 @@
         "simple-title"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 4,
       "pages": [
         "actus.html",
@@ -569,6 +698,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 4,
       "pages": [
         "actus.html",
@@ -591,6 +724,14 @@
         "video"
       ],
       "isContainer": true,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-3x",
+        "fa-brands",
+        "fa-youtube"
+      ],
+      "modelHint": null,
       "instances": 3,
       "pages": [
         "exposants.html",
@@ -611,6 +752,17 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 15,
+      "hasIcons": [
+        "fa-arrow-pointer",
+        "fa-check",
+        "fa-duotone",
+        "fa-map-location-dot",
+        "fa-microphone",
+        "fa-regular"
+      ],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 3,
       "pages": [
         "boostez-visibilite.html"
@@ -629,6 +781,13 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 11,
+      "hasIcons": [
+        "fa-regular",
+        "fa-store"
+      ],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
       "instances": 3,
       "pages": [
         "offres-stands.html"
@@ -644,6 +803,10 @@
         "Slide"
       ],
       "isContainer": true,
+      "linkSeries": 2,
+      "listItems": 4,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 2,
       "pages": [
         "exposants.html",
@@ -661,6 +824,17 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-calculator",
+        "fa-circle-info",
+        "fa-envelope-open-text",
+        "fa-list",
+        "fa-regular",
+        "fa-store"
+      ],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 2,
       "pages": [
         "exposants.html",
@@ -682,6 +856,15 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 11,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-blog",
+        "fa-envelope",
+        "fa-phone-flip",
+        "fa-solid"
+      ],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 2,
       "pages": [
         "contacts.html",
@@ -700,6 +883,10 @@
         "search-results"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 4,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 2,
       "pages": [
         "partenaires.html",
@@ -719,6 +906,10 @@
         "facet-summary"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 2,
       "pages": [
         "actus.html",
@@ -733,6 +924,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 2,
       "pages": [
         "actus.html",
@@ -747,6 +942,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 27,
+      "listItems": 4,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
       "instances": 1,
       "pages": [
         "fr-FR.html"
@@ -771,6 +970,16 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-camera-retro",
+        "fa-people-group",
+        "fa-presentation-screen",
+        "fa-regular",
+        "fa-store"
+      ],
+      "modelHint": null,
       "instances": 1,
       "pages": [
         "exposants.html"
@@ -784,6 +993,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 1,
       "pages": [
         "exposants.html"
@@ -805,6 +1018,16 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 4,
+      "hasIcons": [
+        "fa-calendar-days",
+        "fa-map-location-dot",
+        "fa-regular",
+        "fa-solid",
+        "fa-ticket-simple"
+      ],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
       "instances": 1,
       "pages": [
         "dates-acces-horaires.html"
@@ -822,6 +1045,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 1,
       "pages": [
         "actus.html"
@@ -835,6 +1062,10 @@
       "fields": [],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 1,
       "pages": [
         "actus.html"
@@ -850,6 +1081,10 @@
         "link"
       ],
       "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 1,
       "pages": [
         "boostez-visibilite.html"
@@ -867,6 +1102,10 @@
       ],
       "childTypes": [],
       "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
       "instances": 1,
       "pages": [
         "offre-salon.html"
