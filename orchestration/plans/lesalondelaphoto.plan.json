@@ -66,6 +66,41 @@
                 "Gate 1: present section map + field splits, return status halt."
               ],
               "max_attempts": 3
+            },
+            {
+              "id": "step_extract",
+              "title": "Extract media + content from source (deterministic, agnostic)",
+              "task_type": "extract",
+              "agent": "code",
+              "depends_on": [
+                "step_analyze"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "site": "lesalondelaphoto",
+                "namespace": "lsp",
+                "mixNamespace": "lspmix",
+                "skill": ".agents/skills/source-extract/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Migration is ETL: the captured DOM is the source of truth. Run the DETERMINISTIC extractors (source_detect + extract_media + extract_content) — do NOT hand-author or improvise the manifests; they must come from the real captured source.",
+                "Media manifest (orchestration/images/<project>.json) must cover every captured page incl. home; content-data (orchestration/content/<project>.content-data.json) must hold the REAL per-page text/instances, not placeholders.",
+                "PROBE: bash orchestration/probes/extract.sh projects/lesalondelaphoto lesalondelaphoto"
+              ],
+              "status": "pending",
+              "attempt": 0,
+              "max_attempts": 3,
+              "agent_result": null,
+              "verification": null,
+              "question": null,
+              "human_answer": null,
+              "streaming_text": "",
+              "tokens_in": 0,
+              "tokens_out": 0,
+              "tokens_cache": 0,
+              "cost": 0.0,
+              "trace": []
             }
           ]
         }
@@ -392,12 +427,46 @@
           ],
           "steps": [
             {
+              "id": "step_media",
+              "title": "Import media into the DAM (deterministic)",
+              "task_type": "media",
+              "agent": "code",
+              "depends_on": [
+                "step_deploy",
+                "step_extract"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "site": "lesalondelaphoto",
+                "skill": ".agents/skills/source-extract/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Import EVERY image from the deterministic manifest (orchestration/images/<project>.json) into the DAM via orchestration/images/import.py — do not skip media. This is the 0-of-40-images fix.",
+                "PROBE: bash orchestration/probes/media.sh projects/lesalondelaphoto lesalondelaphoto"
+              ],
+              "status": "pending",
+              "attempt": 0,
+              "max_attempts": 3,
+              "agent_result": null,
+              "verification": null,
+              "question": null,
+              "human_answer": null,
+              "streaming_text": "",
+              "tokens_in": 0,
+              "tokens_out": 0,
+              "tokens_cache": 0,
+              "cost": 0.0,
+              "trace": []
+            },
+            {
               "id": "step_content",
               "title": "Create content (Gate 4: HALT)",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_deploy"
+                "step_deploy",
+                "step_media"
               ],
               "inputs": {
                 "project": "lesalondelaphoto",
@@ -409,6 +478,7 @@
                 "skill": ".agents/skills/09-create-content/SKILL.md"
               },
               "acceptance_criteria": [
+                "LOAD content from orchestration/content/<project>.content-data.json and wire imported media from orchestration/images/<project>.imported.json — do NOT improvise text or invent placeholder content (the captured source is the source of truth).",
                 "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.",
                 "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Import via MCP media.upload.url (consistent UUID), set the WEAKREFERENCE field (image/backgroundImage/logo/photo), clear any *ExternalUrl string. Canonical tools: orchestration/images/set_hero_refs.py and set_image_refs.py lesalondelaphoto lesalondelaphoto lsp. Capture source URLs via browser (site blocks the agent).",
                 "PROBE: bash orchestration/probes/mcp.sh projects/lesalondelaphoto",
