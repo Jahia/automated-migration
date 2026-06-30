@@ -19,8 +19,32 @@ types=$(grep -rhoE "\[${ns}:[a-zA-Z0-9]+\]" "$proj/src" "$proj/settings" 2>/dev/
 if [ "${3:-}" = "--write" ]; then
   out="${4:?output file required after --write}"
   mkdir -p "$(dirname "$out")"
+  # The baseline must be the full APPROVED ANALYSIS scope, not just what is
+  # implemented at freeze time. The recovered components are approved at Gate 1
+  # but get their CND later (implementation step); freezing from the filesystem
+  # alone would (a) reject them as "new types" via no-new-types and (b) leave the
+  # coverage gate blind. So fold in every nodeType + child type from the manifest.
+  manifest="$proj/workflow-output/component-manifest.json"
+  if [ -f "$manifest" ]; then
+    mtypes="$(python3 - "$manifest" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1])); out = set()
+for c in m.get("components", []):
+    nt = c.get("nodeType")
+    if nt: out.add(nt)
+    ct = c.get("childType"); cts = list(c.get("childTypes") or [])
+    if isinstance(ct, str): cts.append(ct)
+    for t in cts:
+        if isinstance(t, str) and ":" in t: out.add(t)
+    for ch in (c.get("children") or []):
+        if isinstance(ch, dict) and ch.get("nodeType"): out.add(ch["nodeType"])
+for t in sorted(out): print(t)
+PY
+)"
+    types="$(printf '%s\n%s\n' "$types" "$mtypes" | grep -E "^${ns}:" | sort -u)"
+  fi
   printf '%s\n' "$types" > "$out"
-  echo "wrote $(printf '%s\n' "$types" | grep -c . ) types to $out"
+  echo "wrote $(printf '%s\n' "$types" | grep -c . ) types to $out (filesystem + approved manifest)"
   exit 0
 fi
 
