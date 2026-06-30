@@ -45,5 +45,13 @@ for p in pages.split(','):
 if bad:
     print("FAIL: empty/stub pages:", ", ".join(bad))
     sys.exit(1)
-print("PASS: all pages have live content")
+print("PASS: all pages clear the min-char check")
 PY
+
+# A >400-char <main> still passes a HOLLOW site: text but no images, empty
+# listings, debris pages, no EN. The create-content gate must enforce the full
+# reality check, not just char count. Chain into content-fidelity (it queries the
+# live JCR for image weakrefs / mainResource listings / shell children / EN /
+# debris). Without this, step_content "passes" the far-from-reality result.
+echo "── content-fidelity (deep check: images / listings / shell / EN / debris):"
+bash "$HERE/content-fidelity.sh" "$proj" "$site" "fr,en"
