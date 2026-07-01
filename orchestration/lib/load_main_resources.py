@@ -29,9 +29,11 @@ Writes (via lib/mcp_client.py — the ONE sanctioned write path):
 Usage:
   python3 orchestration/lib/load_main_resources.py <project> <site> [--dry] [--limit N]
 """
-import json, os, re, sys
+import json, os, re, subprocess, sys, urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_client import MCP
+
+REF_ORIGIN = "https://www.lesalondelaphoto.com"  # capture heroPath is origin-relative
 
 
 def load_json(p, default=None):
@@ -190,6 +192,82 @@ class MainResourceLoader:
             print(f"    ! ensure folder {folder_path}: {e}", file=sys.stderr)
         return folder_path
 
+    # ── browser-capture source (WAF-blocked, client-rendered listings) ────────
+    def import_hero(self, hero_path, folder_name, dry=False):
+        """Import a reference hero image into the DAM via the SERVER-SIDE
+        jahia-image-proxy (WAF-independent). hero_path is origin-relative."""
+        if not hero_path:
+            return None
+        fn = hero_path.split("/")[-1].split("?")[0] or "hero.jpg"
+        dest = f"/sites/{self.site}/files/migrated-media/{folder_name}"
+        src = hero_path if hero_path.startswith("http") else REF_ORIGIN + hero_path
+        if dry:
+            return f"{dest}/{fn}"
+        url = (f"{self.m.host}/modules/jahia-image-proxy/import-image"
+               f"?sourceUrl={urllib.parse.quote(src, safe='')}"
+               f"&destPath={urllib.parse.quote(dest, safe='')}"
+               f"&filename={urllib.parse.quote(fn, safe='')}")
+        try:
+            out = subprocess.run(["curl", "-s", "-u", self.m.user, url],
+                                 capture_output=True, text=True, timeout=60).stdout
+            d = json.loads(out)
+            return d.get("jcrPath") if d.get("success") else None
+        except Exception as e:
+            print(f"    ! hero import {src}: {e}", file=sys.stderr)
+            return None
+
+    def load_from_capture(self, dry=False):
+        """Load articles from a browser-capture file (orchestration/content/
+        <project>.articles-capture.json), keyed by folder name. Each record:
+        {slug, title, date, summary, body, heroPath}. Publishes each. Returns
+        (created, published, [article dicts])."""
+        cap = load_json(f"orchestration/content/{self.project}.articles-capture.json")
+        if not cap:
+            return 0, 0, []
+        created = published = 0
+        arts = []
+        for folder_name, records in cap.items():
+            if folder_name.startswith("_") or not isinstance(records, list):
+                continue
+            fcfg = self.cfg.get("folders", {}).get(folder_name, {})
+            nt = fcfg.get("type", "lsp:newsArticle")
+            folder_path = folder_name and (self.ensure_folder(folder_name) if not dry
+                                           else f"/sites/{self.site}/{self.cfg.get('contentsBase','contents')}/{folder_name}")
+            for rec in records:
+                slug = rec.get("slug") or re.sub(r"[^a-z0-9\-]", "-", (rec.get("title") or "art").lower())[:60]
+                props = {"jcr:title": (rec.get("title") or slug).strip()[:255]}
+                iso = parse_date(rec.get("date", ""))
+                if iso:
+                    props["publishDate" if nt == "lsp:newsArticle" else "date"] = iso
+                if rec.get("summary"):
+                    props["summary" if nt == "lsp:newsArticle" else "location"] = rec["summary"].strip()[:2000]
+                body = (rec.get("body") or "").strip()
+                if body and "<" not in body:
+                    body = "\n".join(f"<p>{ln}</p>" for ln in body.split("\n") if ln.strip())
+                props["body"] = body or f"<p>{props['jcr:title']}</p>"
+                hero = self.import_hero(rec.get("heroPath", ""), folder_name, dry=dry)
+                if hero:
+                    props["image"] = hero
+                    props["imageAltText"] = (rec.get("title") or "image")[:255]
+                node_path = f"{folder_path}/{slug}"
+                if dry:
+                    print(f"  [dry] {node_path} <- {nt}  title={props['jcr:title'][:44]!r} hero={'y' if hero else '-'} body={len(props['body'])}")
+                    arts.append({"path": node_path, "type": nt, "folder": folder_name, "source": slug})
+                    created += 1
+                    continue
+                try:
+                    if self.node_exists(node_path):
+                        self.m.update(node_path, props); action = "~"
+                    else:
+                        self.m.create(folder_path, nt, props, name=slug); action = "+"
+                    self.m.publish(node_path)
+                    created += 1; published += 1
+                    arts.append({"path": node_path, "type": nt, "folder": folder_name, "source": slug})
+                    print(f"  {action} {node_path}  ({props['jcr:title'][:40]})  hero={'y' if hero else '-'}")
+                except Exception as e:
+                    print(f"  ! {nt} {slug}: {e}", file=sys.stderr)
+        return created, published, arts
+
     # ── main ────────────────────────────────────────────────────────────────
     def run(self, dry=False, limit=None):
         if not self.mr_types:
@@ -210,11 +288,23 @@ class MainResourceLoader:
             for lp in fcfg.get("listingPages", []):
                 result["listingPages"][lp] = fp
 
-        if not units:
-            print("load_main_resources: no mainResource units matched (check urlPrefixes / crawl cache)")
-        print(f"== {len(units)} mainResource unit(s) across {len(result['folders'])} folder(s) ==")
-
+        # Browser-capture source (fresh, client-rendered listings) takes precedence
+        # over stale SXA content-load extraction for any folder it covers.
+        cap = load_json(f"orchestration/content/{self.project}.articles-capture.json") or {}
+        captured_folders = {k for k in cap if not k.startswith("_") and isinstance(cap[k], list)}
         created = published = 0
+        cap_created, cap_published, cap_arts = self.load_from_capture(dry=dry)
+        created += cap_created; published += cap_published
+        result["articles"].extend(cap_arts)
+        if captured_folders:
+            print(f"== capture covered folders {sorted(captured_folders)}: {cap_created} article(s) ==")
+
+        # SXA-extracted units, minus folders already covered by the capture
+        units = [(pk, fn, fc) for (pk, fn, fc) in units if fn not in captured_folders]
+        if not units and not captured_folders:
+            print("load_main_resources: no mainResource units matched (check urlPrefixes / crawl cache)")
+        print(f"== {len(units)} SXA mainResource unit(s) across {len(result['folders'])} folder(s) ==")
+
         for page_key, fname, fcfg in units:
             if limit and created >= limit:
                 break
