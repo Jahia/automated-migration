@@ -1,4 +1,5 @@
 import { buildNodeUrl, jahiaComponent } from "@jahia/javascript-modules-library";
+import { useTranslation } from "react-i18next";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { AgendaItemProps } from "./types.js";
 
@@ -45,6 +46,7 @@ jahiaComponent(
     displayName: "Full Agenda Event",
   },
   (node: AgendaItemProps, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    const { t } = useTranslation();
     const title = node["jcr:title"];
     const imageUrl = resolveImageUrl(node.image);
     const altText = node.imageAltText || title || "";
@@ -72,7 +74,7 @@ jahiaComponent(
           )}
           {externalLink && (
             <a href={externalLink} className="btn btn-solid-primary mr-20" target="_blank" rel="noopener noreferrer">
-              <span>En savoir plus</span>
+              <span>{t("agendaItem.learnMore")}</span>
             </a>
           )}
         </div>

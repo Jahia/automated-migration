@@ -52,9 +52,15 @@ class MCP:
         if isinstance(content, list) and content and content[0].get("text") is not None:
             txt = content[0]["text"]
             try:
-                return json.loads(txt)
+                parsed = json.loads(txt)
             except Exception:
                 return {"_text": txt}
+            # Tool-level error (content.delete on published node, etc.) — raise it
+            if isinstance(parsed, dict) and "error" in parsed:
+                err = parsed["error"]
+                msg = err.get("message", str(err))
+                raise RuntimeError(f"MCP {tool} error: {msg}")
+            return parsed
         return result
 
     def tools(self):

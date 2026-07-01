@@ -1,0 +1,8 @@
+{
+  "source": "sitecore-sxa",
+  "scores": {
+    "sitecore-sxa": 33
+  },
+  "sampled": 8,
+  "note": "agnostic: media/content/verification work on any HTML; this picks the adapter"
+}

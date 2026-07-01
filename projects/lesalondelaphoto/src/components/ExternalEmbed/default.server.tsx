@@ -1,4 +1,5 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
+import { useTranslation } from "react-i18next";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { ExternalEmbedProps } from "./types.js";
 
@@ -20,6 +21,7 @@ jahiaComponent(
     displayName: "External Embed",
   },
   (node: ExternalEmbedProps, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    const { t } = useTranslation();
     const embedUrl = resolveEmbedUrl(node, currentNode);
     const embedTitle = node.embedTitle || "";
     const embedHeight = node.embedHeight || 800;
@@ -28,7 +30,7 @@ jahiaComponent(
       return (
         <div className="component external-embed col-12">
           <div className="component-content">
-            <p>No embed URL configured.</p>
+            <p>{t("externalEmbed.noEmbedUrl")}</p>
           </div>
         </div>
       );

@@ -44,7 +44,8 @@ for path in "${pages[@]}"; do
   p="${path#/}"; p="${p%.html}"
   case "$p" in
     sites/*) url="$JAHIA_HOST/$p.html" ;;
-    *)       url="$JAHIA_HOST/sites/$site/$p.html" ;;
+    home)    url="$JAHIA_HOST/sites/$site/home.html" ;;
+    *)       url="$JAHIA_HOST/sites/$site/home/$p.html" ;;
   esac
   echo "── render-truth: $url"
   if bash "$HERE/render-truth.sh" "$url" >/tmp/render-all-$$.log 2>&1; then

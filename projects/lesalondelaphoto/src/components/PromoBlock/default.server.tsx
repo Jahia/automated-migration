@@ -1,4 +1,5 @@
 import { buildNodeUrl, getChildNodes, jahiaComponent, Render } from "@jahia/javascript-modules-library";
+import { useTranslation } from "react-i18next";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { PromoBlockProps } from "./types.js";
 
@@ -50,6 +51,7 @@ jahiaComponent(
     displayName: "Promo Block",
   },
   (node: PromoBlockProps, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    const { t } = useTranslation();
     const heading = node.heading;
     const description = node.description;
     const cta = resolveCta(node, currentNode);
@@ -66,7 +68,7 @@ jahiaComponent(
               <div className="col-md-6">
                 <div className="simple-title">
                   <div>
-                    <div className="back-title white field-arriere-titre">EN VIDÉO</div>
+                    <div className="back-title arriere-titre">{t("promoBlock.videoEyebrow")}</div>
                   </div>
                 </div>
                 <div className="row">

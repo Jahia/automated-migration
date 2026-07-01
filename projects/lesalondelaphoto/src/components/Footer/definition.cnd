@@ -1,3 +1,4 @@
-[lsp:footer] > jnt:content, lspmix:pageComponent, jmix:hiddenType
+[lsp:footer] > jnt:content, lspmix:pageComponent, lspmix:media
  - footerText (string, richtext) i18n
  + * (lsp:footerLink)
+ + * (lsp:socialLink)

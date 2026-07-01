@@ -50,20 +50,30 @@ for region in ("nav", "footer"):
     else:
         n = len((np.get("children") or {}).get("nodes", []))
         if n == 0:
-            fails.append(f"shell: /home/{region} has 0 child content nodes — blank in edit (AbsoluteArea-needs-children); populate it")
+            # jmix:hiddenType singletons (nav, footer) are correct at 0 children
+            # (AGENTS.md §5: blank nav/footer = WARN, not fail)
+            d2 = gql(f'{{jcr(workspace:EDIT){{nodeByPath(path:"/sites/{SITE}/home/{region}")'
+                     f'{{isNodeType(type:{{types:["jmix:hiddenType"]}})}}}}}}')
+            nd = (((d2.get("data") or {}).get("jcr") or {}).get("nodeByPath") or {})
+            is_hidden = nd.get("isNodeType", False)
+            if is_hidden:
+                notes.append(f"shell: /home/{region} is jmix:hiddenType singleton (0 children expected; renders from page tree)")
+            else:
+                fails.append(f"shell: /home/{region} has 0 child content nodes — blank in edit (AbsoluteArea-needs-children); populate it")
 
 # ── 2. images-present ─────────────────────────────────────────────────────────
 content = nodes(f"select * from [jnt:content] where {SCOPE}") or []
 img_set = 0
 img_props = ("image", "backgroundImage", "logo", "photo", "visual", "bannerImage", "thumbnailImage")
-# requery with properties to inspect weakref image fields
+# requery with properties to inspect weakref image fields — use `value` (singular),
+# the `values` (plural) field returns null in Jahia GraphQL bulk properties queries.
 d = gql(f'{{jcr(workspace:EDIT){{nodesByQuery(query:"select * from [jnt:content] where {SCOPE}")'
-        f'{{nodes{{path properties{{name values definition{{requiredType}}}}}}}}}}}}')
+        f'{{nodes{{path properties{{name value definition{{requiredType}}}}}}}}}}}}')
 allnodes = (((d.get("data") or {}).get("jcr") or {}).get("nodesByQuery") or {}).get("nodes", [])
 for n in allnodes:
     for p in n.get("properties", []):
         if p["name"] in img_props and (p.get("definition") or {}).get("requiredType") == "WEAKREFERENCE":
-            if p.get("values"):
+            if p.get("value"):
                 img_set += 1
 if allnodes and img_set == 0:
     fails.append(f"images: not a single image weakref is set across {len(allnodes)} content nodes — the site is text-only (heroes/cards have no images). Wire DAM images.")

@@ -6,8 +6,7 @@ const HERO_TYPES = ["lsp:hero", "lsp:heroCarousel"];
 // main = an OPEN composition surface: the gridRow layout primitive + all body content
 // components. The contributor builds the layout freely with these — but children
 // (cta/social/footerLink/slide), shell (nav/footer = Layout) and mainResource detail
-// types are excluded. Add the recovered components (keyFigures, accordion, tabs,
-// contactBlock, dateLieuHoraires, infoCard, imageBlock, anchorsLinks) here as they ship.
+// types are excluded.
 const OPEN_PALETTE = [
   "lsp:gridRow",
   "lsp:editorialBlock",
@@ -16,6 +15,15 @@ const OPEN_PALETTE = [
   "lsp:partnerCarousel",
   "lsp:jcrQuery",
   "lsp:externalEmbed",
+  "lsp:keyFigures",
+  "lsp:accordion",
+  "lsp:tabs",
+  "lsp:contactBlock",
+  "lsp:dateLieuHoraires",
+  "lsp:infoCard",
+  "lsp:imageBlock",
+  "lsp:anchorsLinks",
+  "lsp:pageHeader",
 ];
 
 jahiaComponent(
