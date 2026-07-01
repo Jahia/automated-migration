@@ -169,10 +169,39 @@ def canonical_name(comp_type):
     return COMPONENT_ALIASES.get(comp_type, comp_type)
 
 
-def is_main_resource_candidate(comp_type, pages):
-    """Heuristic: is this component a mainResource (has its own URL)?"""
-    main_resource_hints = ["article", "news", "event", "product", "press", "blog", "post"]
-    return any(hint in comp_type.lower() for hint in main_resource_hints)
+def is_main_resource_candidate(comp_type, pages, all_instances):
+    """Heuristic: is this component a mainResource (has its own URL)?
+
+    MainResource indicators:
+    - Component name contains article/news/event/product/press/blog
+    - Has title + body content pattern (card in a listing)
+    - Appears on a listing page AND has detail-page-like fields
+    """
+    main_resource_hints = ["article", "news", "event", "product", "press", "blog", "post",
+                           "communique", "actualite", "billet"]
+    # Check component name
+    if any(hint in comp_type.lower() for hint in main_resource_hints):
+        return True
+
+    # Check if this is a card-like component (title + text/image) on a listing page
+    # Only mark as MainResource if it has BOTH heading AND (text OR image)
+    # AND appears on a page that has search-results or facet-aggregated
+    listing_indicators = {"search-results", "facet-aggregated", "facet-summary", "load-more"}
+
+    # Find pages with listing indicators
+    listing_pages = set()
+    for inst in all_instances:
+        if inst.get("type") in listing_indicators:
+            listing_pages.add(inst.get("page", ""))
+
+    # Check if this component appears on a listing page AND has card-like fields
+    for inst in all_instances:
+        if inst.get("type") == comp_type and inst.get("page") in listing_pages:
+            # Card pattern: has heading AND (text OR image)
+            if inst.get("hasHeading") and (inst.get("hasText") or inst.get("hasImage")):
+                return True
+
+    return False
 
 
 def main():
@@ -249,7 +278,7 @@ def main():
         is_cross_cutting = comp_type in cross_cutting_types
 
         # Determine if mainResource
-        is_main_res = is_main_resource_candidate(comp_type, pages_with)
+        is_main_res = is_main_resource_candidate(comp_type, pages_with, all_components)
 
         candidates.append({
             "candidateId": comp_type,
