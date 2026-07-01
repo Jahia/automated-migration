@@ -21,3 +21,8 @@ projects/**/.reference/captured/
 projects/**/.yarn/
 __pycache__/
 *.pyc
+node_modules/
+.DS_Store
+package-lock.json
+package.json
+projects/*/workflow-output/
