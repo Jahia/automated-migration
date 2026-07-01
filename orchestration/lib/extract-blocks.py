@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""extract-blocks.py — Deterministic, CMS-agnostic block extraction.
+"""extract-blocks.py — Deterministic CMS component extraction.
 
-Extracts ALL structural blocks from crawled HTML with rich context for the LLM.
-NO semantic decisions — pure data extraction. The LLM decides what's a component,
-what's a template, what's cross-cutting.
+Identifies CMS-level components using three deterministic signals:
+
+1. CMS-declared: class contains "component" (Sitecore SXA, Drupal blocks, WP widgets)
+2. Structural regions: <header>, <footer>, <nav>, <main>, <section>, <article>
+3. Content mixing: blocks with 2+ different content types (heading, media, text, interactive)
+
+The LLM then decides: which are templates, which are cross-cutting, which are
+MainResource, which should be merged into the same CND type.
 
 Usage:
   python3 orchestration/lib/extract-blocks.py <project>
@@ -13,100 +18,108 @@ Output:
 """
 import json
 import os
-import re
 import sys
 import time
 from html.parser import HTMLParser
 
 
-class BlockExtractor(HTMLParser):
-    """Extract all structural blocks from HTML with rich context."""
+HEADING_TAGS = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
+MEDIA_TAGS = {'img', 'video', 'picture', 'source', 'canvas', 'svg', 'iframe'}
+INTERACTIVE_TAGS = {'a', 'button', 'input', 'select', 'textarea'}
+STRUCTURAL_TAGS = {'header', 'footer', 'nav', 'main', 'section', 'article', 'aside', 'form'}
 
-    # Tags that represent structural blocks
-    BLOCK_TAGS = {
-        'div', 'section', 'article', 'aside', 'nav', 'header', 'footer',
-        'main', 'form', 'table', 'ul', 'ol', 'figure', 'details', 'dialog',
-        'fieldset', 'blockquote', 'dl',
-    }
+
+class CMSComponentExtractor(HTMLParser):
+    """Extract CMS-level components from HTML."""
 
     def __init__(self):
         super().__init__()
         self.blocks = []
-        self.tag_stack = []  # (tag, classes, depth, block_id)
+        self.tag_stack = []  # dicts with block_id, tag, depth, childTags
         self.depth = 0
         self.block_counter = 0
         self._current_heading = None
-
-        # Global structure
-        self.has_header = False
-        self.has_footer = False
-        self.has_nav = False
-        self.has_main = False
 
     def handle_starttag(self, tag, attrs):
         self.depth += 1
         attrs_d = dict(attrs)
         classes = attrs_d.get('class', '').split()
+        class_str = attrs_d.get('class', '')
 
-        if tag == 'header':
-            self.has_header = True
-        elif tag == 'footer':
-            self.has_footer = True
-        elif tag == 'nav':
-            self.has_nav = True
-        elif tag == 'main':
-            self.has_main = True
+        is_component = False
 
-        if tag in self.BLOCK_TAGS:
+        # Signal 1: CMS-declared component
+        if 'component' in classes:
+            is_component = True
+        # Signal 2: Structural region
+        elif tag in STRUCTURAL_TAGS:
+            is_component = True
+        # Signal 3: Div with semantic class (hero, carousel, grid, etc.)
+        elif tag == 'div' and any(
+            k in class_str.lower() for k in [
+                'hero', 'banner', 'slider', 'carousel', 'gallery', 'grid',
+                'listing', 'cards', 'push', 'teaser', 'widget', 'block',
+                'module', 'feature', 'testimonial', 'faq', 'accordion', 'tabs',
+                'map', 'video', 'social', 'newsletter', 'search', 'breadcrumb',
+                'cta', 'call-to-action', 'pricing', 'team', 'portfolio',
+                'footer', 'header', 'nav',
+            ]
+        ):
+            is_component = True
+
+        if is_component:
             self.block_counter += 1
             block_id = f"block_{self.block_counter:03d}"
-
-            parent_id = self.tag_stack[-1][3] if self.tag_stack else None
+            parent_id = self.tag_stack[-1]['block_id'] if self.tag_stack else None
 
             block = {
                 'id': block_id,
                 'tag': tag,
                 'classes': classes,
+                'classString': class_str,
                 'depth': self.depth,
                 'parentId': parent_id,
-                'childIds': [],
+                'childBlockIds': [],
+                'childTags': [],
                 'text_buf': [],
                 'images': [],
                 'links': [],
                 'headings': [],
-                'heading_tag': None,
             }
             self.blocks.append(block)
-            self.tag_stack.append((tag, classes, self.depth, block_id))
+            self.tag_stack.append({'block_id': block_id, 'tag': tag, 'depth': self.depth})
+
+        # Track child tags
+        if self.tag_stack:
+            self.tag_stack[-1].setdefault('childTags', []).append(tag)
 
         # Track content
-        if tag == 'img':
+        if tag in MEDIA_TAGS:
             src = attrs_d.get('src', '') or attrs_d.get('data-src', '') or attrs_d.get('data-lazy-src', '')
-            if src and not src.startswith('data:'):
-                for item in reversed(self.blocks):
-                    if item['id'] == self.tag_stack[-1][3] if self.tag_stack else False:
-                        item['images'].append(src)
+            if src and not src.startswith('data:') and self.tag_stack:
+                for b in reversed(self.blocks):
+                    if b['id'] == self.tag_stack[-1]['block_id']:
+                        b['images'].append(src)
                         break
-        elif tag == 'a':
+        elif tag in INTERACTIVE_TAGS:
             href = attrs_d.get('href', '')
-            if href and not href.startswith('#') and not href.startswith('javascript:'):
-                for item in reversed(self.blocks):
-                    if item['id'] == self.tag_stack[-1][3] if self.tag_stack else False:
-                        item['links'].append(href)
+            if href and not href.startswith('#') and not href.startswith('javascript:') and self.tag_stack:
+                for b in reversed(self.blocks):
+                    if b['id'] == self.tag_stack[-1]['block_id']:
+                        b['links'].append(href)
                         break
-        elif tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6'):
+        elif tag in HEADING_TAGS:
             self._current_heading = tag
 
     def handle_endtag(self, tag):
-        if self.tag_stack and self.tag_stack[-1][0] == tag and self.tag_stack[-1][2] == self.depth:
+        if self.tag_stack and self.tag_stack[-1]['tag'] == tag and self.tag_stack[-1]['depth'] == self.depth:
             popped = self.tag_stack.pop()
-            block_id = popped[3]
-            # Add this block as child of parent
+            block_id = popped['block_id']
             if self.tag_stack:
-                parent_id = self.tag_stack[-1][3]
+                parent_id = self.tag_stack[-1]['block_id']
                 for b in self.blocks:
                     if b['id'] == parent_id:
-                        b['childIds'].append(block_id)
+                        b['childBlockIds'].append(block_id)
                         break
 
         self.depth = max(0, self.depth - 1)
@@ -116,121 +129,103 @@ class BlockExtractor(HTMLParser):
         if not text:
             return
 
-        # Add text to current block
         if self.tag_stack:
-            current_id = self.tag_stack[-1][3]
+            current_id = self.tag_stack[-1]['block_id']
             for b in self.blocks:
                 if b['id'] == current_id:
                     b['text_buf'].append(text)
                     break
 
-        # Track heading text
         if self._current_heading:
             if self.tag_stack:
-                current_id = self.tag_stack[-1][3]
+                current_id = self.tag_stack[-1]['block_id']
                 for b in self.blocks:
                     if b['id'] == current_id:
                         b['headings'].append(text[:200])
-                        b['heading_tag'] = self._current_heading
                         break
             self._current_heading = None
 
     def get_result(self, page_slug, page_url):
-        # Build block map for sibling lookup
         block_map = {b['id']: b for b in self.blocks}
 
-        # Filter: keep meaningful blocks, skip empty layout wrappers
-        # This is noise reduction, NOT semantic decision-making
-        LAYOUT_ONLY = {'container', 'container-fluid', 'row', 'col', 'd-flex', 'd-none', 'd-block',
-                       'd-grid', 'd-table', 'align-items-center', 'justify-content-center',
-                       'flex-row', 'flex-column', 'flex-wrap', 'overflow-hidden', 'position-relative'}
+        # Compute content types for each block
+        for b in self.blocks:
+            b['contentTypes'] = set()
+            b['textContent'] = ' '.join(b['text_buf']).strip()
 
-        def is_meaningful(b):
-            """A block is meaningful if it has content or is a structural region."""
-            text = ' '.join(b['text_buf']).strip()
-            has_content = len(text) > 30 or b['images'] or b['headings']
-            # Structural regions are always meaningful
-            if b['tag'] in ('header', 'footer', 'nav', 'main', 'section', 'article'):
-                return True
-            # CMS components are always meaningful
-            if 'component' in ' '.join(b['classes']):
-                return True
-            # Blocks with content are meaningful
-            if has_content:
-                return True
-            # Skip empty layout wrappers
-            if b['classes'] and all(c.lower() in LAYOUT_ONLY or c.lower().startswith(('col-', 'd-', 'g-', 'm-', 'p-', 'text-', 'fw-', 'fs-')) for c in b['classes']):
-                return False
-            return False
+            if b['headings']:
+                b['contentTypes'].add('heading')
+            if b['images']:
+                b['contentTypes'].add('media')
+            if len(b['textContent']) > 30:
+                b['contentTypes'].add('text')
+            if b['links']:
+                b['contentTypes'].add('interactive')
 
+        # Keep blocks that are:
+        # 1. CMS components (class contains 'component')
+        # 2. Structural regions (header, footer, nav, main, section, article)
+        # 3. Blocks with 2+ content types (mixed content = semantic unit)
         clean_blocks = []
         for b in self.blocks:
-            if not is_meaningful(b):
-                continue
+            is_cms = 'component' in b['classes']
+            is_structural = b['tag'] in STRUCTURAL_TAGS
+            has_mix = len(b['contentTypes']) >= 2
 
-            text = ' '.join(b['text_buf']).strip()
+            if is_cms or is_structural or has_mix:
+                # Determine position
+                position = 'page'
+                current = b
+                while current['parentId']:
+                    parent = block_map.get(current['parentId'])
+                    if not parent:
+                        break
+                    if parent['tag'] in STRUCTURAL_TAGS:
+                        position = parent['tag']
+                        break
+                    current = parent
 
-            # Determine position in page
-            position = 'page'
-            current = b
-            while current['parentId']:
-                parent = block_map.get(current['parentId'])
-                if not parent:
-                    break
-                parent_tag = parent['tag']
-                if parent_tag == 'header':
-                    position = 'header'
-                    break
-                elif parent_tag == 'footer':
-                    position = 'footer'
-                    break
-                elif parent_tag == 'nav':
-                    position = 'nav'
-                    break
-                elif parent_tag == 'main':
-                    position = 'main'
-                    break
-                current = parent
+                # Sibling types
+                sibling_types = []
+                if b['parentId']:
+                    parent = block_map.get(b['parentId'])
+                    if parent:
+                        for cid in parent['childBlockIds']:
+                            if cid != b['id']:
+                                sibling = block_map.get(cid)
+                                if sibling:
+                                    st = sibling['classString'][:50] if sibling['classes'] else sibling['tag']
+                                    sibling_types.append(st)
 
-            # Get sibling types
-            sibling_types = []
-            if b['parentId']:
-                parent = block_map.get(b['parentId'])
-                if parent:
-                    for cid in parent['childIds']:
-                        if cid != b['id']:
-                            sibling = block_map.get(cid)
-                            if sibling:
-                                sibling_types.append('.'.join(sibling['classes'][:2]) if sibling['classes'] else sibling['tag'])
-
-            clean_blocks.append({
-                'id': b['id'],
-                'tag': b['tag'],
-                'classes': b['classes'],
-                'classString': ' '.join(b['classes']),
-                'depth': b['depth'],
-                'position': position,
-                'parentId': b['parentId'],
-                'childIds': b['childIds'],
-                'childCount': len(b['childIds']),
-                'isContainer': len(b['childIds']) > 0,
-                'textContent': text[:2000],
-                'textContentLength': len(text),
-                'textSample': text[:300],
-                'imageCount': len(b['images']),
-                'linkCount': len(b['links']),
-                'headingCount': len(b['headings']),
-                'hasImage': bool(b['images']),
-                'hasLink': bool(b['links']),
-                'hasHeading': bool(b['headings']),
-                'imageUrls': b['images'][:10],
-                'linkUrls': b['links'][:20],
-                'headingTexts': b['headings'][:5],
-                'siblingTypes': sibling_types[:10],
-            })
+                clean_blocks.append({
+                    'id': b['id'],
+                    'tag': b['tag'],
+                    'classes': b['classes'],
+                    'classString': b['classString'],
+                    'depth': b['depth'],
+                    'position': position,
+                    'parentId': b['parentId'],
+                    'childBlockIds': b['childBlockIds'],
+                    'childCount': len(b['childBlockIds']),
+                    'isContainer': len(b['childBlockIds']) > 0,
+                    'contentTypes': sorted(b['contentTypes']),
+                    'contentTypeCount': len(b['contentTypes']),
+                    'textContent': b['textContent'][:2000],
+                    'textContentLength': len(b['textContent']),
+                    'textSample': b['textContent'][:300],
+                    'imageCount': len(b['images']),
+                    'linkCount': len(b['links']),
+                    'headingCount': len(b['headings']),
+                    'hasImage': bool(b['images']),
+                    'hasLink': bool(b['links']),
+                    'hasHeading': bool(b['headings']),
+                    'imageUrls': b['images'][:10],
+                    'linkUrls': b['links'][:20],
+                    'headingTexts': b['headings'][:5],
+                    'siblingTypes': sibling_types[:10],
+                })
 
         roots = [b for b in clean_blocks if b['parentId'] is None]
-        containers = [b for b in clean_blocks if b['isContainer']]
 
         return {
             'slug': page_slug,
@@ -238,12 +233,11 @@ class BlockExtractor(HTMLParser):
             'blocks': clean_blocks,
             'totalBlocks': len(clean_blocks),
             'rootBlocks': len(roots),
-            'containerBlocks': len(containers),
             'globalStructure': {
-                'hasHeader': self.has_header,
-                'hasFooter': self.has_footer,
-                'hasNav': self.has_nav,
-                'hasMain': self.has_main,
+                'hasHeader': any(b['tag'] == 'header' for b in clean_blocks),
+                'hasFooter': any(b['tag'] == 'footer' for b in clean_blocks),
+                'hasNav': any(b['tag'] == 'nav' for b in clean_blocks),
+                'hasMain': any(b['tag'] == 'main' for b in clean_blocks),
             }
         }
 
@@ -255,7 +249,7 @@ def extract_blocks_from_page(html_path, page_slug, page_url):
     except Exception:
         return None
 
-    parser = BlockExtractor()
+    parser = CMSComponentExtractor()
     try:
         parser.feed(html)
     except Exception:
@@ -307,15 +301,19 @@ def main():
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
 
-    print(f"=== BLOCK EXTRACTION ===")
+    print(f"=== CMS COMPONENT EXTRACTION ===")
     print(f"Pages: {len(all_pages)}")
-    print(f"Total blocks: {total_blocks}")
+    print(f"Total components: {total_blocks}")
     print()
     for page in all_pages:
         blocks = page["blocks"]
-        containers = [b for b in blocks if b['isContainer']]
-        leaves = [b for b in blocks if not b['isContainer']]
-        print(f"  {page['slug']:30s} total={len(blocks):3d}  containers={len(containers):2d}  leaves={len(leaves):2d}")
+        by_types = {}
+        for b in blocks:
+            key = '+'.join(b['contentTypes']) if b['contentTypes'] else 'structural'
+            by_types[key] = by_types.get(key, 0) + 1
+        print(f"  {page['slug']:30s} components={len(blocks):3d}")
+        for k, v in sorted(by_types.items(), key=lambda x: -x[1])[:5]:
+            print(f"    {k:35s} ×{v}")
     print(f"\nOutput: {out_path}")
 
 
