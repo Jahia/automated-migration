@@ -485,9 +485,15 @@ The `name: "fullPage"` convention is what the unified template delegates to via 
 
 ---
 
-#### Step 4 — `cm.server.tsx` view (jContent editor preview)
+#### Step 4 — `cm.server.tsx` view (jContent editor preview) — REQUIRED for EVERY content type
 
-Every `jmix:mainResource` type also needs a `cm` view so editors can preview the content inside the jContent panel without the full Layout chrome.
+**Every content type needs a `cm` view** so editors can preview the content standalone in the jContent panel without the full Layout chrome. (Formerly scoped to `jmix:mainResource` types; it now applies to all.) Fastest path — the deterministic scaffolder creates them for the whole module (idempotent, never overwrites):
+
+```bash
+python3 orchestration/lib/scaffold_cm_views.py <project_path>
+```
+
+It ensures `src/templates/CMPreview.tsx` (derived from your `Layout.tsx` CSS cascade) and writes a `cm.server.tsx` for every concrete content type — the `fullPage` view where it exists, else the `default` view. Enforced by `components-all.sh` (fails any content type missing its `cm` view). The hand-written form:
 
 ```tsx
 import { jahiaComponent, Render } from "@jahia/javascript-modules-library";
@@ -537,6 +543,8 @@ export const CMPreview = ({ children }: { children: ReactNode }) => (
 | `src/components/NewsItem/default.server.tsx` | Card/list view (used in grids) | Per type |
 
 **The `default` view** renders when the node is embedded in a list or grid. **The `fullPage` view** renders when the URL is accessed directly. The `cm` view renders in the jContent editor sidebar — it reuses `fullPage` but without site Layout overhead.
+
+> **`cm` view + `CMPreview` are NOT mainResource-specific — they are required for EVERY content type.** A non-`mainResource` type has no `fullPage` view, so its `cm` view wraps the `default` view instead. Run `python3 orchestration/lib/scaffold_cm_views.py <project_path>` to generate `cm.server.tsx` for the whole module (and `CMPreview.tsx` once); `components-all.sh` fails any content type missing it.
 
 ### Multiple Named Views — One File Per View
 
