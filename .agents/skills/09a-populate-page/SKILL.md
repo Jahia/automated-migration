@@ -88,11 +88,42 @@ them). Weakrefs accept an absolute JCR path. Multi-valued = JSON array. Dates = 
 - The step's probes pass: `content.sh` (structural fidelity vs captured reference +
   real JCR state), `render-all.sh` (live render truth), **`pixel.sh` (pixel-level
   diff vs the reference — THE exit criterion)**, `contract.sh` (inputs existed).
-- **Iterating on the pixel gate**: on failure it saves
-  `<project_path>/workflow-output/pixel/<page-slug>/{ref,local,diff}.png` — red in
-  diff.png = differing pixels. LOOK at them, fix the visual gap (missing section,
-  wrong order, unstyled block, missing image, layout), re-run. A large page-height
-  mismatch means missing or extra content. Never weaken the threshold, never skip
-  the probe; third-party overlays (chat/consent) belong in the project's
-  `orchestration/content/<project>.pixel-config.json` hideSelectors, nothing else.
+
+## The pixel iteration protocol (follow EXACTLY, one region at a time)
+
+You cannot see images. The gate translates pixels into text for you:
+`<project_path>/workflow-output/pixel/<page-slug>/report.json` — read it with `cat`.
+It contains `heightHint` (missing vs extra content) and `hotRegions`: for each
+differing vertical band, the DOM landmarks on the REFERENCE side vs the LOCAL side
+(headings, images, buttons, iframes with their y positions). That IS your punch list.
+
+Loop until the gate passes:
+1. `bash orchestration/probes/pixel.sh <project_path> <site> <lang> <page>` for ONE page.
+2. `cat <project_path>/workflow-output/pixel/<page-slug>/report.json`.
+3. Read `heightHint` FIRST: a shorter local page means MISSING content — find the
+   first hot region where REF landmarks have no LOCAL counterpart; everything after
+   it is offset because of that gap. Fix the FIRST divergence, not the symptoms
+   below it.
+4. Classify the top hot region:
+   - REF landmark absent on LOCAL (heading/img/iframe missing) → **content fix**:
+     create the missing component instance via MCP (this skill's method), publish.
+   - Same content, wrong order → **reorder** (`content.reorder` / recreate in
+     document order), publish.
+   - Same content present but rendered differently (unstyled block, wrong layout,
+     missing wrapper/CTA structure) → **view/CSS fix** (see authorization below).
+5. Re-run step 1. Repeat. Each iteration must reduce diffPct — if two consecutive
+   iterations do not, STOP, report the blocker in `risks` and fail honestly.
+
+## View/CSS fixes — authorized, with guardrails
+
+When the report shows a rendering gap (not a content gap), you MAY fix the module's
+view (`projects/<project>/src/components/<X>/*.server.tsx`) or its CSS module. Rules:
+- Smallest possible change; mirror the reference markup for that section only.
+- NEVER register a second default view for a nodeType (site-wide 404 trap).
+- After any view/CSS change, redeploy before re-measuring:
+  `cd <project_path> && yarn build && yarn jahia-deploy` — then
+  `bash orchestration/probes/render-all.sh <project_path> <site> <lang> <page>` must
+  pass BEFORE you re-run the pixel gate.
+- Never weaken thresholds, never edit pixel-config.json, never skip the probe.
+  Third-party overlays (chat/consent) are already handled by the harness config.
 - Anything you could not reproduce faithfully is listed in `risks` — honestly.

@@ -117,8 +117,17 @@ print(v.get('maxDiffPct',''))" 2>/dev/null)"
       echo "   PASS  diff=${pct}%  → $outroot/$slug/{ref,local,diff}.png"
     else
       pct="$(python3 -c "import json;print(json.load(open('/tmp/pixel-$$.json'))['diffPct'])" 2>/dev/null || echo "?")"
-      echo "   FAIL  diff=${pct}% (> ${page_max}%)  → inspect $outroot/$slug/diff.png"
-      head -3 /tmp/pixel-$$.err 2>/dev/null | sed 's/^/     /'
+      echo "   FAIL  diff=${pct}% (> ${page_max}%)  full report: $outroot/$slug/report.json"
+      # DOM-anchored punch list (pixels -> language): what to fix, where
+      python3 - "$outroot/$slug/report.json" <<'PYR' 2>/dev/null || head -3 /tmp/pixel-$$.err | sed 's/^/     /'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print(f"     {r['heightHint']} (ref {r['refHeight']}px vs local {r['localHeight']}px)")
+for band in r["hotRegions"][:5]:
+    print(f"     y{band['y0']}-{band['y1']} diff {band['pct']}%")
+    print(f"       REF:   " + ("; ".join(band['reference'][:3]) or "(empty)"))
+    print(f"       LOCAL: " + ("; ".join(band['local'][:3]) or "(empty)"))
+PYR
       failed+=("$p (${pct}%)")
     fi
   else

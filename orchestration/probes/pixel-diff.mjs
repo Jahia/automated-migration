@@ -89,6 +89,35 @@ async function renderShot(page, src) {
   return page.screenshot({ fullPage: true });
 }
 
+// DOM landmarks with absolute y positions — the translation layer that turns
+// pixel bands into language a TEXT model can act on ("y 600-900: ref has
+// h2 'La Grande Expo' + a.cta, local has p raw text").
+async function landmarks(page) {
+  return page.evaluate(() => {
+    const out = [];
+    const sel = "h1,h2,h3,h4,section,header,footer,nav,main>div,main>*>div,img,iframe,video,button,a[class*=btn],a[class*=cta]";
+    for (const el of document.querySelectorAll(sel)) {
+      const r = el.getBoundingClientRect();
+      const y = r.top + window.scrollY;
+      if (r.width < 40 || r.height < 16) continue;
+      if (r.height > 1500) continue; // page-spanning wrapper — crowds out real landmarks
+      let desc;
+      const tag = el.tagName.toLowerCase();
+      if (/^h[1-4]$/.test(tag)) desc = `${tag} "${(el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60)}"`;
+      else if (tag === "img") desc = `img ${(el.currentSrc || el.src || "").split("/").pop().split("?")[0].slice(0, 40)} (${r.width | 0}x${r.height | 0})`;
+      else if (tag === "iframe" || tag === "video") desc = `${tag} (${r.width | 0}x${r.height | 0})`;
+      else {
+        const cls = (typeof el.className === "string" ? el.className : "").split(/\s+/).filter(Boolean).slice(0, 2).join(".");
+        const txt = (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
+        desc = `${tag}${cls ? "." + cls : ""}${txt ? ` "${txt}"` : ""}`;
+      }
+      out.push({ y: Math.round(y), h: Math.round(r.height), desc });
+      if (out.length >= 300) break;
+    }
+    return out;
+  });
+}
+
 const b = await chromium.launch({ args: ["--no-sandbox"] });
 const ctx = await b.newContext({
   viewport: { width: 1440, height: 1000 },
@@ -103,8 +132,10 @@ let out;
 try {
   const rp = await ctx.newPage();
   const refBuf = await renderShot(rp, refSrc);
+  const refMarks = await landmarks(rp);
   const lp = await ctx.newPage();
   const locBuf = await renderShot(lp, liveUrl);
+  const locMarks = await landmarks(lp);
   writeFileSync(`${outDir}/ref.png`, refBuf);
   writeFileSync(`${outDir}/local.png`, locBuf);
 
@@ -136,6 +167,8 @@ try {
       const dg = dc.getContext("2d");
       const di = dg.createImageData(W, H);
       const dd = di.data;
+      const BAND = 250; // px — per-band diff for the DOM-anchored region report
+      const bands = new Array(Math.ceil(H / BAND)).fill(0);
       let diff = 0;
       for (let i = 0; i < rd.length; i += 4) {
         const d =
@@ -144,6 +177,7 @@ try {
           Math.abs(rd[i + 2] - ld[i + 2]) > tol;
         if (d) {
           diff++;
+          bands[((i / 4 / W) | 0) / BAND | 0]++;
           dd[i] = 255; dd[i + 1] = 0; dd[i + 2] = 0; dd[i + 3] = 255;
         } else {
           // faded grayscale of the reference for context
@@ -157,6 +191,8 @@ try {
         refSize: [ri.width, ri.height], localSize: [li.width, li.height],
         totalPx: W * H, diffPx: diff,
         diffPct: +((100 * diff) / (W * H)).toFixed(3),
+        bandPx: BAND,
+        bandDiffPct: bands.map((n, k) => +((100 * n) / (W * Math.min(BAND, H - k * BAND))).toFixed(1)),
         diffPngB64: dc.toDataURL("image/png").split(",")[1],
       };
     },
@@ -164,6 +200,39 @@ try {
   );
   writeFileSync(`${outDir}/diff.png`, Buffer.from(out.diffPngB64, "base64"));
   delete out.diffPngB64;
+
+  // ── DOM-anchored region report: pixels translated into actionable language ──
+  const inBand = (marks, y0, y1) => {
+    // prefer landmarks that START in the band; pad with overlapping ones
+    const starts = marks.filter((m) => m.y >= y0 && m.y < y1);
+    const overlaps = marks.filter((m) => m.y < y0 && m.y + m.h > y0);
+    return [...starts, ...overlaps].slice(0, 6).map((m) => `y${m.y} ${m.desc}`);
+  };
+  const hot = out.bandDiffPct
+    .map((pct, k) => ({ y0: k * out.bandPx, y1: Math.min((k + 1) * out.bandPx, out.height), pct }))
+    .filter((band) => band.pct > 10)
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 12)
+    .map((band) => ({
+      ...band,
+      reference: inBand(refMarks, band.y0, band.y1),
+      local: inBand(locMarks, band.y0, band.y1),
+    }))
+    .sort((a, b) => a.y0 - b.y0);
+  const heightGapPx = out.refSize[1] - out.localSize[1];
+  const report = {
+    diffPct: out.diffPct, maxDiffPct: MAX_DIFF_PCT,
+    refHeight: out.refSize[1], localHeight: out.localSize[1],
+    heightGapPx,
+    heightHint:
+      heightGapPx > 200 ? `LOCAL page is ${heightGapPx}px SHORTER than the reference — content is missing`
+      : heightGapPx < -200 ? `LOCAL page is ${-heightGapPx}px TALLER than the reference — extra/duplicated content`
+      : "heights roughly match",
+    hotRegions: hot,
+    artifacts: { ref: `${outDir}/ref.png`, local: `${outDir}/local.png`, diff: `${outDir}/diff.png` },
+  };
+  writeFileSync(`${outDir}/report.json`, JSON.stringify(report, null, 1));
+  out.report = `${outDir}/report.json`;
 } finally {
   await b.close();
 }
@@ -171,5 +240,6 @@ try {
 out.maxDiffPct = MAX_DIFF_PCT;
 out.pass = out.diffPct <= MAX_DIFF_PCT;
 out.artifacts = { ref: `${outDir}/ref.png`, local: `${outDir}/local.png`, diff: `${outDir}/diff.png` };
+delete out.bandDiffPct;
 console.log(JSON.stringify(out, null, 1));
 process.exit(out.pass ? 0 : 1);

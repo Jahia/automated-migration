@@ -227,11 +227,13 @@ def content_plan(cfg) -> dict:
                     "jmix:mainResource nodes inline in a page main area (they live in "
                     "contentFolders; listings reference them via their query component).",
                     "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel "
-                    "gate passes. On failure, LOOK at the saved screenshots "
-                    f"({PP}/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — "
-                    "red = differing pixels), fix the visual gaps (missing sections, layout, "
-                    "images, ordering) and re-run until it passes. Do NOT weaken the "
-                    "threshold or skip the probe.",
+                    "gate passes. On failure, follow the skill's pixel iteration protocol: "
+                    f"cat {PP}/workflow-output/pixel/<page-slug>/report.json — it translates "
+                    "the pixel diff into DOM landmarks per region (REF vs LOCAL). Fix the "
+                    "FIRST divergence (heightHint first), one region at a time; content fixes "
+                    "via MCP, rendering fixes in the component view (redeploy + render-all "
+                    "before re-measuring). Re-run the gate each iteration; every iteration "
+                    "must reduce diffPct. Do NOT weaken the threshold or skip the probe.",
                     f"PROBE: bash {PROBES}/content.sh {PP} {S} {L} {pages_csv}",
                     f"PROBE: bash {PROBES}/render-all.sh {PP} {S} {L} {pages_csv}",
                     f"PROBE: bash {PROBES}/pixel.sh {PP} {S} {L} {pages_csv}",

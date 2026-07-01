@@ -20,6 +20,7 @@ def build_step_prompt(
     github_block = _format_github_issues(story.github_issues_content)
     previous = _format_previous_stories(epic, story)
     loop_block = _format_loop_context(step)
+    retry_block = _format_retry_feedback(step)
 
     inputs_block = ""
     if step.inputs:
@@ -41,7 +42,7 @@ Ce fichier contient les conventions, le contexte et les règles du projet.
 Respecte ses instructions tout au long de ton travail.
 
 Tu es dans la tâche "{task_type}" de la story "{story.title}".
-{loop_block}
+{loop_block}{retry_block}
 STORY:
 - Titre: {story.title}
 - Description: {story.description}
@@ -173,6 +174,27 @@ def _format_previous_stories(epic: EpicState, current: StoryState) -> str:
                 lines.append(f"  [{step.task_type}] {step.agent_result.summary[:200]}")
                 if step.agent_result.modified_files:
                     lines.append(f"    Fichiers: {', '.join(step.agent_result.modified_files[:10])}")
+    return "\n".join(lines)
+
+
+def _format_retry_feedback(step: StepState) -> str:
+    """On a retry (attempt > 0), inject the PREVIOUS attempt's failure so the
+    agent does not retry blind: the verification errors (probe output) are the
+    training signal that tells it exactly what to fix."""
+    if step.attempt <= 0 or not step.verification or step.verification.passed:
+        return ""
+    lines = [f"\nÉCHEC DE LA TENTATIVE PRÉCÉDENTE (tentative {step.attempt}/{step.max_attempts}):"]
+    if step.agent_result and step.agent_result.summary:
+        lines.append(f"Résumé précédent: {step.agent_result.summary[:300]}")
+    lines.append("Erreurs de vérification (à corriger — ne refais PAS la même chose):")
+    budget = 2000
+    for err in step.verification.errors[:6]:
+        chunk = str(err)[:600]
+        lines.append(f"  ✗ {chunk}")
+        budget -= len(chunk)
+        if budget <= 0:
+            break
+    lines.append("Analyse ces erreurs, corrige la cause, puis re-vérifie avec les mêmes PROBEs.\n")
     return "\n".join(lines)
 
 
