@@ -62,7 +62,8 @@ class StructureExtractor(HTMLParser):
             })
 
         # Track main content structure
-        if tag in ("section", "article", "main") or (tag == "div" and any(k in cls for k in ["hero", "banner", "content", "section", "block", "grid", "listing"])):
+        cls_lower = cls.lower()
+        if tag in ("section", "article", "main") or (tag == "div" and any(k in cls_lower for k in ["hero", "banner", "page-title", "grid", "listing", "cards", "search-results", "carousel", "slider", "accordion", "form", "newsletter"])):
             section_type = self._classify_section(cls, tag)
             if section_type:
                 self.structure.append(section_type)
@@ -93,10 +94,10 @@ class StructureExtractor(HTMLParser):
         """Classify a section by its CSS classes. Only classify meaningful blocks."""
         cls_lower = cls.lower()
         # Hero / banner sections
-        if any(k in cls_lower for k in ["hero", "banner", "page-header", "page-title"]):
+        if any(k in cls_lower for k in ["hero", "banner", "page-header", "page-title", "page-title-section"]):
             return "HERO"
         # Grid / listing sections
-        if any(k in cls_lower for k in ["grid", "listing", "cards", "push-cards", "card-grid"]):
+        if any(k in cls_lower for k in ["grid", "listing", "cards", "push-cards", "card-grid", "search-results"]):
             return "GRID"
         # Interactive sections
         if any(k in cls_lower for k in ["accordion", "tabs", "faq"]):
@@ -112,6 +113,11 @@ class StructureExtractor(HTMLParser):
         # Only classify as CONTENT if it's a meaningful content block
         if tag in ("article", "main"):
             return "CONTENT"
+        # Detect HERO by content: div with h1 + background image
+        if tag == "div":
+            # Check for page-title or banner patterns in the class
+            if any(k in cls_lower for k in ["page-title", "banner-section", "hero-section", "title-section"]):
+                return "HERO"
         # Don't classify generic divs as CONTENT — too noisy
         return None
 
