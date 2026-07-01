@@ -1,7 +1,7 @@
-# Orchestration - running jahiaMigration through the llm-orchestration-loop
+# Orchestration - running jahiaMigration through the migration-orchestrator
 
 This directory wires the jahiaMigration harness into the
-[`llm-orchestration-loop`](../../llm-orchestration-loop) so that migrations run
+[`migration-orchestrator`](../migration-orchestrator) so that migrations run
 under a hardened, proof-driven engine instead of the in-repo `/migration-workflow`
 Conductor (which depended on the LLM choosing to respect it).
 
@@ -9,7 +9,7 @@ Conductor (which depended on the LLM choosing to respect it).
 > template, launch a run and answer its human gates, follow
 > [`.agents/skills/run-orchestration-loop/SKILL.md`](../.agents/skills/run-orchestration-loop/SKILL.md).
 > Engine setup, plan schema, and REST API are documented in the engine's own
-> [`README.md`](../../llm-orchestration-loop/README.md). **The engine listens on
+> [`README.md`](../migration-orchestrator/README.md). **The engine listens on
 > port 8001** (matches `run.sh`'s `ORCH_URL`).
 
 ## Why this exists
@@ -127,8 +127,8 @@ that fallback, drop the `mcp.sh` probe line from that one step. Probe scripts
 themselves read the live render with curl for verification - that is checking a
 result, not managing content.
 
-Plus, at the repo root: [`../AGENTS.md`](../AGENTS.md) - the contract the loop
-injects into every step prompt. The loop reads `<repo_dir>/AGENTS.md`, so it
+Plus, at the repo root: [`../AGENTS.md`](../AGENTS.md) - the contract the orchestrator
+injects into every step prompt. The orchestrator reads `<repo_dir>/AGENTS.md`, so it
 must live at the harness root.
 
 ## The plan model
@@ -152,27 +152,23 @@ the probe passes, pausing the run for operator review before it continues.
 
 ## Run it
 
-Prerequisites: the loop is checked out at `../../llm-orchestration-loop`,
-`opencode` is installed, Node >= 22 (`mise`/`nvm`), and a local Jahia is up at
-the `JAHIA_HOST` in `projects/sial-paris/.env`.
+Prerequisites: `opencode` is installed, Node >= 22 (`mise`/`nvm`), and a local Jahia is up
+at the `JAHIA_HOST` in `projects/<project>/.env`.
 
 ```bash
-# 1. Start the orchestration loop (in the loop repo)
-cd ../../llm-orchestration-loop
+# 1. Start the migration orchestrator
+cd migration-orchestrator
 source .venv/bin/activate
 uvicorn src.main:app --host 0.0.0.0 --port 8001   # auto-spawns `opencode serve`
 
-# 2. From this repo, submit + start + watch the SIAL Paris plan
-cd -                                              # back to jahiaMigration
+# 2. From this repo, submit + start + watch a plan
+cd -                                              # back to jahiaMigration root
 ORCH_URL=http://localhost:8001 \
-  bash orchestration/run.sh orchestration/plans/sial-paris.plan.json --watch
+  bash orchestration/run.sh orchestration/plans/<project>.plan.json --watch
 ```
 
 `run.sh` POSTs the plan to `/runs`, starts it, and streams the event log. The
-web UI is at `http://localhost:8001/app`.
-
-> Port note: `src/config.py` in the loop defaults to `8001`; its `.env.example`
-> shows `8000`. Match `ORCH_URL` to whatever you pass to `uvicorn --port`.
+web UI is at `http://localhost:8001/app` (must be built first: `cd migration-orchestrator/frontend && npm install && npm run build`).
 
 ## Add a new project
 

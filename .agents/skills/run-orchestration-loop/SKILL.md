@@ -1,21 +1,21 @@
 ---
 name: run-orchestration-loop
-description: Operator runbook for executing a migration through the llm-orchestration-loop engine. Covers starting the engine (+ opencode), authoring a project plan from the template, submitting and watching a run, and answering the human HALT gates / epic rectifications. Use this BEFORE running any migration — the engine is a separate service that must be up first.
+description: Operator runbook for executing a migration through the migration-orchestrator engine. Covers starting the engine (+ opencode), authoring a project plan from the template, submitting and watching a run, and answering the human HALT gates / epic rectifications. Use this BEFORE running any migration — the engine is a separate service that must be up first.
 type: technical
 status: active
 allowed-tools: Bash, Read, Write, Edit
 ---
 
-# Skill: Run a migration through the llm-orchestration-loop
+# Skill: Run a migration through the migration-orchestrator
 
 The migration steps do not run themselves — they run as a **plan** submitted to the
-**llm-orchestration-loop** engine (`../llm-orchestration-loop`, sibling of this repo).
+**migration-orchestrator** engine (`migration-orchestrator/`, in this repo).
 The engine drives OpenCode agents step by step and gates each step on a shell command
 (`PROBE:`) that must exit 0. This skill is the operator runbook: bring the engine up,
 author the plan, launch, and steer the human gates.
 
 > Engine internals, plan schema, REST API, and config live in
-> `../llm-orchestration-loop/README.md`. This skill is the *operator* side.
+> `migration-orchestrator/README.md`. This skill is the *operator* side.
 
 ## Mental model (read once)
 
@@ -24,8 +24,8 @@ author the plan, launch, and steer the human gates.
   do **not** hand-build epics per project, you fill placeholders.
 - Each step carries a `PROBE:` line in `acceptance_criteria`; the engine runs it with
   `cwd = repo_dir` and the step passes only on exit 0. That is the whole hardening.
-- The agent model is **deepseek-v4-pro**, set in `~/.config/opencode/opencode.jsonc`. The
-  `model` field in the plan is cosmetic — do not rely on it.
+- The agent model is set in `~/.config/opencode/opencode.jsonc`. The `model` field in the
+  plan is cosmetic — do not rely on it.
 - Some epics are **human-gated** (`auto_approve_on_max_rounds:false`) and the migration
   steps also raise explicit `status:halt` gates (Gate 0–5). The run pauses; you answer.
 
@@ -36,28 +36,31 @@ author the plan, launch, and steer the human gates.
 curl -s -o /dev/null -w "jahia %{http_code}\n" http://localhost:8080/        # expect 302/200
 # opencode CLI present + model configured
 opencode --version
-grep -m1 '"model"' ~/.config/opencode/opencode.jsonc                          # -> deepseek/deepseek-v4-pro
+grep -m1 '"model"' ~/.config/opencode/opencode.jsonc
 # engine venv installed
-ls ../llm-orchestration-loop/.venv/bin/uvicorn                                # exists?
+ls migration-orchestrator/.venv/bin/uvicorn                                   # exists?
 ```
 
-If the venv is missing: `cd ../llm-orchestration-loop && python3 -m venv .venv && .venv/bin/pip install -e .`
+If the venv is missing:
+```bash
+cd migration-orchestrator && python3 -m venv .venv && .venv/bin/pip install -e .
+```
 
 ## Step 1 — Start the engine (once per machine session)
 
 The engine spawns `opencode serve` itself; you only start the API.
 
 ```bash
-cd ../llm-orchestration-loop
+cd migration-orchestrator
 .venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8001 \
   > /tmp/orch.log 2>&1 &          # background; tail /tmp/orch.log to watch boot
 # wait for opencode to report healthy (up to ~30s), then:
 curl -s http://localhost:8001/health     # {"status":"ok","opencode":{...}}
 ```
 
-- **Port is 8001** (config.py default + `run.sh`'s `ORCH_URL`). Do not use 8000 — older
-  docs said 8000; that is fixed but watch for stale `.env`.
+- **Port is 8001** (config.py default + `run.sh`'s `ORCH_URL`).
 - Web UI for live progress + gate buttons: **http://localhost:8001/app**.
+  Build the UI first if `src/ui/` doesn't exist: `cd frontend && npm install && npm run build`.
 - Runs persist in `orchestrator.db` (SQLite) across restarts.
 
 ## Step 2 — Prepare the project
@@ -143,7 +146,6 @@ SSE log / `/app`, fix the cause (often a probe finding), and `jump` back to it.
 | `run.sh` → "failed to create run" / connection refused | Engine not up. Start it (Step 1); `curl /health`. |
 | Engine boots but steps hang at "running" | opencode not healthy — check `/tmp/orch.log`; confirm `opencode --version` + model in `opencode.jsonc`. |
 | Probe passes locally but fails in the run | The verifier's `cwd` is `repo_dir` (absolute path in the plan). Make probe paths repo-relative; fix `__REPO_ABS_PATH__`. |
-| Run hits port 8000 | Stale `.env` in the loop repo — `ORCHESTRATOR_PORT` must be 8001 (matches `run.sh`). |
 | Agent ran a different model than expected | Model is `opencode.jsonc`, not the plan. Edit there. |
 
 ## Definition of done for THIS skill
