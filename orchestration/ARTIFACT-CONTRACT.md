@@ -8,7 +8,7 @@
 
 ## What the orchestration loop actually passes between steps
 
-Traced from `llm-orchestration-loop/src/prompt_builder.py` (`build_step_prompt`). Each step's prompt receives:
+Traced from `migration-orchestrator/src/prompt_builder.py` (`build_step_prompt`). Each step's prompt receives:
 
 | Carried across a step boundary | Not carried |
 |---|---|

@@ -1,6 +1,6 @@
 # AGENTS.md - jahiaMigration orchestration contract
 
-You are an agent run by the **llm-orchestration-loop** against this repository.
+You are an agent run by the **migration-orchestrator** against this repository.
 This file is your contract. The loop injects it into every step prompt and
 expects you to follow it exactly. Read it fully before doing anything.
 
