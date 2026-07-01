@@ -2,7 +2,7 @@
 # crawl.sh — Page inventory gate.
 #
 # Verifies that the site was crawled and every page has a cached HTML file.
-# Produces: workflow-output/page-inventory.json
+# Supports MAX_PAGES env var for testing on a subset.
 #
 # Usage: crawl.sh <project_path>
 set -uo pipefail
@@ -30,7 +30,6 @@ if not pages:
     print("FAIL: page-inventory.json has 0 pages"); sys.exit(1)
 
 # 3. Every page must have a cached file
-cache_root = f"{proj}/.reference/cache"
 missing = []
 for p in pages:
     cached = p.get("cachedAt", "")
@@ -51,11 +50,14 @@ if "home" not in slugs:
 
 # 5. Report
 failed = data.get("failedPages", [])
-print(f"  pages: {len(pages)} crawled, {len(failed)} failed")
+max_pages = data.get("maxPages", "unlimited")
+assets = data.get("assetsDownloaded", 0)
+print(f"  pages: {len(pages)} crawled (max={max_pages})")
+print(f"  assets: {assets} downloaded")
+print(f"  failed: {len(failed)}")
 if failed:
-    print(f"  WARNING: {len(failed)} pages failed to crawl:")
     for f in failed[:5]: print(f"    - {f.get('url','?')} ({f.get('error','?')})")
 PY
 rc=$?
 [ "$rc" -eq 0 ] || fail "crawl: inventory validation failed"
-pass "crawl: page-inventory.json valid, ${pages_count:-all} pages cached"
+pass "crawl: page-inventory.json valid"
