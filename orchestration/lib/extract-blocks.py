@@ -1,47 +1,41 @@
 #!/usr/bin/env python3
 """extract-blocks.py — Deterministic, CMS-agnostic semantic block extraction.
 
-Extracts SEMANTIC blocks from crawled HTML — the components a contributor
-would manage individually in a CMS. Focus on CMS-level components, not
-every nested <div>.
+Extracts SEMANTIC blocks with parent-child hierarchy from crawled HTML.
+Handles nested components (containers with child slots).
 
 Usage:
   python3 orchestration/lib/extract-blocks.py <project>
 
-Detection strategy (agnostic, works for any CMS):
-  1. CMS-declared components: elements with "component" in class (Sitecore SXA, Drupal blocks, WP widgets)
-  2. Structural regions: <header>, <footer>, <nav>, <main>, <section>, <article>
-  3. Content aggregations: blocks with 3+ images OR 3+ links (lists, grids, carousels)
-  4. Rich content blocks: blocks with heading + (image OR rich text >100 chars)
+Detection strategies (agnostic):
+  1. CMS-declared: "component" in class (Sitecore SXA, Drupal blocks, WP widgets)
+  2. Structural: <header>, <footer>, <nav>, <main>, <section>, <article>
+  3. Semantic classes: hero, banner, carousel, grid, listing, faq, etc.
+  4. Content aggregation: 3+ images or 5+ links (lists, carousels)
 
 Output:
   <project>/workflow-output/html-blocks.json
 """
 import json
 import os
-import re
 import sys
 import time
 from html.parser import HTMLParser
 
 
 class ComponentExtractor(HTMLParser):
-    """Extract CMS-level components from HTML."""
+    """Extract CMS-level components with parent-child hierarchy."""
 
     STRUCTURAL_TAGS = {'header', 'footer', 'nav', 'main', 'section', 'article', 'aside', 'form'}
 
     def __init__(self):
         super().__init__()
         self.blocks = []
-        self.tag_stack = []
+        self.tag_stack = []  # stack of active component dicts
         self.depth = 0
         self.block_counter = 0
 
-        # Content tracking per block
-        self._text_buf = []
-        self._images = []
-        self._links = []
-        self._headings = []
+        # Content tracking
         self._current_heading = None
 
         # Global structure
@@ -69,17 +63,12 @@ class ComponentExtractor(HTMLParser):
         is_component = False
         component_reason = None
 
-        # Strategy 1: CMS-declared component ("component" in class)
         if 'component' in classes:
             is_component = True
             component_reason = 'cms-component'
-
-        # Strategy 2: Structural region
         elif tag in self.STRUCTURAL_TAGS:
             is_component = True
             component_reason = 'structural-region'
-
-        # Strategy 3: Section/article/div with meaningful classes
         elif tag in ('section', 'article') or (tag == 'div' and any(
             k in class_str.lower() for k in [
                 'hero', 'banner', 'slider', 'carousel', 'gallery', 'grid',
@@ -93,16 +82,26 @@ class ComponentExtractor(HTMLParser):
             component_reason = 'semantic-class'
 
         if is_component:
-            self.tag_stack.append({
+            self.block_counter += 1
+            block_id = f"block_{self.block_counter:03d}"
+
+            parent_id = self.tag_stack[-1]['id'] if self.tag_stack else None
+
+            block = {
+                'id': block_id,
                 'tag': tag,
                 'classes': classes,
                 'depth': self.depth,
-                'reason': component_reason,
+                'detectionReason': component_reason,
+                'parentId': parent_id,
+                'childIds': [],
                 'text_buf': [],
                 'images': [],
                 'links': [],
                 'headings': [],
-            })
+            }
+            self.blocks.append(block)
+            self.tag_stack.append(block)
 
         # Track content
         if tag == 'img':
@@ -121,63 +120,11 @@ class ComponentExtractor(HTMLParser):
             self._current_heading = tag
 
     def handle_endtag(self, tag):
-        # Check if we're closing a tracked component
         if self.tag_stack and self.tag_stack[-1]['tag'] == tag and self.tag_stack[-1]['depth'] == self.depth:
             item = self.tag_stack.pop()
-            text = ' '.join(item['text_buf']).strip()
-            text_len = len(text)
-            images = item['images']
-            links = item['links']
-            headings = item['headings']
-
-            # Determine if this block is worth keeping
-            keep = False
-
-            # Has CMS component marker
-            if item['reason'] == 'cms-component':
-                keep = True
-
-            # Has structural region
-            elif item['reason'] == 'structural-region':
-                keep = text_len > 50 or images or headings
-
-            # Has semantic class
-            elif item['reason'] == 'semantic-class':
-                keep = text_len > 30 or images or headings
-
-            # Has multiple content items (list/grid pattern)
-            if len(images) >= 3 or len(links) >= 5:
-                keep = True
-
-            # Has heading + content
-            if headings and (text_len > 50 or images):
-                keep = True
-
-            if keep:
-                self.block_counter += 1
-                block_id = f"block_{self.block_counter:03d}"
-
-                parent = self.tag_stack[-1] if self.tag_stack else None
-                self.blocks.append({
-                    'id': block_id,
-                    'tag': item['tag'],
-                    'classes': item['classes'],
-                    'depth': item['depth'],
-                    'detectionReason': item['reason'],
-                    'parentTag': parent['tag'] if parent else None,
-                    'parentClasses': parent['classes'][:3] if parent else [],
-                    'textContent': text[:2000],
-                    'textContentLength': text_len,
-                    'imageCount': len(images),
-                    'linkCount': len(links),
-                    'headingCount': len(headings),
-                    'hasImage': bool(images),
-                    'hasLink': bool(links),
-                    'hasHeading': bool(headings),
-                    'imageUrls': images[:10],
-                    'linkUrls': links[:20],
-                    'headingTexts': headings[:5],
-                })
+            # Add this block as child of parent
+            if self.tag_stack:
+                self.tag_stack[-1]['childIds'].append(item['id'])
 
         self.depth = max(0, self.depth - 1)
 
@@ -186,22 +133,53 @@ class ComponentExtractor(HTMLParser):
         if not text:
             return
 
-        # Add text to all tracked components
         for item in self.tag_stack:
             item['text_buf'].append(text)
 
-        # Track heading text
         if self._current_heading:
             for item in self.tag_stack:
                 item['headings'].append(text[:200])
             self._current_heading = None
 
     def get_result(self, page_slug, page_url):
+        # Clean up blocks: remove internal buffers, compute derived fields
+        clean_blocks = []
+        for b in self.blocks:
+            text = ' '.join(b['text_buf']).strip()
+            clean_blocks.append({
+                'id': b['id'],
+                'tag': b['tag'],
+                'classes': b['classes'],
+                'depth': b['depth'],
+                'detectionReason': b['detectionReason'],
+                'parentId': b['parentId'],
+                'childIds': b['childIds'],
+                'childCount': len(b['childIds']),
+                'isContainer': len(b['childIds']) > 0,
+                'textContent': text[:2000],
+                'textContentLength': len(text),
+                'imageCount': len(b['images']),
+                'linkCount': len(b['links']),
+                'headingCount': len(b['headings']),
+                'hasImage': bool(b['images']),
+                'hasLink': bool(b['links']),
+                'hasHeading': bool(b['headings']),
+                'imageUrls': b['images'][:10],
+                'linkUrls': b['links'][:20],
+                'headingTexts': b['headings'][:5],
+            })
+
+        # Build hierarchy summary
+        roots = [b for b in clean_blocks if b['parentId'] is None]
+        containers = [b for b in clean_blocks if b['isContainer']]
+
         return {
             'slug': page_slug,
             'url': page_url,
-            'blocks': self.blocks,
-            'totalBlocks': len(self.blocks),
+            'blocks': clean_blocks,
+            'totalBlocks': len(clean_blocks),
+            'rootBlocks': len(roots),
+            'containerBlocks': len(containers),
             'globalStructure': {
                 'hasHeader': self.has_header,
                 'hasFooter': self.has_footer,
@@ -276,12 +254,9 @@ def main():
     print()
     for page in all_pages:
         blocks = page["blocks"]
-        by_reason = {}
-        for b in blocks:
-            r = b.get('detectionReason', '?')
-            by_reason[r] = by_reason.get(r, 0) + 1
-        reason_str = ', '.join(f'{k}={v}' for k, v in by_reason.items())
-        print(f"  {page['slug']:30s} components={len(blocks):3d}  ({reason_str})")
+        containers = [b for b in blocks if b['isContainer']]
+        leaves = [b for b in blocks if not b['isContainer']]
+        print(f"  {page['slug']:30s} total={len(blocks):3d}  containers={len(containers):2d}  leaves={len(leaves):2d}")
     print(f"\nOutput: {out_path}")
 
 
