@@ -26,6 +26,19 @@ import sys
 import time
 from pathlib import Path
 
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    # Find the project .env file
+    for arg in sys.argv[1:]:
+        if not arg.startswith('--'):
+            env_path = f"{arg}/.env"
+            if os.path.isfile(env_path):
+                load_dotenv(env_path)
+                break
+except ImportError:
+    pass
+
 
 # ── Knowledge base structure ──────────────────────────────────────
 
@@ -157,74 +170,126 @@ def find_matching_component(signature, kb):
 
 # ── Vision fallback ───────────────────────────────────────────────
 
-def vision_identify(page_url, html_path):
-    """Use Playwright + LLM to identify components on a page.
+OVH_API_KEY = os.environ.get("OVH_API_KEY", "")
+OVH_ENDPOINT = "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions"
+VISION_MODEL = "Qwen2.5-VL-72B-Instruct"
 
+
+def vision_identify(page_url, page_slug):
+    """Use Playwright + Qwen2.5-VL to identify CMS components on a page.
+
+    Takes a screenshot, sends it to the vision model, and parses the response.
     Returns a dict with template info and component list.
     """
-    try:
-        import subprocess
-        import base64
+    import subprocess
+    import base64
+    import requests
 
-        # Take screenshot with Playwright
-        screenshot_script = f"""
+    # Step 1: Take screenshot with Playwright
+    screenshot_path = f"/tmp/vision-{page_slug}.png"
+    screenshot_script = f"""
 const {{ chromium }} = require('playwright');
 (async () => {{
     const browser = await chromium.launch({{ headless: true }});
     const page = await browser.newPage({{ viewport: {{ width: 1440, height: 900 }} }});
     await page.goto('{page_url}', {{ waitUntil: 'networkidle', timeout: 30000 }});
-    await page.waitForTimeout(2000);
-
-    // Get structural info
-    const structure = await page.evaluate(() => {{
-        const main = document.querySelector('main');
-        if (!main) return {{ sections: [] }};
-
-        const sections = [];
-        for (const child of main.children) {{
-            const rect = child.getBoundingClientRect();
-            if (rect.height < 20) continue;
-
-            const classes = child.className;
-            const text = child.textContent?.trim().substring(0, 200) || '';
-            const hasImg = child.querySelector('img') !== null;
-            const hasH1 = child.querySelector('h1, h2, h3') !== null;
-
-            sections.push({{
-                tag: child.tagName.toLowerCase(),
-                classes: classes.substring(0, 80),
-                y: Math.round(rect.y),
-                h: Math.round(rect.height),
-                text: text.substring(0, 100),
-                hasImg,
-                hasH1,
-            }});
-        }}
-        return {{ sections }};
-    }});
-
-    console.log(JSON.stringify(structure));
+    await page.waitForTimeout(3000);
+    await page.screenshot({{ path: '{screenshot_path}', fullPage: true }});
+    console.log('OK');
     await browser.close();
 }})();
 """
-
+    try:
         result = subprocess.run(
             ['node', '-e', screenshot_script],
-            capture_output=True, text=True, timeout=45,
+            capture_output=True, text=True, timeout=60,
             cwd=os.getcwd()
         )
-
         if result.returncode != 0:
+            print(f"  Screenshot failed: {result.stderr[:100]}", file=sys.stderr)
+            return None
+    except Exception as e:
+        print(f"  Screenshot error: {e}", file=sys.stderr)
+        return None
+
+    # Step 2: Read and encode screenshot
+    try:
+        with open(screenshot_path, 'rb') as f:
+            img_bytes = f.read()
+        img_b64 = base64.b64encode(img_bytes).decode()
+    except Exception as e:
+        print(f"  Screenshot read error: {e}", file=sys.stderr)
+        return None
+
+    # Step 3: Send to vision model
+    prompt = """Analyze this webpage screenshot and identify the CMS components visible.
+
+For each component you see, provide:
+1. Name (e.g., HeroBanner, ContentBlock, Navigation, Footer)
+2. Content types it contains (heading, image, text, link, list)
+3. Position on page (header, main, footer)
+4. Approximate Y position (pixels from top)
+
+Also identify:
+- The page template type (home, listing, content, section-hub)
+- Any cross-cutting components (header, footer, nav)
+
+Reply in this JSON format:
+{
+  "template_type": "home|listing|content|section-hub",
+  "components": [
+    {
+      "name": "ComponentName",
+      "contentTypes": ["heading", "image", "text"],
+      "position": "header|main|footer",
+      "y_position": 0,
+      "description": "Brief description"
+    }
+  ],
+  "crossCutting": ["header", "footer", "nav"]
+}"""
+
+    try:
+        resp = requests.post(
+            OVH_ENDPOINT,
+            headers={
+                "Authorization": f"Bearer {OVH_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": VISION_MODEL,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                        ]
+                    }
+                ],
+                "max_tokens": 2000,
+                "temperature": 0.1
+            },
+            timeout=60
+        )
+
+        if resp.status_code != 200:
+            print(f"  Vision API error: HTTP {resp.status_code}", file=sys.stderr)
             return None
 
-        structure = json.loads(result.stdout.strip())
-        return {
-            'source': 'vision',
-            'sections': structure.get('sections', []),
-        }
+        data = resp.json()
+        content = data['choices'][0]['message']['content']
+
+        # Parse JSON from response
+        import re
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+        else:
+            return {'raw_response': content}
 
     except Exception as e:
-        print(f"  Vision failed: {e}", file=sys.stderr)
+        print(f"  Vision API error: {e}", file=sys.stderr)
         return None
 
 
@@ -275,7 +340,8 @@ def process_page(page, kb, use_vision=False):
                 else:
                     # New component — try vision or create generic
                     if use_vision:
-                        vision = vision_identify(page.get('url', ''), None)
+                        print(f"    Vision: identifying {child['id']} ({child.get('classString', '')[:30]})...", file=sys.stderr)
+                        vision = vision_identify(page.get('url', ''), page['slug'])
                         if vision:
                             result['new_components'].append({
                                 'blockId': child['id'],
@@ -292,7 +358,7 @@ def process_page(page, kb, use_vision=False):
                             'blockId': child['id'],
                             'textSample': child.get('textSample', '')[:100],
                         }],
-                        'discovered_from': 'structural',
+                        'discovered_from': 'vision' if use_vision else 'structural',
                     }
                     result['new_components'].append(new_id)
 
@@ -300,7 +366,13 @@ def process_page(page, kb, use_vision=False):
         template['pages'].append(page['slug'])
 
     else:
-        # No template match — create new template
+        # No template match — use vision to identify template and components
+        vision_result = None
+        if use_vision:
+            print(f"    Vision: new template for {page['slug']}...", file=sys.stderr)
+            vision_result = vision_identify(page.get('url', ''), page['slug'])
+
+        # Create new template
         new_template_id = f"template_{len(kb['templates']) + 1:03d}"
 
         # Get main content blocks for components
@@ -334,7 +406,8 @@ def process_page(page, kb, use_vision=False):
                             'blockId': child['id'],
                             'textSample': child.get('textSample', '')[:100],
                         }],
-                        'discovered_from': 'structural',
+                        'discovered_from': 'vision' if use_vision else 'structural',
+                        'vision_data': vision_result.get('components', []) if vision_result else [],
                     }
                     component_ids.append(new_id)
                     result['new_components'].append(new_id)
