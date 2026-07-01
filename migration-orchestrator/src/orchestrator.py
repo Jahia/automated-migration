@@ -1049,6 +1049,18 @@ async def abort_run(run_id: str) -> bool:
     audit.run_aborted()
     resume = get_resume_event(run_id)
     resume.set()
+    # CANCEL the execution task — setting the status alone leaves a ZOMBIE: the
+    # loop only re-checks status at pause points, so an "aborted" run kept
+    # executing stories (LLM sessions mutating the target) concurrently with the
+    # next run. Same cancel pattern as delete_run.
+    task = _active_tasks.pop(run_id, None)
+    if task and not task.done():
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+    run.status = RunStatus.aborted  # task teardown may have flipped it (failed/paused)
     await save_run(run)  # persist aborted status so list/prune see it correctly
     await notify_sse(run, "run_status", {"status": "aborted"})
     return True
