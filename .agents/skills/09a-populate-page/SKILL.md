@@ -81,10 +81,18 @@ curl -s -X POST http://localhost:8080/modules/mcp \
 Property rules: i18n and non-i18n share the same `properties` map (locale param resolves
 them). Weakrefs accept an absolute JCR path. Multi-valued = JSON array. Dates = ISO-8601.
 
-## Definition of done
+## Definition of done — PIXEL PARITY per page
 
 - Every page in `inputs.pages` renders live with the reference's sections, real text,
   DAM-weakref images, and working links — and is published.
-- The step's probes pass: `content.sh` (fidelity vs captured reference + real JCR
-  state), `render-all.sh` (live render truth), `contract.sh` (inputs existed).
+- The step's probes pass: `content.sh` (structural fidelity vs captured reference +
+  real JCR state), `render-all.sh` (live render truth), **`pixel.sh` (pixel-level
+  diff vs the reference — THE exit criterion)**, `contract.sh` (inputs existed).
+- **Iterating on the pixel gate**: on failure it saves
+  `<project_path>/workflow-output/pixel/<page-slug>/{ref,local,diff}.png` — red in
+  diff.png = differing pixels. LOOK at them, fix the visual gap (missing section,
+  wrong order, unstyled block, missing image, layout), re-run. A large page-height
+  mismatch means missing or extra content. Never weaken the threshold, never skip
+  the probe; third-party overlays (chat/consent) belong in the project's
+  `orchestration/content/<project>.pixel-config.json` hideSelectors, nothing else.
 - Anything you could not reproduce faithfully is listed in `risks` — honestly.

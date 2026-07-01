@@ -155,8 +155,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): home. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr home",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr home",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr home",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_home"
               ],
               "max_attempts": 3
@@ -193,8 +195,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_actualite_photo"
               ],
               "max_attempts": 3
@@ -231,8 +235,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers,animations-ateliers/animations,animations-ateliers/animations/foire-internationale-de-bievres",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_animations_ateliers_1"
               ],
               "max_attempts": 3
@@ -269,8 +275,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/animations/lectures-portfolio,animations-ateliers/animations/photos-spots,animations-ateliers/animations/world-premiere",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_animations_ateliers_2"
               ],
               "max_attempts": 3
@@ -307,8 +315,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/expositions-photos,animations-ateliers/expositions-photos/grande-expo,animations-ateliers/expositions-photos/zooms",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_animations_ateliers_3"
               ],
               "max_attempts": 3
@@ -345,8 +355,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr animations-ateliers/programme-salon,animations-ateliers/rencontres-photo,animations-ateliers/rencontres-photo/forum-pros",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_animations_ateliers_4"
               ],
               "max_attempts": 3
@@ -383,8 +395,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): billetterie. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr billetterie",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr billetterie",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr billetterie",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_billetterie"
               ],
               "max_attempts": 3
@@ -421,8 +435,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): exposants,exposants/boostez-visibilite,exposants/contacts. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr exposants,exposants/boostez-visibilite,exposants/contacts",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr exposants,exposants/boostez-visibilite,exposants/contacts",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr exposants,exposants/boostez-visibilite,exposants/contacts",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_exposants_1"
               ],
               "max_attempts": 3
@@ -459,8 +475,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): exposants/offres-stands,exposants/participation-reussie,exposants/salon. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr exposants/offres-stands,exposants/participation-reussie,exposants/salon",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr exposants/offres-stands,exposants/participation-reussie,exposants/salon",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr exposants/offres-stands,exposants/participation-reussie,exposants/salon",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_exposants_2"
               ],
               "max_attempts": 3
@@ -497,8 +515,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr exposants/salon/faq,exposants/salon/offre-salon,exposants/salon/rse",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_exposants_3"
               ],
               "max_attempts": 3
@@ -535,8 +555,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques,infos-pratiques/catalogue,infos-pratiques/comment-venir-au-salon",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_infos_pratiques_1"
               ],
               "max_attempts": 3
@@ -573,8 +595,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr infos-pratiques/dates-acces-horaires,infos-pratiques/faq,infos-pratiques/photo-pass",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_infos_pratiques_2"
               ],
               "max_attempts": 3
@@ -611,8 +635,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus,presse-createur-contenus/accreditation,presse-createur-contenus/communiques-dossiers-presse",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_presse_createur_contenus_1"
               ],
               "max_attempts": 3
@@ -649,8 +675,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): presse-createur-contenus/kit-media. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus/kit-media",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus/kit-media",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr presse-createur-contenus/kit-media",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_presse_createur_contenus_2"
               ],
               "max_attempts": 3
@@ -687,8 +715,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): salon,salon/a-propos,salon/partenaires. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr salon,salon/a-propos,salon/partenaires",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr salon,salon/a-propos,salon/partenaires",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr salon,salon/a-propos,salon/partenaires",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_salon_1"
               ],
               "max_attempts": 3
@@ -725,8 +755,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr salon/profil-visiteur,salon/profil-visiteur/amateur-averti,salon/profil-visiteur/createur-contenus",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_salon_2"
               ],
               "max_attempts": 3
@@ -763,8 +795,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr salon/profil-visiteur/professionnel,salon/qui-expose,salon/qui-visite",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_salon_3"
               ],
               "max_attempts": 3
@@ -801,8 +835,10 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY these page(s): salon/rse,salon/rse/souffleurs-de-sens. IDEMPOTENT — reuse existing pages and nodes, never recreate or delete published content. Fill each page's main area with components mirroring the captured reference (content-load.json + the .reference captured truth). Every image is a DAM weakreference — never a URL string. Never create jmix:mainResource nodes inline in a page main area (they live in contentFolders; listings reference them via their query component).",
+                "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel gate passes. On failure, LOOK at the saved screenshots (projects/lesalondelaphoto/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — red = differing pixels), fix the visual gaps (missing sections, layout, images, ordering) and re-run until it passes. Do NOT weaken the threshold or skip the probe.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr salon/rse,salon/rse/souffleurs-de-sens",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr salon/rse,salon/rse/souffleurs-de-sens",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr salon/rse,salon/rse/souffleurs-de-sens",
                 "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_salon_4"
               ],
               "max_attempts": 3
@@ -873,6 +909,7 @@
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "PROBE: bash orchestration/probes/pixel.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
                 "PROBE: bash orchestration/probes/publish-parity.sh projects/lesalondelaphoto lesalondelaphoto fr",
                 "PROBE: bash orchestration/probes/edit-frame.sh projects/lesalondelaphoto lesalondelaphoto fr home",
                 "PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",

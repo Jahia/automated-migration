@@ -226,8 +226,15 @@ def content_plan(cfg) -> dict:
                     "image is a DAM weakreference — never a URL string. Never create "
                     "jmix:mainResource nodes inline in a page main area (they live in "
                     "contentFolders; listings reference them via their query component).",
+                    "PIXEL PARITY IS THE EXIT CRITERION: a page is done only when the pixel "
+                    "gate passes. On failure, LOOK at the saved screenshots "
+                    f"({PP}/workflow-output/pixel/<page-slug>/ref.png, local.png, diff.png — "
+                    "red = differing pixels), fix the visual gaps (missing sections, layout, "
+                    "images, ordering) and re-run until it passes. Do NOT weaken the "
+                    "threshold or skip the probe.",
                     f"PROBE: bash {PROBES}/content.sh {PP} {S} {L} {pages_csv}",
                     f"PROBE: bash {PROBES}/render-all.sh {PP} {S} {L} {pages_csv}",
+                    f"PROBE: bash {PROBES}/pixel.sh {PP} {S} {L} {pages_csv}",
                 ],
                 skill=f"{SKILLS}/09a-populate-page/SKILL.md",
                 inputs={"siteKey": S, "language": L, "pages": pages_csv,
@@ -251,6 +258,7 @@ def content_plan(cfg) -> dict:
                 max_rounds=3)
     gate_probes = [
         f"PROBE: bash {PROBES}/content.sh {PP} {S} {L} {sitemap_ref}",
+        f"PROBE: bash {PROBES}/pixel.sh {PP} {S} {L} {sitemap_ref}",
         f"PROBE: bash {PROBES}/publish-parity.sh {PP} {S} {L}",
         f"PROBE: bash {PROBES}/edit-frame.sh {PP} {S} {L} {cfg['home_page']}",
         f"PROBE: bash {PROBES}/site-review.sh {PP} {S} {L} {sitemap_ref}",
