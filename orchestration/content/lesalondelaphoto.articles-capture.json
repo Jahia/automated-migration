@@ -1,0 +1,59 @@
+{
+  "_source": "browser-capture (Chrome MCP, WAF-passed) of live actus listing 2026-07-01: title/date/hero/summary for all 6; bodies are provisional article intros pending full-detail enrichment (WAF blocked automated detail-page capture).",
+  "articles": [
+    {
+      "slug": "studio-tech-phototrend-juin-2026",
+      "title": "STUDIO TECH PAR PHOTOTREND / JUIN 2026",
+      "date": "30/06/2026",
+      "heroPath": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/studio-tech-phototrend-juin-2026/banner-studio-tech.jpg",
+      "summary": "Chaque mois, l'équipe de Phototrend vous propose un tour d'horizon de l'actualité photo et vidéo.",
+      "body": "Chaque mois, l'équipe de Phototrend vous propose un tour d'horizon de l'actualité photo et vidéo. Au programme : les nouveautés matériel qui ont retenu notre attention, les événements incontournables à inscrire à votre agenda, un photographe coup de cœur à découvrir ou redécouvrir, ainsi qu'un conseil pratique pour progresser dans votre pratique ou nourrir votre créativité.",
+      "full": false
+    },
+    {
+      "slug": "etre-publie-dans-un-magazine-photo",
+      "title": "COMMENT FAIRE PUBLIER SES PHOTOS DANS UN MAGAZINE ?",
+      "date": "26/06/2026",
+      "heroPath": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/etre-publie-dans-un-magazine-photo/banner-reponses-photo.jpg",
+      "summary": "Les conseils de Thibaut Godet, rédacteur en chef de Réponses Photo.",
+      "body": "Pour de nombreux photographes, voir son projet photo publié dans un magazine photo représente une étape importante dans leur parcours. Qu'ils soient amateurs ou professionnels, les passionnés de photographie cherchent souvent à donner davantage de visibilité à leur travail et à partager leur regard avec un public plus large.",
+      "full": false
+    },
+    {
+      "slug": "appareil-photo-pour-debuter",
+      "title": "Quel appareil photo pour débuter et progresser ?",
+      "date": "16/06/2026",
+      "heroPath": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/appareil-photo-pour-debuter/push-appareil-photo-debutant.jpg",
+      "summary": "Entre les hybrides dernier cri, les reflex d'occasion et les appareils argentiques, comment choisir.",
+      "body": "Entre les hybrides dernier cri, les reflex d'occasion et les appareils argentiques, choisir son premier appareil photo peut vite devenir un casse-tête pour débuter et progresser.",
+      "full": false
+    },
+    {
+      "slug": "nouvelles-pratiques-pro",
+      "title": "Photo & vidéo : les innovations qui transforment les métiers de l'image",
+      "date": "16/06/2026",
+      "heroPath": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/nouvelles-pratiques-pro/push-nouvelles-pratiques-pro.jpg",
+      "summary": "Les mutations actuelles des métiers de l'image.",
+      "body": "Si l'arrivée du numérique a profondément bouleversé les métiers de l'image, les mutations actuelles semblent encore plus profondes.",
+      "full": false
+    },
+    {
+      "slug": "ia-workflow-photographe",
+      "title": "IA et Workflow du photographe : gagner du temps pour mieux servir ses clients",
+      "date": "10/06/2026",
+      "heroPath": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/ia-workflow-photographe/push-ia-workflow-photographe.jpg",
+      "summary": "Sur la scène du Forum des Pros du Salon de la Photo.",
+      "body": "Vendredi 10 octobre, sur la scène du Forum des Pros du Salon de la Photo, Christophe Jung partage sa vision de l'intelligence artificielle au service du workflow du photographe.",
+      "full": false
+    },
+    {
+      "slug": "affiche-salon-de-la-photo-paris-2026",
+      "title": "Le Salon Photo & Vidéo dévoile son nouveau visuel 2026",
+      "date": "18/05/2026",
+      "heroPath": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/reveal-visuel-2026/push-key-visual-2026.jpg",
+      "summary": "Une affiche officielle au visuel fort et inspirant.",
+      "body": "Chaque année, le Salon Photo & Vidéo met en lumière la création visuelle contemporaine en dévoilant une affiche officielle au visuel fort et inspirant. Pensée comme une véritable signature artistique, cette image emblématique incarne l'esprit de l'édition à venir.",
+      "full": false
+    }
+  ]
+}
