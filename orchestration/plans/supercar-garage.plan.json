@@ -461,7 +461,7 @@
                 "skill": ".agents/skills/09-create-content/SKILL.md",
                 "consumes": [
                   "projects/supercar-garage/workflow-output/component-manifest.json",
-                  "orchestration/content/supercar-garage.content-data.json",
+                  "orchestration/content/supercar-garage.content-load.json",
                   "orchestration/images/supercar-garage.imported.json",
                   "projects/supercar-garage/component-baseline.txt"
                 ]

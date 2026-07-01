@@ -37,7 +37,7 @@ PRODUCED_BY = {
     "projects/{project}/workflow-output/asset-inventory.json": "step_analyze",
     "projects/{project}/workflow-output/analysis.md": "step_analyze",
     "orchestration/images/{project}.json": "step_extract",
-    "orchestration/content/{project}.content-data.json": "step_extract",
+    "orchestration/content/{project}.content-load.json": "step_extract",
     "projects/{project}/component-baseline.txt": "step_content_types",
     "orchestration/images/{project}.imported.json": "step_media",
     "projects/{project}/workflow-output/review/REVIEW.md": "step_review",
@@ -65,10 +65,13 @@ CONTRACT = {
     "step_extract": {
         "produces": [
             "orchestration/images/{project}.json",
-            "orchestration/content/{project}.content-data.json",
+            "orchestration/content/{project}.content-load.json",
         ],
-        # analyze's content-data.json seeds the deterministic extractor
-        "consumes": ["projects/{project}/workflow-output/content-data.json"],
+        # extract_content.py reads the captured .reference/ DOM directly (verified:
+        # it does NOT open the analyze content-data.json). The .reference/ dir is a
+        # directory precondition enforced by extract.sh, not a single-file artifact,
+        # so there is nothing to gate here at the file-contract level.
+        "consumes": [],
     },
     "step_scaffold": {
         "produces": ["projects/{project}/package.json"],
@@ -114,7 +117,7 @@ CONTRACT = {
         "produces": [],
         "consumes": [
             "projects/{project}/workflow-output/component-manifest.json",
-            "orchestration/content/{project}.content-data.json",
+            "orchestration/content/{project}.content-load.json",
             "orchestration/images/{project}.imported.json",
             "projects/{project}/component-baseline.txt",
         ],

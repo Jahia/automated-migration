@@ -8,7 +8,7 @@
 #   * source_detect  — identify the CMS (picks the adapter; generic always works)
 #   * extract_media  — orchestration/images/<project>.json: every captured image,
 #                      per page (the manifest images/import.py consumes)
-#   * extract_content— orchestration/content/<project>.content-data.json: the REAL
+#   * extract_content— orchestration/content/<project>.content-load.json: the REAL
 #                      per-page content (field values / blocks), not placeholders
 #
 # Gate: a manifest must exist, be non-trivial, and cover the home page. This is
@@ -52,9 +52,9 @@ if "home" not in pages or not pages["home"]:
 if total < 5:
     fails.append(f"media: only {total} images across all pages — extraction looks empty")
 try:
-    content = json.load(open(f"orchestration/content/{project}.content-data.json"))
+    content = json.load(open(f"orchestration/content/{project}.content-load.json"))
 except Exception as e:
-    print(f"FAIL: content-data unreadable: {e}"); sys.exit(1)
+    print(f"FAIL: content-load unreadable: {e}"); sys.exit(1)
 cp = content.get("pages", {})
 def units(v): return len(v.get("instances", v.get("blocks", [])))
 if "home" not in cp or units(cp["home"]) == 0:

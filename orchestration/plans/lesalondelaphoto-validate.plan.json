@@ -1,0 +1,157 @@
+{
+  "goal": "VALIDATION: run the new deterministic ETL stages (extract media+content, import media, MCP loader, fidelity) end-to-end against the already-deployed lesalondelaphoto module to confirm the harness additions work in the loop.",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+  "model": "deepseek/deepseek-v4-pro",
+  "epics": [
+    {
+      "id": "epic_validate",
+      "title": "Validate new ETL stages",
+      "github_issues": [],
+      "stories": [
+        {
+          "id": "story_validate",
+          "title": "extract -> media -> load -> fidelity",
+          "github_issues": [],
+          "steps": [
+            {
+              "id": "step_extract",
+              "title": "Extract media + content from source (deterministic, agnostic)",
+              "task_type": "extract",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "site": "lesalondelaphoto",
+                "namespace": "lsp",
+                "mixNamespace": "lspmix",
+                "skill": ".agents/skills/source-extract/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Migration is ETL: the captured DOM is the source of truth. Run the DETERMINISTIC extractors (source_detect + extract_media + extract_content) — do NOT hand-author or improvise the manifests; they must come from the real captured source.",
+                "Media manifest (orchestration/images/<project>.json) must cover every captured page incl. home; content-load (orchestration/content/<project>.content-load.json) must hold the REAL per-page text/instances, not placeholders.",
+                "PROBE: bash orchestration/probes/extract.sh projects/lesalondelaphoto lesalondelaphoto"
+              ],
+              "status": "pending",
+              "attempt": 0,
+              "max_attempts": 3,
+              "agent_result": null,
+              "verification": null,
+              "question": null,
+              "human_answer": null,
+              "streaming_text": "",
+              "tokens_in": 0,
+              "tokens_out": 0,
+              "tokens_cache": 0,
+              "cost": 0.0,
+              "trace": []
+            },
+            {
+              "id": "step_media",
+              "title": "Import media into the DAM (deterministic)",
+              "task_type": "media",
+              "agent": "code",
+              "depends_on": [
+                "step_extract"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "site": "lesalondelaphoto",
+                "skill": ".agents/skills/source-extract/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Import EVERY image from the deterministic manifest (orchestration/images/<project>.json) into the DAM via orchestration/images/import.py — do not skip media. This is the 0-of-40-images fix.",
+                "PROBE: bash orchestration/probes/media.sh projects/lesalondelaphoto lesalondelaphoto"
+              ],
+              "status": "pending",
+              "attempt": 0,
+              "max_attempts": 3,
+              "agent_result": null,
+              "verification": null,
+              "question": null,
+              "human_answer": null,
+              "streaming_text": "",
+              "tokens_in": 0,
+              "tokens_out": 0,
+              "tokens_cache": 0,
+              "cost": 0.0,
+              "trace": []
+            },
+            {
+              "id": "step_content",
+              "title": "Create content (Gate 4: HALT)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_media"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "pages": "@orchestration/sitemaps/lesalondelaphoto.txt",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "LOAD content from orchestration/content/<project>.content-load.json and wire imported media from orchestration/images/<project>.imported.json — do NOT improvise text or invent placeholder content (the captured source is the source of truth).",
+                "Run the DETERMINISTIC MCP loader to create content from the extracted source: python3 orchestration/lib/load_content.py lesalondelaphoto lesalondelaphoto --clean  — it creates each node via MCP content.create with real field values AND wires the imported image weakref at create time (lib/mcp_client.py), then publishes. Do NOT hand-write GraphQL or improvise content.",
+                "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.",
+                "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Import via MCP media.upload.url (consistent UUID), set the WEAKREFERENCE field (image/backgroundImage/logo/photo), clear any *ExternalUrl string. Canonical tools: orchestration/images/set_hero_refs.py and set_image_refs.py lesalondelaphoto lesalondelaphoto lsp. Capture source URLs via browser (site blocks the agent).",
+                "PROBE: bash orchestration/probes/mcp.sh projects/lesalondelaphoto",
+                "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp",
+                "Render-gate EACH page as you finish it (do not defer to the end). The step is not done until every page renders clean: PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "Publish completeness: every weakref'd asset (image/logo/link/category) must resolve in LIVE and every translation must be published (publish WITH languages:[fr]): PROBE: bash orchestration/probes/publish-parity.sh projects/lesalondelaphoto lesalondelaphoto fr",
+                "Editability: shared regions (nav/footer/topbar) must render AND be editable in Page Builder, not blank (AbsoluteAreas need child content nodes): PROBE: bash orchestration/probes/edit-frame.sh projects/lesalondelaphoto lesalondelaphoto fr home",
+                "Quality: every page passes a11y (axe-core, no critical/serious) + SEO baseline (title, meta, single h1, img alt): PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "Reuse guard: content/page discovery must NOT add types beyond the approved per-project baseline (reuse a type or add a view instead): PROBE: bash orchestration/probes/no-new-types.sh projects/lesalondelaphoto lsp projects/lesalondelaphoto/component-baseline.txt",
+                "Gate 4: present reference vs Jahia screenshots, return status halt.",
+                "PROBE: bash orchestration/probes/no-graphql-writes.sh projects/lesalondelaphoto"
+              ],
+              "max_attempts": 3,
+              "status": "pending",
+              "attempt": 0,
+              "agent_result": null,
+              "verification": null,
+              "question": null,
+              "human_answer": null,
+              "streaming_text": ""
+            },
+            {
+              "id": "step_visual_diff",
+              "title": "Visual diff",
+              "task_type": "review",
+              "agent": "code",
+              "depends_on": [
+                "step_content"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "summary": "projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md",
+                "skill": ".agents/skills/12-visual-diff/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Structural fidelity is a HARD gate, JS-rendered both sides: every page that has a captured reference DOM must match it on sections + listing/card counts + facet values (capture-reference must have run): PROBE: bash orchestration/probes/fidelity-all.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md \"critical\""
+              ],
+              "max_attempts": 3,
+              "status": "pending",
+              "attempt": 0,
+              "agent_result": null,
+              "verification": null,
+              "question": null,
+              "human_answer": null,
+              "streaming_text": ""
+            }
+          ],
+          "description": "Run extract (media+content) -> media import -> MCP loader (--clean) -> fidelity vs source."
+        }
+      ],
+      "goal": "Validate the new deterministic ETL stages work in the loop against the deployed module."
+    }
+  ]
+}
