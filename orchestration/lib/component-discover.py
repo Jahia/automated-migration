@@ -144,12 +144,33 @@ def compute_data_shape(component):
     return ",".join(all_shape) if all_shape else "structural"
 
 
+# Component name aliases — merge these into a single canonical name
+COMPONENT_ALIASES = {
+    "navigation": "main-navigation",
+    "header-navigation": "main-navigation",
+    "nav": "main-navigation",
+    "main-nav": "main-navigation",
+    "top-navbar": "top-bar",
+    "topbar": "top-bar",
+    "footerm2": "footer",
+    "footer-section": "footer",
+    "site-footer": "footer",
+    "content-block-vertical-image": "content-block",
+    "content-block-horizontal-image": "content-block",
+    "image-de-fond": "background-image",
+    "bg-image": "background-image",
+    "rich-text": "richtext",
+    "plain-html": "raw-html",
+}
+
+
+def canonical_name(comp_type):
+    """Get the canonical component name, merging aliases."""
+    return COMPONENT_ALIASES.get(comp_type, comp_type)
+
+
 def is_main_resource_candidate(comp_type, pages):
     """Heuristic: is this component a mainResource (has its own URL)?"""
-    # News articles, events, products typically have:
-    # - their own page/URL
-    # - a detail view
-    # - appear in listings
     main_resource_hints = ["article", "news", "event", "product", "press", "blog", "post"]
     return any(hint in comp_type.lower() for hint in main_resource_hints)
 
@@ -184,13 +205,17 @@ def main():
         if not os.path.isfile(html_path):
             continue
         comps = extract_components_from_page(html_path, page["slug"])
+        # Apply canonical names
+        for comp in comps:
+            comp["original_type"] = comp["type"]
+            comp["type"] = canonical_name(comp["type"])
         all_components.extend(comps)
 
     if not all_components:
         print("FAIL: 0 components found across all pages", file=sys.stderr)
         sys.exit(1)
 
-    # Group by component type
+    # Group by canonical component type
     type_groups = defaultdict(list)
     for comp in all_components:
         type_groups[comp["type"]].append(comp)
@@ -204,9 +229,9 @@ def main():
 
         # Collect all unique fields across instances
         all_fields = set()
+        all_original_types = set()
         for inst in instances:
             all_fields.update(inst.get("fields", []))
-            # Add boolean flags as fields
             if inst.get("hasImage"):
                 all_fields.add("image")
             if inst.get("hasLink"):
@@ -215,6 +240,9 @@ def main():
                 all_fields.add("heading")
             if inst.get("hasText"):
                 all_fields.add("text")
+            # Track original type names
+            if "original_type" in inst:
+                all_original_types.add(inst["original_type"])
 
         # Determine if cross-cutting
         pages_with = set(inst["page"] for inst in instances)
@@ -236,6 +264,7 @@ def main():
             "hasLink": any(inst.get("hasLink") for inst in instances),
             "hasHeading": any(inst.get("hasHeading") for inst in instances),
             "hasText": any(inst.get("hasText") for inst in instances),
+            "mergedFrom": sorted(all_original_types) if all_original_types else [],
         })
 
     # Write output

@@ -90,21 +90,29 @@ class StructureExtractor(HTMLParser):
         return "unknown"
 
     def _classify_section(self, cls, tag):
-        """Classify a section by its CSS classes."""
+        """Classify a section by its CSS classes. Only classify meaningful blocks."""
         cls_lower = cls.lower()
-        if any(k in cls_lower for k in ["hero", "banner"]):
+        # Hero / banner sections
+        if any(k in cls_lower for k in ["hero", "banner", "page-header", "page-title"]):
             return "HERO"
-        if any(k in cls_lower for k in ["grid", "listing", "cards", "push"]):
+        # Grid / listing sections
+        if any(k in cls_lower for k in ["grid", "listing", "cards", "push-cards", "card-grid"]):
             return "GRID"
+        # Interactive sections
         if any(k in cls_lower for k in ["accordion", "tabs", "faq"]):
             return "ACCORDION"
         if any(k in cls_lower for k in ["slider", "carousel"]):
             return "CAROUSEL"
+        # Form / search
+        if any(k in cls_lower for k in ["form", "search", "newsletter", "subscription"]):
+            return "FORM"
+        # Only classify as SECTION if it's a real <section> tag
         if tag == "section":
             return "SECTION"
         # Only classify as CONTENT if it's a meaningful content block
-        if tag in ("article", "main") or (tag == "div" and any(k in cls_lower for k in ["content-block", "richtext", "rich-text", "text-block"])):
+        if tag in ("article", "main"):
             return "CONTENT"
+        # Don't classify generic divs as CONTENT — too noisy
         return None
 
 

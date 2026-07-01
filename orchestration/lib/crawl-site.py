@@ -5,22 +5,21 @@ Downloads HTML pages AND their referenced assets (CSS, JS, images) locally.
 Supports --max-pages for fast iteration on a subset of pages.
 
 Usage:
-  python3 orchestration/lib/crawl-site.py <project> <url> [--max-pages N] [--depth D] [--force]
+  python3 orchestration/lib/crawl-site.py <project> <url> [options]
+
+Options:
+  --max-pages N    Stop after N pages (0 = unlimited)
+  --depth D        Max crawl depth (default 3)
+  --lang LANG      Only crawl pages matching this language prefix (e.g. fr-FR)
+  --force          Re-download even if cached
+  --max-asset-size MB  Skip assets larger than MB (default 5)
 
 Outputs:
   <project>/.reference/cache/_crawl/     — HTML pages
   <project>/.reference/cache/_assets/    — CSS, JS, images
   <project>/workflow-output/page-inventory.json
-
-Features:
-  - Cache-first: never re-downloads what's already on disk
-  - Rate-limited with WAF backoff
-  - Downloads referenced assets (CSS, JS, images, fonts)
-  - Rewrites HTML to use local asset paths
-  - --max-pages N: stop after N pages (for testing)
 """
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -29,14 +28,25 @@ import time
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
-from pathlib import Path
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 RATE_DELAY = 2.0
 MAX_RETRIES = 3
 CONNECT_TIMEOUT = 15
+MAX_ASSET_SIZE = 5 * 1024 * 1024  # 5 MB
+
 ASSET_EXTS = {'.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif',
               '.woff', '.woff2', '.ttf', '.eot', '.ico', '.pdf'}
+
+# Pages that are not content (utility, legal, search, etc.)
+UTILITY_PATTERNS = [
+    r'/recherche', r'/search', r'/plan-du-site', r'/sitemap',
+    r'/cookies', r'/mentions-legales', r'/legal', r'/privacy',
+    r'/protection-donnees', r'/rgpd', r'/billet', r'/newsletter',
+    r'/inscription', r'/login', r'/connexion', r'/register',
+    r'/404', r'/erreur', r'/error', r'/thank-you', r'/merci',
+    r'/ajax', r'/api/', r'/modules/', r'/graphql',
+]
 
 
 class AssetExtractor(HTMLParser):
@@ -61,19 +71,19 @@ class AssetExtractor(HTMLParser):
         elif tag == 'img':
             src = attrs_d.get('src', '')
             srcset = attrs_d.get('srcset', '')
-            if src:
+            if src and not src.startswith('data:'):
                 self.assets.add(self._resolve(src))
             if srcset:
                 for part in srcset.split(','):
                     url = part.strip().split()[0] if part.strip() else ''
-                    if url:
+                    if url and not url.startswith('data:'):
                         self.assets.add(self._resolve(url))
         elif tag == 'source':
             srcset = attrs_d.get('srcset', '')
             if srcset:
                 for part in srcset.split(','):
                     url = part.strip().split()[0] if part.strip() else ''
-                    if url:
+                    if url and not url.startswith('data:'):
                         self.assets.add(self._resolve(url))
         elif tag == 'meta':
             prop = attrs_d.get('property', '') or attrs_d.get('name', '')
@@ -101,7 +111,6 @@ class LinkExtractor(HTMLParser):
                 resolved = urllib.parse.urljoin(self.base_url, href)
                 parsed = urllib.parse.urlparse(resolved)
                 if parsed.netloc == self.origin and parsed.scheme in ('http', 'https'):
-                    # Strip fragment and normalize
                     clean = urllib.parse.urlunparse(parsed._replace(fragment=''))
                     if not self._is_asset(clean):
                         self.links.add(clean)
@@ -109,6 +118,36 @@ class LinkExtractor(HTMLParser):
     def _is_asset(self, url):
         path = urllib.parse.urlparse(url).path.lower()
         return any(path.endswith(ext) for ext in ASSET_EXTS)
+
+
+def normalize_url(url):
+    """Normalize URL for deduplication."""
+    parsed = urllib.parse.urlparse(url)
+    # Remove trailing slash from path
+    path = parsed.path.rstrip('/') or '/'
+    # Remove default ports
+    netloc = parsed.netloc
+    if netloc.endswith(':80') and parsed.scheme == 'http':
+        netloc = netloc[:-3]
+    elif netloc.endswith(':443') and parsed.scheme == 'https':
+        netloc = netloc[:-4]
+    # Reconstruct without fragment
+    return urllib.parse.urlunparse((parsed.scheme, netloc, path, parsed.params, parsed.query, ''))
+
+
+def is_utility_page(url):
+    """Check if a URL matches a utility page pattern."""
+    path = urllib.parse.urlparse(url).path.lower()
+    return any(re.search(pattern, path) for pattern in UTILITY_PATTERNS)
+
+
+def matches_language(url, lang):
+    """Check if a URL matches the target language."""
+    if not lang:
+        return True
+    path = urllib.parse.urlparse(url).path
+    # Match /fr-FR, /fr, /fr/ etc.
+    return path.startswith(f'/{lang}') or path == f'/{lang}'
 
 
 def cache_path(proj, url, subdir='_crawl'):
@@ -120,23 +159,15 @@ def cache_path(proj, url, subdir='_crawl'):
         key += 'index.html'
     if '.' not in os.path.basename(key):
         key += '.html'
-    return os.path.join(proj, '.reference', 'cache', cache_subdir(url, subdir), key)
-
-
-def cache_subdir(url, default='_crawl'):
-    """Assets go to _assets, pages go to _crawl."""
-    path = urllib.parse.urlparse(url).path.lower()
-    if any(path.endswith(ext) for ext in ASSET_EXTS):
-        return '_assets'
-    return default
+    return os.path.join(proj, '.reference', 'cache', subdir, key)
 
 
 def is_cached(path):
     return os.path.isfile(path) and os.path.getsize(path) > 0
 
 
-def download(url, dest, rate_delay=RATE_DELAY):
-    """Download a URL with rate limiting and retry."""
+def download(url, dest, rate_delay=RATE_DELAY, max_size=0):
+    """Download a URL with rate limiting and retry. Returns (success, bytes_downloaded)."""
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     for attempt in range(MAX_RETRIES):
         try:
@@ -146,22 +177,28 @@ def download(url, dest, rate_delay=RATE_DELAY):
                 'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
             })
             with urllib.request.urlopen(req, timeout=CONNECT_TIMEOUT) as resp:
-                data = resp.read()
+                # Check content-length before downloading
+                content_length = resp.headers.get('Content-Length')
+                if content_length and max_size and int(content_length) > max_size:
+                    print(f"  SKIP (too large: {int(content_length)/1024/1024:.1f} MB): {url}", file=sys.stderr)
+                    return False, 0
+                data = resp.read(max_size + 1 if max_size else None)
+                if max_size and len(data) > max_size:
+                    print(f"  SKIP (too large: {len(data)/1024/1024:.1f} MB): {url}", file=sys.stderr)
+                    return False, 0
                 with open(dest, 'wb') as f:
                     f.write(data)
-                return True
+                return True, len(data)
         except Exception as e:
             code = getattr(e, 'code', None)
             if code in (403, 429, 500, 502, 503, 520, 521, 522, 523, 524):
                 backoff = min(rate_delay * (2 ** attempt), 120)
-                print(f"  WAF/rate-limit (HTTP {code}) on {url} — backoff {backoff:.0f}s", file=sys.stderr)
+                print(f"  WAF/rate-limit (HTTP {code}) — backoff {backoff:.0f}s", file=sys.stderr)
                 time.sleep(backoff)
                 rate_delay *= 1.5
             else:
-                print(f"  Error downloading {url}: {e}", file=sys.stderr)
-                return False
-    print(f"  BLOCKED after {MAX_RETRIES} attempts: {url}", file=sys.stderr)
-    return False
+                return False, 0
+    return False, 0
 
 
 def extract_assets(html_path, base_url):
@@ -194,39 +231,15 @@ def extract_links(html_path, base_url, origin):
     return parser.links
 
 
-def rewrite_assets(html_path, proj):
-    """Rewrite HTML to reference local asset paths."""
-    try:
-        with open(html_path, 'r', errors='replace') as f:
-            html = f.read()
-    except Exception:
-        return
-
-    # Find all asset references and replace with local paths
-    # This is a simplified version — handles src, href, srcset
-    def replace_url(match):
-        url = match.group(1) or match.group(2)
-        if not url or url.startswith('data:') or url.startswith('#'):
-            return match.group(0)
-        local = cache_path(proj, url, '_assets')
-        if is_cached(local):
-            rel = os.path.relpath(local, os.path.dirname(html_path))
-            return match.group(0).replace(url, rel)
-        return match.group(0)
-
-    # src="..." and href="..."
-    html = re.sub(r'(src|href)=["\']([^"\']+)["\']', replace_url, html)
-    # url(...) in CSS
-    html = re.sub(r'url\(["\']?([^"\')\s]+)["\']?\)', replace_url, html)
-
-    with open(html_path, 'w') as f:
-        f.write(html)
-
-
-def slug_from_url(url, origin):
+def slug_from_url(url, origin, lang=None):
     """Extract a human-readable slug from a URL."""
     path = urllib.parse.urlparse(url).path
     path = re.sub(r'^/', '', path)
+    # Remove language prefix
+    if lang and path.startswith(lang + '/'):
+        path = path[len(lang) + 1:]
+    elif lang and path == lang:
+        path = ''
     path = re.sub(r'\.(html|htm|php|aspx?)$', '', path)
     path = path.rstrip('/')
     if not path:
@@ -240,7 +253,9 @@ def main():
     parser.add_argument('url', help='Start URL to crawl')
     parser.add_argument('--max-pages', type=int, default=0, help='Max pages to crawl (0 = unlimited)')
     parser.add_argument('--depth', type=int, default=3, help='Max crawl depth (default 3)')
+    parser.add_argument('--lang', default='', help='Only crawl pages matching this language prefix (e.g. fr-FR)')
     parser.add_argument('--force', action='store_true', help='Re-download even if cached')
+    parser.add_argument('--max-asset-size', type=float, default=5, help='Skip assets larger than N MB (default 5)')
     parser.add_argument('--rate-delay', type=float, default=RATE_DELAY, help='Base delay between requests')
     args = parser.parse_args()
 
@@ -249,7 +264,9 @@ def main():
     origin = urllib.parse.urlparse(start_url).netloc
     depth = args.depth
     max_pages = args.max_pages
+    lang = args.lang
     rate_delay = args.rate_delay
+    max_asset_bytes = int(args.max_asset_size * 1024 * 1024)
 
     os.makedirs(os.path.join(proj, '.reference', 'cache', '_crawl'), exist_ok=True)
     os.makedirs(os.path.join(proj, '.reference', 'cache', '_assets'), exist_ok=True)
@@ -257,13 +274,17 @@ def main():
 
     # Crawl queue: (url, current_depth)
     queue = [(start_url, 0)]
-    visited = set()
+    visited = set()  # Normalized URLs
     pages = []
     failed = []
+    skipped_utility = []
+    skipped_lang = []
     assets_downloaded = 0
+    assets_bytes = 0
     crawl_start = time.time()
 
-    print(f"Crawling {start_url} (max-pages={max_pages or 'unlimited'}, depth={depth})")
+    print(f"Crawling {start_url}")
+    print(f"  max-pages={max_pages or 'unlimited'}, depth={depth}, lang={lang or 'all'}")
 
     while queue:
         if max_pages and len(pages) >= max_pages:
@@ -271,9 +292,22 @@ def main():
             break
 
         url, current_depth = queue.pop(0)
-        if url in visited:
+
+        # Normalize and deduplicate
+        normalized = normalize_url(url)
+        if normalized in visited:
             continue
-        visited.add(url)
+        visited.add(normalized)
+
+        # Skip utility pages
+        if is_utility_page(url):
+            skipped_utility.append(url)
+            continue
+
+        # Skip wrong language (except the start URL which we always accept)
+        if lang and not matches_language(url, lang) and url != start_url:
+            skipped_lang.append(url)
+            continue
 
         # Download page
         page_cache = cache_path(proj, url, '_crawl')
@@ -282,12 +316,13 @@ def main():
         else:
             print(f"  [{len(pages)+1}] {url}")
             time.sleep(rate_delay)
-            if not download(url, page_cache, rate_delay):
+            ok, _ = download(url, page_cache, rate_delay)
+            if not ok:
                 failed.append({'url': url, 'error': 'download failed'})
                 continue
 
         # Extract slug and title
-        slug = slug_from_url(url, origin)
+        slug = slug_from_url(url, origin, lang)
         title = ''
         try:
             with open(page_cache, 'r', errors='replace') as f:
@@ -313,17 +348,20 @@ def main():
             asset_path = cache_path(proj, asset_url, '_assets')
             if not args.force and is_cached(asset_path):
                 continue
-            if download(asset_url, asset_path, rate_delay):
+            ok, nbytes = download(asset_url, asset_path, rate_delay, max_asset_bytes)
+            if ok:
                 assets_downloaded += 1
+                assets_bytes += nbytes
 
         # Rewrite HTML to use local assets
-        rewrite_assets(page_cache, proj)
+        # (skip for now — causes issues with relative paths in nested dirs)
 
         # Extract internal links for next depth level
         if current_depth < depth:
             links = extract_links(page_cache, url, origin)
             for link in sorted(links):
-                if link not in visited:
+                norm = normalize_url(link)
+                if norm not in visited:
                     queue.append((link, current_depth + 1))
 
     # Write page-inventory.json
@@ -334,8 +372,12 @@ def main():
         'totalPages': len(pages),
         'failedPages': failed,
         'assetsDownloaded': assets_downloaded,
+        'assetsBytes': assets_bytes,
         'maxPages': max_pages or 'unlimited',
         'depth': depth,
+        'lang': lang or 'all',
+        'skippedUtility': len(skipped_utility),
+        'skippedLang': len(skipped_lang),
     }
     inv_path = os.path.join(proj, 'workflow-output', 'page-inventory.json')
     with open(inv_path, 'w') as f:
@@ -345,8 +387,9 @@ def main():
     print(f"\n{'='*50}")
     print(f"CRAWL COMPLETE")
     print(f"  Pages:      {len(pages)}")
-    print(f"  Assets:     {assets_downloaded}")
+    print(f"  Assets:     {assets_downloaded} ({assets_bytes/1024/1024:.1f} MB)")
     print(f"  Failed:     {len(failed)}")
+    print(f"  Skipped:    {len(skipped_utility)} utility, {len(skipped_lang)} wrong lang")
     print(f"  Duration:   {duration:.0f}s")
     print(f"  Output:     {inv_path}")
     if failed:
