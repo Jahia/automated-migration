@@ -6,6 +6,7 @@ import time
 
 from .audit import get_audit_logger
 from .models import (
+    AgentResult,
     EpicState,
     EpicStatus,
     NewStepProposal,
@@ -278,6 +279,54 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
     await notify_sse(run, "step_status", {"status": "running", "task_type": step.task_type, "agent": step.agent}, step_id=step.id, story_id=story.id, epic_id=epic.id)
 
     try:
+        # ── Deterministic step: task_type "script" ────────────────────────────
+        # No LLM session is opened. The work IS the command(s) in
+        # step.inputs.script (string or list); the verifier executes them plus
+        # every PROBE from acceptance_criteria, in order, and the step passes
+        # only if all exit 0. Use for steps that must not be improvised
+        # (extract/media/loaders/wiring/gate batteries). Fully source-agnostic:
+        # the plan supplies the commands, the engine just runs them.
+        if step.task_type == "script":
+            script = step.inputs.get("script") or []
+            if isinstance(script, str):
+                script = [script]
+            probes = [
+                c.strip()[len("PROBE:"):].strip()
+                for c in step.acceptance_criteria
+                if c.strip().startswith("PROBE:")
+            ]
+            if not script and not probes:
+                raise ValueError(f"script step {step.id} has no inputs.script and no PROBE criteria")
+            agent_result = AgentResult(
+                step_id=step.id,
+                agent="script",
+                status="completed",
+                summary=("script: " + " && ".join(script))[:300] if script else "deterministic step: probes only",
+                commands_requested=script + probes,
+            )
+            step.agent_result = agent_result
+            step.status = StepStatus.verifying
+            await notify_sse(run, "step_status", {"status": "verifying", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+            verification = await verify_result(step, agent_result, run.repo_dir, run.run_id)
+            step.verification = verification
+            step.completed_at = time.time() * 1000
+            step.duration_ms = step.completed_at - step.started_at
+            if verification.passed:
+                step.status = StepStatus.done
+                audit.step_completed(epic.id, story.id, step.id, step.duration_ms, 0, 0, 0.0, agent_result.summary)
+                audit.verification_result(epic.id, story.id, step.id, True, verification.checks, verification.errors)
+                await save_run(run)
+                await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+                await notify_sse(run, "step_completed", {"result": agent_result.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+            else:
+                step.status = StepStatus.failed
+                will_retry = step.attempt < step.max_attempts
+                audit.step_failed(epic.id, story.id, step.id, step.duration_ms, "script/probe command failed", step.attempt, step.max_attempts, will_retry)
+                audit.verification_result(epic.id, story.id, step.id, False, verification.checks, verification.errors)
+                await save_run(run)
+                await notify_sse(run, "step_status", {"status": "failed", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+            return
+
         session = await client.create_session(title=f"{story.id} - {step.task_type}", directory=run.repo_dir)
         step.opencode_session_id = session["id"]
 
@@ -338,7 +387,6 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
         agent_result = parse_agent_result(result_text, step)
         if agent_result is None:
             log.warning(f"Step {step.id}: parse_agent_result returned None, creating fallback from raw text ({len(result_text)} chars)")
-            from .models import AgentResult
             agent_result = AgentResult(
                 step_id=step.id,
                 agent=step.agent,

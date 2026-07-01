@@ -29,6 +29,30 @@ RÈGLES:
 8. Le serveur lance automatiquement une review de l'epic après toutes les stories
 9. Le champ agent est libre — tu décides quels agents utiliser (ex: "code", "security", "review", "test", etc.)
 
+RÈGLES DE DÉCOMPOSITION (granularité des stories — obligatoire):
+10. **UNE STORY = UNE STEP = un résultat contenu.** Le moteur ne transmet le contexte
+    qu'au niveau des stories approuvées (résumé + fichiers); les steps d'une MÊME story
+    ne se voient pas entre elles. La granularité des stories EST la granularité du contexte.
+11. **Limite la charge d'une step**: jamais "tous les composants" / "toutes les pages"
+    dans une seule step. Ordres de grandeur: 1 composant par step; <= 3 pages par step;
+    1 famille d'artefacts par step. Une grosse step LLM produit des stubs.
+12. **task_type "script" pour tout travail déterministe** (extraction, imports,
+    chargeurs, batteries de gates): le moteur exécute directement `inputs.script`
+    (string ou liste) + les lignes `PROBE:` des acceptance_criteria — AUCUNE session
+    LLM, aucune improvisation. Une step script sans `inputs.script` exécute uniquement
+    ses PROBEs.
+13. **Entrées/sorties explicites par step**: `inputs.consumes` (fichiers lus, produits
+    en amont) + `expected_outputs` (fichiers écrits) + une PROBE `contract.sh` — le
+    vrai contrat inter-step, ce sont les FICHIERS SUR DISQUE, vérifiés, pas espérés.
+14. **Compétence minimale**: au plus UN `inputs.skill` par step, le plus focalisé
+    possible; chaque critère d'acceptation ne concerne QUE cette step (pas de
+    boilerplate copié-collé entre steps).
+15. Pour les plans de migration Jahia, ne rédige pas les plans à la main:
+    `python3 orchestration/lib/gen_plan.py <project> --kind content|build` les génère
+    depuis les artefacts du projet (sitemap, component-manifest, config mainResource)
+    en appliquant les règles 10-14. Agnostique au CMS source: rien de spécifique au
+    projet n'est codé en dur.
+
 ## Endpoints
 
 ### Créer le plan (sans démarrer)
@@ -108,10 +132,10 @@ GET http://localhost:8001/schema/planner-prompt
       "github_issues": ["#42"],
       "stories": [
         {
-          "id": "story_001",
-          "title": "Extraire validateSession",
-          "description": "Déplacer la logique de validation de session vers sessionValidator.ts",
-          "acceptance_criteria": ["Créer sessionValidator.ts", "Déplacer la fonction"],
+          "id": "story_analyze",
+          "title": "Analyser la structure du module d'auth",
+          "description": "UNE story = UNE step (règle 10): le résumé de cette story est le contexte de la suivante.",
+          "acceptance_criteria": ["Structure identifiée"],
           "depends_on": [],
           "github_issues": ["#42"],
           "steps": [
@@ -122,29 +146,41 @@ GET http://localhost:8001/schema/planner-prompt
               "depends_on": [],
               "inputs": {"paths": ["src/auth"]},
               "acceptance_criteria": ["Identifier tous les fichiers"]
-            },
+            }
+          ]
+        },
+        {
+          "id": "story_implement",
+          "title": "Extraire validateSession",
+          "description": "Déplacer la logique de validation vers sessionValidator.ts",
+          "acceptance_criteria": ["sessionValidator.ts créé"],
+          "depends_on": ["story_analyze"],
+          "steps": [
             {
               "id": "s1_implement",
               "title": "Extraire validateSession",
               "task_type": "implement",
               "agent": "code",
-              "depends_on": ["s1_analyze"],
+              "depends_on": [],
               "inputs": {"target": "src/auth/session.ts"},
               "acceptance_criteria": ["Créer sessionValidator.ts"]
-            },
-            {
-              "id": "s1_review",
-              "title": "Review du code",
-              "task_type": "review",
-              "depends_on": ["s1_implement"],
-              "acceptance_criteria": ["Pas de régression"]
-            },
+            }
+          ]
+        },
+        {
+          "id": "story_test",
+          "title": "Tests unitaires (déterministe)",
+          "description": "task_type script (règle 12): le moteur exécute les commandes, pas de session LLM.",
+          "acceptance_criteria": ["Tests verts"],
+          "depends_on": ["story_implement"],
+          "steps": [
             {
               "id": "s1_test",
-              "title": "Tests unitaires",
-              "task_type": "test",
-              "depends_on": ["s1_review"],
-              "acceptance_criteria": ["Couvrir tous les cas"]
+              "title": "Lancer la suite de tests",
+              "task_type": "script",
+              "depends_on": [],
+              "inputs": {"script": "npm test"},
+              "acceptance_criteria": ["PROBE: npm test"]
             }
           ]
         }
