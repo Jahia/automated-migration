@@ -58,7 +58,7 @@ jahiaComponent(
           )}
           <div>
             {heading && <h2 className="field-slidesmalltitle">{heading}</h2>}
-            {subheading && <div className="field-description field-slidetext">{subheading}</div>}
+            {subheading && <h3 className="field-description field-slidetext">{subheading}</h3>}
             {cta.url && cta.label && (
               <a href={cta.url} className="btn btn-solid-primary mr-20">
                 <span>{cta.label}</span>

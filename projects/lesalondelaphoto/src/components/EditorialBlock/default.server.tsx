@@ -29,7 +29,7 @@ jahiaComponent(
         <div className="component-content">
           {hasImage && (
             <div className="editorial-image">
-              <img src={imageUrl} alt={altText} className="img-responsive" loading="lazy" />
+              <img src={imageUrl} alt={altText} className="img-responsive" />
             </div>
           )}
           <div className={`container-bp p-20 mb-20 field-description ${hasImage ? "editorial-text" : ""}`}>

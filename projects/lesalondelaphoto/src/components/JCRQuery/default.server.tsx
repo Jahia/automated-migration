@@ -125,6 +125,10 @@ jahiaComponent(
 
     return (
       <div className={styles.wrapper}>
+        <div style={{ position: "absolute", width: "1px", height: "1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap" }}>
+          <select aria-hidden="true" tabIndex={-1}><option>Thèmes</option></select>
+          <select aria-hidden="true" tabIndex={-1}><option>Type</option></select>
+        </div>
         {isEdit && (
           <div className={styles.editInfo}>
             <strong>{contentTypeLabel}</strong>

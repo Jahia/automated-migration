@@ -29,7 +29,6 @@ jahiaComponent(
               src={imageUrl}
               alt={imageAltText || ""}
               className="img-responsive"
-              loading="lazy"
             />
             {caption && (
               <div className="field-imagecaption image-caption">

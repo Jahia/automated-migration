@@ -28,9 +28,9 @@ jahiaComponent(
             )}
             {titre && <h1 className="field-titre title-n1">{titre}</h1>}
             {sousTitre && (
-              <div className="field-sous-titre page-header-subtitle">
+              <h2 className="field-sous-titre page-header-subtitle">
                 {sousTitre}
-              </div>
+              </h2>
             )}
             {formattedDate && (
               <div className="field-date-de-publication page-header-date">
