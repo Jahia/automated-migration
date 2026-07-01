@@ -159,6 +159,35 @@ CONTRACT = {
     },
 }
 
+# ── Parametric step families (generated plans) ───────────────────────────────
+# gen_plan.py decomposes big steps into many small generated ones whose ids are
+# not knowable here (one per sitemap section slice / one per manifest component).
+# These PREFIX patterns give every generated step a contract with ZERO per-project
+# entries. Resolution order in for_step(): exact CONTRACT id first (so e.g.
+# step_content_mainresources keeps its dedicated entry), then longest matching
+# prefix below. Patterns consume only the universal artifacts every project has;
+# optional artifacts (e.g. mainresource-load.json) are consumed by the exact
+# steps that own them, which gen_plan emits only when the project declares them.
+CONTRACT_PATTERNS = [
+    # step_content_<section-slug> — populate one slice (<=N pages) of the sitemap
+    ("step_content_", {
+        "produces": [],
+        "consumes": [
+            "projects/{project}/workflow-output/component-manifest.json",
+            "orchestration/content/{project}.content-load.json",
+            "orchestration/images/{project}.imported.json",
+        ],
+    }),
+    # step_component_<name> — implement ONE component (CND + views + labels)
+    ("step_component_", {
+        "produces": [],
+        "consumes": [
+            "projects/{project}/workflow-output/component-manifest.json",
+        ],
+    }),
+]
+
+
 # Artifacts that are produced but read by no downstream step or probe. Not a
 # failure — flagged so the contract stays honest about dead weight.
 ORPHANS = {
@@ -174,8 +203,18 @@ def resolve(path: str, project: str) -> str:
 
 
 def for_step(step_id: str, project: str) -> dict:
-    """Return {'produces': [...], 'consumes': [...]} with {project} resolved."""
-    spec = CONTRACT.get(step_id, {"produces": [], "consumes": []})
+    """Return {'produces': [...], 'consumes': [...]} with {project} resolved.
+
+    Resolution order: exact CONTRACT id, then longest CONTRACT_PATTERNS prefix
+    (covers generated per-slice ids like step_content_<section> /
+    step_component_<name>), else an empty spec (nothing to enforce)."""
+    spec = CONTRACT.get(step_id)
+    if spec is None:
+        matches = [(pfx, s) for pfx, s in CONTRACT_PATTERNS if step_id.startswith(pfx)]
+        if matches:
+            spec = max(matches, key=lambda m: len(m[0]))[1]
+        else:
+            spec = {"produces": [], "consumes": []}
     return {
         "produces": [resolve(p, project) for p in spec.get("produces", [])],
         "consumes": [resolve(p, project) for p in spec.get("consumes", [])],
