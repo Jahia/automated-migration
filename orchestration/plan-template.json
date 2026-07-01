@@ -41,7 +41,7 @@
             },
             {
               "id": "step_crawl",
-              "title": "Crawl & inventory all pages",
+              "title": "Crawl & inventory all pages + assets",
               "task_type": "analyze",
               "agent": "code",
               "depends_on": [
@@ -53,10 +53,15 @@
                 "siteUrl": "__SITE_URL__",
                 "namespace": "__NAMESPACE__",
                 "mixNamespace": "__MIX_NAMESPACE__",
+                "maxPages": 0,
+                "depth": 3,
                 "skill": ".agents/skills/01-analyze-website/SKILL.md"
               },
               "acceptance_criteria": [
-                "Use orchestration/lib/cached-fetch.sh to crawl the site (cache-first, rate-limited). For JS/WAF sites, capture via browser (capture-reference skill).",
+                "Run: python3 orchestration/lib/crawl-site.py projects/__PROJECT__ __SITE_URL__ --max-pages __MAX_PAGES__ --depth __DEPTH__",
+                "Downloads HTML pages AND referenced assets (CSS, JS, images, fonts) into .reference/cache/.",
+                "Rewrites HTML to reference local asset paths (no live CDN calls during later steps).",
+                "For JS/WAF sites that block the crawler, capture remaining pages via browser (capture-reference skill).",
                 "Write workflow-output/page-inventory.json with URL, slug, title, httpStatus, cachedAt, contentLength for every page.",
                 "PROBE: bash orchestration/probes/crawl.sh projects/__PROJECT__"
               ],
