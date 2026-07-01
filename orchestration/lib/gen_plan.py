@@ -42,6 +42,7 @@ Options:
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
 import re
@@ -72,6 +73,21 @@ def derive_namespace(manifest: dict) -> str | None:
         if ":" in nt:
             prefixes[nt.split(":", 1)[0]] += 1
     return prefixes.most_common(1)[0][0] if prefixes else None
+
+
+def derive_language(project_path: str) -> str | None:
+    """The content language is a project FACT, not an operator preference.
+    The crawl cache saves the reference home page as <locale>.html at the
+    host root (e.g. _crawl/www.example.com/fr-FR.html), which encodes the
+    source site's default locale. Return the primary subtag, or None when
+    absent/ambiguous (multiple distinct root-level locales) — the caller
+    must then require an explicit --lang instead of guessing."""
+    langs = set()
+    for f in glob.glob(f"{project_path}/.reference/cache/_crawl/*/*.html"):
+        m = re.match(r"^([a-z]{2})(-[A-Z]{2})?\.html$", os.path.basename(f))
+        if m:
+            langs.add(m.group(1))
+    return langs.pop() if len(langs) == 1 else None
 
 
 def read_sitemap(path: str) -> list[str]:
@@ -484,7 +500,10 @@ def main():
     ap.add_argument("project")
     ap.add_argument("--kind", choices=["content", "build"], required=True)
     ap.add_argument("--site")
-    ap.add_argument("--lang", default="en")
+    ap.add_argument("--lang", default=None,
+                    help="content language; derived from the crawl cache when omitted "
+                         "(NEVER silently defaulted: a wrong language poisons every "
+                         "probe argument in the generated plan)")
     ap.add_argument("--langs")
     ap.add_argument("--namespace")
     ap.add_argument("--mix-namespace")
@@ -503,13 +522,19 @@ def main():
     mainresource_cfg = f"orchestration/content/{project}.mainresource.json"
 
     ns = a.namespace or derive_namespace(manifest)
+    lang = a.lang or derive_language(project_path)
+    if not lang:
+        sys.exit(f"gen_plan: could not derive the content language from "
+                 f"{project_path}/.reference/cache/_crawl/ (no or ambiguous root-level "
+                 "<locale>.html) — pass --lang explicitly. Refusing to guess: a wrong "
+                 "language poisons every probe argument in the plan.")
     cfg = {
         "project": project,
         "project_path": project_path,
         "repo_dir": repo_dir,
         "site": a.site or project,
-        "lang": a.lang,
-        "langs": a.langs or a.lang,
+        "lang": lang,
+        "langs": a.langs or lang,
         "namespace": ns,
         "mix_namespace": a.mix_namespace or (f"{ns}mix" if ns else None),
         "pages_per_step": a.pages_per_step,
@@ -546,7 +571,7 @@ def main():
     n_stories = sum(len(e["stories"]) for e in plan["epics"])
     n_script = sum(1 for e in plan["epics"] for s in e["stories"]
                    for st in s["steps"] if st["task_type"] == "script")
-    print(f"gen_plan: wrote {out}")
+    print(f"gen_plan: wrote {out}  (site={cfg['site']} lang={cfg['lang']})")
     print(f"  epics={len(plan['epics'])} stories={n_stories} (1 step each) "
           f"script-steps={n_script} pages-per-step<={a.pages_per_step}")
     for e in plan["epics"]:
