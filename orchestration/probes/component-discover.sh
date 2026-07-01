@@ -32,7 +32,7 @@ for c in components:
     # Allow empty shape only if it's a structural component (no content fields)
     if not shape:
         # These are valid structural components without detectable content
-        structural_types = {"plain-html", "image-de-fond", "carousel", "video", "container", "facet-aggregated", "load-more", "facet-dropdown", "unknown"}
+        structural_types = {"raw-html", "background-image", "carousel", "video", "video-content-block", "container", "facet-aggregated", "load-more", "facet-dropdown", "unknown", "form", "search"}
         if cid not in structural_types:
             errors.append(f"  {cid}: empty dataShape")
 
