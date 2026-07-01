@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# component-discover.sh — Component discovery gate.
+# component-discover.sh — Component discovery output gate.
 #
-# Verifies that component candidates were discovered with valid data shapes.
+# Verifies that component-candidates.json exists and has valid structure.
+# Does NOT make discovery decisions — that's the LLM's job based on
+# the extracted blocks from html-blocks.json.
 #
 # Usage: component-discover.sh <project_path>
 set -uo pipefail
@@ -26,15 +28,10 @@ errors = []
 for c in components:
     cid = c.get("candidateId", "?")
     freq = c.get("frequency", 0)
-    shape = c.get("dataShape", [])
     if freq < 1:
         errors.append(f"  {cid}: frequency={freq} (must be >= 1)")
-    # Allow empty shape only if it's a structural component (no content fields)
-    if not shape:
-        # These are valid structural components without detectable content
-        structural_types = {"raw-html", "background-image", "carousel", "video", "video-content-block", "container", "facet-aggregated", "load-more", "facet-dropdown", "unknown", "form", "search"}
-        if cid not in structural_types:
-            errors.append(f"  {cid}: empty dataShape")
+    # dataShape can be empty for structural components — that's valid
+    # The LLM decides what's structural vs content, not this probe
 
 if errors:
     print("FAIL: invalid component candidates:")

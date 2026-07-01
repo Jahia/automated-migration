@@ -76,6 +76,28 @@ A simple `docker compose restart` does NOT re-run provisioning — Jahia caches 
 
 ---
 
+## 1b. The agnostic principle — no hardcoded heuristics
+
+The migration engine MUST work on **any** website, regardless of CMS (Sitecore SXA, Drupal, WordPress, AEM, plain HTML).
+
+**Rule: extraction scripts are deterministic and agnostic. The LLM makes all semantic decisions.**
+
+| Layer | Who decides | Examples |
+|---|---|---|
+| **Extraction** | Scripts (deterministic) | `extract-blocks.py` parses HTML, extracts blocks with tag/classes/text/images — no decisions |
+| **Analysis** | LLM (semantic) | Template clustering, component discovery, MainResource identification, cross-cutting detection |
+| **Validation** | Probes (format only) | Check output files exist and have valid structure — no semantic validation |
+
+**Never hardcode:**
+- CSS class patterns (`hero`, `banner`, `search-results`) — different sites use different classes
+- Component name patterns (`article`, `news`, `product`) — naming varies by site
+- Template signatures (`GRID + CONTENT + HERO`) — structure varies by site
+- CMS-specific patterns in generic scripts — use adapters (like `sitecore-sxa`) for CMS-specific extraction
+
+**The LLM analyzes the extracted blocks and decides** what's a template, what's a component, what's cross-cutting, what's MainResource. This is semantic judgment that requires understanding the content, not pattern matching.
+
+---
+
 ## 2. Credentials and environment
 
 - Jahia connection lives in `<project_path>/.env`:
