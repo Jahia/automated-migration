@@ -262,7 +262,34 @@ async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState
                 step.attempt += 1
                 step.status = StepStatus.ready
                 continue
-            return
+            # Attempts exhausted: ESCALATE to the operator instead of killing the
+            # run — one stubborn page must not stop everything behind it. The
+            # operator can answer with instructions (attempts reset, the answer is
+            # injected into the next prompt) or "skip" to accept and move on.
+            errs = "; ".join(str(e)[:200] for e in (step.verification.errors[:2] if step.verification else []))
+            from .models import HumanQuestion
+            step.question = HumanQuestion(
+                question_id=f"exhausted_{step.id}_{int(time.time())}",
+                step_id=step.id,
+                question=(f"L'étape '{step.title}' a épuisé ses {step.max_attempts} tentatives. "
+                          f"Dernières erreurs: {errs or '(voir vérification)'} — "
+                          "Répondez avec des instructions pour réessayer (tentatives réinitialisées), "
+                          "ou 'skip' pour accepter l'état actuel et continuer."),
+                options=[{"value": "skip", "label": "Accepter et continuer"}],
+                timestamp=time.time() * 1000,
+            )
+            step.status = StepStatus.waiting_human
+            await save_run(run)
+            await notify_sse(run, "human_question", {"question": step.question.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+            await _wait_for_human_answer(step)
+            step.question = None
+            if (step.human_answer or "").strip().lower() == "skip":
+                step.status = StepStatus.done
+                await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "note": "skipped by operator after exhausted attempts"}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+                continue
+            step.attempt = 0  # fresh budget, operator guidance rides in the prompt
+            step.status = StepStatus.ready
+            continue
         elif step.status == StepStatus.waiting_human:
             await _wait_for_human_answer(step)
             continue

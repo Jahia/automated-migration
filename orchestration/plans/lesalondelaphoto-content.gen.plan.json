@@ -56,10 +56,34 @@
       },
       "stories": [
         {
+          "id": "story_pixel_calibrate",
+          "title": "Calibrate pixel gate (noise floor)",
+          "description": "Calibrate pixel gate (noise floor)",
+          "depends_on": [],
+          "steps": [
+            {
+              "id": "step_pixel_calibrate",
+              "title": "Calibrate pixel gate (noise floor)",
+              "task_type": "script",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "script": "bash orchestration/probes/pixel-calibrate.sh projects/lesalondelaphoto lesalondelaphoto"
+              },
+              "acceptance_criteria": [],
+              "max_attempts": 2
+            }
+          ]
+        },
+        {
           "id": "story_content_mainresources",
           "title": "mainResource content -> contentFolders (BEFORE pages)",
           "description": "Deterministic loader: create + publish all jmix:mainResource content into jnt:contentFolders (heroes wired from imported media).",
-          "depends_on": [],
+          "depends_on": [
+            "story_pixel_calibrate"
+          ],
           "steps": [
             {
               "id": "step_content_mainresources",
@@ -932,7 +956,7 @@
               "id": "step_review_report",
               "title": "Author review report (Gate: HALT)",
               "task_type": "review",
-              "agent": "code",
+              "agent": "reason",
               "depends_on": [],
               "inputs": {
                 "project": "lesalondelaphoto",

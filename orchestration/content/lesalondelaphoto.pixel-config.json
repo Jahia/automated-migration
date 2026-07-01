@@ -8,7 +8,12 @@
     ".go-to-top-wrapper"
   ],
   "pageOverrides": {
-    "actualite-photo/actus": { "maxDiffPct": 25.0 },
-    "actualite-photo/agenda-photo": { "maxDiffPct": 25.0 }
-  }
+    "actualite-photo/actus": {
+      "maxDiffPct": 25.0
+    },
+    "actualite-photo/agenda-photo": {
+      "maxDiffPct": 25.0
+    }
+  },
+  "noiseFloorPct": 0.0
 }

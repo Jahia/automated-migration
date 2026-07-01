@@ -21,21 +21,44 @@
 // the context sends real browser headers (UA + Referer) — capture-time DOM,
 // live-origin CSS/images (static assets pass WAFs that block full page loads).
 //
-// Usage: node pixel-diff.mjs <referenceSrc> <liveUrl> <outDir> [maxDiffPct] [hideSelectorsCSV] [referenceOrigin]
+// Efficiency features:
+//   * REFERENCE RENDER CACHE — between pixel iterations only the LOCAL side
+//     changes; the reference render (30-60s) is reused from outDir when the
+//     cache key (source file mtime/size + hide + origin) is unchanged.
+//   * CALIBRATE MODE — pass "--calibrate" as <liveUrl>: renders the REFERENCE
+//     TWICE and diffs the two renders. The result is the NOISE FLOOR (fonts,
+//     AA, timing) — the empirically achievable minimum, used to auto-set a
+//     fair threshold before any agent burns attempts on an unpassable gate.
+//
+// Usage: node pixel-diff.mjs <referenceSrc> <liveUrl|--calibrate> <outDir> [maxDiffPct] [hideSelectorsCSV] [referenceOrigin]
 import { chromium } from "playwright";
-import { mkdirSync, writeFileSync, readFileSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from "fs";
 import { resolve } from "path";
 
 const [refSrcArg, liveUrl, outDir, maxArg, hideCsv, refOrigin] = process.argv.slice(2);
 if (!refSrcArg || !liveUrl || !outDir) {
-  console.error("usage: pixel-diff.mjs <referenceSrc> <liveUrl> <outDir> [maxDiffPct] [hideSelectorsCSV] [referenceOrigin]");
+  console.error("usage: pixel-diff.mjs <referenceSrc> <liveUrl|--calibrate> <outDir> [maxDiffPct] [hideSelectorsCSV] [referenceOrigin]");
   process.exit(2);
 }
+const CALIBRATE = liveUrl === "--calibrate";
 const MAX_DIFF_PCT = parseFloat(maxArg || "2.0");
 const HIDE = (hideCsv || "").split("|").map((s) => s.trim()).filter(Boolean);
 const CHANNEL_TOL = 24; // per-channel tolerance (anti-aliasing / font hinting)
 
 mkdirSync(outDir, { recursive: true });
+
+// reference cache key: source identity + everything that affects its render
+const refIsUrl = /^https?:\/\//.test(refSrcArg);
+const refStat = refIsUrl ? null : statSync(resolve(refSrcArg));
+const CACHE_KEY = JSON.stringify({
+  src: refIsUrl ? refSrcArg : resolve(refSrcArg),
+  mtime: refStat ? refStat.mtimeMs : null, size: refStat ? refStat.size : null,
+  hide: HIDE, origin: refOrigin || null, vp: "1440x1000", tol: CHANNEL_TOL, v: 2,
+});
+const refCacheValid =
+  !CALIBRATE &&
+  existsSync(`${outDir}/.refkey`) && existsSync(`${outDir}/ref.png`) && existsSync(`${outDir}/refmarks.json`) &&
+  readFileSync(`${outDir}/.refkey`, "utf-8") === CACHE_KEY;
 
 // file reference + origin -> inject <base> so capture-time DOM loads its real assets.
 // Paths MUST be absolute: file:// + a relative path is an invalid URL that fails
@@ -130,13 +153,22 @@ const ctx = await b.newContext({
 });
 let out;
 try {
-  const rp = await ctx.newPage();
-  const refBuf = await renderShot(rp, refSrc);
-  const refMarks = await landmarks(rp);
+  let refBuf, refMarks;
+  if (refCacheValid) {
+    refBuf = readFileSync(`${outDir}/ref.png`);
+    refMarks = JSON.parse(readFileSync(`${outDir}/refmarks.json`, "utf-8"));
+  } else {
+    const rp = await ctx.newPage();
+    refBuf = await renderShot(rp, refSrc);
+    refMarks = await landmarks(rp);
+    writeFileSync(`${outDir}/ref.png`, refBuf);
+    writeFileSync(`${outDir}/refmarks.json`, JSON.stringify(refMarks));
+    writeFileSync(`${outDir}/.refkey`, CACHE_KEY);
+  }
   const lp = await ctx.newPage();
-  const locBuf = await renderShot(lp, liveUrl);
+  // calibrate: the "local" side is a SECOND fresh render of the reference
+  const locBuf = await renderShot(lp, CALIBRATE ? refSrc : liveUrl);
   const locMarks = await landmarks(lp);
-  writeFileSync(`${outDir}/ref.png`, refBuf);
   writeFileSync(`${outDir}/local.png`, locBuf);
 
   // pixel comparison inside Chromium via canvas — no image libs needed
@@ -238,7 +270,9 @@ try {
 }
 
 out.maxDiffPct = MAX_DIFF_PCT;
-out.pass = out.diffPct <= MAX_DIFF_PCT;
+out.pass = CALIBRATE ? true : out.diffPct <= MAX_DIFF_PCT;
+out.calibrate = CALIBRATE;
+out.refCacheHit = refCacheValid;
 out.artifacts = { ref: `${outDir}/ref.png`, local: `${outDir}/local.png`, diff: `${outDir}/diff.png` };
 delete out.bandDiffPct;
 console.log(JSON.stringify(out, null, 1));

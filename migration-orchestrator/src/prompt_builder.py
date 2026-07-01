@@ -180,10 +180,16 @@ def _format_previous_stories(epic: EpicState, current: StoryState) -> str:
 def _format_retry_feedback(step: StepState) -> str:
     """On a retry (attempt > 0), inject the PREVIOUS attempt's failure so the
     agent does not retry blind: the verification errors (probe output) are the
-    training signal that tells it exactly what to fix."""
+    training signal that tells it exactly what to fix. If the operator answered
+    an escalation, their instructions ride along with highest priority."""
+    human = ""
+    if step.human_answer and step.human_answer.strip().lower() != "skip":
+        human = (f"\nINSTRUCTIONS DE L'OPÉRATEUR (après échec des tentatives précédentes — "
+                 f"priorité ABSOLUE):\n{step.human_answer.strip()[:1000]}\n")
     if step.attempt <= 0 or not step.verification or step.verification.passed:
-        return ""
-    lines = [f"\nÉCHEC DE LA TENTATIVE PRÉCÉDENTE (tentative {step.attempt}/{step.max_attempts}):"]
+        return human
+    lines = [human] if human else []
+    lines += [f"\nÉCHEC DE LA TENTATIVE PRÉCÉDENTE (tentative {step.attempt}/{step.max_attempts}):"]
     if step.agent_result and step.agent_result.summary:
         lines.append(f"Résumé précédent: {step.agent_result.summary[:300]}")
     lines.append("Erreurs de vérification (à corriger — ne refais PAS la même chose):")

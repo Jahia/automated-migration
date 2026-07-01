@@ -119,7 +119,7 @@ class PlanBuilder:
 
     def story_step(self, epic, step_id, title, task_type, criteria,
                    skill=None, inputs=None, script=None, max_attempts=3,
-                   description=""):
+                   description="", agent="code"):
         """ONE STORY = ONE STEP. Story ordering is a linear chain within the epic
         (context flows forward as approved-story summaries)."""
         cfg = self.cfg
@@ -141,7 +141,7 @@ class PlanBuilder:
             if probe not in crit:
                 crit.append(probe)
         step = {"id": step_id, "title": title, "task_type": task_type,
-                "agent": "code", "depends_on": [], "inputs": ins,
+                "agent": agent, "depends_on": [], "inputs": ins,
                 "acceptance_criteria": crit, "max_attempts": max_attempts}
         if spec["produces"]:
             step["expected_outputs"] = {f"artifact_{i+1}": p for i, p in enumerate(spec["produces"])}
@@ -185,6 +185,16 @@ def content_plan(cfg) -> dict:
                 ["every page's live rendering matches the captured reference",
                  "listings resolve real content", "no fabricated content"],
                 max_rounds=3)
+
+    # calibrate the pixel gate FIRST: measure the noise floor (two renders of the
+    # same reference) so the threshold is provably achievable before any agent
+    # burns attempts on it. Writes noiseFloorPct (+ raises maxDiffPct if needed)
+    # into the project pixel-config.
+    b.story_step(
+        e2, "step_pixel_calibrate", "Calibrate pixel gate (noise floor)", "script",
+        [],
+        script=f"bash {PROBES}/pixel-calibrate.sh {PP} {S}",
+        max_attempts=2)
 
     if cfg["has_mainresource"]:
         b.story_step(
@@ -282,7 +292,8 @@ def content_plan(cfg) -> dict:
             "Gate: present findings, return status halt.",
         ],
         skill=f"{SKILLS}/10-review/SKILL.md",
-        inputs={"siteKey": S, "language": L, "report": report})
+        inputs={"siteKey": S, "language": L, "report": report},
+        agent="reason")  # judgment-heavy: routed to the stronger model
 
     # epic 4 — fidelity + go-live
     e4 = b.epic("epic_golive", "Visual fidelity + vanity URLs",
