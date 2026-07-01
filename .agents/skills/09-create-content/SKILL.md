@@ -44,6 +44,46 @@ If MCP is unavailable (connection refused, 404, or 0 tools), fall back to GraphQ
 
 ---
 
+## jmix:mainResource architecture (news articles, agenda items, press releases) — READ FIRST
+
+**mainResource content is NOT page content.** Any node type that extends `jmix:mainResource`
+(`lsp:newsArticle`, `lsp:agendaItem`, press releases, …) is a standalone content unit that
+needs its own URL and gets *listed* by other pages. It must NOT be created inline inside a
+page's `main` area. The correct architecture — and the required pipeline order — is:
+
+```
+1. media import            (DAM assets exist:  images/<project>.imported.json)
+2. mainResource content     -> created INSIDE a jnt:contentFolder, hero image wired,
+   (AFTER media, BEFORE pages)  published.  /sites/<site>/contents/<folder>/<slug>
+3. listing pages            -> each carries ONE lsp:jcrQuery (type = the mainResource
+                               node type). Its startNode (weakreference) points at the
+                               contentFolder from step 2 — never at /home, never empty.
+```
+
+Why the order matters: articles are created *after* media so each can reference its imported
+hero image; they are created *before* pages so the listing query has real content to resolve
+(`SELECT * FROM [lsp:newsArticle] WHERE ISDESCENDANTNODE(n, '<startNode.path>')`). A query whose
+startNode points at `/home` scoops up unrelated content; an empty startNode resolves nothing.
+
+**This is fully automated — do not hand-create these nodes.** The harness ships deterministic
+scripts (invoked as their own plan steps); use them, do not improvise:
+
+| Step | Script | Gate |
+|------|--------|------|
+| Create mainResource content in folders (after media, before pages) | `python3 orchestration/lib/load_main_resources.py <project> <site>` | `orchestration/probes/mainresource.sh <project> <site> fr` |
+| Wire each listing `jcrQuery.startNode` -> its folder + remove inline mainResource debris (after pages) | `python3 orchestration/lib/wire_startnodes.py <project> <site>` | `orchestration/probes/startnode.sh <project> <site> fr` + `orchestration/probes/mainresource.sh <project> <site> fr` |
+
+Config lives in `orchestration/content/<project>.mainresource.json` (which URL prefixes map to
+which node type + folder). The load step writes `orchestration/content/<project>.mainresource-load.json`
+(folder paths + listingPage->folder map), consumed by the wiring step and the gates.
+
+**When building a listing page (the page steps):** ensure exactly ONE `lsp:jcrQuery` with the
+right `type`, `maxItems`, sort. Do NOT set its startNode by hand and do NOT create article
+nodes in the page. If a prior run left `lsp:newsArticle`/`lsp:agendaItem` nodes loose in a
+`main` area, delete them — they belong in the contentFolder only.
+
+---
+
 ## MCP call pattern
 
 All MCP calls use JSON-RPC 2.0 over HTTP POST:

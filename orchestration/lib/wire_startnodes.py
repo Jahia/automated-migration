@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""wire_startnodes.py — point every mainResource lsp:jcrQuery.startNode at its
-jnt:contentFolder (ETL phase, runs AFTER load_main_resources + page creation).
+"""wire_startnodes.py — enforce the mainResource listing invariant (ETL phase,
+runs AFTER load_main_resources + page creation). Two passes:
 
-The listing pages carry an lsp:jcrQuery whose `type` property names the
-mainResource node type it lists (lsp:newsArticle, lsp:agendaItem). Its startNode
-(weakreference) must resolve to the jnt:contentFolder that holds those nodes —
-NOT to /home (the LLM's default mis-wire), or the ISDESCENDANTNODE query scoops
-up unrelated content and the listing is wrong.
+  1. WIRE — point every mainResource lsp:jcrQuery.startNode at its jnt:contentFolder.
+     The listing pages carry an lsp:jcrQuery whose `type` property names the
+     mainResource node type it lists (lsp:newsArticle, lsp:agendaItem). Its startNode
+     (weakreference) must resolve to the jnt:contentFolder that holds those nodes —
+     NOT /home (the LLM's default mis-wire), or the ISDESCENDANTNODE query scoops up
+     unrelated content. Mapping: jcrQuery.type -> folder (from
+     <project>.mainresource-load.json); page-path disambiguation if a type repeats.
 
-Mapping: jcrQuery.type -> folder (from <project>.mainresource-load.json, which
-records folder path + type per folder). If two folders share a type, disambiguate
-by matching the query's page path against the folder's listingPages.
+  2. CLEAN — remove any mainResource node that lives OUTSIDE its contentFolder.
+     Prior LLM runs create articles inline in page main areas (duplicates + pure
+     fabrication like article-1/agenda-2). mainResource content is folder-only; any
+     lsp:newsArticle/lsp:agendaItem not under a declared folder is debris and is
+     removed (mark_for_deletion + publish — the sanctioned live-delete path). Skip
+     with --no-clean. Gated by mainresource.sh (placement invariant).
 
-Usage: python3 orchestration/lib/wire_startnodes.py <project> <site> [--dry]
+Usage: python3 orchestration/lib/wire_startnodes.py <project> <site> [--dry] [--no-clean]
 """
 import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -26,11 +31,36 @@ def load_json(p, default=None):
         return default
 
 
+def clean_inline(m, project, site, folder_paths, dry):
+    """Remove mainResource-type nodes that live OUTSIDE any declared contentFolder."""
+    manifest = load_json(f"projects/{project}/workflow-output/component-manifest.json", {})
+    mr_types = {c.get("nodeType") for c in manifest.get("components", []) if c.get("needsMainResource")}
+    removed = 0
+    for nt in sorted(mr_types):
+        r = m.call("content.search", {"siteKey": site, "nodeType": nt, "locale": "fr", "limit": 100})
+        for n in (r.get("results", []) if isinstance(r, dict) else []):
+            p = n.get("path")
+            if not p or any(p.startswith(fp + "/") or p == fp for fp in folder_paths):
+                continue  # correctly inside a declared folder
+            if dry:
+                print(f"  [dry] remove misplaced {nt}: {p}"); removed += 1; continue
+            try:
+                m.call("content.mark_for_deletion", {"path": p})
+                m.call("publication.publish", {"path": p, "languages": ["fr", "en"]})
+                print(f"  removed misplaced {nt}: {p.split('/home/')[-1]}")
+                removed += 1
+            except Exception as e:
+                print(f"  ! remove {p}: {e}", file=sys.stderr)
+    return removed
+
+
 def main():
     if len(sys.argv) < 3:
-        sys.exit("usage: wire_startnodes.py <project> <site> [--dry]")
+        sys.exit("usage: wire_startnodes.py <project> <site> [--dry] [--no-clean]")
     project, site = sys.argv[1], sys.argv[2]
-    dry = "--dry" in sys.argv[3:]
+    argv = sys.argv[3:]
+    dry = "--dry" in argv
+    do_clean = "--no-clean" not in argv
     m = MCP(project)
 
     mrl = load_json(f"orchestration/content/{project}.mainresource-load.json")
@@ -77,6 +107,12 @@ def main():
         except Exception as e:
             print(f"  ! {qpath}: {e}", file=sys.stderr)
     print(f"\nwire_startnodes: wired {wired}, skipped {skipped} (non-mainResource){' [dry]' if dry else ''}")
+
+    if do_clean:
+        folder_paths = [f["path"] for f in mrl["folders"].values()]
+        print("clean: removing mainResource nodes outside their contentFolder ...")
+        removed = clean_inline(m, project, site, folder_paths, dry)
+        print(f"wire_startnodes: removed {removed} misplaced mainResource node(s){' [dry]' if dry else ''}")
 
 
 if __name__ == "__main__":

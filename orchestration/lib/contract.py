@@ -40,6 +40,8 @@ PRODUCED_BY = {
     "orchestration/content/{project}.content-load.json": "step_extract",
     "projects/{project}/component-baseline.txt": "step_content_types",
     "orchestration/images/{project}.imported.json": "step_media",
+    "orchestration/content/{project}.mainresource.json": "manual config (orchestration/content/<project>.mainresource.json — urlPrefix->type->folder map)",
+    "orchestration/content/{project}.mainresource-load.json": "step_content_mainresources",
     "projects/{project}/workflow-output/review/REVIEW.md": "step_review",
     "projects/{project}/workflow-output/a11y/A11Y.md": "step_accessibility",
     "projects/{project}/workflow-output/visual-diff/SUMMARY.md": "step_visual_diff",
@@ -112,6 +114,23 @@ CONTRACT = {
     "step_media": {
         "produces": ["orchestration/images/{project}.imported.json"],
         "consumes": ["orchestration/images/{project}.json"],
+    },
+    # jmix:mainResource content is created into contentFolders AFTER media import
+    # (each article references its imported hero) and BEFORE pages (so the listing
+    # query has real content). See .agents/skills/09-create-content (mainResource
+    # architecture). Gated by mainresource.sh (folders populated) at load time and
+    # startnode.sh (jcrQuery.startNode -> contentFolder) after wiring.
+    "step_content_mainresources": {
+        "produces": ["orchestration/content/{project}.mainresource-load.json"],
+        "consumes": [
+            "orchestration/content/{project}.content-load.json",
+            "orchestration/images/{project}.imported.json",
+            "orchestration/content/{project}.mainresource.json",
+        ],
+    },
+    "step_wire_startnodes": {
+        "produces": [],
+        "consumes": ["orchestration/content/{project}.mainresource-load.json"],
     },
     "step_content": {
         "produces": [],

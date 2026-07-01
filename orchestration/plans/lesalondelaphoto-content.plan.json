@@ -64,11 +64,34 @@
           ],
           "steps": [
             {
+              "id": "step_content_mainresources",
+              "title": "mainResource content -> contentFolders (BEFORE pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "config": "orchestration/content/lesalondelaphoto.mainresource.json",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Create + publish ALL jmix:mainResource content (news articles, agenda items) into their jnt:contentFolders BEFORE building any page, so media is already imported and each article references its hero image. Run EXACTLY this deterministic loader (do NOT hand-create these nodes, do NOT place them inline in any page's main area): python3 orchestration/lib/load_main_resources.py lesalondelaphoto lesalondelaphoto",
+                "PROBE: bash orchestration/probes/mainresource.sh lesalondelaphoto lesalondelaphoto fr"
+              ],
+              "max_attempts": 3
+            },
+            {
               "id": "step_content_home",
               "title": "Content: home (1 pages)",
               "task_type": "build",
               "agent": "code",
-              "depends_on": [],
+              "depends_on": [
+                "step_content_mainresources"
+              ],
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
@@ -106,6 +129,7 @@
               },
               "acceptance_criteria": [
                 "Create + publish ONLY this section's pages (actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo). Use the Jahia MCP server; IDEMPOTENT — reuse existing pages, never recreate. Fill each page's main area with components mirroring the reference (content-data.json / .reference captured truth); images = DAM weakreferences (no url strings).",
+                "jmix:mainResource RULE: news articles + agenda items are NOT page content — they already exist in /sites/lesalondelaphoto/contents/{articles,agenda} (created by step_content_mainresources). Do NOT create lsp:newsArticle/lsp:agendaItem nodes inline in any page's main area. For each listing page, ensure a single lsp:jcrQuery (type=lsp:newsArticle or lsp:agendaItem); its startNode is wired to the contentFolder later by step_wire_startnodes — leave it be. If a prior run left inline article nodes in a main area, delete them.",
                 "For the home/shell section, also populate the nav + footer AbsoluteArea regions with child content (AbsoluteArea-needs-children) so they render in the edit frame.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
                 "PROBE: bash orchestration/probes/render-all.sh projects/lesalondelaphoto lesalondelaphoto fr actualite-photo,actualite-photo/actus,actualite-photo/agenda-photo",
@@ -268,6 +292,29 @@
                 "PROBE: bash orchestration/probes/no-url-images.sh projects/lesalondelaphoto lesalondelaphoto lsp"
               ],
               "max_attempts": 3
+            },
+            {
+              "id": "step_wire_startnodes",
+              "title": "Wire listing jcrQuery.startNode -> contentFolders (AFTER pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_salon"
+              ],
+              "inputs": {
+                "project": "lesalondelaphoto",
+                "project_path": "projects/lesalondelaphoto",
+                "siteKey": "lesalondelaphoto",
+                "language": "fr",
+                "transport": "jahia-mcp",
+                "skill": ".agents/skills/09-create-content/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Now that every listing page and its lsp:jcrQuery exist, point each mainResource query's startNode at the jnt:contentFolder that holds its articles (never /home, never empty) AND remove any mainResource node left inline in a page main area (duplicates + fabrication) — mainResource is folder-only. Run EXACTLY: python3 orchestration/lib/wire_startnodes.py lesalondelaphoto lesalondelaphoto",
+                "PROBE: bash orchestration/probes/startnode.sh lesalondelaphoto lesalondelaphoto fr",
+                "PROBE: bash orchestration/probes/mainresource.sh lesalondelaphoto lesalondelaphoto fr"
+              ],
+              "max_attempts": 3
             }
           ]
         },
@@ -285,7 +332,7 @@
               "task_type": "review",
               "agent": "code",
               "depends_on": [
-                "step_content_salon"
+                "step_wire_startnodes"
               ],
               "inputs": {
                 "project": "lesalondelaphoto",
@@ -299,6 +346,8 @@
               "acceptance_criteria": [
                 "Use the jahia-reviewer agent: run ALL gate probes over the WHOLE sitemap + write REVIEW.md.",
                 "PROBE: bash orchestration/probes/content.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
+                "PROBE: bash orchestration/probes/mainresource.sh lesalondelaphoto lesalondelaphoto fr",
+                "PROBE: bash orchestration/probes/startnode.sh lesalondelaphoto lesalondelaphoto fr",
                 "PROBE: bash orchestration/probes/publish-parity.sh projects/lesalondelaphoto lesalondelaphoto fr",
                 "PROBE: bash orchestration/probes/edit-frame.sh projects/lesalondelaphoto lesalondelaphoto fr home",
                 "PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
