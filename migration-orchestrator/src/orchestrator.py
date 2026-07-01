@@ -5,6 +5,7 @@ import logging
 import time
 
 from .audit import get_audit_logger
+from .cost_tracker import write_run_cost, format_cost_summary
 from .models import (
     EpicState,
     EpicStatus,
@@ -122,6 +123,30 @@ async def _run_loop(run: RunState, client: OpenCodeClient, event_listener: OpenC
         run.updated_at = time.time() * 1000
         await save_run(run)
         await notify_sse(run, "run_status", {"status": run.status.value})
+
+        # Write cost report
+        try:
+            steps_data = []
+            for epic in run.epics:
+                for story in epic.stories:
+                    for step in story.steps:
+                        steps_data.append({
+                            "step_id": step.id,
+                            "story_id": story.id,
+                            "epic_id": epic.id,
+                            "tokens_in": step.tokens_in,
+                            "tokens_out": step.tokens_out,
+                            "tokens_cache": step.tokens_cache,
+                            "duration_ms": step.duration_ms,
+                        })
+            if steps_data:
+                cost_report = write_run_cost(run.run_id, run.model, steps_data)
+                summary = format_cost_summary(cost_report)
+                log.info(f"\n{summary}")
+                await notify_sse(run, "run_cost", cost_report["total"])
+        except Exception as e:
+            log.warning(f"Failed to write cost report: {e}")
+
         if run.run_id in _active_tasks:
             del _active_tasks[run.run_id]
 
