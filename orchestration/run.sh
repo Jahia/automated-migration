@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Submit a migration plan to the llm-orchestration-loop and start it.
+# Submit a migration plan to the migration-orchestrator and start it.
 #
 # Usage:
 #   bash orchestration/run.sh plans/sial-paris.plan.json [--start] [--watch]

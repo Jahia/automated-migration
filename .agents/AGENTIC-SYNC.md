@@ -69,6 +69,6 @@ agentic's `docs/superpowers/plans/2026-06-25-agentic-harness-orchestration.md`
 describes the SAME architecture jahiaMigration already runs: a lean orchestrator
 driving a dev-worker / reviewer loop via small status files (`PLAN.md`,
 `DEV_STATUS.md`, `REVIEW.md`), so the orchestrator never reads source. Our
-`llm-orchestration-loop` + probe gates are the implementation. The adoptable
+`migration-orchestrator` + probe gates are the implementation. The adoptable
 delta was agentic's **quality gates** (CND linter, a11y/SEO scoring) — now wired
 as probes. Re-check their plans when evolving the loop.

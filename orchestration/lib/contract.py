@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """contract.py — the SINGLE SOURCE OF TRUTH for the inter-step artifact contract.
 
-The llm-orchestration-loop passes almost nothing between steps in the prompt
+The migration-orchestrator passes almost nothing between steps in the prompt
 itself (only a 200-char summary + 10 filenames from prior *approved* stories in
 the *same* epic; `depends_on` is ordering-only and is never injected as context;
 `expected_outputs` is rendered into the prompt but never verified). The REAL
