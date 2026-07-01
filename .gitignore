@@ -21,3 +21,4 @@ projects/**/.reference/captured/
 projects/**/.yarn/
 __pycache__/
 *.pyc
+projects/*/workflow-output/pixel/
