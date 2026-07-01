@@ -218,7 +218,10 @@ def content_plan(cfg) -> dict:
         ],
         skill=f"{SKILLS}/09b-populate-shell/SKILL.md",
         inputs={"siteKey": S, "language": L, "pages": cfg["home_page"],
-                "transport": "jahia-mcp"})
+                "transport": "jahia-mcp",
+                # engine-only session budget (hidden from prompt): shell work
+                # includes nav tree + footer content + a deploy cycle
+                "_deadline_s": 1800})
 
     for section, pages in cfg["sections"].items():
         slices = chunk(pages, cfg["pages_per_step"])
@@ -250,7 +253,11 @@ def content_plan(cfg) -> dict:
                 ],
                 skill=f"{SKILLS}/09a-populate-page/SKILL.md",
                 inputs={"siteKey": S, "language": L, "pages": pages_csv,
-                        "transport": "jahia-mcp"})
+                        "transport": "jahia-mcp",
+                        # engine-only session budget (hidden from prompt),
+                        # scaled by slice size: pixel iteration is
+                        # build+deploy+probe per cycle (~2-3 min each)
+                        "_deadline_s": 1800 + 900 * len(sl)})
 
     if cfg["has_mainresource"]:
         b.story_step(

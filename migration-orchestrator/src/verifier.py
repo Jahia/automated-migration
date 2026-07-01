@@ -60,7 +60,19 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
     elif result.modified_files:
         checks.append("files_claimed")
 
-    for cmd in result.commands_requested:
+    # Agent-requested commands first (deploys, builds…), then the MANDATORY
+    # engine-enforced gates: every PROBE line in acceptance_criteria runs on
+    # every attempt, no matter what the agent reported. An agent that forgets
+    # the probe, games commands_requested, returns unparseable output, or gets
+    # cut by the session deadline is still measured against the real artifact.
+    # (Deduped: script steps already carry their probes in commands_requested.)
+    probe_cmds = [
+        c.strip()[len("PROBE:"):].strip()
+        for c in (step.acceptance_criteria or [])
+        if c.strip().startswith("PROBE:")
+    ]
+    mandatory = [(c, "probe") for c in probe_cmds if c not in result.commands_requested]
+    for cmd, kind in [(c, "agent") for c in result.commands_requested] + mandatory:
         cmd_start = time.time() * 1000
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -71,8 +83,9 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
             )
             stdout, stderr = await proc.communicate()
             cmd_duration = time.time() * 1000 - cmd_start
-            stdout_text = stdout.decode("utf-8", errors="replace")[:2000]
-            stderr_text = stderr.decode("utf-8", errors="replace")[:2000]
+            # keep the TAIL: probes print progress first, verdict + punch list last
+            stdout_text = stdout.decode("utf-8", errors="replace")[-2000:]
+            stderr_text = stderr.decode("utf-8", errors="replace")[-2000:]
 
             # Log probe execution via audit if run_id available
             if run_id:
@@ -88,10 +101,10 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
             if proc.returncode == 0:
                 checks.append(f"command_passed:{cmd[:50]}")
             else:
-                errors.append(f"Command failed: {cmd[:50]} (exit {proc.returncode})\nstdout: {stdout_text[:500]}\nstderr: {stderr_text[:500]}")
+                errors.append(f"Command failed ({kind}): {cmd[:80]} (exit {proc.returncode})\nstdout(tail): {stdout_text[-800:]}\nstderr: {stderr_text[-300:]}")
         except Exception as e:
             cmd_duration = time.time() * 1000 - cmd_start
-            errors.append(f"Command error: {cmd[:50]} ({e})")
+            errors.append(f"Command error ({kind}): {cmd[:80]} ({e})")
             if run_id:
                 from .audit import get_audit_logger
                 audit = get_audit_logger(run_id)
@@ -101,6 +114,9 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
                     stdout="", stderr=str(e)[:2000],
                     duration_ms=cmd_duration,
                 )
+
+    if probe_cmds:
+        checks.append(f"engine_enforced_probes:{len(probe_cmds)}")
 
     return VerificationResult(passed=len(errors) == 0, checks=checks, errors=errors)
 

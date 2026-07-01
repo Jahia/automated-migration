@@ -395,8 +395,6 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
                     log.warning(f"Step {step.id}: no assistant text found in messages")
             except Exception as e:
                 log.warning(f"Step {step.id}: recovery failed: {e}")
-            except Exception as e:
-                log.warning(f"Step {step.id}: recovery failed: {e}")
 
         if result_text is None:
             step.status = StepStatus.failed
@@ -570,11 +568,23 @@ async def _wait_for_step_completion(
     boundary, so without it a short preamble turn (or a pause while subagents run)
     would be harvested as the final result. Whichever signal fires first wins, so a
     dead event feed no longer forces the full timeout. Streams text deltas to the
-    UI best-effort and auto-approves permission prompts; the 600s deadline is a
-    hard backstop, not the common case."""
+    UI best-effort and auto-approves permission prompts; the deadline is a hard
+    backstop, not the common case. It is configurable because real steps vary by
+    orders of magnitude: a content slice iterating toward pixel parity
+    (build + deploy + probe per cycle) legitimately needs 30-45 min, while a
+    connectivity check needs 2. Order of precedence: step.inputs._deadline_s
+    (plan-level knob, underscore = engine-only, hidden from the prompt) >
+    ORCH_STEP_DEADLINE_S env > 1800s default. On deadline the harvest is
+    mid-work: step.timed_out is set so the retry prompt tells the agent the
+    session was cut (work is idempotent — it resumes, not restarts)."""
+    import os
     last_text = ""
     poll_every = 3.0
-    deadline = 600.0
+    try:
+        deadline = float(step.inputs.get("_deadline_s") or os.environ.get("ORCH_STEP_DEADLINE_S") or 1800.0)
+    except (TypeError, ValueError):
+        deadline = 1800.0
+    step.timed_out = False
     elapsed = 0.0
     QUIESCE_POLLS = 7  # ~21s of no change after a completed turn => genuinely idle
     last_fp: tuple | None = None
@@ -637,6 +647,8 @@ async def _wait_for_step_completion(
             last_fp = fp
 
         if elapsed >= deadline:
+            step.timed_out = True
+            log.warning(f"Step {step.id}: session deadline {deadline:.0f}s reached — harvesting mid-work text")
             return last_text or None
 
 

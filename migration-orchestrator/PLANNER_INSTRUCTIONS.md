@@ -52,6 +52,16 @@ RÈGLES DE DÉCOMPOSITION (granularité des stories — obligatoire):
     depuis les artefacts du projet (sitemap, component-manifest, config mainResource)
     en appliquant les règles 10-14. Agnostique au CMS source: rien de spécifique au
     projet n'est codé en dur.
+16. **Les PROBEs sont exécutées par le MOTEUR à chaque tentative, pour TOUTES les
+    steps** (LLM comme script), quoi que l'agent déclare dans `commands_requested`.
+    Une PROBE est donc le contrat de sortie infalsifiable de la step: mets-y la
+    mesure contre l'artefact réel, jamais un proxy.
+17. **Budget temps par step**: `inputs._deadline_s` (les clés préfixées `_` sont
+    réservées au moteur, invisibles dans le prompt). Défaut: 1800s, ou l'env
+    `ORCH_STEP_DEADLINE_S`. Dimensionne-le au travail réel (une step de contenu qui
+    itère vers la parité pixel a besoin de 30-45 min: build + deploy + probe par
+    itération). Si la deadline coupe la session, la tentative suivante est informée
+    et REPREND (travail idempotent), elle ne recommence pas.
 
 ## Endpoints
 

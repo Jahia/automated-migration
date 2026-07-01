@@ -121,8 +121,12 @@ def get_epic_by_id(run: RunState, epic_id: str) -> EpicState | None:
 
 
 def select_next_ready_step(story: StoryState) -> StepState | None:
+    # "ready" MUST be selectable alongside "pending": the retry path, the
+    # exhausted-attempts escalation, and human-answer resume all re-queue a
+    # step by setting StepStatus.ready. Restricting to pending makes every
+    # retry a silent dead-end (story fails on first verification failure).
     for step in story.steps:
-        if step.status != StepStatus.pending:
+        if step.status not in (StepStatus.pending, StepStatus.ready):
             continue
         if all_step_deps_done(story, step):
             return step

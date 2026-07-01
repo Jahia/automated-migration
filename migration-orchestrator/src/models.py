@@ -181,6 +181,9 @@ class StepState(BaseModel):
     completed_at: float | None = None
     duration_ms: float | None = None
     prompt_text: str | None = None
+    # True when the LAST attempt's opencode session hit the wall-clock deadline
+    # and was harvested mid-work; surfaced in the next attempt's retry feedback.
+    timed_out: bool = False
 
 
 class StoryState(BaseModel):

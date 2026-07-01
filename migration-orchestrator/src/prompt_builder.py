@@ -190,12 +190,19 @@ def _format_retry_feedback(step: StepState) -> str:
         return human
     lines = [human] if human else []
     lines += [f"\nÉCHEC DE LA TENTATIVE PRÉCÉDENTE (tentative {step.attempt}/{step.max_attempts}):"]
+    if step.timed_out:
+        lines.append(
+            "⏱ La session précédente a été COUPÉE par la deadline de temps — le travail a été "
+            "interrompu en cours de route, pas rejeté. Tout ce qui a été créé/déployé est conservé "
+            "(le travail est idempotent). NE recommence PAS de zéro: vérifie l'état actuel avec les "
+            "PROBEs, puis reprends UNIQUEMENT ce qui manque. Va à l'essentiel."
+        )
     if step.agent_result and step.agent_result.summary:
         lines.append(f"Résumé précédent: {step.agent_result.summary[:300]}")
     lines.append("Erreurs de vérification (à corriger — ne refais PAS la même chose):")
-    budget = 2000
+    budget = 3000
     for err in step.verification.errors[:6]:
-        chunk = str(err)[:600]
+        chunk = str(err)[:900]
         lines.append(f"  ✗ {chunk}")
         budget -= len(chunk)
         if budget <= 0:
