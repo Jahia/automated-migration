@@ -30,7 +30,7 @@ else IFS=',' read -r -a pages <<< "$pages_arg"; fi
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 { printf '['; first=1; for p in "${pages[@]}"; do
     pp="${p#/}"; pp="${pp%.html}"
-    case "$pp" in sites/*) url="$JAHIA_HOST/$pp.html";; *) url="$JAHIA_HOST/sites/$site/$pp.html";; esac
+    case "$pp" in sites/*) url="$JAHIA_HOST/$pp.html";; home) url="$JAHIA_HOST/sites/$site/home.html";; *) url="$JAHIA_HOST/sites/$site/home/$pp.html";; esac
     [ $first -eq 1 ] && first=0 || printf ','; printf '"%s"' "$url"
   done; printf ']'; } > "$work/pages.json"
 
