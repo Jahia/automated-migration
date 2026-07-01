@@ -13,6 +13,15 @@ allowed-tools: Bash, Read, WebFetch
 
 Creates content nodes in a running Jahia instance using the **Jahia MCP server**, then publishes them.
 
+> **Generated plans use the FOCUSED sub-skills instead of this encyclopedia** — one
+> small skill per contained story, so each step reads only what it needs:
+> - `.agents/skills/09a-populate-page/SKILL.md` — populate one slice of pages (<=3)
+> - `.agents/skills/09b-populate-shell/SKILL.md` — populate nav/footer/topBar shell regions
+> Deterministic content work (mainResource loading, startNode wiring, media import) is
+> `task_type: "script"` in generated plans — no skill, no LLM session at all.
+> This file remains the full reference (all MCP tools, link rewriting, translation,
+> gotchas) for ad-hoc content work and for anything the sub-skills do not cover.
+
 ---
 
 ## Agent identity

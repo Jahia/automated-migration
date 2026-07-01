@@ -17,7 +17,9 @@ This harness migrates existing websites to Jahia JavaScript modules. Skills are 
 | 6 | `06-implement-jcr-query/` | (part of step 5) | JCRQuery listing component |
 | 7 | `07-implement-components/` | `/5-components` | All components via parallel subagents |
 | 8 | `08-page-templates/` | `/4-templates` | Layout.tsx + AbsoluteArea + page variants |
-| 9 | `09-create-content/` | `/6-content` | Create pages and content via Jahia MCP (GraphQL fallback) |
+| 9 | `09-create-content/` | `/6-content` | Create pages and content via Jahia MCP (GraphQL fallback) — full reference |
+| 9a | `09a-populate-page/` | — | FOCUSED: populate one slice of pages (<=3) — generated per-slice stories |
+| 9b | `09b-populate-shell/` | — | FOCUSED: populate nav/footer/topBar shell regions — generated shell story |
 | 10 | `10-review/` | `/jahia-review` | CTO-level code review |
 | 11 | `11-debug/` | `/jahia-debug` | Debug build/deploy/runtime errors |
 | 12 | `12-visual-diff/` | `/12-visual-diff` | Screenshot every page pair (reference vs Jahia), produce ISO punch list |
