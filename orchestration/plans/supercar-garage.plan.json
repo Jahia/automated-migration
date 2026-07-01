@@ -63,9 +63,16 @@
                 "If the source is Sitecore SXA (.component / .component-content / field-* in the cached DOM), components are DECLARED in the markup — do NOT eyeball-discover them. Per .agents/skills/sitecore-sxa/SKILL.md, run the deterministic extractor (python3 orchestration/lib/sxa-extract.py projects/<p>/.reference/cache > projects/<p>/.reference/sxa-components.json) and account for EVERY extracted component in component-manifest.json: each Jahia type carries sxaSource:[...]; deliberately-skipped generics go in a top-level sxaIgnored:[...]. No silent drops.",
                 "PROBE: bash orchestration/probes/sxa-coverage.sh projects/supercar-garage",
                 "PROBE: bash orchestration/probes/analyze.sh projects/supercar-garage",
-                "Gate 1: present section map + field splits, return status halt."
+                "Gate 1: present section map + field splits, return status halt.",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_analyze"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/component-manifest.json",
+                "artifact_1": "projects/supercar-garage/workflow-output/content-data.json",
+                "artifact_2": "projects/supercar-garage/workflow-output/asset-inventory.json",
+                "artifact_3": "projects/supercar-garage/workflow-output/analysis.md"
+              }
             }
           ]
         }
@@ -108,13 +115,20 @@
                 "moduleName": "supercar-garage",
                 "namespace": "usg",
                 "mixNamespace": "usgmix",
-                "skill": ".agents/skills/02-scaffold-module/SKILL.md"
+                "skill": ".agents/skills/02-scaffold-module/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/build.sh projects/supercar-garage",
-                "Gate 2: present structure + namespace, return status halt."
+                "Gate 2: present structure + namespace, return status halt.",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_scaffold"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/package.json"
+              }
             }
           ]
         },
@@ -137,13 +151,20 @@
               "inputs": {
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
-                "skill": ".agents/skills/03-import-assets/SKILL.md"
+                "skill": ".agents/skills/03-import-assets/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/asset-inventory.json"
+                ]
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/assets.sh projects/supercar-garage",
-                "PROBE: bash orchestration/probes/css-tokens.sh projects/supercar-garage"
+                "PROBE: bash orchestration/probes/css-tokens.sh projects/supercar-garage",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_assets"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/static/css/theme-tokens.css"
+              }
             }
           ]
         }
@@ -183,7 +204,10 @@
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
                 "namespace": "usg",
-                "skill": ".agents/skills/04-define-content-types/SKILL.md"
+                "skill": ".agents/skills/04-define-content-types/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "Use /jahia-cnd-author (loads the CND reference docs) for non-trivial modeling; weakreferences need a TYPE constraint (e.g. `< jmix:image`), not just a picker.",
@@ -191,9 +215,14 @@
                 "PROBE: bash orchestration/probes/cnd-patterns.sh projects/supercar-garage usg",
                 "PROBE: bash orchestration/probes/cnd-review.sh projects/supercar-garage",
                 "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/supercar-garage usg",
-                "After types approval, write the per-project reuse baseline: PROBE: bash orchestration/probes/inventory.sh projects/supercar-garage usg --write projects/supercar-garage/component-baseline.txt"
+                "After types approval, write the per-project reuse baseline: PROBE: bash orchestration/probes/inventory.sh projects/supercar-garage usg --write projects/supercar-garage/component-baseline.txt",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_content_types"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/settings/definitions.cnd",
+                "artifact_1": "projects/supercar-garage/component-baseline.txt"
+              }
             }
           ]
         },
@@ -217,11 +246,15 @@
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
                 "sitemap": "orchestration/sitemaps/supercar-garage.txt",
-                "skill": ".agents/skills/05-implement-navigation/SKILL.md"
+                "skill": ".agents/skills/05-implement-navigation/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "Navigation must render 3 levels deep from the JCR page tree (getChildNodes on home for L1, recurse for L2 and L3), matching orchestration/sitemaps/supercar-garage.txt. No hardcoded links. L2/L3 render as dropdown/fly-out.",
-                "PROBE: bash orchestration/probes/component.sh projects/supercar-garage Navigation"
+                "PROBE: bash orchestration/probes/component.sh projects/supercar-garage Navigation",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_navigation"
               ],
               "max_attempts": 3
             }
@@ -246,10 +279,14 @@
               "inputs": {
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
-                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md"
+                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/component.sh projects/supercar-garage JCRQuery"
+                "PROBE: bash orchestration/probes/component.sh projects/supercar-garage JCRQuery",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_jcr_query"
               ],
               "max_attempts": 3
             },
@@ -264,10 +301,14 @@
               "inputs": {
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
-                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md"
+                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/component.sh projects/supercar-garage GridRow"
+                "PROBE: bash orchestration/probes/component.sh projects/supercar-garage GridRow",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_grid_row"
               ],
               "max_attempts": 3
             }
@@ -310,11 +351,15 @@
               "inputs": {
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
-                "skill": ".agents/skills/07-implement-components/SKILL.md"
+                "skill": ".agents/skills/07-implement-components/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "Implement components ONE at a time — never batch-stub them all then build at the end. The build-time gate here is components-all.sh: it validates source-pairing + no-stub + en/fr i18n for EVERY component and builds once. NOTE: component-validate.sh additionally DEPLOYS and RENDERS a non-home page, so it only passes AFTER content/pages exist — it is a POST-CONTENT per-component debugging gate (used while iterating on a single deployed component), NOT run at this step.",
-                "Per-component completeness gate over EVERY component (loops each, FAILS naming any stubbed / unlabelled / viewless component, builds the module once): PROBE: bash orchestration/probes/components-all.sh projects/supercar-garage usg"
+                "Per-component completeness gate over EVERY component (loops each, FAILS naming any stubbed / unlabelled / viewless component, builds the module once): PROBE: bash orchestration/probes/components-all.sh projects/supercar-garage usg",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_components"
               ],
               "max_attempts": 3
             }
@@ -339,11 +384,15 @@
               "inputs": {
                 "project": "supercar-garage",
                 "project_path": "projects/supercar-garage",
-                "skill": ".agents/skills/08-page-templates/SKILL.md"
+                "skill": ".agents/skills/08-page-templates/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/templates.sh projects/supercar-garage",
-                "2-3 page templates by ROLE (home/section/detail); restrict each Area with allowedNodeTypes (.agents/skills/08-page-templates): PROBE: bash orchestration/probes/template-govern.sh projects/supercar-garage"
+                "2-3 page templates by ROLE (home/section/detail); restrict each Area with allowedNodeTypes (.agents/skills/08-page-templates): PROBE: bash orchestration/probes/template-govern.sh projects/supercar-garage",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_templates"
               ],
               "max_attempts": 3
             },
@@ -409,7 +458,13 @@
                 "sitemap": "orchestration/sitemaps/supercar-garage.txt",
                 "pages": "@orchestration/sitemaps/supercar-garage.txt",
                 "transport": "jahia-mcp",
-                "skill": ".agents/skills/09-create-content/SKILL.md"
+                "skill": ".agents/skills/09-create-content/SKILL.md",
+                "consumes": [
+                  "projects/supercar-garage/workflow-output/component-manifest.json",
+                  "orchestration/content/supercar-garage.content-data.json",
+                  "orchestration/images/supercar-garage.imported.json",
+                  "projects/supercar-garage/component-baseline.txt"
+                ]
               },
               "acceptance_criteria": [
                 "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.",
@@ -423,7 +478,8 @@
                 "Editability: shared regions (nav/footer/topbar) must render AND be editable in Page Builder, not blank (AbsoluteAreas need child content nodes): PROBE: bash orchestration/probes/edit-frame.sh projects/supercar-garage supercar-garage fr home",
                 "Quality: every page passes a11y (axe-core, no critical/serious) + SEO baseline (title, meta, single h1, img alt): PROBE: bash orchestration/probes/site-review.sh projects/supercar-garage supercar-garage fr @orchestration/sitemaps/supercar-garage.txt",
                 "Reuse guard: content/page discovery must NOT add types beyond the approved per-project baseline: PROBE: bash orchestration/probes/no-new-types.sh projects/supercar-garage usg projects/supercar-garage/component-baseline.txt",
-                "Gate 4: present reference vs Jahia screenshots, return status halt."
+                "Gate 4: present reference vs Jahia screenshots, return status halt.",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_content"
               ],
               "max_attempts": 3
             }
@@ -450,7 +506,10 @@
                 "project_path": "projects/supercar-garage",
                 "report": "projects/supercar-garage/workflow-output/review/REVIEW.md",
                 "skill": ".agents/skills/10-review/SKILL.md",
-                "agentDef": ".claude/agents/jahia-reviewer.md"
+                "agentDef": ".claude/agents/jahia-reviewer.md",
+                "consumes": [
+                  "projects/supercar-garage/component-baseline.txt"
+                ]
               },
               "acceptance_criteria": [
                 "Use the jahia-reviewer agent (.claude/agents/jahia-reviewer.md): run ALL gate probes (no-stub, cnd-review, render-all, publish-parity, edit-frame, site-review) and review faithful-DOM/editability/content-fidelity/i18n; write REVIEW.md with a verdict. APPROVE only if every gate is green and no critical/major finding stands.",
@@ -459,9 +518,13 @@
                 "PROBE: bash orchestration/probes/cnd-review.sh projects/supercar-garage",
                 "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/supercar-garage usg",
                 "Reuse guard against the FROZEN baseline (do NOT re-write it here — it was frozen at step_content_types): PROBE: bash orchestration/probes/no-new-types.sh projects/supercar-garage usg projects/supercar-garage/component-baseline.txt",
-                "Gate 5: present findings, return status halt."
+                "Gate 5: present findings, return status halt.",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_review"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/review/REVIEW.md"
+              }
             },
             {
               "id": "step_accessibility",
@@ -478,9 +541,13 @@
                 "skill": ".agents/skills/dev/jahia-dev-accessibility/SKILL.md"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/artifact.sh projects/supercar-garage/workflow-output/a11y/A11Y.md \"critical|serious\""
+                "PROBE: bash orchestration/probes/artifact.sh projects/supercar-garage/workflow-output/a11y/A11Y.md \"critical|serious\"",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_accessibility"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/a11y/A11Y.md"
+              }
             }
           ]
         }
@@ -524,9 +591,13 @@
               },
               "acceptance_criteria": [
                 "Structural fidelity is a HARD gate, JS-rendered both sides: every page with a captured reference DOM must match it on sections + listing/card counts + facet values (capture-reference must have run): PROBE: bash orchestration/probes/fidelity-all.sh projects/supercar-garage supercar-garage fr @orchestration/sitemaps/supercar-garage.txt",
-                "PROBE: bash orchestration/probes/artifact.sh projects/supercar-garage/workflow-output/visual-diff/SUMMARY.md \"critical\""
+                "PROBE: bash orchestration/probes/artifact.sh projects/supercar-garage/workflow-output/visual-diff/SUMMARY.md \"critical\"",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_visual_diff"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/visual-diff/SUMMARY.md"
+              }
             }
           ]
         },
@@ -554,9 +625,13 @@
                 "skill": ".agents/skills/13-vanity-urls/SKILL.md"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/artifact.sh projects/supercar-garage/workflow-output/vanity/redirects.map"
+                "PROBE: bash orchestration/probes/artifact.sh projects/supercar-garage/workflow-output/vanity/redirects.map",
+                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_vanity"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/vanity/redirects.map"
+              }
             }
           ]
         }

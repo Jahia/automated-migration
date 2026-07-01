@@ -63,9 +63,16 @@
                 "If the source is Sitecore SXA (.component / .component-content / field-* in the cached DOM), components are DECLARED in the markup — do NOT eyeball-discover them. Per .agents/skills/sitecore-sxa/SKILL.md, run the deterministic extractor (python3 orchestration/lib/sxa-extract.py projects/<p>/.reference/cache > projects/<p>/.reference/sxa-components.json) and account for EVERY extracted component in component-manifest.json: each Jahia type carries sxaSource:[...]; deliberately-skipped generics go in a top-level sxaIgnored:[...]. No silent drops.",
                 "PROBE: bash orchestration/probes/sxa-coverage.sh projects/lesalondelaphoto",
                 "PROBE: bash orchestration/probes/analyze.sh projects/lesalondelaphoto",
-                "Gate 1: present section map + field splits, return status halt."
+                "Gate 1: present section map + field splits, return status halt.",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_analyze"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/workflow-output/component-manifest.json",
+                "artifact_1": "projects/lesalondelaphoto/workflow-output/content-data.json",
+                "artifact_2": "projects/lesalondelaphoto/workflow-output/asset-inventory.json",
+                "artifact_3": "projects/lesalondelaphoto/workflow-output/analysis.md"
+              }
             },
             {
               "id": "step_extract",
@@ -81,12 +88,16 @@
                 "site": "lesalondelaphoto",
                 "namespace": "lsp",
                 "mixNamespace": "lspmix",
-                "skill": ".agents/skills/source-extract/SKILL.md"
+                "skill": ".agents/skills/source-extract/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/content-data.json"
+                ]
               },
               "acceptance_criteria": [
                 "Migration is ETL: the captured DOM is the source of truth. Run the DETERMINISTIC extractors (source_detect + extract_media + extract_content) — do NOT hand-author or improvise the manifests; they must come from the real captured source.",
                 "Media manifest (orchestration/images/<project>.json) must cover every captured page incl. home; content-data (orchestration/content/<project>.content-data.json) must hold the REAL per-page text/instances, not placeholders.",
-                "PROBE: bash orchestration/probes/extract.sh projects/lesalondelaphoto lesalondelaphoto"
+                "PROBE: bash orchestration/probes/extract.sh projects/lesalondelaphoto lesalondelaphoto",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_extract"
               ],
               "status": "pending",
               "attempt": 0,
@@ -100,7 +111,11 @@
               "tokens_out": 0,
               "tokens_cache": 0,
               "cost": 0.0,
-              "trace": []
+              "trace": [],
+              "expected_outputs": {
+                "artifact_0": "orchestration/images/lesalondelaphoto.json",
+                "artifact_1": "orchestration/content/lesalondelaphoto.content-data.json"
+              }
             }
           ]
         }
@@ -143,13 +158,20 @@
                 "moduleName": "lesalondelaphoto",
                 "namespace": "lsp",
                 "mixNamespace": "lspmix",
-                "skill": ".agents/skills/02-scaffold-module/SKILL.md"
+                "skill": ".agents/skills/02-scaffold-module/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/build.sh projects/lesalondelaphoto",
-                "Gate 2: present structure + namespace, return status halt."
+                "Gate 2: present structure + namespace, return status halt.",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_scaffold"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/package.json"
+              }
             }
           ]
         },
@@ -172,13 +194,20 @@
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
-                "skill": ".agents/skills/03-import-assets/SKILL.md"
+                "skill": ".agents/skills/03-import-assets/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/asset-inventory.json"
+                ]
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/assets.sh projects/lesalondelaphoto",
-                "CSS is tokenized into :root theme vars + a site-theme mixin + Layout override wiring (re-theming needs no redeploy): PROBE: bash orchestration/probes/css-tokens.sh projects/lesalondelaphoto"
+                "CSS is tokenized into :root theme vars + a site-theme mixin + Layout override wiring (re-theming needs no redeploy): PROBE: bash orchestration/probes/css-tokens.sh projects/lesalondelaphoto",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_assets"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/static/css/theme-tokens.css"
+              }
             }
           ]
         }
@@ -218,7 +247,10 @@
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
                 "namespace": "lsp",
-                "skill": ".agents/skills/04-define-content-types/SKILL.md"
+                "skill": ".agents/skills/04-define-content-types/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "Use /jahia-cnd-author (loads the CND reference docs) for non-trivial modeling; weakreferences need a TYPE constraint (e.g. `< jmix:image`), not just a picker.",
@@ -226,9 +258,14 @@
                 "PROBE: bash orchestration/probes/cnd-patterns.sh projects/lesalondelaphoto lsp",
                 "PROBE: bash orchestration/probes/cnd-review.sh projects/lesalondelaphoto",
                 "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/lesalondelaphoto lsp",
-                "After Gate 1/types approval, write the per-project reuse baseline: PROBE: bash orchestration/probes/inventory.sh projects/lesalondelaphoto lsp --write projects/lesalondelaphoto/component-baseline.txt"
+                "After Gate 1/types approval, write the per-project reuse baseline: PROBE: bash orchestration/probes/inventory.sh projects/lesalondelaphoto lsp --write projects/lesalondelaphoto/component-baseline.txt",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content_types"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/settings/definitions.cnd",
+                "artifact_1": "projects/lesalondelaphoto/component-baseline.txt"
+              }
             }
           ]
         },
@@ -251,10 +288,14 @@
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
-                "skill": ".agents/skills/05-implement-navigation/SKILL.md"
+                "skill": ".agents/skills/05-implement-navigation/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto Navigation"
+                "PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto Navigation",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_navigation"
               ],
               "max_attempts": 3
             }
@@ -279,10 +320,14 @@
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
-                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md"
+                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto JCRQuery"
+                "PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto JCRQuery",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_jcr_query"
               ],
               "max_attempts": 3
             },
@@ -297,10 +342,14 @@
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
-                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md"
+                "skill": ".agents/skills/06-implement-jcr-query/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto GridRow"
+                "PROBE: bash orchestration/probes/component.sh projects/lesalondelaphoto GridRow",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_grid_row"
               ],
               "max_attempts": 3
             }
@@ -343,12 +392,16 @@
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
-                "skill": ".agents/skills/07-implement-components/SKILL.md"
+                "skill": ".agents/skills/07-implement-components/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "Implement components ONE at a time — never batch-stub them all then build at the end. The build-time gate here is components-all.sh: it validates source-pairing + no-stub + en/fr i18n for EVERY component and builds once. NOTE: component-validate.sh additionally DEPLOYS and RENDERS a non-home page, so it only passes AFTER content/pages exist — it is a POST-CONTENT per-component debugging gate (used while iterating on a single deployed component), NOT run at this step.",
                 "Per-component completeness gate over EVERY component (loops each, FAILS naming any stubbed / unlabelled / viewless component, builds the module once): PROBE: bash orchestration/probes/components-all.sh projects/lesalondelaphoto lsp",
-                "PROBE: bash orchestration/probes/css-hooks.sh projects/lesalondelaphoto lsp"
+                "PROBE: bash orchestration/probes/css-hooks.sh projects/lesalondelaphoto lsp",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_components"
               ],
               "max_attempts": 3
             }
@@ -373,11 +426,15 @@
               "inputs": {
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
-                "skill": ".agents/skills/08-page-templates/SKILL.md"
+                "skill": ".agents/skills/08-page-templates/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json"
+                ]
               },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/templates.sh projects/lesalondelaphoto",
-                "2-3 page templates by ROLE (home/section/detail); restrict each Area with allowedNodeTypes (.agents/skills/08-page-templates): PROBE: bash orchestration/probes/template-govern.sh projects/lesalondelaphoto"
+                "2-3 page templates by ROLE (home/section/detail); restrict each Area with allowedNodeTypes (.agents/skills/08-page-templates): PROBE: bash orchestration/probes/template-govern.sh projects/lesalondelaphoto",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_templates"
               ],
               "max_attempts": 3
             },
@@ -440,11 +497,15 @@
                 "project": "lesalondelaphoto",
                 "project_path": "projects/lesalondelaphoto",
                 "site": "lesalondelaphoto",
-                "skill": ".agents/skills/source-extract/SKILL.md"
+                "skill": ".agents/skills/source-extract/SKILL.md",
+                "consumes": [
+                  "orchestration/images/lesalondelaphoto.json"
+                ]
               },
               "acceptance_criteria": [
                 "Import EVERY image from the deterministic manifest (orchestration/images/<project>.json) into the DAM via orchestration/images/import.py — do not skip media. This is the 0-of-40-images fix.",
-                "PROBE: bash orchestration/probes/media.sh projects/lesalondelaphoto lesalondelaphoto"
+                "PROBE: bash orchestration/probes/media.sh projects/lesalondelaphoto lesalondelaphoto",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_media"
               ],
               "status": "pending",
               "attempt": 0,
@@ -458,7 +519,10 @@
               "tokens_out": 0,
               "tokens_cache": 0,
               "cost": 0.0,
-              "trace": []
+              "trace": [],
+              "expected_outputs": {
+                "artifact_0": "orchestration/images/lesalondelaphoto.imported.json"
+              }
             },
             {
               "id": "step_content",
@@ -476,11 +540,17 @@
                 "language": "fr",
                 "pages": "@orchestration/sitemaps/lesalondelaphoto.txt",
                 "transport": "jahia-mcp",
-                "skill": ".agents/skills/09-create-content/SKILL.md"
+                "skill": ".agents/skills/09-create-content/SKILL.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/workflow-output/component-manifest.json",
+                  "orchestration/content/lesalondelaphoto.content-data.json",
+                  "orchestration/images/lesalondelaphoto.imported.json",
+                  "projects/lesalondelaphoto/component-baseline.txt"
+                ]
               },
               "acceptance_criteria": [
                 "LOAD content from orchestration/content/<project>.content-data.json and wire imported media from orchestration/images/<project>.imported.json — do NOT improvise text or invent placeholder content (the captured source is the source of truth).",
-                "Run the DETERMINISTIC MCP loader to create content from the extracted source: python3 orchestration/lib/load_content.py lesalondelaphoto lesalondelaphoto  — it creates each node via MCP content.create with real field values AND wires the imported image weakref at create time (lib/mcp_client.py), then publishes. Do NOT hand-write GraphQL or improvise content.",
+                "Run the DETERMINISTIC MCP loader to create content from the extracted source: python3 orchestration/lib/load_content.py lesalondelaphoto lesalondelaphoto --clean  — it creates each node via MCP content.create with real field values AND wires the imported image weakref at create time (lib/mcp_client.py), then publishes. Do NOT hand-write GraphQL or improvise content.",
                 "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.",
                 "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Import via MCP media.upload.url (consistent UUID), set the WEAKREFERENCE field (image/backgroundImage/logo/photo), clear any *ExternalUrl string. Canonical tools: orchestration/images/set_hero_refs.py and set_image_refs.py lesalondelaphoto lesalondelaphoto lsp. Capture source URLs via browser (site blocks the agent).",
                 "PROBE: bash orchestration/probes/mcp.sh projects/lesalondelaphoto",
@@ -492,7 +562,8 @@
                 "Quality: every page passes a11y (axe-core, no critical/serious) + SEO baseline (title, meta, single h1, img alt): PROBE: bash orchestration/probes/site-review.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
                 "Reuse guard: content/page discovery must NOT add types beyond the approved per-project baseline (reuse a type or add a view instead): PROBE: bash orchestration/probes/no-new-types.sh projects/lesalondelaphoto lsp projects/lesalondelaphoto/component-baseline.txt",
                 "Gate 4: present reference vs Jahia screenshots, return status halt.",
-                "PROBE: bash orchestration/probes/no-graphql-writes.sh projects/lesalondelaphoto"
+                "PROBE: bash orchestration/probes/no-graphql-writes.sh projects/lesalondelaphoto",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_content"
               ],
               "max_attempts": 3
             }
@@ -519,7 +590,10 @@
                 "project_path": "projects/lesalondelaphoto",
                 "report": "projects/lesalondelaphoto/workflow-output/review/REVIEW.md",
                 "skill": ".agents/skills/10-review/SKILL.md",
-                "agentDef": ".claude/agents/jahia-reviewer.md"
+                "agentDef": ".claude/agents/jahia-reviewer.md",
+                "consumes": [
+                  "projects/lesalondelaphoto/component-baseline.txt"
+                ]
               },
               "acceptance_criteria": [
                 "Use the jahia-reviewer agent (.claude/agents/jahia-reviewer.md): run ALL gate probes (no-stub, cnd-review, render-all, publish-parity, edit-frame, site-review) and review faithful-DOM/editability/content-fidelity/i18n; write REVIEW.md with a verdict. APPROVE only if every gate is green and no critical/major finding stands.",
@@ -529,9 +603,13 @@
                 "Reuse/views: no two types may share a property shape (consolidate into one type + views): PROBE: bash orchestration/probes/dup-shapes.sh projects/lesalondelaphoto lsp",
                 "Reuse guard against the FROZEN baseline (do NOT re-write it here — it was frozen at step_content_types): PROBE: bash orchestration/probes/no-new-types.sh projects/lesalondelaphoto lsp projects/lesalondelaphoto/component-baseline.txt",
                 "Gate 5: present findings, return status halt.",
-                "PROBE: bash orchestration/probes/css-hooks.sh projects/lesalondelaphoto lsp"
+                "PROBE: bash orchestration/probes/css-hooks.sh projects/lesalondelaphoto lsp",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_review"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/workflow-output/review/REVIEW.md"
+              }
             },
             {
               "id": "step_accessibility",
@@ -548,9 +626,13 @@
                 "skill": ".agents/skills/dev/jahia-dev-accessibility/SKILL.md"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/a11y/A11Y.md \"critical|serious\""
+                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/a11y/A11Y.md \"critical|serious\"",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_accessibility"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/workflow-output/a11y/A11Y.md"
+              }
             }
           ]
         }
@@ -594,9 +676,13 @@
               },
               "acceptance_criteria": [
                 "Structural fidelity is a HARD gate, JS-rendered both sides: every page that has a captured reference DOM must match it on sections + listing/card counts + facet values (capture-reference must have run): PROBE: bash orchestration/probes/fidelity-all.sh projects/lesalondelaphoto lesalondelaphoto fr @orchestration/sitemaps/lesalondelaphoto.txt",
-                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md \"critical\""
+                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md \"critical\"",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_visual_diff"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/workflow-output/visual-diff/SUMMARY.md"
+              }
             }
           ]
         },
@@ -623,9 +709,13 @@
                 "skill": ".agents/skills/13-vanity-urls/SKILL.md"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/vanity/redirects.map"
+                "PROBE: bash orchestration/probes/artifact.sh projects/lesalondelaphoto/workflow-output/vanity/redirects.map",
+                "PROBE: bash orchestration/probes/contract.sh projects/lesalondelaphoto step_vanity"
               ],
-              "max_attempts": 3
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/lesalondelaphoto/workflow-output/vanity/redirects.map"
+              }
             }
           ]
         }

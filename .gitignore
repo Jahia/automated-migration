@@ -19,3 +19,5 @@ orchestration/artifacts/
 projects/**/.reference/cache/
 projects/**/.reference/captured/
 projects/**/.yarn/
+__pycache__/
+*.pyc
