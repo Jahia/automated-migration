@@ -1,41 +1,40 @@
 #!/usr/bin/env python3
-"""extract-blocks.py — Deterministic, CMS-agnostic semantic block extraction.
+"""extract-blocks.py — Deterministic, CMS-agnostic block extraction.
 
-Extracts SEMANTIC blocks with parent-child hierarchy from crawled HTML.
-Handles nested components (containers with child slots).
+Extracts ALL structural blocks from crawled HTML with rich context for the LLM.
+NO semantic decisions — pure data extraction. The LLM decides what's a component,
+what's a template, what's cross-cutting.
 
 Usage:
   python3 orchestration/lib/extract-blocks.py <project>
-
-Detection strategies (agnostic):
-  1. CMS-declared: "component" in class (Sitecore SXA, Drupal blocks, WP widgets)
-  2. Structural: <header>, <footer>, <nav>, <main>, <section>, <article>
-  3. Semantic classes: hero, banner, carousel, grid, listing, faq, etc.
-  4. Content aggregation: 3+ images or 5+ links (lists, carousels)
 
 Output:
   <project>/workflow-output/html-blocks.json
 """
 import json
 import os
+import re
 import sys
 import time
 from html.parser import HTMLParser
 
 
-class ComponentExtractor(HTMLParser):
-    """Extract CMS-level components with parent-child hierarchy."""
+class BlockExtractor(HTMLParser):
+    """Extract all structural blocks from HTML with rich context."""
 
-    STRUCTURAL_TAGS = {'header', 'footer', 'nav', 'main', 'section', 'article', 'aside', 'form'}
+    # Tags that represent structural blocks
+    BLOCK_TAGS = {
+        'div', 'section', 'article', 'aside', 'nav', 'header', 'footer',
+        'main', 'form', 'table', 'ul', 'ol', 'figure', 'details', 'dialog',
+        'fieldset', 'blockquote', 'dl',
+    }
 
     def __init__(self):
         super().__init__()
         self.blocks = []
-        self.tag_stack = []  # stack of active component dicts
+        self.tag_stack = []  # (tag, classes, depth, block_id)
         self.depth = 0
         self.block_counter = 0
-
-        # Content tracking
         self._current_heading = None
 
         # Global structure
@@ -48,7 +47,6 @@ class ComponentExtractor(HTMLParser):
         self.depth += 1
         attrs_d = dict(attrs)
         classes = attrs_d.get('class', '').split()
-        class_str = attrs_d.get('class', '')
 
         if tag == 'header':
             self.has_header = True
@@ -59,72 +57,57 @@ class ComponentExtractor(HTMLParser):
         elif tag == 'main':
             self.has_main = True
 
-        # Check if this is a component we should track
-        is_component = False
-        component_reason = None
-
-        if 'component' in classes:
-            is_component = True
-            component_reason = 'cms-component'
-        elif tag in self.STRUCTURAL_TAGS:
-            is_component = True
-            component_reason = 'structural-region'
-        elif tag in ('section', 'article') or (tag == 'div' and any(
-            k in class_str.lower() for k in [
-                'hero', 'banner', 'slider', 'carousel', 'gallery', 'grid',
-                'listing', 'cards', 'push', 'teaser', 'widget', 'block',
-                'module', 'feature', 'testimonial', 'faq', 'accordion', 'tabs',
-                'map', 'video', 'social', 'newsletter', 'search', 'breadcrumb',
-                'cta', 'call-to-action', 'pricing', 'team', 'portfolio',
-            ]
-        )):
-            is_component = True
-            component_reason = 'semantic-class'
-
-        if is_component:
+        if tag in self.BLOCK_TAGS:
             self.block_counter += 1
             block_id = f"block_{self.block_counter:03d}"
 
-            parent_id = self.tag_stack[-1]['id'] if self.tag_stack else None
+            parent_id = self.tag_stack[-1][3] if self.tag_stack else None
 
             block = {
                 'id': block_id,
                 'tag': tag,
                 'classes': classes,
                 'depth': self.depth,
-                'detectionReason': component_reason,
                 'parentId': parent_id,
                 'childIds': [],
                 'text_buf': [],
                 'images': [],
                 'links': [],
                 'headings': [],
+                'heading_tag': None,
             }
             self.blocks.append(block)
-            self.tag_stack.append(block)
+            self.tag_stack.append((tag, classes, self.depth, block_id))
 
         # Track content
         if tag == 'img':
             src = attrs_d.get('src', '') or attrs_d.get('data-src', '') or attrs_d.get('data-lazy-src', '')
             if src and not src.startswith('data:'):
-                for item in reversed(self.tag_stack):
-                    item['images'].append(src)
-                    break
+                for item in reversed(self.blocks):
+                    if item['id'] == self.tag_stack[-1][3] if self.tag_stack else False:
+                        item['images'].append(src)
+                        break
         elif tag == 'a':
             href = attrs_d.get('href', '')
             if href and not href.startswith('#') and not href.startswith('javascript:'):
-                for item in reversed(self.tag_stack):
-                    item['links'].append(href)
-                    break
+                for item in reversed(self.blocks):
+                    if item['id'] == self.tag_stack[-1][3] if self.tag_stack else False:
+                        item['links'].append(href)
+                        break
         elif tag in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6'):
             self._current_heading = tag
 
     def handle_endtag(self, tag):
-        if self.tag_stack and self.tag_stack[-1]['tag'] == tag and self.tag_stack[-1]['depth'] == self.depth:
-            item = self.tag_stack.pop()
+        if self.tag_stack and self.tag_stack[-1][0] == tag and self.tag_stack[-1][2] == self.depth:
+            popped = self.tag_stack.pop()
+            block_id = popped[3]
             # Add this block as child of parent
             if self.tag_stack:
-                self.tag_stack[-1]['childIds'].append(item['id'])
+                parent_id = self.tag_stack[-1][3]
+                for b in self.blocks:
+                    if b['id'] == parent_id:
+                        b['childIds'].append(block_id)
+                        break
 
         self.depth = max(0, self.depth - 1)
 
@@ -133,31 +116,107 @@ class ComponentExtractor(HTMLParser):
         if not text:
             return
 
-        for item in self.tag_stack:
-            item['text_buf'].append(text)
+        # Add text to current block
+        if self.tag_stack:
+            current_id = self.tag_stack[-1][3]
+            for b in self.blocks:
+                if b['id'] == current_id:
+                    b['text_buf'].append(text)
+                    break
 
+        # Track heading text
         if self._current_heading:
-            for item in self.tag_stack:
-                item['headings'].append(text[:200])
+            if self.tag_stack:
+                current_id = self.tag_stack[-1][3]
+                for b in self.blocks:
+                    if b['id'] == current_id:
+                        b['headings'].append(text[:200])
+                        b['heading_tag'] = self._current_heading
+                        break
             self._current_heading = None
 
     def get_result(self, page_slug, page_url):
-        # Clean up blocks: remove internal buffers, compute derived fields
+        # Build block map for sibling lookup
+        block_map = {b['id']: b for b in self.blocks}
+
+        # Filter: keep meaningful blocks, skip empty layout wrappers
+        # This is noise reduction, NOT semantic decision-making
+        LAYOUT_ONLY = {'container', 'container-fluid', 'row', 'col', 'd-flex', 'd-none', 'd-block',
+                       'd-grid', 'd-table', 'align-items-center', 'justify-content-center',
+                       'flex-row', 'flex-column', 'flex-wrap', 'overflow-hidden', 'position-relative'}
+
+        def is_meaningful(b):
+            """A block is meaningful if it has content or is a structural region."""
+            text = ' '.join(b['text_buf']).strip()
+            has_content = len(text) > 30 or b['images'] or b['headings']
+            # Structural regions are always meaningful
+            if b['tag'] in ('header', 'footer', 'nav', 'main', 'section', 'article'):
+                return True
+            # CMS components are always meaningful
+            if 'component' in ' '.join(b['classes']):
+                return True
+            # Blocks with content are meaningful
+            if has_content:
+                return True
+            # Skip empty layout wrappers
+            if b['classes'] and all(c.lower() in LAYOUT_ONLY or c.lower().startswith(('col-', 'd-', 'g-', 'm-', 'p-', 'text-', 'fw-', 'fs-')) for c in b['classes']):
+                return False
+            return False
+
         clean_blocks = []
         for b in self.blocks:
+            if not is_meaningful(b):
+                continue
+
             text = ' '.join(b['text_buf']).strip()
+
+            # Determine position in page
+            position = 'page'
+            current = b
+            while current['parentId']:
+                parent = block_map.get(current['parentId'])
+                if not parent:
+                    break
+                parent_tag = parent['tag']
+                if parent_tag == 'header':
+                    position = 'header'
+                    break
+                elif parent_tag == 'footer':
+                    position = 'footer'
+                    break
+                elif parent_tag == 'nav':
+                    position = 'nav'
+                    break
+                elif parent_tag == 'main':
+                    position = 'main'
+                    break
+                current = parent
+
+            # Get sibling types
+            sibling_types = []
+            if b['parentId']:
+                parent = block_map.get(b['parentId'])
+                if parent:
+                    for cid in parent['childIds']:
+                        if cid != b['id']:
+                            sibling = block_map.get(cid)
+                            if sibling:
+                                sibling_types.append('.'.join(sibling['classes'][:2]) if sibling['classes'] else sibling['tag'])
+
             clean_blocks.append({
                 'id': b['id'],
                 'tag': b['tag'],
                 'classes': b['classes'],
+                'classString': ' '.join(b['classes']),
                 'depth': b['depth'],
-                'detectionReason': b['detectionReason'],
+                'position': position,
                 'parentId': b['parentId'],
                 'childIds': b['childIds'],
                 'childCount': len(b['childIds']),
                 'isContainer': len(b['childIds']) > 0,
                 'textContent': text[:2000],
                 'textContentLength': len(text),
+                'textSample': text[:300],
                 'imageCount': len(b['images']),
                 'linkCount': len(b['links']),
                 'headingCount': len(b['headings']),
@@ -167,9 +226,9 @@ class ComponentExtractor(HTMLParser):
                 'imageUrls': b['images'][:10],
                 'linkUrls': b['links'][:20],
                 'headingTexts': b['headings'][:5],
+                'siblingTypes': sibling_types[:10],
             })
 
-        # Build hierarchy summary
         roots = [b for b in clean_blocks if b['parentId'] is None]
         containers = [b for b in clean_blocks if b['isContainer']]
 
@@ -196,7 +255,7 @@ def extract_blocks_from_page(html_path, page_slug, page_url):
     except Exception:
         return None
 
-    parser = ComponentExtractor()
+    parser = BlockExtractor()
     try:
         parser.feed(html)
     except Exception:
@@ -248,9 +307,9 @@ def main():
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
 
-    print(f"=== COMPONENT EXTRACTION ===")
+    print(f"=== BLOCK EXTRACTION ===")
     print(f"Pages: {len(all_pages)}")
-    print(f"Total components: {total_blocks}")
+    print(f"Total blocks: {total_blocks}")
     print()
     for page in all_pages:
         blocks = page["blocks"]
