@@ -65,119 +65,32 @@ projects. **Every run targets exactly one project**, given to you in the step
 
 ## 2a. Content management - Jahia MCP server first, GraphQL only as fallback
 
-**All content operations go through the Jahia MCP server, not GraphQL.** This is
-non-negotiable. Creating, updating, moving, querying, translating, and publishing
-nodes - use the MCP. Hand-crafted GraphQL mutations are a fallback you reach for
-only when the MCP genuinely cannot do the operation, or the MCP server is
-unavailable - and when you fall back, say so in your `summary`.
+**All content operations go through the Jahia MCP server** (`$JAHIA_HOST/modules/mcp`,
+JSON-RPC 2.0; auth = `Authorization: APIToken $JAHIA_MCP_TOKEN` sourced from the
+project `.env`). Hand-crafted GraphQL mutations only when the MCP genuinely cannot do
+the operation - and say so in your `summary`. Availability check:
+`bash orchestration/probes/mcp.sh <project_path>`.
 
-- The MCP server is at `$JAHIA_HOST/modules/mcp`. It exposes purpose-built tools
-  (e.g. `content.create`, `content.type`, `page.structure`, publish tools).
-- **Authentication:** the APIToken lives in `<project_path>/.env` as
-  `JAHIA_MCP_TOKEN` (gitignored). Source the project `.env` first, then send it
-  as an `Authorization: APIToken` header on every MCP call.
-- Call it via JSON-RPC 2.0 over HTTP POST (Bash + curl), as documented in
-  `.agents/skills/09-create-content/SKILL.md`:
-  ```bash
-  set -a; . "$project_path/.env"; set +a            # loads JAHIA_HOST + JAHIA_MCP_TOKEN
-  curl -s -X POST "$JAHIA_HOST/modules/mcp" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: APIToken $JAHIA_MCP_TOKEN" \
-    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
-         "params":{"name":"TOOL_NAME","arguments":{ ... }}}'
-  ```
-- Check availability at the start of any content step:
-  `bash orchestration/probes/mcp.sh <project_path>` (reads `JAHIA_MCP_TOKEN`
-  from `.env`, prints version + tool count).
-- For Claude Code sessions, the same server is registered in the repo-root
-  `.mcp.json` (also gitignored) so MCP tools appear natively.
-- **Images are content - import them into the DAM and reference them by
-  WEAKREFERENCE, never a URL string.** This is non-negotiable (learned on
-  sial-paris). Rules:
-  1. **Capture** image URLs with a real browser (Chrome MCP) - the reference site
-     blocks headless fetch (403), so the loop agent cannot discover them. Write a
-     per-page source manifest `orchestration/images/<project>.json`.
-  2. **Import** each image with the MCP tool **`media.upload.url`** (siteKey,
-     sourceUrl=HTTPS, folder=existing, fileName). This creates ONE DAM node with a
-     CONSISTENT UUID across default+live.
-     - **Distant / WAF'd images** (e.g. the reference site's `/-/media/...` CDN
-       that blocks the loop's headless fetch): use the **image-proxy** —
-       `POST $JAHIA_HOST/modules/jahia-image-proxy/import-image` with
-       `sourceUrl` (the live `/-/media` URL), `destPath`, `filename`. It fetches
-       server-side with browser headers + Referer and **reaches WAF'd CDNs that
-       `media.upload.url` can't** (verified: it pulled supercar's `/-/media`
-       images the cache never had). This is the easy retrieval path for remote
-       reference images.
-     - **The UUID caveat is about WORKSPACES, not the tool:** import the file
-       **once into `default`**, set the weakref to that UUID, then **publish the
-       file** so the SAME UUID becomes live (`publish-parity.sh` verifies it
-       resolves). Do NOT import the same file separately into `default` AND `live`
-       — that is what creates divergent UUIDs and breaks weakrefs (the bug we
-       spent days on). If a file refuses to publish, re-import it fresh under a
-       new name (see `feedback_publish_referenced_assets`).
-  3. **Reference** the node via the component's WEAKREFERENCE field
-     (`image`/`backgroundImage`/`logo`/`photo`), set via
-     `setValue(type: WEAKREFERENCE, value: <uuid>)`, then publish the node.
-  4. **Never** populate the `*ExternalUrl` string fields (imageExternalUrl,
-     backgroundImageUrl, logoExternalUrl). They are an anti-pattern: the image
-     shows as a raw URL in Content Editor instead of a picked DAM asset. If one is
-     already set, clear it after setting the weakreference.
-  5. If an image already exists in the DAM with a consistent UUID, just reference
-     it (no re-import). The harness tools `orchestration/images/import.py`,
-     `set_hero_refs.py`, and `set_image_refs.py <project> <siteKey> <ns>` implement
-     this end to end and are the canonical reference. The probe
-     `orchestration/probes/no-url-images.sh` fails the step if any image field
-     still holds a URL string. Full detail: `.agents/skills/09-create-content/SKILL.md`.
-- Verification *reads* in probe scripts still use the live HTML render via curl -
-  that is checking the result, not managing content, and is fine.
-
-Why MCP over GraphQL: no hand-built query strings, i18n resolved automatically
-from the `locale` argument, and fewer silent permission/Origin failures.
+**Images are content**: import into the DAM (once, into `default`, then publish the
+file - same UUID in live) and reference by WEAKREFERENCE - **never a URL string**
+(`no-url-images.sh` fails the step). Full transport, auth, and image-import contract
+(incl. the WAF image-proxy and the UUID/workspace caveat):
+`.agents/skills/09-create-content/SKILL.md` - and the focused sub-skills
+`09a-populate-page` / `09b-populate-shell` for generated content stories.
 
 ---
 
 ## 2b. Component reuse - map onto existing types, do not multiply them
 
-Jahia integration pattern: **a content type is reused across many pages; page
-variety comes from views, not new types.** When you discover a new page, you do
-NOT create a component per section. You map each section onto an existing
-`<ns>:` type. This module already ships a full component library.
-
-Order of preference when fitting a discovered section:
-
-1. **Reuse an existing type as-is.** Same fields → same type. Just place a node.
-1b. **Set a layout property** (best UX). If the section differs only by a
-   per-instance toggle (image left/right, columns, colour, size), the type should
-   carry a `(string, choicelist) < …` layout property the view branches on — the
-   contributor flips it in Content Editor. No new view, no new type. Prefer this.
-2. **Add a new view to an existing type.** Markup is **structurally** different
-   but the properties match → add `<variant>.server.tsx` next to
-   `default.server.tsx`, selected at placement (e.g. `newsArticle`: `default`,
-   `card`, `fullPage`). No CND change. (Use a view, not a property, only when the
-   markup truly diverges — not for a simple left/right flip.)
-3. **Extend an existing type** with an optional property only if a field is
-   genuinely missing and the type is otherwise the right fit.
-4. **Create a new type** - last resort. Only when no existing type's property
-   shape fits. This is a deliberate decision: `STOP` and return `status: "halt"`
-   describing the section and why nothing fits, so the operator approves it and
-   the baseline is updated.
-
-Before mapping, list the catalog:
-`bash orchestration/probes/inventory.sh <project_path> <namespace>` - prints
-every type and its existing views.
-
-This is enforced, **per project** (agnostic). After the type set is approved
-(Gate 1), the content-types step writes the project's own baseline:
-`bash orchestration/probes/inventory.sh <project_path> <ns> --write projects/<project>/component-baseline.txt`.
-The content step then runs
-`bash orchestration/probes/no-new-types.sh <project_path> <ns> projects/<project>/component-baseline.txt`;
-it fails if content/page discovery introduces a type not in that project's
-baseline. New views never add a type, so they pass. Two other reuse gates run at
-content-types time: `dup-shapes.sh` (no two types share a property shape) and
-`cnd-review.sh`. To legitimately add a type, the operator approves the `halt` and
-the per-project baseline is regenerated with `inventory.sh --write`.
-(`orchestration/component-baseline.txt` is sial-paris legacy — not used by new
-projects.)
+**A content type is reused across many pages; page variety comes from views, not new
+types.** Preference order when fitting a discovered section: (1) reuse a type as-is;
+(1b) add a per-instance layout property (choicelist) the view branches on; (2) add a
+new view to an existing type; (3) extend a type with an optional property; (4) create
+a new type - LAST resort: `halt` for operator approval, then regenerate the project
+baseline. Enforced per project by `inventory.sh` (catalog + `--write` baseline),
+`no-new-types.sh` (content may not introduce types), and `dup-shapes.sh` (no two types
+share a property shape). Full doctrine + workflow:
+`.agents/skills/04-define-content-types/SKILL.md`.
 
 ---
 
@@ -298,70 +211,26 @@ If you cannot prove a claim, the honest status is `in_progress` or `failed`, not
 
 ## 5. Probe scripts (the verification library)
 
-All under `orchestration/probes/`, run from repo root:
-
-| Probe | Proves |
-|-------|--------|
-| `connect.sh <project_path>` | Jahia reachable + creds valid (HTTP 200/400) |
-| `analyze.sh <project_path>` | `component-manifest.json` + `content-data.json` exist, non-empty |
-| `build.sh <project_path>` | `yarn build` exits 0 |
-| `assets.sh <project_path>` | `static/` has CSS and Layout references a stylesheet |
-| `cnd.sh <project_path> <namespace>` | build clean + namespace in `definitions.cnd` + en/fr `.properties` |
-| `component.sh <project_path> <name>` | named component source exists + build clean |
-| `component-validate.sh <project_path> <ns> <ComponentDir> [page] [site] [lang]` | **FULL per-component gate** (see 5a) — source, **no duplicate default-view**, CND patterns (that component only), en+fr i18n for every type/property, build, deploy, bundle ACTIVE, and a **non-home page renders 200** (+ clean engine log) |
-| `cnd-patterns.sh <project_path \| one.cnd> [ns]` | CND modelling rules (mix:title, jmix:tagged/categorized, linkTypeInitializer, weakref). Pass a single `.cnd` to lint just one component |
-| `templates.sh <project_path>` | Layout has >=2 `AbsoluteArea` (header+footer) |
-| `deploy.sh <project_path>` | build + `yarn jahia-deploy` succeed |
-| `content.sh <project_path> <site> <lang> <page1,page2,...>` | each page's LIVE `<main>` text > 400 chars |
-| `fidelity-all.sh <project_path> <site> <lang> <pages\|@sitemap>` | **FIDELITY GATE (the wired one)** — loops `fidelity-live` over every page, pairing each with its captured `.reference/captured/<slug>.html`; FAILS on the first page materially below its reference, and FAILS if NO page had a capture (capture-reference never ran). The per-page fidelity gate used in `step_visual_diff` + the reviewer |
-| `fidelity-live.sh <referenceSrc> <live_url>` | **JS-rendered fidelity (single page)** — renders the local page AND a reference (the captured `.reference/captured/<slug>.html`, or a URL) in headless Chromium and diffs **sections + listing/card counts + facet values** (warns on image shortfall / reorder). Called by `fidelity-all`; use directly to debug one page. Saves a ref-vs-local screenshot pair |
-| `fidelity.sh <reference.mhtml\|html> <live_url> [min_pct]` | **DEPRECATED** (curl, static, headings-only) — passed visually-wrong pages once JS ran. Superseded by `fidelity-all`/`fidelity-live`; kept only as a no-browser fallback |
-| `render-truth.sh <url> [--edit]` | **OBSERVABLE RENDER** (headless) — fails on broken images (`naturalWidth=0`), content stuck at `opacity:0` after scroll, collapsed shared regions, playerless video. Saves a screenshot. `--edit` for the Page Builder frame |
-| `render-all.sh <project_path> <site> <lang> <pages\|@sitemap>` | render-truth over EVERY page — the per-page render gate (run at each page creation, not at the end) |
-| `publish-parity.sh <project_path> <site> [langs]` | **PUBLISH COMPLETENESS** — every weakref'd asset resolves in LIVE + every translation present in EDIT is published (catches unpublished DAM + the `languages:[...]` gap) |
-| `edit-frame.sh <project_path> <site> <lang> [page]` | Page Builder edit frame LOADS + the page has editable area markers. **FAILS only** on "Page Builder didn't load" or "no editable areas". Blank nav/footer = **WARN, not fail**: `jmix:hiddenType` on those singletons hides them from the picker + blocks inline selection (correct), but they render in **live always** and in **edit once the AbsoluteArea has child content** (AbsoluteArea-needs-children). A blank shared region in edit ≠ defect — populate it. Do NOT remove `jmix:hiddenType` to satisfy this probe. |
-| `no-stub.sh <project_path> [namespace]` | **NO STUBS** — every `*.server.tsx` view emits real markup (no TODO/placeholder/null-only shells), and every CND type has a registered view. Catches the loop generating shells it never fills (the supercar 29/32-stub fiasco) |
-| `components-all.sh <project_path> <namespace>` | **PER-COMPONENT COMPLETENESS** — loops EVERY component dir and FAILS naming any that is stubbed, viewless (CND but no `*.server.tsx`), or missing an en/fr label for its type or an own-namespace property; builds the module once at the end. The "fail at once, name the component" batch gate for the components step — strictly stronger than `build.sh`+`no-stub.sh`. Does NOT deploy (use `component-validate.sh` per component while iterating) |
-| `dup-shapes.sh <project_path> [namespace]` | **REUSE/VIEWS** — fails when two CND types share the same property shape (they should be ONE type + additional views, AGENTS §2b). Catches markup-driven type duplication at the source |
-| `cnd-review.sh <project_path>` | **CND quality** (agentic `check-cnd.mjs`) — best-practice antipatterns with file:line; complements `cnd-patterns.sh` |
-| `site-review.sh <project_path> <site> <lang> <pages\|@sitemap>` | **a11y + SEO** (agentic `review-pages.mjs`, axe-core) — scores each page, fails on critical/serious a11y or missing SEO baseline |
-| `artifact.sh <file> [forbidden_regex]` | output file exists (and lacks a forbidden pattern, e.g. `critical`) |
-
-> `render-truth`/`render-all`/`publish-parity`/`edit-frame` come from the migration-harness retro; `cnd-review`/`site-review` are agentic gates (`check-cnd.mjs` / `review-pages.mjs`) — see `.agents/AGENTIC-SYNC.md`. For CND authoring, prefer the `jahia-cnd-author` skill (loads the 9 `references/cnd-*.md` docs) and validate with `cnd-review.sh` until clean.
-
-If a probe is wrong for a project, fix the probe script (it is versioned) rather
-than skipping verification.
+All probes live under `orchestration/probes/`, run from the repo root. **Your step's
+`PROBE:` lines are the contract**: run each exactly as written and include it in
+`commands_requested`; the step passes only when every one exits 0. The full library
+(what each probe proves, args, WARN-vs-FAIL semantics) is documented in
+`orchestration/probes/README.md`. If a probe is wrong for a project, fix the probe
+script (it is versioned) rather than skipping verification.
 
 ---
 
 ## 5a. Per-component gate — validate EACH component before moving on (MANDATORY)
 
-Components are built and validated **one at a time**. You may **not** start, scaffold,
-or add the next component until the current one passes its full gate. "I built five
-components" is not a step; "component N passed `component-validate.sh`" is.
-
-For **every** component you add or modify (CND, view, resource bundle, or its content),
-the step is not `completed` until:
-
-```
-orchestration/probes/component-validate.sh <project_path> <namespace> <ComponentDir> [smoke_page] [site_key] [lang]
-```
-
-exits 0, and that exact command is in `commands_requested`. It runs the whole chain:
-**source present → no duplicate default-view → CND patterns (that component) → en+fr
-i18n for the type and every property → build → deploy → bundle ACTIVE → a non-home page
-renders HTTP 200 → engine log free of `already exist`**.
-
-Rules:
-- One component, one gate, one pass — then proceed. A red gate halts the run; fix the
-  component (not the probe, unless the probe is genuinely wrong) and re-run.
-- **Always pass `<site_key>` (and a `<smoke_page>` that uses the component).** The render
-  smoke is what catches a duplicate-view / registration crash — it makes every non-home
-  page 404 while the home page still renders, so a home-only check gives a false pass.
-- Never batch many components behind one deploy and a single glance. That is exactly how
-  a duplicate `pagesPushesItem` view shipped and 404'd the whole site
-  (`.agents/skills/11-debug` → "duplicate view registration"). One gate per component
-  would have caught it on the spot.
+Components are built and validated **one at a time** - "I built five components" is
+not a step. Generated plans enforce this structurally: ONE story per component, gated
+by `component-one.sh` (source + no-stub + i18n + cm view, by nodeType), with the
+module-wide `components-all.sh` + build as the closing gate.
+`component-validate.sh <project_path> <ns> <ComponentDir> [smoke_page] [site] [lang]`
+remains the deep post-deploy gate (build -> deploy -> bundle ACTIVE -> a NON-home page
+renders 200) for iterating on a single deployed component. Never batch many components
+behind one deploy: a single duplicate default-view registration 404s the whole site
+(see `.agents/skills/11-debug`).
 
 ---
 

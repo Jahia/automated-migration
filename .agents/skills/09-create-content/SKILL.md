@@ -53,6 +53,79 @@ If MCP is unavailable (connection refused, 404, or 0 tools), fall back to GraphQ
 
 ---
 
+## Transport, auth + image-import contract (moved from AGENTS.md §2a)
+
+**All content operations go through the Jahia MCP server, not GraphQL.** This is
+non-negotiable. Creating, updating, moving, querying, translating, and publishing
+nodes - use the MCP. Hand-crafted GraphQL mutations are a fallback you reach for
+only when the MCP genuinely cannot do the operation, or the MCP server is
+unavailable - and when you fall back, say so in your `summary`.
+
+- The MCP server is at `$JAHIA_HOST/modules/mcp`. It exposes purpose-built tools
+  (e.g. `content.create`, `content.type`, `page.structure`, publish tools).
+- **Authentication:** the APIToken lives in `<project_path>/.env` as
+  `JAHIA_MCP_TOKEN` (gitignored). Source the project `.env` first, then send it
+  as an `Authorization: APIToken` header on every MCP call.
+- Call it via JSON-RPC 2.0 over HTTP POST (Bash + curl), as documented in
+  `.agents/skills/09-create-content/SKILL.md`:
+  ```bash
+  set -a; . "$project_path/.env"; set +a            # loads JAHIA_HOST + JAHIA_MCP_TOKEN
+  curl -s -X POST "$JAHIA_HOST/modules/mcp" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: APIToken $JAHIA_MCP_TOKEN" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+         "params":{"name":"TOOL_NAME","arguments":{ ... }}}'
+  ```
+- Check availability at the start of any content step:
+  `bash orchestration/probes/mcp.sh <project_path>` (reads `JAHIA_MCP_TOKEN`
+  from `.env`, prints version + tool count).
+- For Claude Code sessions, the same server is registered in the repo-root
+  `.mcp.json` (also gitignored) so MCP tools appear natively.
+- **Images are content - import them into the DAM and reference them by
+  WEAKREFERENCE, never a URL string.** This is non-negotiable (learned on
+  sial-paris). Rules:
+  1. **Capture** image URLs with a real browser (Chrome MCP) - the reference site
+     blocks headless fetch (403), so the loop agent cannot discover them. Write a
+     per-page source manifest `orchestration/images/<project>.json`.
+  2. **Import** each image with the MCP tool **`media.upload.url`** (siteKey,
+     sourceUrl=HTTPS, folder=existing, fileName). This creates ONE DAM node with a
+     CONSISTENT UUID across default+live.
+     - **Distant / WAF'd images** (e.g. the reference site's `/-/media/...` CDN
+       that blocks the loop's headless fetch): use the **image-proxy** —
+       `POST $JAHIA_HOST/modules/jahia-image-proxy/import-image` with
+       `sourceUrl` (the live `/-/media` URL), `destPath`, `filename`. It fetches
+       server-side with browser headers + Referer and **reaches WAF'd CDNs that
+       `media.upload.url` can't** (verified: it pulled supercar's `/-/media`
+       images the cache never had). This is the easy retrieval path for remote
+       reference images.
+     - **The UUID caveat is about WORKSPACES, not the tool:** import the file
+       **once into `default`**, set the weakref to that UUID, then **publish the
+       file** so the SAME UUID becomes live (`publish-parity.sh` verifies it
+       resolves). Do NOT import the same file separately into `default` AND `live`
+       — that is what creates divergent UUIDs and breaks weakrefs (the bug we
+       spent days on). If a file refuses to publish, re-import it fresh under a
+       new name (see `feedback_publish_referenced_assets`).
+  3. **Reference** the node via the component's WEAKREFERENCE field
+     (`image`/`backgroundImage`/`logo`/`photo`), set via
+     `setValue(type: WEAKREFERENCE, value: <uuid>)`, then publish the node.
+  4. **Never** populate the `*ExternalUrl` string fields (imageExternalUrl,
+     backgroundImageUrl, logoExternalUrl). They are an anti-pattern: the image
+     shows as a raw URL in Content Editor instead of a picked DAM asset. If one is
+     already set, clear it after setting the weakreference.
+  5. If an image already exists in the DAM with a consistent UUID, just reference
+     it (no re-import). The harness tools `orchestration/images/import.py`,
+     `set_hero_refs.py`, and `set_image_refs.py <project> <siteKey> <ns>` implement
+     this end to end and are the canonical reference. The probe
+     `orchestration/probes/no-url-images.sh` fails the step if any image field
+     still holds a URL string. Full detail: `.agents/skills/09-create-content/SKILL.md`.
+- Verification *reads* in probe scripts still use the live HTML render via curl -
+  that is checking the result, not managing content, and is fine.
+
+Why MCP over GraphQL: no hand-built query strings, i18n resolved automatically
+from the `locale` argument, and fewer silent permission/Origin failures.
+
+---
+
 ## jmix:mainResource architecture (news articles, agenda items, press releases) — READ FIRST
 
 **mainResource content is NOT page content.** Any node type that extends `jmix:mainResource`
