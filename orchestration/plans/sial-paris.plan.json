@@ -599,7 +599,7 @@
                 "skill": ".agents/skills/09-create-content/SKILL.md",
                 "consumes": [
                   "projects/sial-paris/workflow-output/component-manifest.json",
-                  "orchestration/content/sial-paris.content-data.json",
+                  "orchestration/content/sial-paris.content-load.json",
                   "orchestration/images/sial-paris.imported.json",
                   "projects/sial-paris/component-baseline.txt"
                 ]

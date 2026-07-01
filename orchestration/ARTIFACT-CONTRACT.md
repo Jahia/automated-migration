@@ -25,7 +25,7 @@ The verifier (`src/verifier.py`) enforces a step **only** by running its `PROBE:
 
 ```python
 self.manifest = load_json(f"projects/{project}/workflow-output/component-manifest.json", {})
-self.content  = load_json(f"orchestration/content/{project}.content-data.json", {"pages": {}})
+self.content  = load_json(f"orchestration/content/{project}.content-load.json", {"pages": {}})
 self.imported = load_json(f"orchestration/images/{project}.imported.json", {})
 ```
 
@@ -40,11 +40,11 @@ Canonical paths use `<p>` for the project slug. Root-relative paths resolve from
 | Artifact (canonical path) | Produced by | Consumed by | Enforced |
 |---|---|---|---|
 | `projects/<p>/workflow-output/component-manifest.json` | `step_analyze` | `step_scaffold`, `step_content_types`, `step_navigation`, `step_jcr_query`, `step_grid_row`, `step_components` (`components-all.sh`), `step_templates` (`template-govern.sh`), `step_content` (`load_content.py`) | `analyze.sh` (path now pinned), `contract.sh` |
-| `projects/<p>/workflow-output/content-data.json` | `step_analyze` | `step_extract` (seed for the deterministic extractor) | `analyze.sh`, `contract.sh` |
+| `projects/<p>/workflow-output/content-data.json` | `step_analyze` | `step_visual_diff` / `step_vanity` (page-list fallback) + legacy skill-09 path — a per-page analysis list `[{page,url,sections,…}]`, **not** the load payload | `analyze.sh` |
 | `projects/<p>/workflow-output/asset-inventory.json` | `step_analyze` | **orphan** — read only by `analyze.sh`; superseded by `extract_media` | `analyze.sh` |
 | `projects/<p>/workflow-output/analysis.md` | `step_analyze` | human review (Gate 1) | `analyze.sh` |
 | `orchestration/images/<p>.json` | `step_extract` (`extract_media.py`) | `step_media` (`images/import.py`) | `extract.sh`, `media.sh`, `contract.sh` |
-| `orchestration/content/<p>.content-data.json` | `step_extract` (`extract_content.py`) | `step_content` (`load_content.py`) | `extract.sh`, `contract.sh` |
+| `orchestration/content/<p>.content-load.json` | `step_extract` (`extract_content.py`, reads the captured `.reference/` DOM) | `step_content` (`load_content.py`) — the JCR load payload `{adapter, pages:{…}}` | `extract.sh`, `contract.sh` |
 | `orchestration/images/<p>.imported.json` | `step_media` (`import.py`) | `step_content` (`load_content.py` image-wiring) | `media.sh`, `contract.sh` |
 | `projects/<p>/component-baseline.txt` | `step_content_types` (`inventory.sh --write`) | `step_content` + `step_review` (`no-new-types.sh`) | `contract.sh` |
 | `projects/<p>/workflow-output/review/REVIEW.md` | `step_review` | human | `artifact.sh`, `contract.sh` |
@@ -64,9 +64,11 @@ Content written to **Jahia itself** (`step_content` → JCR nodes) is not a file
 
 3. **Consumer input paths not passed.** Steps received orientation params only (`project`, `skill`), never the upstream artifact path. **Fixed:** `inputs.consumes` now carries the canonical read paths into each consumer step.
 
-4. **`content-data.json` name collision.** `step_analyze` writes `workflow-output/content-data.json` (analysis) and `step_extract` writes `orchestration/content/<p>.content-data.json` (loader input) — different schemas, same base name. **Documented** here and disambiguated in `contract.py`; not renamed to avoid churning the skills mid-migration.
+4. **`content-data.json` name collision.** `step_analyze` wrote `workflow-output/content-data.json` (a per-page analysis list) and `step_extract` wrote `orchestration/content/<p>.content-data.json` (the JCR load payload) — different schemas, same base name. **Fixed:** the ETL load payload was renamed to `orchestration/content/<p>.content-load.json` across `extract_content.py`, `load_content.py`, `extract.sh`, `contract.py`, the `source-extract` skill, and all plans. The analyze artifact keeps its name (its ~50 refs across legacy commands/skills are untouched). No more collision; the two names now say what they are.
 
-5. **`asset-inventory.json` is an orphan** — produced but consumed by no downstream step. **Documented** in `contract.py::ORPHANS`; kept as the human analysis catalogue.
+5. **`step_extract` false consume (found during the rename).** `contract.py` claimed `step_extract` consumes the analyze `content-data.json` as a seed. It does not — `extract_content.py` reads the captured `.reference/` DOM directly. **Fixed:** removed that consume from `contract.py`; `wire_contract.py` now *reconciles* (deletes a `consumes` that was emptied) instead of only adding, and stripped the stale `inputs.consumes` from every plan.
+
+6. **`asset-inventory.json` is an orphan** — produced but consumed by no downstream step. **Documented** in `contract.py::ORPHANS`; kept as the human analysis catalogue (superseded for machine use by `extract_media`).
 
 ---
 

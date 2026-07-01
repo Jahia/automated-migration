@@ -53,7 +53,7 @@ def main():
             else: fail += 1
             print(f"  [{status}] {page}/{img['file']}" + ("" if jcr else f"  -> {raw}"))
             # record `file` + `alt` — the join key the content loader uses to rewire
-            # an instance's image (content-data file) -> this imported DAM jcrPath.
+            # an instance's image (content-load file) -> this imported DAM jcrPath.
             result[page].append({"file": img["file"], "src": src,
                                   "role": img.get("role"), "alt": img.get("alt", ""),
                                   "jcrPath": jcr})

@@ -2,7 +2,7 @@
 """load_content.py — DETERMINISTIC content load via MCP (no guessed GraphQL).
 
 The capstone of the ETL pipeline. Reads the deterministically-extracted content
-(content/<project>.content-data.json) + the imported media map
+(content/<project>.content-load.json) + the imported media map
 (images/<project>.imported.json) and creates the JCR nodes through the Jahia MCP
 tools (lib/mcp_client.py), wiring each image weakreference AT CREATE TIME. Replaces
 both LLM-improvised content and the legacy GraphQL set_*_refs.py rewiring.
@@ -60,8 +60,9 @@ class Loader:
     def __init__(self, project, site):
         self.m = MCP(project)
         self.site = site
+        self.project = project
         self.manifest = load_json(f"projects/{project}/workflow-output/component-manifest.json", {})
-        self.content = load_json(f"orchestration/content/{project}.content-data.json", {"pages": {}})
+        self.content = load_json(f"orchestration/content/{project}.content-load.json", {"pages": {}})
         self.imported = load_json(f"orchestration/images/{project}.imported.json", {})
         self.type_map = build_type_map(self.manifest)
         self._props = {}  # nodeType -> {"text":[names], "weakref":[names], "names":set}
@@ -97,12 +98,17 @@ class Loader:
                     return x["jcrPath"]
         return None
 
+    # weakref property names that are image/asset references (not node refs like startNode, excludeNodes)
+    IMAGE_WEAKREF_PROPS = {"image", "backgroundImage", "logo", "photo", "icon"}
+
     def map_props(self, page, inst, pdef):
         out = {}
         # images -> weakref props (resolve file -> imported jcrPath)
+        # Only wire images to image-specific weakrefs, not query/structural refs (startNode, filter, etc.)
         imgs = [(self.imported_path(page, im["file"]), im.get("alt", "")) for im in inst.get("images", [])]
         imgs = [(p, a) for p, a in imgs if p]
-        for i, wname in enumerate(pdef["weakref"]):
+        img_weakrefs = [w for w in pdef["weakref"] if w in self.IMAGE_WEAKREF_PROPS]
+        for i, wname in enumerate(img_weakrefs):
             if i < len(imgs):
                 out[wname] = imgs[i][0]
         if imgs and "imageAltText" in pdef["names"]:
@@ -122,7 +128,8 @@ class Loader:
         return out
 
     def clean_area(self, area_path):
-        """Delete existing content children of an area so the load is idempotent."""
+        """Delete existing content children of an area so the load is idempotent.
+        Skips published nodes (live content is preserved)."""
         try:
             d = self.m.call("content.list", {"parentPath": area_path, "locale": "fr"})
         except Exception:
@@ -136,21 +143,51 @@ class Loader:
             try:
                 self.m.call("content.delete", {"path": p})
                 n += 1
-            except Exception as e:
-                print(f"    ! delete {p} failed: {e}", file=sys.stderr)
+            except Exception:
+                # published or locked — skip, don't mark for deletion
+                pass
         return n
+
+    def _slug_to_jcr_path(self, slug):
+        """Map a flat content-load slug to the hierarchical JCR page path.
+        Uses the sitemap (orchestration/sitemaps/<project>.txt) to resolve hierarchy.
+        Falls back to /home/<slug> if not found."""
+        if slug == "home":
+            return f"/sites/{self.site}/home"
+        # Build lookup from sitemap: leaf slug -> full relative path
+        if not hasattr(self, "_slug_map"):
+            self._slug_map = {}
+            sm_file = f"orchestration/sitemaps/{self.project}.txt"
+            try:
+                for line in open(sm_file):
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    leaf = line.split("/")[-1]
+                    # Map both the leaf slug and the full path
+                    self._slug_map[leaf] = line
+                    self._slug_map[line] = line
+            except FileNotFoundError:
+                pass
+        # Case-insensitive lookup
+        slug_lower = slug.lower()
+        for k, v in self._slug_map.items():
+            if k.lower() == slug_lower:
+                return f"/sites/{self.site}/home/{v}"
+        # Fallback: flat path
+        return f"/sites/{self.site}/home/{slug}"
 
     def load_page(self, page, limit=None, dry=False, clean=False):
         pdata = self.content.get("pages", {}).get(page)
         if not pdata:
-            print(f"  no content-data for page '{page}'"); return (0, 0)
+            print(f"  no content-load data for page '{page}'"); return (0, 0)
         instances = pdata.get("instances", [])
-        page_base = f"/sites/{self.site}/home" if page == "home" else f"/sites/{self.site}/home/{page}"
+        page_base = self._slug_to_jcr_path(page)
         main_area = f"{page_base}/main"
         if clean and not dry:
-            areas = [main_area, f"/sites/{self.site}/home/nav",
-                     f"/sites/{self.site}/home/footer", f"/sites/{self.site}/home/topBar"]
-            removed = sum(self.clean_area(a) for a in (areas if page == "home" else [main_area]))
+            # Only clean the page's main area; absolute areas (nav/footer/topBar)
+            # are singleton containers whose children should persist across loads.
+            removed = self.clean_area(main_area)
             if removed:
                 print(f"  cleaned {removed} existing node(s) from {page} areas")
         created = published = 0
@@ -170,6 +207,13 @@ class Loader:
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
                 continue  # unmapped helper
+            
+            # Absolute area singletons (topBar, mainNav, footer) are global site
+            # chrome populated separately; the loader creates page-area content only.
+            abs_area = area_for(nt, self.manifest, self.site)
+            if abs_area and abs_area != main_area:
+                continue
+
             pdef = self.props_of(nt)
             if not pdef["names"]:
                 continue

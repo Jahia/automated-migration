@@ -46,10 +46,12 @@ def project_token(plan: dict) -> str:
     return m.group(1) if m else "{project}"
 
 
-def contract_paths(step_id: str, token: str) -> dict:
+def contract_paths(step_id: str, token: str):
+    """Contract for a step, or None if the step is not in the contract at all
+    (a foreign step in a sub-plan we must not touch)."""
     spec = contract.CONTRACT.get(step_id)
     if spec is None:
-        return {"produces": [], "consumes": []}
+        return None
     return {
         "produces": [p.replace("{project}", token) for p in spec.get("produces", [])],
         "consumes": [p.replace("{project}", token) for p in spec.get("consumes", [])],
@@ -57,27 +59,37 @@ def contract_paths(step_id: str, token: str) -> dict:
 
 
 def wire_step(step: dict, token: str, project_path: str) -> list[str]:
-    """Wire one step in place. Returns a list of human-readable changes."""
+    """Reconcile one step in place to exactly match the contract. Returns a list
+    of human-readable changes. Foreign steps (not in the contract) are untouched;
+    a step with no produces AND no consumes is left clean (no PROBE)."""
     sid = step.get("id", "")
     spec = contract_paths(sid, token)
+    if spec is None:
+        return []
     produces, consumes = spec["produces"], spec["consumes"]
     if not produces and not consumes:
         return []
     changes = []
 
-    # 1. expected_outputs
+    # 1. expected_outputs — RECONCILE exactly (set when produced, clear when not)
+    want = {f"artifact_{i}": p for i, p in enumerate(produces)}
     if produces:
-        want = {f"artifact_{i}": p for i, p in enumerate(produces)}
         if step.get("expected_outputs") != want:
             step["expected_outputs"] = want
             changes.append(f"expected_outputs={len(produces)} file(s)")
+    elif step.get("expected_outputs"):
+        step["expected_outputs"] = {}
+        changes.append("cleared stale expected_outputs")
 
-    # 2. inputs.consumes (list of canonical read paths)
+    # 2. inputs.consumes — RECONCILE exactly (delete a consume that was emptied)
+    step.setdefault("inputs", {})
     if consumes:
-        step.setdefault("inputs", {})
         if step["inputs"].get("consumes") != consumes:
             step["inputs"]["consumes"] = consumes
             changes.append(f"inputs.consumes={len(consumes)} path(s)")
+    elif "consumes" in step["inputs"]:
+        del step["inputs"]["consumes"]
+        changes.append("removed stale inputs.consumes")
 
     # 3. contract.sh PROBE in acceptance_criteria (idempotent)
     ac = step.setdefault("acceptance_criteria", [])

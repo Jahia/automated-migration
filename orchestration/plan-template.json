@@ -88,14 +88,11 @@
                 "site": "__SITE__",
                 "namespace": "__NS__",
                 "mixNamespace": "__MIXNS__",
-                "skill": ".agents/skills/source-extract/SKILL.md",
-                "consumes": [
-                  "projects/__PROJECT__/workflow-output/content-data.json"
-                ]
+                "skill": ".agents/skills/source-extract/SKILL.md"
               },
               "acceptance_criteria": [
                 "Migration is ETL: the captured DOM is the source of truth. Run the DETERMINISTIC extractors (source_detect + extract_media + extract_content) — do NOT hand-author or improvise the manifests; they must come from the real captured source.",
-                "Media manifest (orchestration/images/<project>.json) must cover every captured page incl. home; content-data (orchestration/content/<project>.content-data.json) must hold the REAL per-page text/instances, not placeholders.",
+                "Media manifest (orchestration/images/<project>.json) must cover every captured page incl. home; content-load (orchestration/content/<project>.content-load.json) must hold the REAL per-page text/instances, not placeholders.",
                 "PROBE: bash orchestration/probes/extract.sh projects/__PROJECT__ __SITE__",
                 "PROBE: bash orchestration/probes/contract.sh projects/__PROJECT__ step_extract"
               ],
@@ -114,7 +111,7 @@
               "trace": [],
               "expected_outputs": {
                 "artifact_0": "orchestration/images/__PROJECT__.json",
-                "artifact_1": "orchestration/content/__PROJECT__.content-data.json"
+                "artifact_1": "orchestration/content/__PROJECT__.content-load.json"
               }
             }
           ]
@@ -543,13 +540,13 @@
                 "skill": ".agents/skills/09-create-content/SKILL.md",
                 "consumes": [
                   "projects/__PROJECT__/workflow-output/component-manifest.json",
-                  "orchestration/content/__PROJECT__.content-data.json",
+                  "orchestration/content/__PROJECT__.content-load.json",
                   "orchestration/images/__PROJECT__.imported.json",
                   "projects/__PROJECT__/component-baseline.txt"
                 ]
               },
               "acceptance_criteria": [
-                "LOAD content from orchestration/content/<project>.content-data.json and wire imported media from orchestration/images/<project>.imported.json — do NOT improvise text or invent placeholder content (the captured source is the source of truth).",
+                "LOAD content from orchestration/content/<project>.content-load.json and wire imported media from orchestration/images/<project>.imported.json — do NOT improvise text or invent placeholder content (the captured source is the source of truth).",
                 "Run the DETERMINISTIC MCP loader to create content from the extracted source: python3 orchestration/lib/load_content.py __PROJECT__ __SITE__ --clean  — it creates each node via MCP content.create with real field values AND wires the imported image weakref at create time (lib/mcp_client.py), then publishes. Do NOT hand-write GraphQL or improvise content.",
                 "Use the Jahia MCP server (JSON-RPC at $JAHIA_HOST/modules/mcp) for ALL node creation, property edits, and publishing. GraphQL is a fallback only when the MCP cannot do it; state any fallback in the summary.",
                 "IMAGES = DAM weakreferences, NEVER url strings (AGENTS.md 2a). Import via MCP media.upload.url (consistent UUID), set the WEAKREFERENCE field (image/backgroundImage/logo/photo), clear any *ExternalUrl string. Canonical tools: orchestration/images/set_hero_refs.py and set_image_refs.py __PROJECT__ __SITE_KEY__ __NAMESPACE__. Capture source URLs via browser (site blocks the agent).",

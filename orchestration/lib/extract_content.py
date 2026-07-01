@@ -4,8 +4,13 @@
 The real content (titles, copy, dates, card text, article bodies, links) lives in
 the captured DOM. The old pipeline asked the LLM to "create content" via MCP and
 it improvised placeholder/empty results. This extracts the REAL content per page
-into content-data.json, which the content step then LOADS into the JCR (the LLM
+into content-load.json, which the content step then LOADS into the JCR (the LLM
 only maps ambiguous cases, it does not invent text).
+
+Named content-LOAD (not content-data) to disambiguate from the analyze-phase
+artifact projects/<project>/workflow-output/content-data.json — a different
+schema (a per-page analysis list) with different consumers. This file is the
+JCR load payload {adapter, pages:{...}} that load_content.py reads.
 
 Agnostic by design — every CMS renders to HTML:
   * SXA adapter (Sitecore): each `.component > .component-content` is an instance;
@@ -17,7 +22,7 @@ Image references are resolved to the filenames produced by extract_media.py, so
 the content step can wire the imported DAM nodes.
 
 Usage: python3 orchestration/lib/extract_content.py <project> [site_key]
-Writes: orchestration/content/<project>.content-data.json
+Writes: orchestration/content/<project>.content-load.json
 """
 import html.parser, json, os, re, sys, urllib.parse
 
@@ -261,7 +266,7 @@ def main():
     data["adapter"] = "sxa" if sxa_pages > len(pages) / 2 else "generic"
 
     os.makedirs("orchestration/content", exist_ok=True)
-    outp = f"orchestration/content/{project}.content-data.json"
+    outp = f"orchestration/content/{project}.content-load.json"
     json.dump(data, open(outp, "w"), indent=2, ensure_ascii=False)
     # summary
     tot_inst = sum(len(v.get("instances", [])) for v in data["pages"].values())

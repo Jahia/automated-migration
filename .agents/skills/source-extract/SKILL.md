@@ -31,10 +31,10 @@ capture (any HTML)  ──►  detect CMS  ──►  extract media (generic)  �
 |---|---|---|---|
 | `lib/source_detect.py <project>` | captured DOM | `<project>.source.json` (sitecore-sxa / drupal / wordpress / aem / generic) | yes |
 | `lib/extract_media.py <project> <site>` | captured DOM | `images/<project>.json` (per-page image manifest: src, file, role) | **fully generic** — parses `<img>`/srcset/`<source>`/`url()`/og:image |
-| `lib/extract_content.py <project> <site>` | captured DOM | `content/<project>.content-data.json` (per-page real field values / blocks) | generic + adapter (SXA `field-*` precise) |
+| `lib/extract_content.py <project> <site>` | captured DOM | `content/<project>.content-load.json` (per-page real field values / blocks — the JCR load payload) | generic + adapter (SXA `field-*` precise) |
 | `images/import.py <project>` | `images/<project>.json` | `images/<project>.imported.json` (page → file → DAM jcrPath) | yes (jahia-image-proxy: server-side fetch, gets WAF'd origins) |
 | `lib/mcp_client.py` | — | the ONE sanctioned write path (JSON-RPC tools/call; content.create/update/translate, publish, set_weakref) | yes |
-| `lib/load_content.py <project> <site>` | content-data + imported.json + manifest | JCR nodes created via MCP, image weakrefs wired AT CREATE TIME, published | yes — **deterministic, MCP-only** |
+| `lib/load_content.py <project> <site>` | content-load + imported.json + manifest | JCR nodes created via MCP, image weakrefs wired AT CREATE TIME, published | yes — **deterministic, MCP-only** |
 
 > Legacy `images/set_*_refs.py` (GraphQL rewiring) are superseded by `load_content.py` (MCP) — flagged by `no-graphql-writes.sh` for cleanup.
 
@@ -44,7 +44,7 @@ capture (any HTML)  ──►  detect CMS  ──►  extract media (generic)  �
   extract_content. Gate `extract.sh` — manifests must be complete and cover home.
 - **epic_content_quality → `step_media`** (after deploy, before content): run `import.py`
   to push every manifest image into the DAM. Gate `media.sh` — import must cover the manifest.
-- **epic_content_quality → `step_content`**: **LOAD** `content-data.json` into the JCR and
+- **epic_content_quality → `step_content`**: **LOAD** `content-load.json` into the JCR and
   wire the imported media; do NOT improvise. Gate `content.sh` (now reality-grounded:
   content-fidelity + fidelity-all, no char-count proxy).
 - **epic_fidelity_golive → `step_visual_diff`**: `fidelity-all.sh` renders live vs the real
