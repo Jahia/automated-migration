@@ -40,6 +40,42 @@ projects. **Every run targets exactly one project**, given to you in the step
 
 ---
 
+## 1a. Local Jahia via Docker
+
+A local Jahia instance is provided via Docker in the `docker/` directory.
+
+```bash
+# Start Jahia + PostgreSQL
+cd docker && docker compose up -d
+
+# Wait for healthy (takes ~30s)
+docker inspect --format='{{.State.Health.Status}}' docker-jahia-1
+
+# Verify
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/   # 302 or 401
+```
+
+| Service | Image | Port | Credentials |
+|---|---|---|---|
+| Jahia | `jahia/jahia-ee:8.2` | `8081:8080` | `root:root` |
+| PostgreSQL | `postgres:16` | internal | `jahia:dbpassword` |
+
+**Provisioning** (`docker/provisioning.yml`) auto-deploys on first boot:
+- `javascript-modules-engine/1.2.0` (Jahia JS modules support)
+- `mcp-servlet-0.5.0-SNAPSHOT.jar` (Jahia MCP server, from `docker/deps/`)
+
+The MCP server is available at `http://localhost:8081/modules/mcp` and exposes
+34 tools (content CRUD, media upload, page management, publication, site admin).
+
+**To redeploy the MCP module** after updating the JAR:
+```bash
+docker compose down && docker compose up -d   # full recreate triggers provisioning
+```
+
+A simple `docker compose restart` does NOT re-run provisioning — Jahia caches it.
+
+---
+
 ## 2. Credentials and environment
 
 - Jahia connection lives in `<project_path>/.env`:
