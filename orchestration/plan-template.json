@@ -2,7 +2,7 @@
   "_README": "Template for a new migration run. Copy to plans/<PROJECT>.plan.json and replace every __PLACEHOLDER__. Then: bash orchestration/run.sh plans/<PROJECT>.plan.json. Placeholders: __PROJECT__ (folder under projects/, e.g. acme), __SITE_URL__ (reference URL), __NAMESPACE__ (CND namespace, e.g. acme), __MIX_NAMESPACE__ (e.g. acmemix), __SITE_KEY__ (Jahia siteKey), __LANG__ (primary language, e.g. en), __PAGES__ (comma-separated page slugs, home first), __REPO_ABS_PATH__ (absolute path to jahiaMigration). Prereq: projects/__PROJECT__/.env must define JAHIA_USER, JAHIA_HOST, and JAHIA_MCP_TOKEN (gitignored). The structure mirrors plans/sial-paris.plan.json; keep the PROBE: lines verbatim.",
   "goal": "Migrate __SITE_URL__ to a Jahia JS module (project: __PROJECT__, namespace __NAMESPACE__, siteKey __SITE_KEY__, language __LANG__). Each step is proven by its PROBE command; a step is done only when the probe exits 0.",
   "repo_dir": "__REPO_ABS_PATH__",
-  "model": "anthropic/claude-sonnet-4-5",
+  "model": "deepseek/deepseek-v4-flash",
   "github_repo": "smonier/jahiaMigration",
   "epics": [
     {
@@ -71,9 +71,9 @@
               }
             },
             {
-              "id": "step_template_cluster",
-              "title": "Group pages by shared template",
-              "task_type": "analyze",
+              "id": "step_extract_blocks",
+              "title": "Extract HTML blocks (deterministic, agnostic)",
+              "task_type": "extract",
               "agent": "code",
               "depends_on": [
                 "step_crawl"
@@ -84,8 +84,35 @@
                 "skill": ".agents/skills/01-analyze-website/SKILL.md"
               },
               "acceptance_criteria": [
-                "Analyze HTML structure of every cached page to identify shared skeletons (same header/footer/layout).",
-                "Identify cross-cutting regions (header, footer, topbar) that appear on every page.",
+                "Run: python3 orchestration/lib/extract-blocks.py projects/__PROJECT__",
+                "Extracts ALL structural blocks from every crawled HTML page — purely deterministic, no decisions.",
+                "Each block has: tag, classes, depth, parentTag, childTags, textContent, hasImage, hasLink, hasHeading, imageUrls, linkUrls, headingTexts.",
+                "Write workflow-output/html-blocks.json.",
+                "PROBE: bash orchestration/probes/extract-blocks.sh projects/__PROJECT__"
+              ],
+              "max_attempts": 2,
+              "expected_outputs": {
+                "artifact_0": "projects/__PROJECT__/workflow-output/html-blocks.json"
+              }
+            },
+            {
+              "id": "step_template_cluster",
+              "title": "Group pages by shared template (LLM analysis)",
+              "task_type": "analyze",
+              "agent": "code",
+              "depends_on": [
+                "step_extract_blocks"
+              ],
+              "inputs": {
+                "project": "__PROJECT__",
+                "project_path": "projects/__PROJECT__",
+                "skill": ".agents/skills/01-analyze-website/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Read workflow-output/html-blocks.json — the extracted blocks are your source of truth.",
+                "Analyze the STRUCTURAL SKELETON of each page (header, footer, nav, main content regions) to identify shared templates.",
+                "Do NOT use hardcoded CSS class patterns. Use semantic analysis: what blocks are in <header>? in <footer>? in <main>? What's the content structure?",
+                "Identify cross-cutting regions (header, footer, nav) that appear on ALL pages.",
                 "Write workflow-output/template-clusters.json with clusters, crossCutting, unclustered.",
                 "Every page from page-inventory.json must belong to exactly 1 cluster OR crossCutting.",
                 "PROBE: bash orchestration/probes/template-cluster.sh projects/__PROJECT__"
@@ -97,7 +124,7 @@
             },
             {
               "id": "step_component_discover",
-              "title": "Discover reusable components",
+              "title": "Discover reusable components (LLM analysis)",
               "task_type": "analyze",
               "agent": "code",
               "depends_on": [
@@ -109,10 +136,11 @@
                 "skill": ".agents/skills/01-analyze-website/SKILL.md"
               },
               "acceptance_criteria": [
-                "Walk all structural blocks across all pages, cluster by DATA SHAPE (same fields = same type, even if CSS differs).",
-                "Identify cross-cutting components (nav, footer, topbar) and page-level components.",
-                "Identify jmix:mainResource components (own navigable URL: news, events, products).",
-                "If the source is Sitecore SXA, run sxa-extract.py to discover declared components.",
+                "Read workflow-output/html-blocks.json — the extracted blocks are your source of truth.",
+                "Cluster blocks by DATA SHAPE (same fields = same type, even if CSS/markup differs).",
+                "Do NOT use hardcoded component name patterns. Analyze the actual content: what fields does each block have? What's its role?",
+                "Identify cross-cutting components (nav, footer, topbar) — blocks that appear on ALL pages with the same structure.",
+                "Identify jmix:mainResource components — blocks that represent content with its own navigable URL (news articles, events, products).",
                 "Write workflow-output/component-candidates.json with frequency, dataShape, isCrossCutting, isMainResource.",
                 "PROBE: bash orchestration/probes/component-discover.sh projects/__PROJECT__"
               ],
