@@ -5,6 +5,9 @@ import EpicTimeline from './EpicTimeline'
 import ActivityBar from './ActivityBar'
 import LiveLog from './LiveLog'
 import RunReport from './RunReport'
+import { PipelineRail } from './migration/PipelineRail'
+import { KpiBar } from './migration/KpiBar'
+import { MigrationStage } from './migration/MigrationStage'
 import { useEffect, useState, useRef } from 'react'
 
 export default function RunDetail() {
@@ -13,6 +16,7 @@ export default function RunDetail() {
   const [lastPoll, setLastPoll] = useState(new Date())
   const [pollCount, setPollCount] = useState(0)
   const [healthOk, setHealthOk] = useState(true)
+  const [showRaw, setShowRaw] = useState(false)
   const pollTimer = useRef<ReturnType<typeof setInterval>>()
 
   useEffect(() => {
@@ -50,10 +54,11 @@ export default function RunDetail() {
     aborted: 'text-gray-400',
   }
 
-  const runningStep = run.epics
-    .flatMap(e => e.stories)
-    .flatMap(s => s.steps)
-    .find(st => st.status === 'running')
+  const allSteps = run.epics.flatMap(e => e.stories).flatMap(s => s.steps)
+  const runningStep = allSteps.find(st => st.status === 'running')
+  const gateStep = allSteps.find(st => (st.status === 'halted' || st.status === 'waiting_human') && st.gate_type)
+  const activeStepId = (runningStep ?? gateStep)?.id
+  const isMigration = allSteps.some(st => /crawl|semantic|group|reconstruct|component_model|assemble/i.test(st.id))
 
   return (
     <div>
@@ -99,10 +104,43 @@ export default function RunDetail() {
         </div>
       )}
 
+      {isMigration && <KpiBar run={run} />}
+
+      {isMigration && (
+        <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[260px_1fr]">
+          <div className="overflow-hidden rounded-lg">
+            <PipelineRail steps={allSteps} activeStepId={activeStepId} />
+          </div>
+          <div className="min-w-0 rounded-lg bg-[#eef2f6] p-4">
+            <MigrationStage run={run} gateStep={gateStep} onApproved={reload} />
+          </div>
+        </div>
+      )}
+
       <ActivityBar run={run} />
-      <RunReport run={run} />
       <LiveLog run={run} />
-      <EpicTimeline run={run} />
+
+      {isMigration ? (
+        <div className="mt-4 border-t border-gray-800 pt-3">
+          <button
+            onClick={() => setShowRaw((s) => !s)}
+            className="text-xs font-medium text-gray-500 hover:text-gray-300"
+          >
+            {showRaw ? '▾' : '▸'} Détails bruts (Epic / Story / Step)
+          </button>
+          {showRaw && (
+            <div className="mt-3 space-y-4">
+              <RunReport run={run} />
+              <EpicTimeline run={run} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <RunReport run={run} />
+          <EpicTimeline run={run} />
+        </>
+      )}
     </div>
   )
 }

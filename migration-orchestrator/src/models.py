@@ -181,6 +181,9 @@ class StepState(BaseModel):
     completed_at: float | None = None
     duration_ms: float | None = None
     prompt_text: str | None = None
+    # Migration profile: when a step HALTs for human review, which domain panel
+    # the frontend should render (scope|model|fidelity|content|golive). Null = generic.
+    gate_type: str | None = None
 
 
 class StoryState(BaseModel):

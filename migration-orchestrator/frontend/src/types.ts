@@ -55,6 +55,7 @@ export interface StepState {
   tokens_out: number
   tokens_cache: number
   cost: number
+  gate_type?: string | null
 }
 
 export interface GitHubIssue {

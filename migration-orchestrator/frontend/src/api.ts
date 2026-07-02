@@ -26,6 +26,28 @@ export async function createRun(plan: Record<string, unknown>): Promise<{ run_id
   return resp.json()
 }
 
+export interface MigrationInput {
+  site_url: string
+  project: string
+  ns: string
+  mixns?: string
+  max_pages?: number
+  depth?: number
+  rate_delay?: number
+  sample_pages?: string[]
+}
+
+/** Create a run from the fixed deterministic analyze plan (POST /migrations). */
+export async function createMigration(input: MigrationInput): Promise<{ run_id: string; status: string; message?: string }> {
+  const resp = await fetch(`${BASE}/migrations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  if (!resp.ok) throw new Error(`création de la migration échouée: ${resp.status}`)
+  return resp.json()
+}
+
 export async function pauseRun(runId: string): Promise<void> {
   await fetch(`${BASE}/runs/${runId}/pause`, { method: 'POST' })
 }

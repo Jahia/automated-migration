@@ -405,11 +405,12 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
             await notify_sse(run, "step_completed", {"result": agent_result.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
         elif agent_result.status == "halt":
             step.status = StepStatus.halted
+            step.gate_type = _infer_gate_type(step)
             step.completed_at = time.time() * 1000
             step.duration_ms = step.completed_at - step.started_at
             audit.step_halted(epic.id, story.id, step.id, agent_result.summary)
             await save_run(run)
-            await notify_sse(run, "step_status", {"status": "halted", "task_type": step.task_type, "summary": agent_result.summary}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+            await notify_sse(run, "step_status", {"status": "halted", "task_type": step.task_type, "gate_type": step.gate_type, "summary": agent_result.summary}, step_id=step.id, story_id=story.id, epic_id=epic.id)
         elif agent_result.status == "failed" and agent_result.loop_to:
             step.status = StepStatus.done
             step.completed_at = time.time() * 1000
@@ -436,6 +437,23 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
         audit.step_failed(epic.id, story.id, step.id, step.duration_ms, str(e), step.attempt, step.max_attempts, will_retry)
         await save_run(run)
         await notify_sse(run, "step_status", {"status": "failed", "task_type": step.task_type, "error": str(e)}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+
+
+def _infer_gate_type(step: StepState) -> str | None:
+    """Map a halted step to a migration-profile gate panel (frontend routing).
+    Derived from the step id / title / acceptance_criteria — no plan schema change."""
+    text = " ".join([step.id or "", step.title or "", " ".join(step.acceptance_criteria or [])]).lower()
+    if "reconstruct" in text or "fidelity" in text:
+        return "fidelity"
+    if "component_model" in text or "step_model" in text or ("component" in text and "model" in text):
+        return "model"
+    if "visual" in text or "vanity" in text or "go-live" in text or "golive" in text:
+        return "golive"
+    if "content" in text and "extract" not in text:
+        return "content"
+    if "scope" in text or "analyze" in text or "crawl" in text:
+        return "scope"
+    return None
 
 
 def _latest_assistant_text(msgs: list) -> str:

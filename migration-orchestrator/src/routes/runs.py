@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..github_client import GitHubClient
-from ..models import PlanInput, RunState, RunStatus
+from ..models import EpicInput, PlanInput, RunState, RunStatus, StepInput, StoryInput
 from ..opencode_client import OpenCodeClient
 from ..opencode_events import OpenCodeEventListener
 from ..orchestrator import (
@@ -151,3 +154,197 @@ async def restart_run_endpoint(run_id: str, request: Request):
     if "error" in result:
         return RunResponse(run_id=run_id, status="error", message=result["error"])
     return RunResponse(run_id=run_id, status="running", message="Run relancé")
+
+
+# ── Migration profile: domain artifacts + fidelity actions ───────────
+
+def _project_path(run: RunState) -> str | None:
+    """The project dir this run migrates (from any step's inputs)."""
+    for epic in run.epics:
+        for story in epic.stories:
+            for step in story.steps:
+                pp = step.inputs.get("project_path") or step.inputs.get("project")
+                if pp:
+                    return str(pp)
+    return None
+
+
+async def _resolve_run(run_id: str) -> RunState:
+    run = get_run(run_id)
+    if not run:
+        run = await load_run(run_id)
+        if run:
+            register_run(run)
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
+    return run
+
+
+@router.get("/runs/{run_id}/artifacts/{path:path}")
+async def get_artifact(run_id: str, path: str):
+    """Serve a file from the run's project workflow-output (screenshots, JSON, CND)."""
+    run = await _resolve_run(run_id)
+    proj = _project_path(run)
+    if not proj:
+        raise HTTPException(status_code=404, detail="no project for run")
+    base = (Path(run.repo_dir) / proj / "workflow-output").resolve()
+    target = (base / path).resolve()
+    if base != target and not str(target).startswith(str(base) + "/"):
+        raise HTTPException(status_code=403, detail="path traversal blocked")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="artifact not found")
+    return FileResponse(str(target))
+
+
+class FidelityRerun(BaseModel):
+    pages: list[str] = []
+
+
+@router.post("/runs/{run_id}/fidelity/rerun")
+async def fidelity_rerun(run_id: str, req: FidelityRerun):
+    """Re-run the reconstruction probe on a chosen page sample (fire-and-forget)."""
+    run = await _resolve_run(run_id)
+    proj = _project_path(run)
+    if not proj:
+        raise HTTPException(status_code=404, detail="no project for run")
+    args = ["node", "orchestration/lib/reconstruct_probe.mjs", proj, "95"]
+    if req.pages:
+        args += ["--pages", ",".join(req.pages)]
+    subprocess.Popen(args, cwd=run.repo_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return {"status": "rerunning", "pages": req.pages}
+
+
+# ── Migration profile: create a run from the fixed analyze plan ───────
+#
+# The generic engine takes an arbitrary Epic/Story/Step plan (POST /runs).
+# A migration is that plan *held fixed* (the deterministic analyze pipeline:
+# crawl → semantic_extract → group_llm(DeepSeek) → assemble+CND → fidelity gate)
+# and parameterized by a handful of site facts. The NewMigration cockpit form
+# posts those facts here; we materialize the plan and register the run.
+
+
+class MigrationInput(BaseModel):
+    site_url: str
+    project: str
+    ns: str
+    mixns: str | None = None
+    max_pages: int = 18
+    depth: int = 2
+    rate_delay: int = 2
+    sample_pages: list[str] = []
+    repo_dir: str | None = None
+
+
+def _harness_root() -> str:
+    """The jahiaMigration repo root (where AGENTS.md + orchestration/ live)."""
+    return str(Path(__file__).resolve().parents[3])
+
+
+def _build_migration_plan(inp: MigrationInput) -> PlanInput:
+    """The fixed analyze plan, parameterized. Mirrors
+    orchestration/plans/acquia-analyze.plan.json step-for-step so a run created
+    here executes identically to the reference deterministic pipeline."""
+    proj = inp.project
+    ns = inp.ns
+    mixns = inp.mixns or f"{ns}mix"
+    repo_dir = inp.repo_dir or _harness_root()
+    pp = f"projects/{proj}"
+    wo = f"{pp}/workflow-output"
+    recon_max = min(3, inp.max_pages)
+    pages_flag = f" --pages {','.join(inp.sample_pages)}" if inp.sample_pages else ""
+    ins = {"project_path": pp, "project": proj}
+
+    steps = [
+        StepInput(
+            id="step_crawl",
+            title="Crawl + inventory (cache-first)",
+            inputs={**ins, "site_url": inp.site_url},
+            acceptance_criteria=[
+                f"Run: python3 orchestration/lib/crawl-site.py {pp} {inp.site_url} "
+                f"--max-pages {inp.max_pages} --depth {inp.depth} --rate-delay {inp.rate_delay} --max-asset-size 1",
+                f"PROBE: test -s {wo}/page-inventory.json",
+            ],
+        ),
+        StepInput(
+            id="step_semantic",
+            title="Deterministic candidate extraction",
+            depends_on=["step_crawl"],
+            inputs=ins,
+            acceptance_criteria=[
+                f"Run: python3 orchestration/lib/semantic_extract.py {pp}",
+                f"PROBE: test -s {wo}/semantic-candidates.json",
+                f"PROBE: python3 -c \"import json;d=json.load(open('{wo}/semantic-candidates.json'));"
+                f"assert len(d['crossCutting'])>=1 and len(d['components'])>=1\"",
+            ],
+        ),
+        StepInput(
+            id="step_group",
+            title="Bounded LLM grouping via DeepSeek V4 Flash (self-correcting, gate-clean)",
+            depends_on=["step_semantic"],
+            inputs=ins,
+            acceptance_criteria=[
+                f"Run: python3 orchestration/lib/group_llm.py {pp} --model deepseek-v4-flash "
+                f"--ns {ns} --out {wo}/grouping.json --retries 4",
+                f"PROBE: python3 orchestration/lib/assemble_manifest.py {wo}/semantic-candidates.json "
+                f"--group {wo}/grouping.json --ns {ns} --out {wo}/component-manifest.json",
+            ],
+        ),
+        StepInput(
+            id="step_cnd",
+            title="Emit CND + view plan (deterministic)",
+            depends_on=["step_group"],
+            inputs=ins,
+            acceptance_criteria=[
+                f"Run: python3 orchestration/lib/cnd_emit.py {wo}/component-manifest.json "
+                f"--ns {ns} --mixns {mixns} --project {proj} "
+                f"--out-cnd {wo}/definitions.cnd --out-views {wo}/views.json",
+                f"PROBE: test -s {wo}/definitions.cnd",
+                f'PROBE: grep -q "{ns} = " {wo}/definitions.cnd',
+                f"PROBE: test -s {wo}/views.json",
+            ],
+        ),
+        StepInput(
+            id="step_reconstruct_gate",
+            title="Round-trip fidelity gate: reconstruct sample pages and pixel-diff vs source (BEFORE templatization)",
+            depends_on=["step_cnd"],
+            inputs=ins,
+            acceptance_criteria=[
+                "Reconstructs the sample pages from ONLY the extracted component nodes, renders in a "
+                "real browser, pixel-diffs against the live source, and writes a self-contained visual "
+                "review at workflow-output/reconstruct/review.html. GATE = content coverage.",
+                f"PROBE: node orchestration/lib/reconstruct_probe.mjs {pp} {recon_max} 95{pages_flag}",
+                'After the PROBE passes, return status: "halt" so the operator can review the '
+                "fidelity gate in the cockpit before templatization.",
+            ],
+        ),
+    ]
+
+    epic = EpicInput(
+        id="epic_analyze",
+        title="Deterministic analyze",
+        goal="Crawl, extract candidates deterministically, group via DeepSeek (gate-verified), "
+        "assemble manifest + CND, then verify with the round-trip fidelity gate.",
+        stories=[StoryInput(id="story_analyze", title="Analyze", steps=steps)],
+    )
+    return PlanInput(
+        goal=f"Analyze {inp.site_url} into a stable Jahia component + template model "
+        f"(project {proj}, namespace {ns}), CND-ready.",
+        repo_dir=repo_dir,
+        model="deepseek/deepseek-v4-flash",
+        epics=[epic],
+    )
+
+
+@router.post("/migrations", response_model=RunResponse)
+async def create_migration(inp: MigrationInput):
+    """Create a run from the fixed deterministic analyze plan. No GitHub issues."""
+    plan = _build_migration_plan(inp)
+    run = build_run_state(plan)
+    run.status = RunStatus.created
+    register_run(run)
+    await save_run(run)
+    return RunResponse(
+        run_id=run.run_id,
+        status="created",
+        message="Migration créée. POST /runs/{run_id}/start pour lancer l'analyse.",
+    )

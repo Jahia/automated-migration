@@ -109,6 +109,12 @@ export default function RunList() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Runs</h1>
         <div className="flex items-center gap-3">
+          <Link
+            to="/new"
+            className="px-3 py-1.5 bg-[#0077bf] hover:bg-[#0069a8] rounded text-xs font-semibold text-white"
+          >
+            + Nouvelle migration
+          </Link>
           <button
             onClick={handlePrune}
             disabled={actionLoading === '__prune__'}
@@ -130,7 +136,13 @@ export default function RunList() {
       )}
 
       {runs.length === 0 ? (
-        <p className="text-gray-500">Aucun run. Créez-en un via <code>POST /runs</code>.</p>
+        <p className="text-gray-500">
+          Aucun run.{' '}
+          <Link to="/new" className="text-[#4aa6dd] hover:text-[#7fd0f5]">
+            Lancer une nouvelle migration
+          </Link>
+          .
+        </p>
       ) : (
         <div className="space-y-3">
           {runs.map((run) => (
