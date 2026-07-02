@@ -240,23 +240,47 @@ def _own_heading(node):
     return False
 
 
+# A wrapper carrying a VISIBLE background (a distinct colour or an image) is a
+# banner / hero / coloured section — one component that OWNS that background, not a
+# transparent layout wrapper to descend through. Missing this split the hero's inner
+# text off from its coloured wrapper, so the reconstruction never painted the band
+# (the "bg-on-wrapper" pixel gap on contentful careers/case-studies). Detected from
+# STATIC html only (inline style + hero/banner class) so the model and the fidelity
+# probe agree — no computed styles.
+_BG_CLASS_RE = re.compile(r"(?:^|[-_ ])(hero|banner|masthead|jumbotron|full[-_]?size|promo|cta)(?:$|[-_ ])", re.I)
+_BG_VAL_SKIP = re.compile(r"^(transparent|none|inherit|initial|unset|currentcolor|#fff(fff)?\b|white|rgba?\(\s*255\s*,\s*255\s*,\s*255|rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0)", re.I)
+
+
+def _has_visual_bg(node):
+    """True if node carries its OWN visible background (distinct colour / image)."""
+    style = (node.get("style") or "").lower()
+    if "background" in style:
+        m = re.search(r"background(?:-color|-image|)\s*:\s*([^;]+)", style)
+        if m:
+            val = m.group(1).strip()
+            if val and not _BG_VAL_SKIP.match(val):
+                return True
+    return bool(_BG_CLASS_RE.search(" ".join(classes_of(node))))
+
+
 def _find_component_row(node, depth=0):
     """Recursively locate the 'component altitude' below a content region:
     descend transparent single-block wrappers; at the first level with >=2 block
     children, emit those children (a heterogeneous zone) — unless they are a
     homogeneous repeated row, in which case emit the parent as one container.
 
-    A node that carries its OWN title/intro (heading not inside an item block) is a
-    TITLED SECTION and is emitted whole (Option A) — so section headings/intros are
-    never dropped above the component row."""
+    A node that carries its OWN title/intro (heading not inside an item block) OR its
+    OWN visible background (a hero/banner/coloured section) is emitted whole (Option A)
+    — so section headings/intros and coloured band backgrounds are never dropped
+    above the component row."""
     if depth > 7:
         return [node]
     block_children = [c for c in node.children if _is_block(c)]
     if len(block_children) == 0:
         return [node]
-    # titled section: keep the whole node (title + intro + items). depth>0 so we
+    # titled section OR background-bearing band: keep the whole node. depth>0 so we
     # never swallow the top-level content region itself.
-    if depth > 0 and _own_heading(node):
+    if depth > 0 and (_own_heading(node) or _has_visual_bg(node)):
         return [node]
     if len(block_children) == 1:
         # transparent wrapper (region/article/site-studio chain) — descend

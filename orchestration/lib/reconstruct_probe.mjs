@@ -93,11 +93,22 @@ const identify = (sxaMode) => {
       ...[...node.querySelectorAll('p,span,div')].filter(isHeadingEl)];
     return heads.some(h => h.textContent.trim() && !bk.some(b => b.contains(h)));
   };
+  // a wrapper with its OWN visible background = a banner/hero/coloured section = one
+  // component (matches semantic_extract._has_visual_bg — static signal, no computed
+  // style, so the model and this measurement agree).
+  const BG_CLS = /(?:^|[-_ ])(hero|banner|masthead|jumbotron|full[-_]?size|promo|cta)(?:$|[-_ ])/i;
+  const BG_SKIP = /^(transparent|none|inherit|initial|unset|currentcolor|#fff(fff)?\b|white|rgba?\(\s*255\s*,\s*255\s*,\s*255|rgba?\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0)/i;
+  const hasBg = el => {
+    const style = (el.getAttribute('style') || '').toLowerCase();
+    const m = /background(?:-color|-image|)\s*:\s*([^;]+)/.exec(style);
+    if (m && m[1].trim() && !BG_SKIP.test(m[1].trim())) return true;
+    return BG_CLS.test(el.className || '');
+  };
   function row(node, depth) {
     if (depth > 7) return [node];
     const bc = [...node.children].filter(isBlock);
     if (bc.length === 0) return [node];
-    if (depth > 0 && ownHeading(node)) return [node];  // titled section = one component (Option A)
+    if (depth > 0 && (ownHeading(node) || hasBg(node))) return [node];  // titled section OR coloured band = one component
     if (bc.length === 1) return row(bc[0], depth + 1);
     const sig = {}; bc.forEach(c => { const k = c.tagName + '.' + firstSem(c); sig[k] = (sig[k] || 0) + 1; });
     const top = Math.max(...Object.values(sig));

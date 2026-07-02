@@ -241,6 +241,19 @@ fixed before commit. What shipped:
    labels remain); blog_a-new-chapter 96%→100%. supercar/liferay roles unchanged (no
    regression — they use real hN).**
 
+8. ✅ **Background-bearing wrapper = one component** (`semantic_extract._has_visual_bg` +
+   the probe's `hasBg`): the altitude finder descended THROUGH a hero/banner wrapper and
+   captured only its inner text/image wrapper, so the coloured band's background sat on an
+   un-captured ancestor and never painted in the components-only render — the dominant
+   pixel gap on contentful careers/case-studies. Now a wrapper carrying its own visible
+   background (distinct inline colour/image, or a hero/banner/promo/cta class) is emitted
+   whole, like a titled section. Static signal only (inline style + class) so the model and
+   the fidelity probe agree. **Measured: careers 97.1%→99.9%, case-studies 94.6%→100% pixel;
+   supercar (SXA) + liferay roles unchanged (no regression).** Diagnosed via the
+   diff-PNG analysis: `100 − pixelSim` on a page = section backgrounds + full-bleed hero
+   imagery + template dividers + `<img>`/asset fills that fall OUTSIDE a captured component
+   (masked to visibility:hidden) — the template + asset-import layer's job, quantified.
+
 ### Still open (not regressions — genuine next work)
 - **Metric honesty stands**: reconstruct pixelSim is segmentation coverage of a masked DOM,
   not a rebuild from extracted data (see the §3 note). A true from-extraction reconstruction
