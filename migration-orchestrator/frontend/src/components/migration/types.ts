@@ -61,3 +61,9 @@ export interface StepLike {
   status: string
   gate_type?: string | null
 }
+
+/** Phase keys that have a dedicated review panel (MigrationStage.panelForPhase).
+ * 'scaffold' has none → not reviewable. Used to gate rail clickability. */
+export const REVIEWABLE_PHASE_KEYS = new Set<string>([
+  'capture', 'analyze', 'model', 'fidelity', 'implement', 'content', 'golive',
+])

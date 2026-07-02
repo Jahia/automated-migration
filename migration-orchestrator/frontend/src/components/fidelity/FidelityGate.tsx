@@ -7,8 +7,11 @@ const NOTCH = { clipPath: 'polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100
 
 interface Props {
   runId: string
-  stepId: string
+  stepId?: string
   onApproved?: () => void
+  /** Review mode: render the gallery without the approve/reject/rerun actions
+   * (e.g. re-viewing a completed run's fidelity gate). */
+  readOnly?: boolean
 }
 
 /**
@@ -18,7 +21,7 @@ interface Props {
  * operator approve before templatization. Replaces the generic RectificationPanel
  * for gate_type === 'fidelity'.
  */
-export function FidelityGate({ runId, stepId, onApproved }: Props) {
+export function FidelityGate({ runId, stepId, onApproved, readOnly }: Props) {
   const [report, setReport] = useState<ReconstructReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -36,7 +39,11 @@ export function FidelityGate({ runId, stepId, onApproved }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, stepId])
 
-  if (error) return <div className="p-6 font-mono text-sm text-[#bd2a33]">Fidelity report unavailable — {error}</div>
+  if (error) return (
+    <div className="border border-dashed border-[#c7d0da] bg-white/60 px-4 py-8 text-center text-[13px] text-[#7d8a9a]" style={NOTCH}>
+      Fidelity report not available yet.
+    </div>
+  )
   if (!report) return <div className="p-6 text-[#7d8a9a]">Loading reconstruction report…</div>
 
   const pages = report.pages
@@ -75,25 +82,29 @@ export function FidelityGate({ runId, stepId, onApproved }: Props) {
             <span className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]" />
             {allPass ? `Gate green · ${passed}/${pages.length}` : `Review · ${passed}/${pages.length} pass`}
           </span>
-          <button
-            onClick={() => rerunFidelity(runId).then(load)}
-            className="rounded-md border border-[#c7d0da] bg-white px-3.5 py-2 text-[11.5px] font-bold uppercase tracking-wide hover:border-[#0077bf]"
-          >
-            Re-run
-          </button>
-          <button
-            onClick={() => rejectFidelityGate(runId, 'fidelity gap — fixing extraction')}
-            className="rounded-md border border-[#c7d0da] bg-white px-3.5 py-2 text-[11.5px] font-bold uppercase tracking-wide hover:border-[#bd2a33] hover:text-[#bd2a33]"
-          >
-            Reject
-          </button>
-          <button
-            onClick={approve}
-            disabled={busy}
-            className="rounded-md border border-[#0077bf] bg-[#0077bf] px-3.5 py-2 text-[11.5px] font-bold uppercase tracking-wide text-white hover:bg-[#025a91] disabled:opacity-60"
-          >
-            Approve &amp; continue <span className="ml-2 border-l border-white/60 pl-2 font-normal opacity-70">›</span>
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                onClick={() => rerunFidelity(runId).then(load)}
+                className="rounded-md border border-[#c7d0da] bg-white px-3.5 py-2 text-[11.5px] font-bold uppercase tracking-wide hover:border-[#0077bf]"
+              >
+                Re-run
+              </button>
+              <button
+                onClick={() => rejectFidelityGate(runId, 'fidelity gap — fixing extraction')}
+                className="rounded-md border border-[#c7d0da] bg-white px-3.5 py-2 text-[11.5px] font-bold uppercase tracking-wide hover:border-[#bd2a33] hover:text-[#bd2a33]"
+              >
+                Reject
+              </button>
+              <button
+                onClick={approve}
+                disabled={busy}
+                className="rounded-md border border-[#0077bf] bg-[#0077bf] px-3.5 py-2 text-[11.5px] font-bold uppercase tracking-wide text-white hover:bg-[#025a91] disabled:opacity-60"
+              >
+                Approve &amp; continue <span className="ml-2 border-l border-white/60 pl-2 font-normal opacity-70">›</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

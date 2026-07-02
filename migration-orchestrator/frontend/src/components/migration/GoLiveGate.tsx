@@ -3,7 +3,7 @@ import { useTextArtifact } from './useArtifact'
 
 /** Go-live gate — visual-diff summary + vanity redirect map, the final review
  * before the migrated site is published. gate_type === 'golive'. */
-export function GoLiveGate({ runId, onApproved }: { runId: string; onApproved?: () => void }) {
+export function GoLiveGate({ runId, onApproved, readOnly }: { runId: string; onApproved?: () => void; readOnly?: boolean }) {
   const summary = useTextArtifact(runId, 'visual-diff/SUMMARY.md')
   const redirects = useTextArtifact(runId, 'vanity/redirects.map')
 
@@ -20,7 +20,7 @@ export function GoLiveGate({ runId, onApproved }: { runId: string; onApproved?: 
         subtitle="Final review: how the migrated site compares to the source, and the vanity URLs that will redirect old paths. Approving publishes."
         tone="info"
         badge={redirectLines.length ? `${redirectLines.length} redirects` : undefined}
-        actions={<GateActions runId={runId} onApproved={onApproved} approveLabel="Publish · go live" />}
+        actions={readOnly ? undefined : <GateActions runId={runId} onApproved={onApproved} approveLabel="Publish · go live" />}
       />
 
       <Section title="Visual-diff summary">

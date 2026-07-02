@@ -43,7 +43,7 @@ interface Templates {
 
 /** Scope & capture gate — approve WHAT was extracted (pages + candidates + template
  * clusters) before the LLM builds the component model. gate_type === 'scope'. */
-export function ScopeGate({ runId, onApproved }: { runId: string; onApproved?: () => void }) {
+export function ScopeGate({ runId, onApproved, readOnly }: { runId: string; onApproved?: () => void; readOnly?: boolean }) {
   const inv = useJsonArtifact<PageInventory>(runId, 'page-inventory.json')
   const cand = useJsonArtifact<Candidates>(runId, 'semantic-candidates.json')
   const tpl = useJsonArtifact<Templates>(runId, 'semantic-templates.json')
@@ -69,7 +69,7 @@ export function ScopeGate({ runId, onApproved }: { runId: string; onApproved?: (
         }
         tone="info"
         badge={inv.data ? `${inv.data.totalPages ?? pages.length} pages` : undefined}
-        actions={<GateActions runId={runId} onApproved={onApproved} approveLabel="Approve scope" />}
+        actions={readOnly ? undefined : <GateActions runId={runId} onApproved={onApproved} approveLabel="Approve scope" />}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">

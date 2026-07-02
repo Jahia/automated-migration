@@ -17,6 +17,7 @@ export default function RunDetail() {
   const [pollCount, setPollCount] = useState(0)
   const [healthOk, setHealthOk] = useState(true)
   const [showRaw, setShowRaw] = useState(false)
+  const [selectedPhase, setSelectedPhase] = useState<string | null>(null)
   const pollTimer = useRef<ReturnType<typeof setInterval>>()
 
   useEffect(() => {
@@ -35,6 +36,16 @@ export default function RunDetail() {
     pollTimer.current = setInterval(check, 3000)
     return () => clearInterval(pollTimer.current)
   }, [])
+
+  // When a NEW gate halts the run, drop any stale phase-review selection so the
+  // actionable gate is never hidden behind a read-only view of a past phase.
+  const gateStepId = run?.epics
+    .flatMap((e) => e.stories)
+    .flatMap((s) => s.steps)
+    .find((st) => (st.status === 'halted' || st.status === 'waiting_human') && st.gate_type)?.id
+  useEffect(() => {
+    if (gateStepId) setSelectedPhase(null)
+  }, [gateStepId])
 
   if (loading) return <div className="text-gray-400">Chargement...</div>
   if (error) return (
@@ -109,10 +120,21 @@ export default function RunDetail() {
       {isMigration && (
         <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[260px_1fr]">
           <div className="overflow-hidden rounded-lg">
-            <PipelineRail steps={allSteps} activeStepId={activeStepId} />
+            <PipelineRail
+              steps={allSteps}
+              activeStepId={activeStepId}
+              selectedKey={selectedPhase ?? undefined}
+              onSelectPhase={(k) => setSelectedPhase((p) => (p === k ? null : k))}
+            />
           </div>
           <div className="min-w-0 rounded-lg bg-[#eef2f6] p-4">
-            <MigrationStage run={run} gateStep={gateStep} onApproved={reload} />
+            <MigrationStage
+              run={run}
+              gateStep={gateStep}
+              selectedPhase={selectedPhase}
+              onClearPhase={() => setSelectedPhase(null)}
+              onApproved={reload}
+            />
           </div>
         </div>
       )}

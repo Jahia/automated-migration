@@ -1,26 +1,16 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { artifactUrl } from '../fidelity/api'
+import { type ReactNode } from 'react'
+import { EmptyArtifact } from './GateShell'
+import { useJsonArtifact } from './useArtifact'
 import type { ComponentManifest, ComponentType } from './types'
 
 const NOTCH = { clipPath: 'polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%)' } as const
 
 /** Renders component-manifest.json: types, views, layout props, containers, cross-cutting, templates. */
 export function ComponentModelView({ runId }: { runId: string }) {
-  const [m, setM] = useState<ComponentManifest | null>(null)
-  const [err, setErr] = useState<string | null>(null)
+  const { data: m, status } = useJsonArtifact<ComponentManifest>(runId, 'component-manifest.json')
 
-  useEffect(() => {
-    fetch(artifactUrl(runId, 'component-manifest.json'))
-      .then((r) => {
-        if (!r.ok) throw new Error(`manifest unavailable (${r.status})`)
-        return r.json()
-      })
-      .then(setM)
-      .catch((e) => setErr(String(e.message ?? e)))
-  }, [runId])
-
-  if (err) return <div className="p-6 font-mono text-sm text-[#bd2a33]">{err}</div>
-  if (!m) return <div className="p-6 text-[#7d8a9a]">Loading component model…</div>
+  if (status === 'loading') return <div className="p-6 text-[#7d8a9a]">Loading component model…</div>
+  if (status === 'missing' || !m) return <EmptyArtifact label="Component model not generated yet." />
 
   return (
     <div className="text-[#001932]">

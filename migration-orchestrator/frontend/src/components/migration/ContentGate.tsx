@@ -14,7 +14,7 @@ interface ContentPage {
 
 /** Content & publish gate — review the content extracted/created for the Jahia
  * site before it goes live. gate_type === 'content'. */
-export function ContentGate({ runId, onApproved }: { runId: string; onApproved?: () => void }) {
+export function ContentGate({ runId, onApproved, readOnly }: { runId: string; onApproved?: () => void; readOnly?: boolean }) {
   const { data, status } = useJsonArtifact<ContentPage[]>(runId, 'content-data.json')
   const pages = Array.isArray(data) ? data : []
 
@@ -35,7 +35,7 @@ export function ContentGate({ runId, onApproved }: { runId: string; onApproved?:
         subtitle="Content mapped onto the component model, page by page. Approving publishes to the live workspace. Reference-vs-Jahia screenshots appear here once the content step captures them."
         tone="info"
         badge={pages.length ? `${pages.length} pages` : undefined}
-        actions={<GateActions runId={runId} onApproved={onApproved} approveLabel="Approve & publish" />}
+        actions={readOnly ? undefined : <GateActions runId={runId} onApproved={onApproved} approveLabel="Approve & publish" />}
       />
 
       {status === 'missing' && <EmptyArtifact label="No content-data.json yet — this gate populates once the content step runs." />}
