@@ -335,6 +335,24 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
             continue
         target["needsMainResource"] = True
         target["detailOf"] = dt["detailOf"]
+
+        # Enrich the entity with its own core fields: fold the scalar-content facet
+        # shapes (title / body / image / link) into the entity, so the article node
+        # carries title+body+image itself. Container facets (FAQ, related-content
+        # lists) stay separate components placed in the detail template.
+        by_role = defaultdict(list)
+        for c in candidates["components"] + candidates.get("nestedParts", []):
+            by_role[c["role"]].append(c)
+        fold_shape = set()
+        for role in target["coversRoles"] + list(facets):
+            for c in by_role.get(role, []):
+                if not c.get("isContainer"):
+                    fold_shape |= set(c.get("dataShape", []))
+        if fold_shape:
+            merged = {f["name"]: f for f in target.get("fields", [])}
+            for f in fields_from_shape(sorted(fold_shape)):
+                merged.setdefault(f["name"], f)
+            target["fields"] = list(merged.values())
         extra_templates.append({
             "name": camel(dt["detailOf"]) + "Detail",
             "kind": "detail",

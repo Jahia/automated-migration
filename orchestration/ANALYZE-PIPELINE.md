@@ -134,9 +134,10 @@ Verified on acquia (blog): `tpl_01` → entity `article`, listing `blog` ✓, co
 → `acq:article` (mainResource) + `blogDetail` template. Reconstruction fidelity on blog
 detail pages: **content 100%, pixelSim 98.5–98.9%, GATE GREEN**. Byte-stable across runs.
 
-**Refinement left:** the entity's own field set is thin (facets like FAQ/related/CTA stay
-separate components placed in the template, and title/body may live in a facet) — folding
-core facet shapes into the entity's fields would enrich `acq:article`.
+**Entity enrichment (✅):** `assemble_manifest` folds the scalar-content facet shapes
+(title / body-richtext / image / link) into the entity's own fields — so `acq:article`
+carries `mix:title` + `image` + rich `text` + CTA link itself, not just an image. Container
+facets (FAQ, related-content lists) stay separate components placed in the detail template.
 
 ## 9. Open items / next
 
