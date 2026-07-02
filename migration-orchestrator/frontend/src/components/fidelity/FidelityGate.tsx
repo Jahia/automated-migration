@@ -108,8 +108,8 @@ export function FidelityGate({ runId, stepId, onApproved, readOnly }: Props) {
         </div>
       </div>
 
-      {/* per-page review cards */}
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+      {/* per-page review cards — one column so each page shows full width + height */}
+      <div className="flex flex-col gap-5">
         {pages.map((p) => (
           <PageCard key={p.slug} runId={runId} page={p} />
         ))}
@@ -153,10 +153,21 @@ function PageCard({ runId, page }: { runId: string; page: ReconstructPage }) {
         after={artifactUrl(runId, `reconstruct/${page.slug}.recon.png`)}
       />
 
-      <div className="flex gap-4 border-t border-[#dae0e7] px-3 py-2.5 font-mono tabular-nums">
+      <div className="flex items-center gap-4 border-t border-[#dae0e7] px-3 py-2.5 font-mono tabular-nums">
         <Metric v={`${page.contentCoverage ?? 0}%`} l="content" cls="text-[#12b08a]" />
         <Metric v={`${page.pixelSimilarity ?? 0}%`} l="pixel" cls="text-[#d6217d]" />
         <Metric v={String(page.nComps ?? 0)} l="components" />
+        <div className="ml-auto flex flex-wrap items-center gap-3 text-[11px]">
+          <a href={artifactUrl(runId, `reconstruct/${page.slug}.source.png`)} target="_blank" rel="noreferrer" className="text-[#0077bf] hover:underline">
+            source ↗
+          </a>
+          <a href={artifactUrl(runId, `reconstruct/${page.slug}.recon.png`)} target="_blank" rel="noreferrer" className="text-[#0077bf] hover:underline">
+            reconstruction ↗
+          </a>
+          <a href={artifactUrl(runId, `reconstruct/${page.slug}.recon.html`)} target="_blank" rel="noreferrer" className="font-bold text-[#0077bf] hover:underline">
+            ▶ tester en live ↗
+          </a>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5 px-3 pb-3">

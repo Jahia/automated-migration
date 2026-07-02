@@ -144,6 +144,20 @@ for (const p of pages) {
     const info = await page.evaluate(identify, sxaMode);
     await page.screenshot({ path: rc, fullPage: true });
 
+    // Interactive reconstruction: the masked DOM (components visible, chrome hidden)
+    // + a <base> so the site's OWN css/js/images load from origin — responsive and
+    // hover menus work live. CSP <meta> is stripped so cross-origin assets aren't
+    // blocked when served from localhost. Open via the orchestrator artifact route
+    // or a static server (python3 -m http.server) in this dir.
+    try {
+      let html = await page.content();
+      html = html.replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, '');
+      html = /<head[^>]*>/i.test(html)
+        ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${p.url}">`)
+        : `<base href="${p.url}">` + html;
+      fs.writeFileSync(`${outDir}/${p.slug}.recon.html`, html);
+    } catch { /* non-fatal: the screenshots + gate still stand */ }
+
     // pixel diff
     const a = readPng(src), b = readPng(rc);
     const w = Math.min(a.width, b.width), h = Math.min(a.height, b.height);
@@ -161,6 +175,7 @@ for (const p of pages) {
             ignorableChars: info.ignorableChars,
             orphanSamples: info.orphanSamples,
             pixelSimilarity,                                // visual artifact: components-only vs source
+            reconHtml: `${p.slug}.recon.html`,              // interactive live reconstruction
             dims: `${w}x${h}`, pass: info.contentCoveragePct >= threshold };
   } catch (e) {
     rec = { ...rec, ok: false, error: (e.message || String(e)).split('\\n')[0] };
@@ -185,7 +200,7 @@ function reviewHtml() {
       : '<div class="orphans ok">✓ No real content uncaptured (only chrome/consent, which is expected).</div>';
     return `<section class="pg">
       <h2>${esc(r.slug)} ${badge}
-        <small>content ${r.contentCoverage}% · pixelSim ${r.pixelSimilarity}% · ${r.nComps} components · <a href="${esc(r.url)}" target="_blank">source ↗</a></small></h2>
+        <small>content ${r.contentCoverage}% · pixelSim ${r.pixelSimilarity}% · ${r.nComps} components · <a href="${esc(r.url)}" target="_blank">source ↗</a> · <a href="${esc(r.slug)}.recon.html" target="_blank">▶ live reconstruction ↗</a></small></h2>
       <div class="viewer">
         <div class="slider" id="s_${esc(r.slug)}">
           <img class="recon" src="${esc(r.slug)}.recon.png" alt="reconstruction">

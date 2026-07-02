@@ -3,21 +3,20 @@ import { useCallback, useRef, useState } from 'react'
 interface Props {
   before: string // SOURCE image url (revealed on the left)
   after: string // RECONSTRUCTION image url (underneath)
-  height?: number
   beforeLabel?: string
   afterLabel?: string
 }
 
 /**
  * Drag-to-compare slider: SOURCE (top layer, clipped from the left) over
- * RECONSTRUCTION (bottom layer). Both images are full-width so they overlay
- * pixel-for-pixel; a clip-path reveals `pos%` of the source. Pointer-driven,
- * keyboard-accessible via the range input.
+ * RECONSTRUCTION (bottom layer). The reconstruction image is in normal flow so
+ * the container takes the image's FULL scaled height (whole page, not a cropped
+ * viewport); the source overlays it pixel-for-pixel and a clip-path reveals
+ * `pos%`. Pointer-driven, keyboard-accessible via the range input.
  */
 export function BeforeAfterSlider({
   before,
   after,
-  height = 210,
   beforeLabel = 'source',
   afterLabel = 'reconstruction',
 }: Props) {
@@ -36,7 +35,6 @@ export function BeforeAfterSlider({
     <div
       ref={ref}
       className="relative overflow-hidden select-none cursor-ew-resize bg-[#e7ecf1]"
-      style={{ height }}
       onPointerDown={(e) => {
         setDrag(true)
         moveTo(e.clientX)
@@ -49,14 +47,14 @@ export function BeforeAfterSlider({
       onPointerMove={(e) => drag && moveTo(e.clientX)}
       onPointerUp={() => setDrag(false)}
     >
-      {/* reconstruction underneath */}
-      <img src={after} alt={afterLabel} draggable={false} className="absolute inset-0 block w-full" />
+      {/* reconstruction in normal flow → defines the full (scaled) page height */}
+      <img src={after} alt={afterLabel} draggable={false} className="block w-full" />
       {/* source on top, clipped to reveal the left `pos%` */}
       <img
         src={before}
         alt={beforeLabel}
         draggable={false}
-        className="absolute inset-0 block w-full"
+        className="absolute left-0 top-0 block w-full"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
       />
 
