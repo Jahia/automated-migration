@@ -64,7 +64,15 @@ try {
 // Passed as a real function to page.evaluate (NOT a string).
 const identify = (sxaMode) => {
   const txt = el => (el.innerText || '').replace(/\s+/g, ' ').trim();
-  const hasContent = el => el.querySelector('h1,h2,h3,h4,h5,h6,img,picture,video') || el.querySelector('a[href]') || txt(el).length > 40;
+  // headings are NOT only <h1>-<h6>: design-system sites render visual headings as
+  // <p>/<span>/<div> with a typography-heading class or ARIA. Must match
+  // semantic_extract._is_heading so the gate measures what the extractor extracts.
+  const HEADING_CLS = /(?:^|[-_ ])(heading|headline)(?:$|[-_ 0-9])/i;
+  const isHeadingEl = el => /^H[1-6]$/.test(el.tagName)
+    || el.getAttribute('role') === 'heading' || el.hasAttribute('aria-level')
+    || (['P', 'SPAN', 'DIV'].includes(el.tagName) && HEADING_CLS.test(el.className || ''));
+  const hasHeading = el => /^H[1-6]$/.test(el.tagName) ? true : !!el.querySelector('h1,h2,h3,h4,h5,h6,[role="heading"],[aria-level]') || [...el.querySelectorAll('p,span,div')].some(isHeadingEl);
+  const hasContent = el => hasHeading(el) || el.querySelector('img,picture,video') || el.querySelector('a[href]') || txt(el).length > 40;
   const isBlock = el => el.nodeType === 1 && ['DIV', 'SECTION', 'ARTICLE', 'ASIDE', 'FORM', 'UL', 'OL', 'HEADER', 'FOOTER', 'NAV'].includes(el.tagName) && hasContent(el);
   // layout-class detection + CSS-module hash strip — mirror semantic_extract so the
   // in-browser row signature groups siblings the SAME way the extractor does
@@ -81,7 +89,9 @@ const identify = (sxaMode) => {
   };
   const ownHeading = node => {
     const bk = [...node.children].filter(isBlock);
-    return [...node.querySelectorAll('h1,h2,h3,h4,h5,h6')].some(h => h.textContent.trim() && !bk.some(b => b.contains(h)));
+    const heads = [...node.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"],[aria-level]'),
+      ...[...node.querySelectorAll('p,span,div')].filter(isHeadingEl)];
+    return heads.some(h => h.textContent.trim() && !bk.some(b => b.contains(h)));
   };
   function row(node, depth) {
     if (depth > 7) return [node];

@@ -226,6 +226,18 @@ fixed before commit. What shipped:
    surfaced real weak pages the old sampling hid (liferay `capabilities_*`, supercar
    `fr-FR_exposer` form).
 
+7. ✅ **Non-semantic heading detection** (`semantic_extract._is_heading` + the same in
+   `reconstruct_probe`): the "a titled section = one component" rule keyed only on
+   `<h1>`–`<h6>`. Design-system / Next.js sites (Contentful) render visual headings as
+   `<p class="typography_heading__…">` / ARIA `role="heading"` — so titled promo bands
+   were over-decomposed and their title + CTA orphaned (the "Introducing: Palmata by
+   Contentful" home banner). Now heading detection also matches `role="heading"`,
+   `aria-level`, and a `heading`/`headline` typography class (NOT bare `title`, which
+   would over-merge card sub-titles). **Measured: contentful home 98%→99% coverage
+   (101→37 orphan chars — the Palmata title is now a component; only two CTA button
+   labels remain); blog_a-new-chapter 96%→100%. supercar/liferay roles unchanged (no
+   regression — they use real hN).**
+
 ### Still open (not regressions — genuine next work)
 - **Metric honesty stands**: reconstruct pixelSim is segmentation coverage of a masked DOM,
   not a rebuild from extracted data (see the §3 note). A true from-extraction reconstruction

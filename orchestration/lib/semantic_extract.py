@@ -173,7 +173,7 @@ BLOCK_TAGS = {"div", "section", "article", "aside", "form", "ul", "ol", "header"
 
 def _content_signal(el):
     """Does this element carry contributor content (heading/media/link/text)?"""
-    if el.find(list(HEADING_TAGS)):
+    if _heading_descendants(el):
         return True
     if el.find(["img", "picture", "video", "iframe"]):
         return True
@@ -197,12 +197,44 @@ def _homogeneous(children):
     return n >= 3 and n >= 0.6 * len(children)
 
 
+# A heading is NOT only <h1>-<h6>. Design-system / CSS-in-JS sites (Next.js,
+# styled-components, Contentful) render visual headings as <p>/<span>/<div> with a
+# typography class (`typography_heading__…`, `sectionTitle`, `headline-lg`) and/or
+# ARIA (role="heading" / aria-level). Missing these made the altitude finder
+# over-decompose titled promo bands (e.g. contentful's Palmata card), orphaning the
+# title + CTA. `heading|headline` only (NOT bare `title`, which hits job-title/
+# card-subtitle inside items and would over-merge).
+HEADING_CLASS_RE = re.compile(r"(?:^|[-_ ])(heading|headline)(?:$|[-_ 0-9])", re.I)
+
+
+def _is_heading(el):
+    if not isinstance(el, Tag):
+        return False
+    if el.name in HEADING_TAGS:
+        return True
+    if el.get("role") == "heading" or el.get("aria-level"):
+        return True
+    if el.name in ("p", "span", "div") and HEADING_CLASS_RE.search(" ".join(classes_of(el))):
+        return True
+    return False
+
+
+def _heading_descendants(node):
+    """All heading-like descendants (semantic hN + ARIA + typography-heading class)."""
+    hs = list(node.find_all(list(HEADING_TAGS)))
+    hs += node.find_all(attrs={"role": "heading"})
+    hs += node.find_all(attrs={"aria-level": True})
+    hs += [e for e in node.find_all(["p", "span", "div"], class_=True)
+           if HEADING_CLASS_RE.search(" ".join(classes_of(e)))]
+    return hs
+
+
 def _own_heading(node):
     """True if node carries its OWN heading (a section title/intro) that is not
     inside one of its item blocks — i.e. node is a 'titled section', not a pure
     layout wrapper. Such a node IS the component (title + intro + items as children)."""
     block_kids = [c for c in node.children if isinstance(c, Tag) and _is_block(c)]
-    for h in node.find_all(list(HEADING_TAGS)):
+    for h in _heading_descendants(node):
         if h.get_text(strip=True) and not any(bk in h.parents for bk in block_kids):
             return True
     return False
@@ -312,7 +344,7 @@ def _div_has_content_mixing(el, maxdepth=2):
     catches components on hand-coded / non-SXA sites the keyword list misses."""
     has_heading = has_content = False
     for n in _bounded_descendants(el, maxdepth):
-        if n.name in HEADING_TAGS:
+        if _is_heading(n):
             has_heading = True
         elif n.name in ("img", "picture", "video", "a", "p", "ul", "ol"):
             has_content = True
