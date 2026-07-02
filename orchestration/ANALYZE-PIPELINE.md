@@ -254,6 +254,30 @@ fixed before commit. What shipped:
    imagery + template dividers + `<img>`/asset fills that fall OUTSIDE a captured component
    (masked to visibility:hidden) — the template + asset-import layer's job, quantified.
 
+### 🧪 Generic LLM segmentation (prototype, replaces accumulating heuristics)
+
+The altitude heuristics (heading class, bg keyword, ≥3 row, filter-bar, …) overfit the
+test sites — every new site breaks one. `segment_probe.mjs` + `ovh_vision.mjs` are a
+prototype of the generic alternative: render the page, hand a **vision LLM**
+(OVH `Qwen2.5-VL-72B-Instruct` — DeepSeek has no vision) a numbered DOM outline + the
+screenshot, and let it decide the component segmentation AND hierarchy
+(component/container/children/chrome) the way an editor would — no site rules.
+Two invariants keep it safe & lossless:
+- **partition gate** (deterministic): the model may only reference block ids that
+  exist; every content LEAF ends up in a chosen subtree OR in an explicit
+  **passthrough** block → nothing is ever dropped (the pixel-perfect invariant).
+- **per template cluster**, temp 0, cacheable → cheap even at thousands of pages.
+
+First result on contentful/blog (gate GREEN, 0 hallucinated ids, ~88% leaf coverage,
+rest passthrough): it captured the **CTA as a container**, the **category filter bar as
+a first-class component**, header/footer as chrome — the exact cases the fixed
+heuristics got wrong — with editorial names and no hardcoding. Output:
+`workflow-output/segment/<slug>.segmentation.json` + `<slug>.segmap.html` (overlay
+coloured by kind, passthrough shown not hidden). NEXT: add per-cluster caching +
+gate-retry for reproducibility; wire the segmentation into assemble/cnd; build the
+deterministic **passthrough layer** so the migrated module renders every uncaptured
+region as raw HTML (pixel-perfect by construction, `RIEN supprimé`).
+
 ### Still open (not regressions — genuine next work)
 - **Metric honesty stands**: reconstruct pixelSim is segmentation coverage of a masked DOM,
   not a rebuild from extracted data (see the §3 note). A true from-extraction reconstruction
