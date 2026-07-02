@@ -53,7 +53,7 @@ const refStat = refIsUrl ? null : statSync(resolve(refSrcArg));
 const CACHE_KEY = JSON.stringify({
   src: refIsUrl ? refSrcArg : resolve(refSrcArg),
   mtime: refStat ? refStat.mtimeMs : null, size: refStat ? refStat.size : null,
-  hide: HIDE, origin: refOrigin || null, vp: "1440x1000", tol: CHANNEL_TOL, v: 2,
+  hide: HIDE, origin: refOrigin || null, vp: "1440x1000", tol: CHANNEL_TOL, v: 3, // v3: landmarks carry x/w
 });
 const refCacheValid =
   !CALIBRATE &&
@@ -134,7 +134,9 @@ async function landmarks(page) {
         const txt = (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 40);
         desc = `${tag}${cls ? "." + cls : ""}${txt ? ` "${txt}"` : ""}`;
       }
-      out.push({ y: Math.round(y), h: Math.round(r.height), desc });
+      // x + w matter as much as y: a container-width mismatch (every section
+      // inset/narrower) is invisible in y-only landmarks and plateaus the diff
+      out.push({ y: Math.round(y), h: Math.round(r.height), x: Math.round(r.left), w: Math.round(r.width), desc });
       if (out.length >= 300) break;
     }
     return out;
@@ -238,7 +240,7 @@ try {
     // prefer landmarks that START in the band; pad with overlapping ones
     const starts = marks.filter((m) => m.y >= y0 && m.y < y1);
     const overlaps = marks.filter((m) => m.y < y0 && m.y + m.h > y0);
-    return [...starts, ...overlaps].slice(0, 6).map((m) => `y${m.y} ${m.desc}`);
+    return [...starts, ...overlaps].slice(0, 6).map((m) => `y${m.y} x${m.x ?? "?"} w${m.w ?? "?"} ${m.desc}`);
   };
   const hot = out.bandDiffPct
     .map((pct, k) => ({ y0: k * out.bandPx, y1: Math.min((k + 1) * out.bandPx, out.height), pct }))
