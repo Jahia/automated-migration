@@ -46,7 +46,7 @@ export interface PhaseDef {
 }
 
 export const MIGRATION_PHASES: PhaseDef[] = [
-  { key: 'capture', title: 'Capture', badges: ['deterministic'], match: ['crawl', 'capture'] },
+  { key: 'capture', title: 'Capture', badges: ['deterministic'], match: ['crawl', 'capture', 'localize', 'mirror'] },
   { key: 'analyze', title: 'Analyze', badges: ['deterministic'], match: ['extract', 'semantic', 'analyze', 'block'] },
   { key: 'model', title: 'Model components', badges: ['DeepSeek V4', 'gated'], match: ['group', 'component_model', 'assemble', 'discover', 'cluster', 'cnd', 'content_type'] },
   { key: 'fidelity', title: 'Fidelity gate', badges: ['gated'], match: ['reconstruct', 'fidelity'] },

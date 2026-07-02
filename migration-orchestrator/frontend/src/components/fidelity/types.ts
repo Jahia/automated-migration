@@ -21,6 +21,9 @@ export interface ReconstructPage {
   dims?: string
   pass?: boolean
   orphanSamples?: OrphanSample[]
+  local?: boolean          // rendered from the local mirror (offline)
+  reconHtml?: string       // workflow-output-relative path to the interactive reconstruction
+  mirrorPage?: string | null // workflow-output-relative path to the faithful local page
 }
 
 export interface ReconstructReport {

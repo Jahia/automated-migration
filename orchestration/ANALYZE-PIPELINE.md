@@ -21,6 +21,7 @@ irreducible semantic judgment, bounded and gate-verified:
 | Stage | Who | Guarantee |
 |---|---|---|
 | Crawl | deterministic | cache-first |
+| Localize (self-contained local mirror) | deterministic | **offline-render gate** (0 external static assets) |
 | Candidate extraction (altitude + data-shape + frequency + cross-cutting) | deterministic | **byte-stable across runs** |
 | Grouping (which candidates = one Jahia type) | **LLM, bounded** (partition of candidate ids only, temp 0, self-correcting) | gate-verified |
 | Assemble (names, fields, child types, layout props) | deterministic | **naming variance = 0** |
@@ -37,6 +38,8 @@ first attempt (0 hallucination / 0 omission).
 | Tool | Purpose | Usage |
 |---|---|---|
 | `crawl-site.py` | cached, rate-limited crawl + assets → `page-inventory.json`. (urllib — **no JS render**; fine for server-rendered SXA/Drupal, a gap for JS-hydrated sites.) | `python3 crawl-site.py <proj> <url> --max-pages N --depth D` |
+| `localize_site.py` | **build a TRULY-LOCAL mirror** from the crawl cache: discover every asset (HTML refs **+ recursion into CSS** `@import`/`url()`/`@font-face`), download the missing (cache-first, WAF-aware), rewrite ALL refs (HTML+CSS) to hash-named local paths → `workflow-output/local-mirror/<slug>.html` + `assets/` + `mirror.json` (residue + localizable %). Deterministic. | `python3 localize_site.py <proj> [--max-asset-size MB]` |
+| `mirror_probe.mjs` | **the local-mirror gate.** Serves the mirror from an ephemeral 127.0.0.1 server and renders each page with **every other origin blocked**. GATE = zero blocked *static-asset* requests (css/font/image/script/media) that aren't a known tracker/residue (runtime beacons/xhr are ignorable); asserts stylesheets applied. Also pixel-diffs offline-vs-live → **mirror-fidelity %**. Writes `mirror/mirror-review.html`. | `node mirror_probe.mjs <proj> [maxPages] [--pages a,b] [--all] [--no-live]` |
 | `semantic_extract.py` | **deterministic candidates.** SXA fast-path (`class="component"`) + agnostic recursive **altitude finder** (descend single-block wrappers → first multi-block "component row" → stop; titled sections kept whole). Data-shape signatures, cross-page frequency, **cross-cutting by ubiquity+position**, template clusters. | `python3 semantic_extract.py <proj>` → `semantic-candidates.json`, `semantic-templates.json` |
 | `grouping-prompt.md` | the site-**agnostic** grouping prompt (feature-driven, no site/CMS names). Merge liberally by shape; the sanitizer splits bad merges. | consumed by `group_llm.py` |
 | `group_llm.py` | **the single bounded LLM step.** Calls DeepSeek V4 Flash (temp 0) with the compact candidate set; self-corrects on the partition gate. | `python3 group_llm.py <proj> --model deepseek-v4-flash --ns <ns>` → `grouping.json` |
@@ -44,10 +47,10 @@ first attempt (0 hallucination / 0 omission).
 | `stability_gate.py` | count + **naming-invariant grouping stability** (role-pair co-membership) + cross-cutting + gates over N runs. | `python3 stability_gate.py <adj-dir> <cand>` |
 | `cnd_emit.py` | **deterministic** CND + view plan from the manifest (mix:title for titles, j:linkType, picker[type='image'], mainResource→default+fullPage, container→child+card view). | `python3 cnd_emit.py <manifest> --ns <ns> --mixns <mixns> --project <p> --out-cnd … --out-views …` |
 | `coverage_probe.mjs` | pre-templatization gap analysis in a **real browser**: JS-render delta, CSS rules/tokens/@media/bg-images/fonts, JS libs+behaviours, all asset requests, fixed/sticky chrome. | `node coverage_probe.mjs <proj> [maxPages]` |
-| `reconstruct_probe.mjs` | **the fidelity gate.** Renders source (full-page), masks everything not in a detected component (visibility:hidden preserves layout), pixel-diffs (pixelmatch), writes a self-contained **`review.html`** (drag-slider source↔reconstruction + diff) AND an interactive **`<slug>.recon.html`** (masked DOM + `<base>` so the site's own CSS/JS load — responsive + hover menus work live; open via the artifact route or `python3 -m http.server`) AND a **`<slug>.overlay.html`** component map (source screenshot + one hover-labelled box per detected component, labelled with the manifest nodeType). GATE = content coverage; pixelSim + diff PNGs = the template/asset gap. | `node reconstruct_probe.mjs <proj> [maxPages] [threshold] [--pages a,b] [--all]` → `reconstruct/{review.html, *.recon.html, *.overlay.html, *.png, reconstruct.json}` |
+| `reconstruct_probe.mjs` | **the fidelity gate.** Renders **from the local mirror (offline, deterministic — no live/WAF dependency)** when one exists, else the live source; masks everything not in a detected component (visibility:hidden preserves layout), pixel-diffs (pixelmatch), writes a self-contained **`review.html`** (drag-slider source↔reconstruction + diff) AND an interactive **`<slug>.recon.html`** (masked DOM + `<base>` so the site's own CSS/JS load — responsive + hover menus work live; open via the artifact route or `python3 -m http.server`) AND a **`<slug>.overlay.html`** component map (source screenshot + one hover-labelled box per detected component, labelled with the manifest nodeType). GATE = content coverage; pixelSim + diff PNGs = the template/asset gap. | `node reconstruct_probe.mjs <proj> [maxPages] [threshold] [--pages a,b] [--all]` → `reconstruct/{review.html, *.recon.html, *.overlay.html, *.png, reconstruct.json}` |
 | `../run_local.py` | **deterministic plan executor** — runs a plan's `Run:`/`PROBE:` lines in dep order, a step passes iff all probes exit 0 (the orchestrator's contract, no agent layer). `--halt-after <step>` = human review gate. | `python3 orchestration/run_local.py <plan> --from <step> --halt-after <step>` |
 
-Plan template: `orchestration/plans/acquia-analyze.plan.json` (crawl → semantic → group → cnd → **reconstruct gate**).
+Plan template: `orchestration/plans/acquia-analyze.plan.json` (crawl → **localize (offline mirror gate)** → semantic → group → cnd → **reconstruct gate**).
 
 ---
 
@@ -56,7 +59,8 @@ Plan template: `orchestration/plans/acquia-analyze.plan.json` (crawl → semanti
 1. **Partition gate** (`assemble_manifest`): every group member must be a known candidate id, and every candidate covered exactly once → **hallucination and omission are impossible to pass**.
 2. **dup-shape sanitizer** (`assemble_manifest`): within an LLM group, split members whose data-shapes are incompatible (or containers with disjoint child-shapes) → **no grab-bag types**. dup-shape across *distinct roles* is a review WARN, not a hard fail (real sites reuse shapes: Breadcrumb vs CTA).
 3. **Stability gate** (`stability_gate`): naming-invariant grouping agreement + cross-cutting presence across N runs.
-4. **Fidelity gate** (`reconstruct_probe`): content coverage ≥ threshold; the visual review (`review.html`) is the human approval before templatization.
+4. **Mirror gate** (`mirror_probe`, runs BEFORE the fidelity gate): every sample page renders **fully offline** — 0 blocked static-asset requests (only runtime trackers blocked) + stylesheets applied. So the local render is *truly* local, not silently pulling from the source. Mirror-fidelity (offline vs live) reported alongside (acquia: 99.97–99.98%).
+5. **Fidelity gate** (`reconstruct_probe`): content coverage ≥ threshold; renders from the local mirror (offline/deterministic); the visual review (`review.html`) is the human approval before templatization.
 
 ---
 

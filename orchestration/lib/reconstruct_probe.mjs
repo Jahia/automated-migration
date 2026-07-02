@@ -20,6 +20,8 @@ import { chromium } from 'playwright';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import fs from 'fs';
+import http from 'http';
+import path from 'path';
 
 const argv = process.argv.slice(2);
 const flags = {}, pos = [];
@@ -151,6 +153,32 @@ const identify = (sxaMode) => {
   };
 };
 
+// Serve the local mirror so the fidelity gate renders OFFLINE + deterministically
+// (no live dependency / WAF timeouts) when localize_site.py has run.
+const mirrorDir = `${proj}/workflow-output/local-mirror`;
+const useMirror = fs.existsSync(`${mirrorDir}/mirror.json`);
+const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.mjs': 'text/javascript',
+  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.eot': 'application/vnd.ms-fontobject' };
+function serveMirror(dir) {
+  const root = path.resolve(dir);
+  const rootPfx = root.endsWith(path.sep) ? root : root + path.sep;
+  const srv = http.createServer((req, res) => {
+    let p;
+    try { p = decodeURIComponent((req.url || '/').split('?')[0]); } catch { res.writeHead(400); return res.end(); }
+    if (p === '/') p = '/index.html';
+    const fp = path.resolve(path.join(root, p));
+    if (fp !== root && !fp.startsWith(rootPfx)) { res.writeHead(403); return res.end(); }
+    fs.readFile(fp, (e, data) => {
+      if (e) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(fp).toLowerCase()] || 'application/octet-stream' });
+      res.end(data);
+    });
+  });
+  return new Promise(r => srv.listen(0, '127.0.0.1', () => r({ srv, port: srv.address().port })));
+}
+
 function readPng(p) { return PNG.sync.read(fs.readFileSync(p)); }
 
 let pages;
@@ -162,12 +190,24 @@ else if (pageSel) {
 } else pages = inv.pages.slice(0, maxPages);
 if (!pages.length) { console.error('no pages selected'); process.exit(2); }
 const results = [];
+let mserver = null, mbase = null;
+if (useMirror) { const s = await serveMirror(mirrorDir); mserver = s.srv; mbase = `http://127.0.0.1:${s.port}`; }
+console.error(useMirror ? `  [mirror] rendering from local mirror (offline) at ${mbase}` : '  [live] no local mirror — rendering live source');
 const browser = await chromium.launch({ headless: true });
 for (const p of pages) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   let rec = { slug: p.slug, url: p.url };
+  const localMode = useMirror && fs.existsSync(`${mirrorDir}/${p.slug}.html`);
   try {
-    await page.goto(p.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    if (localMode) {
+      await page.route('**/*', (route) => {
+        const u = route.request().url();
+        if (u.startsWith(mbase)) return route.continue();
+        if (u.startsWith('http')) return route.abort();   // offline: block external
+        return route.continue();
+      });
+    }
+    await page.goto(localMode ? `${mbase}/${p.slug}.html` : p.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     try { await page.waitForLoadState('load', { timeout: 15000 }); } catch {}
     await page.waitForTimeout(4000);
     const src = `${outDir}/${p.slug}.source.png`;
@@ -185,10 +225,17 @@ for (const p of pages) {
     try {
       let html = await page.content();
       html = html.replace(/<meta[^>]+http-equiv=["']?content-security-policy["']?[^>]*>/gi, '');
-      html = /<head[^>]*>/i.test(html)
-        ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${p.url}">`)
-        : `<base href="${p.url}">` + html;
-      fs.writeFileSync(`${outDir}/${p.slug}.recon.html`, html);
+      if (localMode) {
+        // rendered from the mirror → asset refs are already local (assets/…); drop
+        // any <base> and write into the mirror dir so they resolve offline.
+        html = html.replace(/<base\b[^>]*>/gi, '');
+        fs.writeFileSync(`${mirrorDir}/${p.slug}.recon.html`, html);
+      } else {
+        html = /<head[^>]*>/i.test(html)
+          ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${p.url}">`)
+          : `<base href="${p.url}">` + html;
+        fs.writeFileSync(`${outDir}/${p.slug}.recon.html`, html);
+      }
     } catch { /* non-fatal: the screenshots + gate still stand */ }
 
     // component map: source screenshot + one hover-labelled overlay box per detected component
@@ -214,8 +261,10 @@ for (const p of pages) {
             ignorableChars: info.ignorableChars,
             orphanSamples: info.orphanSamples,
             pixelSimilarity,                                // visual artifact: components-only vs source
-            reconHtml: `${p.slug}.recon.html`,              // interactive live reconstruction
+            reconHtml: localMode ? `local-mirror/${p.slug}.recon.html` : `${p.slug}.recon.html`,
+            mirrorPage: localMode ? `local-mirror/${p.slug}.html` : null,   // faithful local page (workflow-output-relative)
             overlayMap: `${p.slug}.overlay.html`,           // annotated component map
+            local: localMode,
             dims: `${w}x${h}`, pass: info.contentCoveragePct >= threshold };
   } catch (e) {
     rec = { ...rec, ok: false, error: (e.message || String(e)).split('\\n')[0] };
@@ -225,6 +274,7 @@ for (const p of pages) {
   await page.close();
 }
 await browser.close();
+if (mserver) mserver.close();
 
 fs.writeFileSync(`${outDir}/reconstruct.json`, JSON.stringify({ project: proj, threshold, pages: results }, null, 2));
 
@@ -279,7 +329,7 @@ function reviewHtml() {
       : '<div class="orphans ok">✓ No real content uncaptured (only chrome/consent, which is expected).</div>';
     return `<section class="pg">
       <h2>${esc(r.slug)} ${badge}
-        <small>content ${r.contentCoverage}% · pixelSim ${r.pixelSimilarity}% · ${r.nComps} components · <a href="${esc(r.url)}" target="_blank">source ↗</a> · <a href="${esc(r.slug)}.recon.html" target="_blank">▶ live reconstruction ↗</a> · <a href="${esc(r.slug)}.overlay.html" target="_blank">🗺 component map ↗</a></small></h2>
+        <small>content ${r.contentCoverage}% · pixelSim ${r.pixelSimilarity}% · ${r.nComps} components · <a href="${esc(r.url)}" target="_blank">source ↗</a>${r.mirrorPage ? ` · <a href="../${esc(r.mirrorPage)}" target="_blank">▶ page locale ↗</a>` : ''} · <a href="${esc(r.local ? '../' + r.reconHtml : (r.reconHtml || r.slug + '.recon.html'))}" target="_blank">▶ reconstruction${r.local ? ' (locale)' : ''} ↗</a> · <a href="${esc(r.slug)}.overlay.html" target="_blank">🗺 component map ↗</a></small></h2>
       <div class="viewer">
         <div class="slider" id="s_${esc(r.slug)}">
           <img class="recon" src="${esc(r.slug)}.recon.png" alt="reconstruction">

@@ -167,8 +167,18 @@ function PageCard({ runId, page }: { runId: string; page: ReconstructPage }) {
           <a href={artifactUrl(runId, `reconstruct/${page.slug}.overlay.html`)} target="_blank" rel="noreferrer" className="text-[#0077bf] hover:underline">
             🗺 carte composants ↗
           </a>
-          <a href={artifactUrl(runId, `reconstruct/${page.slug}.recon.html`)} target="_blank" rel="noreferrer" className="font-bold text-[#0077bf] hover:underline">
-            ▶ tester en live ↗
+          {page.mirrorPage && (
+            <a href={artifactUrl(runId, page.mirrorPage)} target="_blank" rel="noreferrer" className="font-bold text-[#0077bf] hover:underline">
+              ▶ page locale ↗
+            </a>
+          )}
+          <a
+            href={artifactUrl(runId, page.local && page.reconHtml ? page.reconHtml : `reconstruct/${page.slug}.recon.html`)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#0077bf] hover:underline"
+          >
+            ▶ reconstruction{page.local ? ' locale' : ''} ↗
           </a>
         </div>
       </div>

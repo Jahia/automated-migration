@@ -268,6 +268,17 @@ def _build_migration_plan(inp: MigrationInput) -> PlanInput:
             ],
         ),
         StepInput(
+            id="step_localize",
+            title="Localize assets → self-contained local mirror (truly offline render)",
+            depends_on=["step_crawl"],
+            inputs=ins,
+            acceptance_criteria=[
+                f"Run: python3 orchestration/lib/localize_site.py {pp} --max-asset-size 15",
+                f"PROBE: test -s {wo}/local-mirror/mirror.json",
+                f"PROBE: node orchestration/lib/mirror_probe.mjs {pp} {recon_max}{pages_flag}",
+            ],
+        ),
+        StepInput(
             id="step_semantic",
             title="Deterministic candidate extraction",
             depends_on=["step_crawl"],
@@ -308,7 +319,7 @@ def _build_migration_plan(inp: MigrationInput) -> PlanInput:
         StepInput(
             id="step_reconstruct_gate",
             title="Round-trip fidelity gate: reconstruct sample pages and pixel-diff vs source (BEFORE templatization)",
-            depends_on=["step_cnd"],
+            depends_on=["step_cnd", "step_localize"],
             inputs=ins,
             acceptance_criteria=[
                 "Reconstructs the sample pages from ONLY the extracted component nodes, renders in a "
