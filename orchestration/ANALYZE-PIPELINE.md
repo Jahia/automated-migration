@@ -221,10 +221,13 @@ fixed before commit. What shipped:
    still has a box). Row signature + role now use the same layout-aware, hash-stripped
    first-token as `semantic_extract`.
 6. ✅ **Gate sampling by template cluster** (`mirror_net.clusterSample`): one representative
-   page PER cluster (diverse layouts), not the first N — which on supercar had been fr-FR +
-   home + en (one layout, two locales). Plan `recon_max` raised 3 → 5. This immediately
+   page PER cluster first (diverse layouts), then leftover budget filled from the biggest
+   clusters — not the first N, which on supercar had been fr-FR + home + en (one layout,
+   two locales). Plan `recon_max` = `min(10, max_pages)` (default cap 10); pass `--all` to
+   either probe to verify EVERY crawled page instead of the sample. This immediately
    surfaced real weak pages the old sampling hid (liferay `capabilities_*`, supercar
-   `fr-FR_exposer` form).
+   `fr-FR_exposer` form). NB: the gate is a per-TEMPLATE check — pages sharing a cluster's
+   layout are covered by their representative; the model + mirror still process all pages.
 
 7. ✅ **Non-semantic heading detection** (`semantic_extract._is_heading` + the same in
    `reconstruct_probe`): the "a titled section = one component" rule keyed only on

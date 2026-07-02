@@ -262,9 +262,11 @@ def _build_migration_plan(inp: MigrationInput) -> PlanInput:
     repo_dir = inp.repo_dir or _harness_root()
     pp = f"projects/{proj}"
     wo = f"{pp}/workflow-output"
-    # gate sample size: 5 pages (one per template cluster — see clusterSample in
-    # mirror_net.mjs), capped by the crawl. 5 covers most sites' distinct layouts.
-    recon_max = min(5, inp.max_pages)
+    # gate sample size: up to 10 pages — one per template cluster first (diverse
+    # layouts, see clusterSample in mirror_net.mjs), then leftover budget filled from
+    # the biggest clusters. Capped by the crawl. Pass --all to the probe to verify
+    # every crawled page instead of a sample.
+    recon_max = min(10, inp.max_pages)
     pages_flag = f" --pages {','.join(inp.sample_pages)}" if inp.sample_pages else ""
     ins = {"project_path": pp, "project": proj}
 
