@@ -21,6 +21,15 @@ line in its `acceptance_criteria`, the agent is required (by `AGENTS.md`) to
 echo that probe back, and the harness runs it. Completion is proven by a
 command, not asserted by the model. That is the hardening.
 
+> **Deterministic analyze pipeline (v2) — start here:** the reworked component &
+> template identification (deterministic extraction → one bounded DeepSeek grouping
+> step → deterministic assemble + gates → **reconstruction fidelity gate**) is
+> documented in **[`ANALYZE-PIPELINE.md`](ANALYZE-PIPELINE.md)**. New tools in `lib/`:
+> `semantic_extract.py`, `group_llm.py`, `assemble_manifest.py`, `stability_gate.py`,
+> `cnd_emit.py`, `coverage_probe.mjs`, `reconstruct_probe.mjs`; plus `run_local.py`
+> (deterministic plan executor) and `plans/acquia-analyze.plan.json`. Orchestrator UX
+> specialization: [`../migration-orchestrator/frontend/MIGRATION_PROFILE.md`](../migration-orchestrator/frontend/MIGRATION_PROFILE.md).
+
 ## What's here
 
 ```

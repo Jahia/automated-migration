@@ -151,15 +151,25 @@ def matches_language(url, lang):
 
 
 def cache_path(proj, url, subdir='_crawl'):
-    """Deterministic on-disk path for a URL."""
-    key = re.sub(r'^https?://', '', url)
-    key = re.sub(r'\?.*$', '', key)
-    key = re.sub(r'[^A-Za-z0-9._/-]', '_', key)
-    if key.endswith('/'):
-        key += 'index.html'
-    if '.' not in os.path.basename(key):
-        key += '.html'
-    return os.path.join(proj, '.reference', 'cache', subdir, key)
+    """Deterministic on-disk path for a URL.
+
+    Decides file-vs-index from the URL PATH's last segment, not the whole key —
+    otherwise a bare host like www.example.com (dots in the host) is saved as a
+    FILE and any child page then collides trying to create a dir of that name.
+    """
+    p = urllib.parse.urlparse(url)
+    path = p.path
+    if not path or path == '/':
+        rel = f"{p.netloc}/index.html"
+    else:
+        last = path.rstrip('/').rsplit('/', 1)[-1]
+        rel = p.netloc + path
+        if path.endswith('/'):
+            rel += 'index.html'
+        elif '.' not in last:
+            rel += '.html'
+    rel = re.sub(r'[^A-Za-z0-9._/-]', '_', rel)
+    return os.path.join(proj, '.reference', 'cache', subdir, rel)
 
 
 def is_cached(path):
