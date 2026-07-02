@@ -230,9 +230,33 @@ def sanitize_groups(groups, by_id):
     return out
 
 
+def isolate_main_resources(groups, candidates):
+    """Deterministic lever: a detected mainResource entity role becomes its OWN
+    type, even if the LLM (or the shape sanitizer) merged it into another group.
+    A detail page renders its entity node, so the entity must not be diluted into
+    a grab-bag (e.g. 'article' merged with image-containers on a shared hero img)."""
+    entity_roles = {dt["entityRole"] for dt in candidates.get("detailTemplates", []) or []}
+    if not entity_roles:
+        return groups
+    role_by_id = {c["candidateId"]: c["role"] for c in candidates["components"]}
+    entity_ids = {cid for cid, role in role_by_id.items() if role in entity_roles}
+    out = []
+    for g in groups:
+        ents = [m for m in g if m in entity_ids]
+        rest = [m for m in g if m not in entity_ids]
+        if ents and (rest or len(ents) > 1):
+            out.extend([e] for e in ents)     # each entity → its own singleton type
+            if rest:
+                out.append(rest)
+        else:
+            out.append(g)
+    return out
+
+
 def assemble(candidates, groups, decide, templates, ns="ns"):
     by_id = {c["candidateId"]: c for c in candidates["components"]}
     groups = sanitize_groups(groups, by_id)   # deterministic anti-grab-bag split
+    groups = isolate_main_resources(groups, candidates)  # entity gets its own type
 
     # Agnostic (no site-specific role names): a member is a poor NAME source if it
     # is a synthesized structural placeholder OR carries no editable data of its own.
@@ -288,6 +312,41 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
             "fields": fields,
             "frequency": sum(c["frequency"] for c in ms),
         })
+
+    # ── detail-page (mainResource) flagging — deterministic, from semantic_extract ──
+    # A detected detail cluster names an entity role; the component that covers it
+    # (or, failing that, the most of its facet roles) is a mainResource type and
+    # gets a fullPage template. This is what unblocks pixel-perfect detail pages.
+    detail_tpls = candidates.get("detailTemplates", []) or []
+    entity_map = {dt["entityRole"]: dt for dt in detail_tpls}
+    extra_templates = []
+    for dt in detail_tpls:
+        facets = set(dt.get("facetRoles", []))
+        target, best = None, 0
+        for comp in components:
+            covers = set(comp["coversRoles"])
+            if dt["entityRole"] in covers:            # direct hit on the entity role
+                target, best = comp, 10_000
+                break
+            overlap = len(covers & facets)            # fallback: covers most facets
+            if overlap > best:
+                target, best = comp, overlap
+        if not target or best < 1:
+            continue
+        target["needsMainResource"] = True
+        target["detailOf"] = dt["detailOf"]
+        extra_templates.append({
+            "name": camel(dt["detailOf"]) + "Detail",
+            "kind": "detail",
+            "pages": dt["pages"],
+            "mainResourceType": target["nodeType"],
+            "listingOf": dt["detailOf"],
+            "listingPageExists": dt.get("listingPageExists", False),
+            "confidence": dt.get("confidence"),
+        })
+
+    seen_names = {t.get("name") for t in templates if isinstance(t, dict)}
+    templates = list(templates) + [t for t in extra_templates if t["name"] not in seen_names]
 
     # cross-cutting: deterministic from candidate set
     xcut = []

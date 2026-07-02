@@ -565,6 +565,126 @@ def cluster_templates(page_features, page_display_roles):
     return out
 
 
+# ── Detail-page (mainResource) detection ──────────────────────────
+#
+# A Jahia detail page (blog article, product sheet…) is rendered by a
+# jmix:mainResource template that renders the ENTITY node itself — not a dropped
+# component. If we don't detect these, the article body is modeled as ordinary
+# droppable components and the page can never be pixel-perfect. Detection is
+# deterministic + agnostic (structure, not vocabulary):
+#   1. a template cluster whose pages share a parent path segment P (slug depth>1)
+#      = a detail-page cluster under P; strong confirmation if P is itself a
+#      crawled page (the listing/index) -> a list/detail pair.
+#   2. within it, the mainResource entity = a main-position role that is
+#      cluster-exclusive (pages ⊆ cluster) and singular (~one instance per page);
+#      its facet family (shared role stem) becomes the entity's parts.
+
+def _slug_segments(slug):
+    # the crawler joins path segments with "_" ( /blog/dam-vs-cms -> blog_dam-vs-cms )
+    return (slug or "").split("_")
+
+
+def _shape_has_richtext(shape):
+    return any("richtext" in tok or tok.startswith("body:") for tok in (shape or []))
+
+
+def _family_key(role):
+    """Role stem before the first BEM-ish delimiter — the entity family.
+    ct-article__right / ct-article--card-wrapper -> ct-article ; article -> article."""
+    r = role or ""
+    for delim in ("__", "--"):
+        if delim in r:
+            return r.split(delim)[0]
+    return r
+
+
+# CMS "content-type" wrapper prefixes: ct-article, node-article, paragraph--foo…
+# The entity's real node is the bare stem (article), not the prefixed wrapper.
+_CT_PREFIXES = ("ct-", "ct_", "content-type-", "contenttype-", "node--", "node-",
+                "paragraph--", "paragraph-", "field--", "views-row-")
+
+
+def _normalize_family(fam):
+    f = fam or ""
+    for p in _CT_PREFIXES:
+        if f.startswith(p) and len(f) > len(p):
+            return f[len(p):]
+    return f
+
+
+def detect_detail_templates(clusters, candidates, all_slugs):
+    """Annotate each cluster with kind (detail|section|page) and, for detail
+    clusters, the mainResource entity. Returns the list of detail templates."""
+    results = []
+    for cl in clusters:
+        pages = cl["pages"]
+        deep = [p for p in pages if len(_slug_segments(p)) > 1]
+        if len(deep) < 2:
+            cl["kind"] = "page" if len(pages) == 1 else "section"
+            continue
+        parents = Counter(_slug_segments(p)[0] for p in deep)
+        parent, k = parents.most_common(1)[0]
+        need = max(2, (len(pages) * 3 + 4) // 5)          # ceil(0.6 * len(pages))
+        if k < need:
+            cl["kind"] = "section"
+            continue
+
+        cluster_pages = set(pages)
+        pool = []                                          # (cand, exclusive, singular, fracInCluster)
+        for c in candidates:
+            if c.get("position") != "main":
+                continue
+            cpages = set(c.get("pages", []))
+            on = len(cpages & cluster_pages)
+            if not on:
+                continue
+            exclusive = cpages <= cluster_pages
+            singular = c.get("frequency", 0) / max(1, on) <= 1.6
+            pool.append((c, exclusive, singular, on / max(1, len(cpages))))
+
+        fam_counter = Counter(_family_key(c["role"])
+                              for c, ex, si, _ in pool if ex and si)
+        if not fam_counter:
+            cl["kind"] = "section"
+            continue
+        family, famn = fam_counter.most_common(1)[0]
+        facet_roles = sorted(c["role"] for c, ex, si, _ in pool
+                             if ex and si and _family_key(c["role"]) == family)
+
+        # entity = the bare root node the facets hang off. Prefer a cluster-
+        # concentrated main role equal to the family or its CMS-prefix-stripped stem
+        # (ct-article -> article); else the richest facet; else the synthetic stem.
+        norm = _normalize_family(family)
+
+        def entity_score(c):
+            root_like = "__" not in c["role"] and "--" not in c["role"]
+            return (1 if root_like else 0,
+                    1 if _shape_has_richtext(c.get("dataShape")) else 0,
+                    c.get("frequency", 0))
+
+        root_pool = [c for c, ex, si, fr in pool
+                     if fr >= 0.6 and c["role"] in (norm, family)]
+        fam_members = [c for c, ex, si, fr in pool
+                       if _family_key(c["role"]) == family and si and fr >= 0.6]
+        entity = (max(root_pool, key=entity_score) if root_pool
+                  else max(fam_members, key=entity_score) if fam_members else None)
+        entity_role = entity["role"] if entity else norm
+        confidence = "high" if (parent in all_slugs and famn >= 2) else "medium"
+
+        cl["kind"] = "detail"
+        cl["detailOf"] = parent
+        cl["listingPageExists"] = parent in all_slugs
+        cl["mainResource"] = {"entityRole": entity_role, "family": family,
+                              "facetRoles": facet_roles, "confidence": confidence}
+        results.append({
+            "clusterId": cl["clusterId"], "detailOf": parent,
+            "listingPageExists": parent in all_slugs, "pages": pages,
+            "entityRole": entity_role, "family": family,
+            "facetRoles": facet_roles, "confidence": confidence,
+        })
+    return results
+
+
 # ── Main ──────────────────────────────────────────────────────────
 
 def main():
@@ -634,6 +754,20 @@ def main():
     # per-instance shapes vary; cross-CMS mixing is not a real single-site case.)
     clusters = cluster_templates(clean_main_roles, clean_main_roles)
 
+    # detail-page (mainResource) detection — annotates clusters + tags candidates
+    all_slugs = set(page_main_roles.keys())
+    detail_templates = detect_detail_templates(clusters, candidates, all_slugs)
+    entity_roles = {dt["entityRole"] for dt in detail_templates}
+    facet_by_cluster = {dt["clusterId"]: set(dt["facetRoles"]) for dt in detail_templates}
+    for c in candidates:
+        for dt in detail_templates:
+            if c["role"] == dt["entityRole"]:
+                c["mainResourceEntity"] = True
+                c["detailCluster"] = dt["clusterId"]
+                c["detailOf"] = dt["detailOf"]
+            elif c["role"] in facet_by_cluster.get(dt["clusterId"], ()):
+                c["detailCluster"] = dt["clusterId"]
+
     out_dir = f"{proj}/workflow-output"
     os.makedirs(out_dir, exist_ok=True)
 
@@ -650,6 +784,7 @@ def main():
         "crossCutting": xcut,
         "components": content,
         "nestedParts": nested,
+        "detailTemplates": detail_templates,
     }
     with open(f"{out_dir}/semantic-candidates.json", "w") as f:
         json.dump(cand_out, f, indent=2, ensure_ascii=False)
@@ -658,6 +793,7 @@ def main():
         "numPages": num_pages,
         "crossCuttingRoles": sorted(cross_roles),
         "nestedPartRoles": sorted(nested_roles),
+        "detailTemplates": detail_templates,
         "clusters": clusters,
     }
     with open(f"{out_dir}/semantic-templates.json", "w") as f:
@@ -685,8 +821,17 @@ def main():
     print()
     print(f"TEMPLATES: {len(clusters)} clusters for {num_pages} pages")
     for cl in clusters:
-        print(f"  {cl['clusterId']}  pages={cl['pageCount']:2d}  {cl['pages']}")
+        kind = cl.get("kind", "?")
+        tag = f"  [{kind}]" + (f" of '{cl['detailOf']}'" if kind == "detail" else "")
+        print(f"  {cl['clusterId']}  pages={cl['pageCount']:2d}{tag}  {cl['pages']}")
         print(f"        skeleton: {cl['mainRolesRepresentative']}")
+    print()
+    print(f"DETAIL PAGES (mainResource): {len(detail_templates)} detected")
+    for dt in detail_templates:
+        listing = f"listing '{dt['detailOf']}' ✓" if dt["listingPageExists"] else f"parent '{dt['detailOf']}'"
+        print(f"  {dt['clusterId']}: entity='{dt['entityRole']}' family='{dt['family']}' "
+              f"[{listing}] conf={dt['confidence']}")
+        print(f"        facets: {dt['facetRoles']}")
     print()
     print(f"Output: {out_dir}/semantic-candidates.json + semantic-templates.json")
 

@@ -105,17 +105,46 @@ Turn the generic Run→Epic→Story→Step engine into a **migration cockpit** �
 | cross-cutting | 3/3 (top-bar, header-nav, footer) | 3/3 (header, nav, footer) |
 | reconstruction (content coverage) | 100% | 99–100% (only orphan = cookie-consent + a11y chrome) |
 | pixel fidelity (components-only) | 91–95% | 73–99% (rest = section backgrounds / hero = template job) |
+| mainResource / detail pages | — | `acq:article` from `blog_*` cluster (listing `blog` ✓); detail pages: content 100%, pixel 98.5–98.9% |
 
 ---
 
-## 8. Open items / next
+## 8. `mainResource` / detail-page detection — ✅ SHIPPED
 
-- **`mainResource` / detail pages** not auto-detected (blog articles) — last content link for pixel-perfect detail pages.
+Detail pages (blog article, product sheet…) render the **entity node itself** via a
+`jmix:mainResource` fullPage template — not a dropped component. Missed, the article
+body is modeled as ordinary components and the page can never be pixel-perfect.
+Detection is deterministic + agnostic (structure, not vocabulary):
+
+1. **Detail cluster** (`semantic_extract.detect_detail_templates`): a template cluster
+   whose pages share a parent path segment `P` (slug depth > 1); **high confidence** if
+   `P` is itself a crawled page (the listing/index) → a list/detail pair.
+2. **Entity** = a main-position role that is cluster-exclusive (`pages ⊆ cluster`) and
+   singular (~one instance per page); its facet family = the shared role stem. CMS
+   content-type prefixes are stripped (`ct-article` → `article`) so the bare entity node
+   is chosen over its wrappers. Emitted as `detailTemplates[]` in `semantic-candidates.json`.
+3. **`assemble_manifest.isolate_main_resources`**: a deterministic lever — the entity
+   role becomes its **own** type even if the LLM/shape-sanitizer merged it into a
+   grab-bag (e.g. `article` merged with image-containers on a shared hero image). The
+   type gets `needsMainResource=true` + a `kind:"detail"` template.
+4. `cnd_emit` already turns `needsMainResource` into `jmix:mainResource` supertype +
+   `fullPage.server.tsx` view.
+
+Verified on acquia (blog): `tpl_01` → entity `article`, listing `blog` ✓, confidence high
+→ `acq:article` (mainResource) + `blogDetail` template. Reconstruction fidelity on blog
+detail pages: **content 100%, pixelSim 98.5–98.9%, GATE GREEN**. Byte-stable across runs.
+
+**Refinement left:** the entity's own field set is thin (facets like FAQ/related/CTA stay
+separate components placed in the template, and title/body may live in a facet) — folding
+core facet shapes into the entity's fields would enrich `acq:article`.
+
+## 9. Open items / next
+
 - Junk low-freq roles survive on non-SXA (`ul`, `div`, `js-form-item`) — light noise filter.
 - Crawler has **no JS render** — add Playwright render for JS-hydrated sites.
 - Then: templatization (step 4) using the diff PNGs as the spec.
 
-## 9. Security
+## 10. Security
 
 - ✅ **In-code secret removed** — `hybrid-identify.py` no longer hardcodes the OVH key; it now reads `os.environ.get("OVH_API_KEY", "")` (`:173`). Set `OVH_API_KEY` in the environment.
 - ⚠️ Live DeepSeek/Xiaomi/OVH keys still live in `~/.config/opencode/opencode.jsonc` (user config, **not** committed to this repo). If any of these keys were ever exposed, rotate them; keep opencode config out of version control.
