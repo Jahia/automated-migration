@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..github_client import GitHubClient
+from ..migration_control import compact_status, log_tail, project_path, quality_verdict, workflow_output_dir
 from ..models import EpicInput, PlanInput, RunState, RunStatus, StepInput, StoryInput
 from ..opencode_client import OpenCodeClient
 from ..opencode_events import OpenCodeEventListener
@@ -25,7 +26,7 @@ from ..orchestrator import (
     start_run,
     try_resume_run,
 )
-from ..persistence import list_runs, load_run, save_run
+from ..persistence import list_runs, load_run, save_event, save_run
 from ..state import build_run_state
 
 log = logging.getLogger(__name__)
@@ -233,6 +234,7 @@ class MigrationInput(BaseModel):
     rate_delay: int = 2
     sample_pages: list[str] = []
     repo_dir: str | None = None
+    autonomy: str = "assisted"        # manual | assisted | autonomous (see CONTROL-LOOP.md)
 
 
 def _harness_root() -> str:
@@ -324,7 +326,9 @@ def _build_migration_plan(inp: MigrationInput) -> PlanInput:
         title="Deterministic analyze",
         goal="Crawl, extract candidates deterministically, group via DeepSeek (gate-verified), "
         "assemble manifest + CND, then verify with the round-trip fidelity gate.",
-        stories=[StoryInput(id="story_analyze", title="Analyze", steps=steps)],
+        stories=[StoryInput(id="story_analyze", title="Analyze",
+                            description="Deterministic analyze pipeline for " + inp.site_url,
+                            steps=steps)],
     )
     return PlanInput(
         goal=f"Analyze {inp.site_url} into a stable Jahia component + template model "
@@ -341,6 +345,7 @@ async def create_migration(inp: MigrationInput):
     plan = _build_migration_plan(inp)
     run = build_run_state(plan)
     run.status = RunStatus.created
+    run.autonomy = inp.autonomy
     register_run(run)
     await save_run(run)
     return RunResponse(
@@ -348,3 +353,84 @@ async def create_migration(inp: MigrationInput):
         status="created",
         message="Migration créée. POST /runs/{run_id}/start pour lancer l'analyse.",
     )
+
+
+# ── Agent control surface (LLM-driven piloting) — see CONTROL-LOOP.md ─
+#
+# Thin, decision-oriented projection over the existing engine so an LLM can drive
+# a migration: poll a compact status + quality verdict, tail the log, then act
+# through a typed, audited gate/rollback decision.
+
+
+@router.get("/runs/{run_id}/status")
+async def run_status(run_id: str):
+    """Compact status: phase, current step, active gate, quality verdict, cost,
+    progress, and the available next actions. The agent's cheap poll target."""
+    run = await _resolve_run(run_id)
+    return compact_status(run, workflow_output_dir(run))
+
+
+@router.get("/runs/{run_id}/quality")
+async def run_quality(run_id: str):
+    """The green/amber/red quality verdict alone (for the active gate)."""
+    run = await _resolve_run(run_id)
+    gate = next((s for e in run.epics for st in e.stories for s in st.steps
+                 if s.status.value in ("halted", "waiting_human") and s.gate_type), None)
+    return quality_verdict(run, gate.gate_type if gate else None, workflow_output_dir(run))
+
+
+@router.get("/runs/{run_id}/log")
+async def run_log(run_id: str, since: float = 0.0, limit: int = 50):
+    """Poll-friendly log tail: recent events (ts > since), active streaming, errors."""
+    run = await _resolve_run(run_id)
+    return log_tail(run, since, limit)
+
+
+class GateDecision(BaseModel):
+    decision: str            # approve | reject | rerun
+    reason: str = ""
+    pages: list[str] = []    # rerun: optional page sample
+
+
+@router.post("/runs/{run_id}/gate")
+async def run_gate(run_id: str, req: GateDecision, request: Request):
+    """Typed, audited gate decision. approve → resume (engine forces the halted step
+    done); reject → pause + reason; rerun → re-run the fidelity probe on a sample."""
+    run = await _resolve_run(run_id)
+    dec = req.decision.lower().strip()
+    await save_event(run_id, "gate_decision", {"decision": dec, "reason": req.reason, "pages": req.pages})
+
+    if dec == "approve":
+        client: OpenCodeClient = request.app.state.opencode_client
+        event_listener: OpenCodeEventListener = request.app.state.event_listener
+        ok = await try_resume_run(run_id, client, event_listener)
+        return {"status": "approved" if ok else "error", "decision": dec}
+    if dec == "reject":
+        await pause_run(run_id)
+        return {"status": "rejected", "decision": dec, "reason": req.reason}
+    if dec == "rerun":
+        proj = project_path(run)
+        if not proj:
+            raise HTTPException(status_code=404, detail="no project for run")
+        args = ["node", "orchestration/lib/reconstruct_probe.mjs", proj, "95"]
+        if req.pages:
+            args += ["--pages", ",".join(req.pages)]
+        subprocess.Popen(args, cwd=run.repo_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return {"status": "rerunning", "decision": dec, "pages": req.pages}
+    raise HTTPException(status_code=400, detail="decision must be approve|reject|rerun")
+
+
+class Rollback(BaseModel):
+    to_step: str
+    reason: str = ""
+
+
+@router.post("/runs/{run_id}/rollback")
+async def run_rollback(run_id: str, req: Rollback):
+    """Roll the run back to an earlier step (re-runs it, resets dependents). Audited."""
+    run = await _resolve_run(run_id)
+    await save_event(run_id, "rollback", {"to_step": req.to_step, "reason": req.reason})
+    result = await jump_to_step(run_id, req.to_step, None, True)
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {"status": "rolled_back", "to_step": req.to_step, "result": result}

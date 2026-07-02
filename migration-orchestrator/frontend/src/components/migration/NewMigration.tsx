@@ -26,6 +26,7 @@ export default function NewMigration() {
   const [maxPages, setMaxPages] = useState(18)
   const [depth, setDepth] = useState(2)
   const [samplePages, setSamplePages] = useState('')
+  const [autonomy, setAutonomy] = useState<'manual' | 'assisted' | 'autonomous'>('assisted')
   const [autostart, setAutostart] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +61,7 @@ export default function NewMigration() {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
+      autonomy,
     }
     setBusy(true)
     try {
@@ -172,10 +174,23 @@ export default function NewMigration() {
           </Field>
         </div>
 
-        <label className="mt-5 flex items-center gap-2 text-sm text-[#3d556c]">
-          <input type="checkbox" checked={autostart} onChange={(e) => setAutostart(e.target.checked)} className="accent-[#0077bf]" />
-          Démarrer l'analyse immédiatement
-        </label>
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+          <Field label="Autonomie de l'agent" hint="Pilotage LLM des gates de qualité (voir CONTROL-LOOP.md).">
+            <select
+              value={autonomy}
+              onChange={(e) => setAutonomy(e.target.value as typeof autonomy)}
+              className={inputCls}
+            >
+              <option value="manual">Manuel — un humain approuve chaque gate</option>
+              <option value="assisted">Assisté — auto si vert, escalade si ambre/rouge</option>
+              <option value="autonomous">Autonome — l'agent décide, humain sur échec</option>
+            </select>
+          </Field>
+          <label className="flex items-center gap-2 pb-2 text-sm text-[#3d556c]">
+            <input type="checkbox" checked={autostart} onChange={(e) => setAutostart(e.target.checked)} className="accent-[#0077bf]" />
+            Démarrer l'analyse immédiatement
+          </label>
+        </div>
 
         {error && (
           <div className="mt-4 rounded border border-[#f0c2c5] bg-[#fdeaeb] px-3 py-2 text-sm text-[#bd2a33]">{error}</div>

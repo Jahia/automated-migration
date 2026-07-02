@@ -287,6 +287,10 @@ class RunState(BaseModel):
     created_at: float
     updated_at: float
     forced_next_step: str | None = None
+    # Migration profile: how an LLM/agent drives this run's quality gates.
+    # manual = human approves every gate; assisted = agent auto-approves green gates
+    # and escalates amber/red; autonomous = agent decides all, human on failure only.
+    autonomy: str = "assisted"
 
 
 # ── Agent discovery ───────────────────────────────────

@@ -56,6 +56,18 @@ FastAPI: mount a `StaticFiles`/`FileResponse` route resolved from the run's `rep
 POST /runs/{id}/fidelity/rerun   { "pages": ["home","careers"] }   # runs reconstruct_probe on a chosen sample
 ```
 
+### 1e. Agent control surface (LLM-driven piloting) — ✅ SHIPPED
+The cockpit is drivable by an LLM over the same API. See **[`../CONTROL-LOOP.md`](../CONTROL-LOOP.md)**
+for the poll→decide→act contract. Added (`src/migration_control.py` + `routes/runs.py`):
+- `GET /runs/{id}/status` — compact status: phase, current step, active gate, **quality
+  verdict** (green/amber/red), progress, cost, `next_actions`.
+- `GET /runs/{id}/quality` — the verdict alone (from `reconstruct.json` / manifest / candidates).
+- `GET /runs/{id}/log?since=<ts>` — poll-friendly log tail (events + streaming + errors).
+- `POST /runs/{id}/gate {approve|reject|rerun, reason}` — typed, **audited** decision (`save_event`).
+- `POST /runs/{id}/rollback {to_step, reason}` — audited wrapper over jump (reset dependents).
+- `autonomy` (`manual|assisted|autonomous`, default **assisted**) on `MigrationInput` + `RunState`,
+  set from the NewMigration form; governs the agent's gate behaviour.
+
 ---
 
 ## 2. Migration config (SSE + state additions)

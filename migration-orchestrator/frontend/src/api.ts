@@ -35,6 +35,7 @@ export interface MigrationInput {
   depth?: number
   rate_delay?: number
   sample_pages?: string[]
+  autonomy?: 'manual' | 'assisted' | 'autonomous'
 }
 
 /** Create a run from the fixed deterministic analyze plan (POST /migrations). */
