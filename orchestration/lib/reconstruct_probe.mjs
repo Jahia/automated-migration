@@ -48,6 +48,16 @@ try { sxaMode = JSON.parse(fs.readFileSync(`${proj}/workflow-output/semantic-can
 const outDir = `${proj}/workflow-output/reconstruct`;
 fs.mkdirSync(outDir, { recursive: true });
 
+// role -> Jahia nodeType (overlay labels), from the assembled manifest if present.
+const roleType = {};
+try {
+  const man = JSON.parse(fs.readFileSync(`${proj}/workflow-output/component-manifest.json`, 'utf8'));
+  for (const c of [...(man.components || []), ...(man.crossCutting || [])]) {
+    const roles = c.coversRoles || (c.coversRole ? [c.coversRole] : []);
+    for (const r of roles) if (!(r in roleType)) roleType[r] = c.nodeType;
+  }
+} catch { /* manifest optional — labels fall back to the raw role */ }
+
 // in-browser component identification — mirrors semantic_extract's altitude rules.
 // Passed as a real function to page.evaluate (NOT a string).
 const identify = (sxaMode) => {
@@ -103,6 +113,28 @@ const identify = (sxaMode) => {
     orphanSamples.push({ tag: el.tagName.toLowerCase(), cls: cls.slice(0, 40), text: own.slice(0, 80), ignorable });
   }
 
+  // component bounding boxes for the overlay map (document coords; deviceScale=1 →
+  // 1 CSS px = 1 image px). Collected BEFORE masking (layout is identical either way).
+  const LAYOUT_EXACT = new Set(['component', 'container', 'container-fluid', 'row', 'grid',
+    'inner', 'wrapper', 'content-wrapper', 'clearfix', 'flex', 'd-flex', 'no-gutters', 'col', 'slide']);
+  const LAYOUT_RE = /^(col-|offset-|order-|[mp][trblxyse]?-|g[xy]?-|gap-|w-|h-|bg-|text-|justify-|align-|flex-|rounded|shadow|border|position-|overflow-|z-|d-(sm|md|lg|xl|xxl)-|coh-|ssa-|splide)/;
+  const isLayout = t => LAYOUT_EXACT.has(t) || LAYOUT_RE.test(t);
+  const roleOf = el => {
+    if (['HEADER', 'FOOTER', 'NAV'].includes(el.tagName)) return el.tagName.toLowerCase();
+    const cls = (el.className || '').toString().split(/\s+/).filter(Boolean);
+    const sem = cls.filter(c => !isLayout(c.toLowerCase()));
+    return sem[0] || el.tagName.toLowerCase();
+  };
+  const docW = document.documentElement.scrollWidth, docH = document.documentElement.scrollHeight;
+  const boxes = comps.map(c => {
+    const r = c.getBoundingClientRect();
+    return {
+      role: roleOf(c), tag: c.tagName.toLowerCase(),
+      x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: r.height,
+      top: !comps.some(o => o !== c && o.contains(c)),
+    };
+  }).filter(b => b.w > 4 && b.h > 4);
+
   document.body.style.visibility = 'hidden';
   comps.forEach(c => { c.style.visibility = 'visible'; });
   // content coverage credits ignorable chrome (not our content to capture)
@@ -115,6 +147,7 @@ const identify = (sxaMode) => {
     realOrphanChars: realOrphanChars,
     ignorableChars,
     orphanSamples: orphanSamples.slice(0, 20),
+    boxes, docW, docH,
   };
 };
 
@@ -158,6 +191,12 @@ for (const p of pages) {
       fs.writeFileSync(`${outDir}/${p.slug}.recon.html`, html);
     } catch { /* non-fatal: the screenshots + gate still stand */ }
 
+    // component map: source screenshot + one hover-labelled overlay box per detected component
+    try {
+      fs.writeFileSync(`${outDir}/${p.slug}.overlay.html`,
+        componentMapHtml(p.slug, info.boxes || [], info.docW || 1440, info.docH || 1));
+    } catch { /* non-fatal */ }
+
     // pixel diff
     const a = readPng(src), b = readPng(rc);
     const w = Math.min(a.width, b.width), h = Math.min(a.height, b.height);
@@ -176,6 +215,7 @@ for (const p of pages) {
             orphanSamples: info.orphanSamples,
             pixelSimilarity,                                // visual artifact: components-only vs source
             reconHtml: `${p.slug}.recon.html`,              // interactive live reconstruction
+            overlayMap: `${p.slug}.overlay.html`,           // annotated component map
             dims: `${w}x${h}`, pass: info.contentCoveragePct >= threshold };
   } catch (e) {
     rec = { ...rec, ok: false, error: (e.message || String(e)).split('\\n')[0] };
@@ -187,6 +227,45 @@ for (const p of pages) {
 await browser.close();
 
 fs.writeFileSync(`${outDir}/reconstruct.json`, JSON.stringify({ project: proj, threshold, pages: results }, null, 2));
+
+// ── component map: source screenshot with a hover-labelled overlay per component ──
+function componentMapHtml(slug, boxes, docW, docH) {
+  const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // paint big boxes first; smaller (more specific) boxes get a higher z-index so
+  // hover always resolves to the innermost component.
+  const sorted = boxes.slice().sort((a, b) => (b.w * b.h) - (a.w * a.h));
+  const items = sorted.map((b, i) => {
+    const type = roleType[b.role];
+    const label = type || b.role;
+    const sub = type ? b.role : b.tag;
+    const pct = (n, d) => (100 * n / (d || 1)).toFixed(3) + '%';
+    return `<div class="box${b.top ? ' top' : ''}" style="left:${pct(b.x, docW)};top:${pct(b.y, docH)};width:${pct(b.w, docW)};height:${pct(b.h, docH)};z-index:${10 + i}">`
+      + `<span class="lbl"><b>${esc(label)}</b><em>${esc(sub)}</em></span></div>`;
+  }).join('');
+  return `<!doctype html><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Component map — ${esc(slug)}</title><style>
+ body{margin:0;background:#0f1115;color:#e6e6e6;font:13px/1.4 -apple-system,Segoe UI,Roboto,sans-serif}
+ header{position:sticky;top:0;z-index:99999;display:flex;gap:16px;align-items:center;padding:11px 18px;background:#171a21;border-bottom:1px solid #2a2f3a}
+ header b{color:#fff} header .n{color:#9aa4b2}
+ label{color:#cfd6e2;cursor:pointer;user-select:none} input{vertical-align:middle}
+ .wrap{position:relative;width:100%;max-width:1440px;margin:0 auto}
+ .wrap>img{width:100%;display:block}
+ .box{position:absolute;box-sizing:border-box;border:1.5px solid rgba(0,119,191,.5);background:rgba(0,119,191,.04);transition:background .08s,border-color .08s}
+ .box.top{border-color:rgba(0,119,191,.85)}
+ .box:hover{background:rgba(214,33,125,.22);border-color:#d6217d;z-index:100000!important}
+ .lbl{position:absolute;left:-1.5px;top:0;transform:translateY(-100%);display:flex;gap:8px;align-items:baseline;
+      background:#d6217d;color:#fff;padding:2px 7px;border-radius:4px 4px 4px 0;white-space:nowrap;
+      font:12px/1.5 ui-monospace,Menlo,monospace;opacity:0;pointer-events:none}
+ .lbl em{color:#ffd0ea;font-style:normal;font-size:11px}
+ .box:hover>.lbl{opacity:1}
+ body.names .lbl{opacity:.92}
+</style>
+<header>
+ <b>Component map</b><span class="n">${esc(slug)} · ${boxes.length} composants</span>
+ <label style="margin-left:auto"><input type="checkbox" onchange="document.body.classList.toggle('names',this.checked)"> afficher tous les noms</label>
+</header>
+<div class="wrap"><img src="${esc(slug)}.source.png" alt="source">${items}</div>`;
+}
 
 // ── self-contained visual review page (open in a browser, no server needed) ──
 function reviewHtml() {
@@ -200,7 +279,7 @@ function reviewHtml() {
       : '<div class="orphans ok">✓ No real content uncaptured (only chrome/consent, which is expected).</div>';
     return `<section class="pg">
       <h2>${esc(r.slug)} ${badge}
-        <small>content ${r.contentCoverage}% · pixelSim ${r.pixelSimilarity}% · ${r.nComps} components · <a href="${esc(r.url)}" target="_blank">source ↗</a> · <a href="${esc(r.slug)}.recon.html" target="_blank">▶ live reconstruction ↗</a></small></h2>
+        <small>content ${r.contentCoverage}% · pixelSim ${r.pixelSimilarity}% · ${r.nComps} components · <a href="${esc(r.url)}" target="_blank">source ↗</a> · <a href="${esc(r.slug)}.recon.html" target="_blank">▶ live reconstruction ↗</a> · <a href="${esc(r.slug)}.overlay.html" target="_blank">🗺 component map ↗</a></small></h2>
       <div class="viewer">
         <div class="slider" id="s_${esc(r.slug)}">
           <img class="recon" src="${esc(r.slug)}.recon.png" alt="reconstruction">
