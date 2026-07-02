@@ -102,7 +102,7 @@ export default function NewMigration() {
           />
         </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
           <Field label="Projet" hint="Dossier sous projects/ (le module Jahia).">
             <input
               type="text"
@@ -115,7 +115,7 @@ export default function NewMigration() {
               className={inputCls}
             />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 items-start gap-3">
             <Field label="Namespace" hint="Préfixe CND (ex. acq).">
               <input
                 type="text"
@@ -140,7 +140,7 @@ export default function NewMigration() {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 items-start gap-4 sm:grid-cols-3">
           <Field label="Pages max" hint="Étendue du crawl.">
             <input
               type="number"
@@ -204,7 +204,7 @@ const inputCls =
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="mt-4 block first:mt-0">
+    <label className="block">
       <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.8px] text-[#7d8a9a]">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-[11px] text-[#9aa6b4]">{hint}</span>}
