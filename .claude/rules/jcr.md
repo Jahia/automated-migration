@@ -15,8 +15,9 @@ Auto-loaded when touching `.cnd` files, `types.ts`, or JCR-related code. Full re
 - Always use an existing namespace declared in `settings/definitions.cnd`. Never invent a new prefix.
 - Lead with mixins (`[namespace:myMixin] mixin`) before concrete types.
 - Two-tier mixin system: shared mixins (reused across types) → concrete type (`[namespace:myType] > jmix:content, namespace:myMixin`).
-- No `j:linknode` or `j:url` hardcoded — use `weakreference` or `string (uri)` instead.
-- Every `i18n` property must have a default value fallback.
+- Contributor links: put `j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no` **directly on the concrete type** (no linkTo mixin). `j:url` and `j:linknode` are injected at runtime by Jahia's built-in mixins (`jmix:externalLink` / `jmix:internalLink`) — **NEVER declare them in the CND.** Verified against all three deployed reference modules (an explicit comment in `supercar-garage/settings/definitions.cnd` states exactly this). This overrides migration.md rule 9's older "declare them explicitly" wording, which was never verified on a live instance and contradicts every working module. `cnd_emit.py` follows the reference convention.
+- Restrict image weakreferences to image nodes: `- image (weakreference, picker[type='image']) < jmix:image`.
+- **i18n fallback is a VIEW-level guard, not a CND default.** Do not set default values on `i18n` properties in the CND (a CND default pre-populates every locale with the same string). Instead every view guards: `prop?.value ?? ''` (see CLAUDE.md rule 5 — all props optional at runtime). `cnd_emit.py` emits no i18n defaults by design.
 - Mandatory (`mandatory`) does not guarantee a non-null value at render time — always guard in the view.
 
 ## CND Property Types Quick Reference

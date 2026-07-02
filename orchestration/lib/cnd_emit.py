@@ -44,12 +44,32 @@ def field_line(f):
         line += " mandatory"
     if f.get("i18n"):
         line += " i18n"
+    # restrict image pickers to image nodes, matching the reference modules
+    # (`- image (weakreference, picker[type='image']) < jmix:image`).
+    if f["name"] == "image" and "weakreference" in typ:
+        line += " < jmix:image"
     return line
 
 
+def has_link_field(fields):
+    return any(f["name"] == "j:linkType" or "linkType" in f.get("type", "") for f in fields)
+
+
+def base_mixins(mixns):
+    """Module-level base mixins emitted once. Matches the deployed reference modules
+    (supercar-garage / lesalondelaphoto / sial-paris settings/definitions.cnd)."""
+    return [
+        f"[{mixns}:component] > jmix:droppableContent, jmix:accessControllableContent mixin",
+        f"[{mixns}:pageComponent] > {mixns}:component mixin",
+    ]
+
+
 def link_lines():
-    # A contributor link: j:linkType choicelist + a label. j:url / j:linknode are
-    # injected at runtime by Jahia's built-in link mixins — never declared here.
+    # A contributor link: j:linkType choicelist + a label, DIRECTLY on the type — no
+    # linkTo mixin. j:url / j:linknode are injected at runtime by Jahia's built-in
+    # mixins (jmix:externalLink / jmix:internalLink) and must NEVER be declared in the
+    # CND. Verified against all three deployed reference modules (an explicit comment
+    # in supercar-garage/settings/definitions.cnd states exactly this).
     return [
         "  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no",
         "  - linkLabel (string) i18n",
@@ -65,27 +85,42 @@ def layout_line(lp):
     return f"  - {name} (string, choicelist) = '{opts[0]}' < {quoted}"
 
 
+def _supertypes(fields, mixns, main_resource=False):
+    """Supertype list for a block. Only mix:title is hoisted (it provides jcr:title);
+    links + images stay inline on the type, matching the deployed reference modules."""
+    st = ["jnt:content", f"{mixns}:component"]
+    if any(f["name"] == "title" for f in fields):
+        st.insert(1, "mix:title")                    # provides jcr:title — never declare title
+    if main_resource:
+        st.append("jmix:mainResource")
+    return st
+
+
+def _own_fields(fields):
+    """Fields emitted inline on the type. title is covered by mix:title; j:linkType +
+    linkLabel are emitted by link_lines() to keep the canonical order/keywords."""
+    out = []
+    for f in fields:
+        if f["name"] == "title":
+            continue
+        if f["name"] == "j:linkType" or "linkType" in f.get("type", ""):
+            continue
+        if f["name"] == "linkLabel":
+            continue
+        out.append(f)
+    return out
+
+
 def type_block(comp, ns, mixns):
     """Emit the CND [ns:type] block for a component (and return child block text)."""
     node = comp["nodeType"]
     fields = comp.get("fields", []) or []
-    has_title = any(f["name"] == "title" for f in fields)
-    has_link = any("linkType" in (f.get("type", "")) or f["name"] == "j:linkType" for f in fields)
-
-    supertypes = ["jnt:content", f"{mixns}:component"]
-    if has_title:
-        supertypes.insert(1, "mix:title")            # provides jcr:title — never declare title
-    if comp.get("needsMainResource"):
-        supertypes.append("jmix:mainResource")
+    supertypes = _supertypes(fields, mixns, comp.get("needsMainResource"))
 
     lines = [f"[{node}] > {', '.join(supertypes)}"]
-    for f in fields:
-        if f["name"] == "title" and has_title:
-            continue                                  # covered by mix:title
-        if f["name"] == "j:linkType" or "linkType" in f.get("type", ""):
-            continue                                  # emitted via link_lines below
+    for f in _own_fields(fields):
         lines.append(field_line(f))
-    if has_link:
+    if has_link_field(fields):
         lines.extend(link_lines())
     lp = comp.get("layoutProperty")
     if isinstance(lp, dict):
@@ -100,24 +135,37 @@ def type_block(comp, ns, mixns):
             child_node = child["nodeType"]
             lines.append(f"  + * ({child_node})")
             cfields = child.get("fields", []) or []
-            c_title = any(f["name"] == "title" for f in cfields)
-            c_link = any("linkType" in f.get("type", "") or f["name"] == "j:linkType" for f in cfields)
-            csuper = ["jnt:content", f"{mixns}:component"]
-            if c_title:
-                csuper.insert(1, "mix:title")
+            csuper = _supertypes(cfields, mixns)
             clines = [f"[{child_node}] > {', '.join(csuper)}"]
-            for f in cfields:
-                if f["name"] == "title" and c_title:
-                    continue
-                if f["name"] == "j:linkType" or "linkType" in f.get("type", ""):
-                    continue
+            for f in _own_fields(cfields):
                 clines.append(field_line(f))
-            if c_link:
+            if has_link_field(cfields):
                 clines.extend(link_lines())
             child_text = "\n".join(clines)
         else:
             lines.append(f"  + * ({node}Item)")
     return "\n".join(lines), child_text
+
+
+def query_and_grid_types(ns, mixns):
+    """Every module ships a JCRQuery + GridRow (migration.md rule 12 / CLAUDE.md rule 16):
+    the editor's primary tools for building listing/grid pages without a developer.
+    JCRQuery is `jmix:list` ONLY — the deployed reference modules deliberately omit
+    jmix:renderableList (it limits the type to built-in views and injects j:linknode/
+    j:url, breaking the custom default.server.tsx view). GridRow holds any component."""
+    return [
+        f"// listing + grid tools (editor-facing, every module ships these)",
+        f"[{ns}:jcrQuery] > jnt:content, {mixns}:component, jmix:list",
+        "  - query (string, textarea)",
+        "  - maxItems (long) = 10",
+        "  - subNodeView (string) = 'card'",
+        "",
+        f"[{ns}:gridRow] > jnt:content, {mixns}:component",
+        "  - columns (long) = 3 < 1, 2, 3, 4, 6, 12",
+        "  - gap (string, choicelist) = 'md' < 'none', 'sm', 'md', 'lg'",
+        f"  + * ({mixns}:component)",
+        "",
+    ]
 
 
 def views_for(comp):
@@ -155,11 +203,15 @@ def main():
         f"<{ns} = 'https://jahia.com/{proj}/nt/1.0'>",
         f"<{mixns} = 'https://jahia.com/{proj}/mix/1.0'>",
         "",
-        f"[{mixns}:component] > jmix:droppableContent, jmix:accessControllableContent mixin",
-        f"[{mixns}:pageComponent] > {mixns}:component mixin",
+        *base_mixins(mixns),
         "",
     ]
     body, children, view_plans = [], [], []
+    body.extend(query_and_grid_types(ns, mixns))
+    view_plans.append({"component": "JCR Query", "nodeType": f"{ns}:jcrQuery",
+                       "views": ["default.server.tsx"]})
+    view_plans.append({"component": "Grid Row", "nodeType": f"{ns}:gridRow",
+                       "views": ["default.server.tsx"], "childType": f"{mixns}:component"})
 
     for c in m.get("crossCutting", []) or []:
         # cross-cutting components are page-area (absolute) content types too

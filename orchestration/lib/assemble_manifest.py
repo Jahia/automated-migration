@@ -43,6 +43,65 @@ def title_case(role):
     return " ".join(p.capitalize() for p in parts) or "Component"
 
 
+# ── Naming-quality gate ───────────────────────────────────────────
+# The partition gate proves the model is STRUCTURALLY sound (no hallucination /
+# omission). It says nothing about whether an editor can READ the type names.
+# This gate flags editor-hostile names so a green structural gate can't hide an
+# unusable model (contentful: 21/21 hashed; liferay: lfr:div at freq 66).
+
+# bare structural HTML tags that carry no editorial meaning as a content type
+# (chrome tags header/footer/nav are legitimate roles and excluded)
+_BARE_TAG = {"div", "span", "section", "article", "aside", "ul", "ol", "li",
+             "p", "a", "figure", "main", "container", "component", "wrapper"}
+# leaked framework/layout class fragments that should never name a content type
+_LEAKED_RE = re.compile(r"(?i)(^|[A-Z])(col(span|start|end)?\d|lfr|portlet|clay|"
+                        r"layoutstructure|swiper|coh|ssa|atb|fragment)")
+# CSS-module build hashes (9Pqm4, Peo73, oT7oZ, V4DoP) are dense runs: a 5-8 char
+# window where digits+uppercase OUTNUMBER-OR-EQUAL lowercase, with ≥1 of each of
+# {digit, lowercase}. A camelCase word ('partners2List', 'callToActionCard') has a
+# low symbol density (mostly lowercase) in EVERY 5-window, so it never matches —
+# which is what defeats shape-detection without this density test. Primary defense
+# is clean_token stripping __hash at the source; this is the leaked-hash safety net.
+def _looks_hash(name):
+    n = len(name)
+    for size in range(5, 9):
+        for i in range(0, n - size + 1):
+            w = name[i:i + size]
+            if not w.isalnum():
+                continue
+            d = sum(c.isdigit() for c in w)
+            u = sum(c.isupper() for c in w)
+            l = sum(c.islower() for c in w)
+            if d >= 1 and l >= 1 and (d + u) >= l:
+                return w
+    return None
+
+
+def naming_violations(manifest):
+    """Return [{nodeType, reason}] for editor-hostile type names in the manifest.
+    Checked on the local (post-namespace) name."""
+    out = []
+    seen = set()
+    for c in manifest.get("components", []) + manifest.get("crossCutting", []):
+        nt = c.get("nodeType", "")
+        if nt in seen:
+            continue
+        seen.add(nt)
+        local = nt.split(":", 1)[-1]
+        low = local.lower()
+        hash_run = _looks_hash(local)
+        reason = None
+        if low in _BARE_TAG:
+            reason = f"bare structural tag '{local}' — no editorial meaning"
+        elif hash_run:
+            reason = f"leaked CSS-module build hash '{hash_run}' in '{local}'"
+        elif _LEAKED_RE.search(local):
+            reason = f"leaked layout/framework class fragment in '{local}'"
+        if reason:
+            out.append({"nodeType": nt, "reason": reason})
+    return out
+
+
 FIELD_MAP = {
     "title:string": {"name": "title", "type": "string", "i18n": True, "mandatory": True},
     "text:string": {"name": "text", "type": "string, richtext", "i18n": True, "mandatory": False},
@@ -422,6 +481,15 @@ def main():
     unknown, missing, dupes = partition_gate(cand, groups)
     manifest = assemble(cand, groups, decide, templates, ns=args.ns)
 
+    violations = naming_violations(manifest)
+    total_types = len(manifest["components"]) + len(manifest["crossCutting"])
+    manifest["namingViolations"] = violations
+    manifest["namingQuality"] = (
+        "good" if not violations
+        else "poor" if len(violations) > max(2, total_types // 3)
+        else "mixed"
+    )
+
     with open(args.out, "w") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
@@ -439,6 +507,15 @@ def main():
         gate_ok = False
     if gate_ok:
         print("  [partition gate] PASS — exact partition of content candidates")
+    # Naming gate: a WARN, never a hard exit — the model is structurally usable, but
+    # the operator must see that N type names are editor-hostile before templatization.
+    if violations:
+        print(f"  [naming gate] {manifest['namingQuality'].upper()} — "
+              f"{len(violations)}/{total_types} editor-hostile type names:")
+        for v in violations[:12]:
+            print(f"      ✗ {v['nodeType']}: {v['reason']}")
+    else:
+        print("  [naming gate] GOOD — all type names are editor-readable")
     sys.exit(0 if gate_ok else 1)
 
 

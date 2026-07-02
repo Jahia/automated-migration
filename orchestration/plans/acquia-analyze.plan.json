@@ -28,7 +28,7 @@
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/localize_site.py projects/acquia-drupal --max-asset-size 15",
                 "PROBE: test -s projects/acquia-drupal/workflow-output/local-mirror/mirror.json",
-                "PROBE: node orchestration/lib/mirror_probe.mjs projects/acquia-drupal 3 --pages blog_dam-vs-cms,blog_aeo-measurement-ai-search-performance"
+                "PROBE: node orchestration/lib/mirror_probe.mjs projects/acquia-drupal 5"
               ]
             },
             {
@@ -67,7 +67,7 @@
               "depends_on": ["step_cnd", "step_localize"],
               "acceptance_criteria": [
                 "Reconstructs YOUR chosen sample pages from ONLY the extracted component nodes, renders in a real browser, pixel-diffs against the live source, and writes a self-contained visual review at workflow-output/reconstruct/review.html (drag-slider source vs reconstruction + diff heatmap per page). GATE = content coverage (all editable text captured). Edit --pages to pick your sample (or use --all).",
-                "PROBE: node orchestration/lib/reconstruct_probe.mjs projects/acquia-drupal 3 95 --pages home,about-us,about-us_leadership,blog,careers"
+                "PROBE: node orchestration/lib/reconstruct_probe.mjs projects/acquia-drupal 5 95"
               ]
             }
           ]

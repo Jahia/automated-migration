@@ -121,10 +121,27 @@ def _verdict_model(wo: Path) -> dict | None:
     m = json.loads(f.read_text())
     comps = m.get("components", [])
     mr = sum(1 for c in comps if c.get("needsMainResource"))
-    return {"verdict": "green" if comps else "amber", "gate": "model", "metrics": {
+    violations = m.get("namingViolations", [])
+    quality = m.get("namingQuality", "good" if not violations else "mixed")
+    # editorial naming quality gates the verdict: a structurally-fine model whose
+    # type names leak CSS hashes / bare tags is not shippable to an editor.
+    if not comps:
+        verdict = "amber"
+    elif quality == "poor":
+        verdict = "red"
+    elif quality == "mixed":
+        verdict = "amber"
+    else:
+        verdict = "green"
+    reasons = [f"{len(comps)} content types, {mr} mainResource, {len(m.get('crossCutting', []))} cross-cutting"]
+    if violations:
+        reasons.append(f"naming: {quality} — {len(violations)} editor-hostile type name(s) "
+                       f"(e.g. {', '.join(v['nodeType'] for v in violations[:3])})")
+    return {"verdict": verdict, "gate": "model", "metrics": {
         "types": len(comps), "templates": len(m.get("templates", [])),
         "crossCutting": len(m.get("crossCutting", [])), "mainResource": mr,
-    }, "reasons": [f"{len(comps)} content types, {mr} mainResource, {len(m.get('crossCutting', []))} cross-cutting"]}
+        "namingQuality": quality, "namingViolations": len(violations),
+    }, "reasons": reasons}
 
 
 def _verdict_scope(wo: Path) -> dict | None:

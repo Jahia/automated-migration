@@ -21,7 +21,7 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import fs from 'fs';
 import path from 'path';
-import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
+import { serveMirror, offlineRoute, loadRuntimeManifest, clusterSample } from './mirror_net.mjs';
 
 const argv = process.argv.slice(2);
 const flags = {}, pos = [];
@@ -66,6 +66,19 @@ const identify = (sxaMode) => {
   const txt = el => (el.innerText || '').replace(/\s+/g, ' ').trim();
   const hasContent = el => el.querySelector('h1,h2,h3,h4,h5,h6,img,picture,video') || el.querySelector('a[href]') || txt(el).length > 40;
   const isBlock = el => el.nodeType === 1 && ['DIV', 'SECTION', 'ARTICLE', 'ASIDE', 'FORM', 'UL', 'OL', 'HEADER', 'FOOTER', 'NAV'].includes(el.tagName) && hasContent(el);
+  // layout-class detection + CSS-module hash strip — mirror semantic_extract so the
+  // in-browser row signature groups siblings the SAME way the extractor does
+  // (Next.js: call_to_action_card__9Pqm4 → callToActionCard; drop lg:col-span-8).
+  const LAYOUT_EXACT = new Set(['component', 'container', 'container-fluid', 'row', 'grid',
+    'inner', 'wrapper', 'content-wrapper', 'clearfix', 'flex', 'd-flex', 'no-gutters', 'col', 'slide',
+    'swiper', 'swiper-wrapper']);
+  const LAYOUT_RE = /^(col-|offset-|order-|[mp][trblxyse]?-|g[xy]?-|gap-|w-|h-|bg-|text-|justify-|align-|flex-|rounded|shadow|border|position-|overflow-|z-|d-(sm|md|lg|xl|xxl)-|coh-|ssa-|splide|lfr-|portlet-|clay-|atb-|(sm|md|lg|xl|xxl):|col-span-|col-start-|col-end-)/;
+  const isLayout = t => LAYOUT_EXACT.has(t) || LAYOUT_RE.test(t);
+  const cleanTok = t => { const s = t.indexOf('__') >= 0 ? t.slice(0, t.indexOf('__')) : t; return s; };
+  const firstSem = el => {
+    const cls = (el.className || '').toString().split(/\s+/).filter(Boolean).map(cleanTok);
+    return cls.filter(c => !isLayout(c.toLowerCase()))[0] || '';
+  };
   const ownHeading = node => {
     const bk = [...node.children].filter(isBlock);
     return [...node.querySelectorAll('h1,h2,h3,h4,h5,h6')].some(h => h.textContent.trim() && !bk.some(b => b.contains(h)));
@@ -76,7 +89,7 @@ const identify = (sxaMode) => {
     if (bc.length === 0) return [node];
     if (depth > 0 && ownHeading(node)) return [node];  // titled section = one component (Option A)
     if (bc.length === 1) return row(bc[0], depth + 1);
-    const sig = {}; bc.forEach(c => { const k = c.tagName + '.' + (c.className || '').toString().split(' ')[0]; sig[k] = (sig[k] || 0) + 1; });
+    const sig = {}; bc.forEach(c => { const k = c.tagName + '.' + firstSem(c); sig[k] = (sig[k] || 0) + 1; });
     const top = Math.max(...Object.values(sig));
     if (top >= 3 && top >= 0.6 * bc.length) return [node];
     return bc.flatMap(c => row(c, depth + 1));
@@ -100,16 +113,34 @@ const identify = (sxaMode) => {
   // as IGNORABLE — it is not an extraction failure (handled by a Jahia module /
   // the template), so it must not fail the content-coverage gate.
   const IGNORE = /cookie|consent|trustarc|privacy|confidential|pr[ée]f[ée]rence|skip to (main )?content|aller au contenu|select language|choisir la langue|visually-hidden|sr-only|back to top|retour en haut/i;
+  // non-rendered tags that can hold text but never paint (Next.js/SSR often puts a
+  // <title> and hydration <div style=display:none> JSON blobs in the body).
+  const NONRENDER = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TITLE', 'META', 'LINK', 'HEAD', 'TEMPLATE']);
+  // truly non-rendered: removed from layout or explicitly hidden. NB: opacity:0 is
+  // NOT treated as hidden — scroll-reveal libraries (AOS/ScrollReveal/wow.js) start
+  // real below-the-fold content at opacity:0, and it still occupies layout; bucketing
+  // it as hidden would drop real orphans from the actionable list while it drags
+  // coverage down (contradictory gate output). It still has a box, so it counts.
+  const isVisible = el => {
+    const s = getComputedStyle(el);
+    if (s.display === 'none' || s.visibility === 'hidden' || s.visibility === 'collapse') return false;
+    if (el.offsetParent === null && s.position !== 'fixed') return false;   // detached from layout
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
   const inComp = el => comps.some(c => c === el || c.contains(el));
   const orphanSamples = []; const seen = new Set();
-  let ignorableChars = 0, realOrphanChars = 0;
+  let ignorableChars = 0, realOrphanChars = 0, hiddenChars = 0;
   for (const el of document.querySelectorAll('body *')) {
-    if (['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(el.tagName) || inComp(el)) continue;
+    if (NONRENDER.has(el.tagName) || inComp(el)) continue;
     let own = ''; for (const n of el.childNodes) if (n.nodeType === 3) own += n.textContent;
     own = own.replace(/\s+/g, ' ').trim();
     if (own.length < 12 || seen.has(own)) continue;
     seen.add(own);
     const cls = (el.className || '').toString();
+    // hidden text (display:none / zero-box / SSR hydration data) is neither a real
+    // orphan nor visible chrome — bucket separately so it can't inflate realOrphanChars.
+    if (!isVisible(el)) { hiddenChars += own.length; orphanSamples.push({ tag: el.tagName.toLowerCase(), cls: cls.slice(0, 40), text: own.slice(0, 80), ignorable: true, hidden: true }); continue; }
     const ignorable = IGNORE.test(own) || IGNORE.test(cls) || !!el.closest('[class*="trustarc"],[id*="onetrust"],[class*="cookie"],[aria-label*="cookie" i]');
     if (ignorable) ignorableChars += own.length; else realOrphanChars += own.length;
     orphanSamples.push({ tag: el.tagName.toLowerCase(), cls: cls.slice(0, 40), text: own.slice(0, 80), ignorable });
@@ -117,15 +148,9 @@ const identify = (sxaMode) => {
 
   // component bounding boxes for the overlay map (document coords; deviceScale=1 →
   // 1 CSS px = 1 image px). Collected BEFORE masking (layout is identical either way).
-  const LAYOUT_EXACT = new Set(['component', 'container', 'container-fluid', 'row', 'grid',
-    'inner', 'wrapper', 'content-wrapper', 'clearfix', 'flex', 'd-flex', 'no-gutters', 'col', 'slide']);
-  const LAYOUT_RE = /^(col-|offset-|order-|[mp][trblxyse]?-|g[xy]?-|gap-|w-|h-|bg-|text-|justify-|align-|flex-|rounded|shadow|border|position-|overflow-|z-|d-(sm|md|lg|xl|xxl)-|coh-|ssa-|splide)/;
-  const isLayout = t => LAYOUT_EXACT.has(t) || LAYOUT_RE.test(t);
   const roleOf = el => {
     if (['HEADER', 'FOOTER', 'NAV'].includes(el.tagName)) return el.tagName.toLowerCase();
-    const cls = (el.className || '').toString().split(/\s+/).filter(Boolean);
-    const sem = cls.filter(c => !isLayout(c.toLowerCase()));
-    return sem[0] || el.tagName.toLowerCase();
+    return firstSem(el) || el.tagName.toLowerCase();
   };
   const docW = document.documentElement.scrollWidth, docH = document.documentElement.scrollHeight;
   const boxes = comps.map(c => {
@@ -148,6 +173,7 @@ const identify = (sxaMode) => {
     contentCoveragePct: Math.min(100, Math.round(100 * coveredText / denom)),
     realOrphanChars: realOrphanChars,
     ignorableChars,
+    hiddenChars,
     orphanSamples: orphanSamples.slice(0, 20),
     boxes, docW, docH,
   };
@@ -169,7 +195,12 @@ else if (pageSel) {
   pages = inv.pages.filter(p => pageSel.includes(p.slug));
   const missing = pageSel.filter(s => !inv.pages.some(p => p.slug === s));
   if (missing.length) console.error(`  note: slugs not in inventory (skipped): ${missing.join(', ')}`);
-} else pages = inv.pages.slice(0, maxPages);
+} else {
+  // one page per template cluster (diverse layouts), not the first N
+  const sample = clusterSample(proj, inv.pages.map(p => p.slug), maxPages);
+  const bySlug = new Map(inv.pages.map(p => [p.slug, p]));
+  pages = sample.map(s => bySlug.get(s)).filter(Boolean);
+}
 if (!pages.length) { console.error('no pages selected'); process.exit(2); }
 const results = [];
 let mserver = null, mbase = null;
@@ -238,6 +269,7 @@ for (const p of pages) {
             contentCoverage: info.contentCoveragePct,       // GATE metric: real content captured (ignores cookie/a11y chrome)
             realOrphanChars: info.realOrphanChars,
             ignorableChars: info.ignorableChars,
+            hiddenChars: info.hiddenChars,
             orphanSamples: info.orphanSamples,
             pixelSimilarity,                                // visual artifact: components-only vs source
             reconHtml: localMode ? `local-mirror/${p.slug}.recon.html` : `${p.slug}.recon.html`,

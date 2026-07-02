@@ -68,9 +68,43 @@ LAYOUT_RE = re.compile(
     r"animated.*|height\d.*|basic-vertical.*|slider-.*|slide-.*|"
     r"pt-\d.*|pb-\d.*|ps-\d.*|pe-\d.*|px-\d.*|py-\d.*|"
     # framework/theme layout wrappers (Drupal Site Studio / Cohesion, Splide, etc.)
-    r"selected-.*|selected--.*|coh-.*|ssa-.*|ssa-component.*|site-studio|splide.*"
+    r"selected-.*|selected--.*|coh-.*|ssa-.*|ssa-component.*|site-studio|splide.*|"
+    # Tailwind responsive grid utilities (Next.js sites: lg:col-span-8, lg:col-start-7).
+    # NB: col(-.*)? above already covers col-span/start/end; row-span is the only new one.
+    r"(sm|md|lg|xl|xxl|2xl):.*|row-span-.*|"
+    r"swiper-.*|swiper|"
+    # Liferay layout-engine + fragment structure classes. Scoped to the ACTUAL Liferay
+    # namespaces (lfr-, portlet-, clay-* / c-clay*, atb-) — NOT a bare `c-.*`, which
+    # would swallow the common BEMIT/ITCSS `c-` component prefix (c-hero, c-card).
+    r"lfr-.*|portlet-.*|clay-.*|c-clay.*|atb-.*|fragment-.*|lfr-layout.*"
     r")$"
 )
+
+# CSS-modules class shape: <block>_<localName>__<hash> (double-underscore before the
+# build hash). The hash carries no meaning to an editor; the localName does. Also
+# collapses a repeated leading block stem (richTextUnified_richTextUnifiedBody → …Body).
+_CSSMOD_HASH = re.compile(r"__[A-Za-z0-9].*$")
+
+
+def _dedupe_stem(tok):
+    """richTextUnified_richTextUnifiedBody → richTextUnifiedBody (drop the repeated
+    leading block prefix a CSS-modules name concatenates)."""
+    parts = [p for p in tok.split("_") if p]
+    if len(parts) >= 2 and parts[1].lower().startswith(parts[0].lower()):
+        return "_".join(parts[1:])
+    return tok
+
+
+def clean_token(tok):
+    """Strip CSS-module build hashes and redundant block prefixes from a class token
+    so it can serve as a human-facing role. Non-CSS-module tokens pass through."""
+    if not tok:
+        return tok
+    if "__" in tok:
+        stripped = _CSSMOD_HASH.sub("", tok)
+        if stripped:
+            return _dedupe_stem(stripped)
+    return tok
 
 
 def classes_of(el):
@@ -112,7 +146,10 @@ def role_and_variants(el, sxa_mode):
     first non-layout class token as its role.
     """
     cls = classes_of(el)
-    semantic = [c for c in cls if not is_layout_class(c)]
+    # clean CSS-module hashes first, THEN drop layout classes (a hashed token like
+    # call_to_action_card__9Pqm4 must be de-hashed before the layout test sees it).
+    semantic = [clean_token(c) for c in cls]
+    semantic = [c for c in semantic if not is_layout_class(c)]
     if el.name in CHROME_TAGS:
         return el.name, semantic
     region = _region_from_classes(cls)

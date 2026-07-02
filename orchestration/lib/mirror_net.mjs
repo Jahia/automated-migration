@@ -26,6 +26,34 @@ export const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/jav
 
 const MANIFEST = 'runtime-manifest.json';
 
+// Default gate sample = one representative page PER TEMPLATE CLUSTER (diverse
+// layouts), not the first N inventory pages (which can all be the same template —
+// supercar's fr-FR/home/en was one layout in two locales). Falls back to first-N
+// when semantic-templates.json is absent. Fills leftover budget from the biggest
+// clusters so a large maxPages still gets breadth. Returns an ordered slug list.
+export function clusterSample(proj, availableSlugs, maxPages) {
+  const avail = new Set(availableSlugs);
+  try {
+    const t = JSON.parse(fs.readFileSync(path.join(proj, 'workflow-output', 'semantic-templates.json'), 'utf8'));
+    const clusters = (t.clusters || []).map(c => (c.pages || []).filter(s => avail.has(s)))
+      .filter(ps => ps.length).sort((a, b) => b.length - a.length);
+    if (!clusters.length) return availableSlugs.slice(0, maxPages);
+    const picked = [];
+    for (const ps of clusters) if (picked.length < maxPages && !picked.includes(ps[0])) picked.push(ps[0]);
+    // budget left over → add the next unused page from the largest clusters
+    let i = 1;
+    while (picked.length < maxPages) {
+      let added = false;
+      for (const ps of clusters) {
+        if (ps[i] && !picked.includes(ps[i])) { picked.push(ps[i]); added = true; if (picked.length >= maxPages) break; }
+      }
+      if (!added) break;
+      i++;
+    }
+    return picked;
+  } catch { return availableSlugs.slice(0, maxPages); }
+}
+
 export function loadRuntimeManifest(mirrorDir) {
   try {
     const m = JSON.parse(fs.readFileSync(path.join(mirrorDir, MANIFEST), 'utf8'));
@@ -104,9 +132,17 @@ const CT_EXT = { 'text/css': 'css', 'text/javascript': 'js', 'application/javasc
   'image/webp': 'webp', 'image/avif': 'avif', 'video/mp4': 'mp4', 'video/webm': 'webm' };
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
+// resource kinds that must NOT come back as an HTML document — a 200 text/html body
+// for a script/style/font/image/media request is a soft-404 / login wall / bot page.
+// Saving it would poison the manifest (fulfilled with status 200 on every later render).
+const NONHTML_KINDS = new Set(['script', 'stylesheet', 'font', 'image', 'media', 'imageset']);
+
 // Fetch one runtime-discovered asset from the live origin into the mirror.
-// Returns 'saved' | 'residue' (404/oversize/network — recorded in the ledger).
-export async function fetchRuntimeAsset(mirrorDir, manifest, key, absUrl, capBytes = 30 * 1024 * 1024) {
+// Returns 'saved' | 'residue' (404/oversize/network/soft-404 — recorded in the ledger).
+// expectKind = the requesting resourceType (from the blocked request), used to reject
+// content-type mismatches. capBytes defaults higher for media (hero videos/fonts).
+export async function fetchRuntimeAsset(mirrorDir, manifest, key, absUrl, expectKind = 'other', capBytes = null) {
+  const cap = capBytes != null ? capBytes : (expectKind === 'media' ? 50 * 1024 * 1024 : 30 * 1024 * 1024);
   const toResidue = () => { if (!manifest.residue.includes(key)) manifest.residue.push(key); return 'residue'; };
   try {
     const r = await fetch(absUrl, {
@@ -115,9 +151,11 @@ export async function fetchRuntimeAsset(mirrorDir, manifest, key, absUrl, capByt
       signal: AbortSignal.timeout(30000),
     });
     if (!r.ok) return toResidue();
+    const ct = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    // soft-404 guard: an HTML body for a non-HTML request is an error page, not the asset
+    if (ct.startsWith('text/html') && NONHTML_KINDS.has(expectKind)) return toResidue();
     const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.length > capBytes) return toResidue();
-    const ct = (r.headers.get('content-type') || '').split(';')[0].trim();
+    if (buf.length > cap) return toResidue();
     let ext = (key.split('?')[0].match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase();
     if (!ext || !KNOWN_EXTS.has(ext)) ext = CT_EXT[ct] || 'bin';
     const file = `runtime-assets/${crypto.createHash('sha1').update(key).digest('hex')}.${ext}`;

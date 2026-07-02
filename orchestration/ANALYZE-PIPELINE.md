@@ -181,41 +181,61 @@ detail pages: **content 100%, pixelSim 98.5–98.9%, GATE GREEN**. Byte-stable a
 carries `mix:title` + `image` + rich `text` + CTA link itself, not just an image. Container
 facets (FAQ, related-content lists) stay separate components placed in the detail template.
 
-## 9. Open items / next (priority order, fed by the 2026-07-02 adversarial review)
+## 9. Recommendations — shipped 2026-07-02 (commit after the 3-site batch review)
 
-1. **Naming-quality gate for the grouping** (highest editorial impact): the partition gate
-   validates structure, not editorial quality. Deterministic check on manifest type names —
-   reject hash suffixes (`…9pqm4`), bare tags (`div`), layout classes (`lgColSpan8`,
-   `lfrLayoutStructureItemSection`) and leaked tokens in **choicelist values** → feed back
-   to the LLM like the partition gate does. contentful: 21/21 names editor-hostile;
-   liferay: 7 types with `lfr:div` at freq 66. Liferay-class markup also needs altitude tuning.
-2. **CND generator completeness** (`cnd_emit.py`) — violations found in all 3 CNDs:
-   emit shared mixins (`nsmix:cta`, `nsmix:media`) instead of copy-pasting field groups;
-   emit a `nsmix:linkTo` (resolve the CLAUDE.md-9 vs migration.md-9 `j:url`/`j:linknode`
-   contradiction empirically on a local Jahia first); i18n default fallbacks; always emit
-   namespace-adapted `JCRQuery` + `GridRow` types (rule 16).
-3. **Mirror-gate hardening** (from the refuted "cannot false-pass" claim):
-   surface `runtimeResidue` + excused counts in the gate verdict ("GREEN with N excused"),
-   render the residue list in mirror-review.html; reject repairs whose content-type
-   contradicts the request type (soft-404 HTML saved as a script poisons the manifest);
-   split the tracker list into never-visible (analytics) vs embed-content
-   (youtube/fbcdn/hubspot — count or waive per-project); account extension-less/json
-   same-origin xhr; strengthen `offlineRendered` (visible-text/element-count signal,
-   not just `sheets>0`).
-4. **Orphan scan visibility filter** (`reconstruct_probe.identify()`): computed-style +
-   bounding-box filter (`<title>` and Next.js hydration timestamps currently count as
-   real orphans); drive masking from extractor-emitted selectors to kill the
-   className-token drift between the probe and `semantic_extract.py`.
-5. **Gate sampling breadth**: gates run on 3 pages/site (and supercar's sample was
-   fr-FR + home + en = ONE unique layout twice) — sample per **template cluster**
-   (one page per cluster) instead of the first N inventory pages.
-6. Junk low-freq roles survive on non-SXA (`ul`, `div`, `js-form-item`) — light noise filter.
-7. Crawler has **no JS render** — add Playwright render for JS-hydrated sites (the
-   runtime-repair pass compensates for assets, not for content).
-8. Large-media residue (liferay hero webm, Source Serif Pro variable font) caps
-   mirror-fidelity ~86–90% — raise the repair cap for fonts/media or poster-frame
-   substitution; live-capture interaction states (open mega-menu) also pollute the diff.
-9. Then: templatization (step 4) using the diff PNGs as the spec.
+All five fronts from the batch's adversarial review were implemented, then a SECOND
+adversarial review (17 agents) caught 7 regressions in the implementation itself, all
+fixed before commit. What shipped:
+
+1. ✅ **Naming-quality gate** (`semantic_extract.clean_token` + `assemble_manifest.naming_violations`):
+   CSS-module hashes stripped at extraction (`blockName_local__9Pqm4` → `local`); a
+   deterministic gate flags any surviving hash (density scan — no camelCase false
+   positives), bare tags (`div`), and leaked layout/framework fragments, writing
+   `namingViolations` + `namingQuality` (good/mixed/poor) into the manifest. The engine's
+   model verdict goes amber/red on hostile names. **Measured: contentful 21/21 hostile →
+   1/19; liferay layout-div leakage removed; supercar GOOD.** (Layout regex scoped to real
+   Clay/Tailwind/Liferay tokens — NOT a bare `c-.*`, which would eat BEMIT `c-hero`.)
+2. ✅ **CND generator** (`cnd_emit.py`): always emits `ns:jcrQuery` (`jmix:list` only — NOT
+   renderableList) + `ns:gridRow` (rule 16); image weakrefs carry `< jmix:image`. **Link
+   convention MATCHES the deployed reference modules: `j:linkType` inline on the type, NO
+   linkTo mixin, `j:url`/`j:linknode` NEVER declared** (Jahia injects them at runtime —
+   the migration.md-9 "declare them" wording was unverified and contradicted every working
+   module; resolved in favor of the empirical reference). i18n defaults are a view guard,
+   not a CND default.
+3. ✅ **Mirror-gate hardening** (`mirror_net.mjs` + `mirror_probe.mjs`): soft-404 guard
+   (an HTML body for a script/font/image request → residue, not a poisoned manifest
+   entry); tracker list split into **analytics** (excused, invisible) vs **embed**
+   (youtube/hubspot/vimeo — surfaced as `embedBlocked`, not silently excused) — Google
+   Fonts (`fonts.gstatic.com`) stays HARD-GATED; same-origin `xhr`/`json` reported as
+   `dataMiss`; `offlineRendered` requires real DOM content (text OR elements OR image),
+   closing the blank-page loophole without false-failing a sparse form page; verdict shows
+   "GREEN with N excused" + residue listed in the review HTML. CMS **edit-mode chrome**
+   (Liferay management_toolbar, AEM cq/editor…) excused by path — authoring UI, not visitor
+   content. Media repair cap raised to 50 MB.
+4. ✅ **Runtime-repair robustness**: a **settle pass** re-renders any page that still has a
+   miss after the batch, once the shared runtime-module graph (AMD/combo, Next.js chunks)
+   is fully captured — so the gate verdict no longer depends on cluster order.
+5. ✅ **Orphan scan visibility filter** (`reconstruct_probe.identify()`): skips non-render
+   tags (`<title>`, hydration `<template>`); buckets display:none / zero-box text as
+   `hiddenChars` (NOT realOrphans) — but keeps opacity:0 scroll-reveal content as real (it
+   still has a box). Row signature + role now use the same layout-aware, hash-stripped
+   first-token as `semantic_extract`.
+6. ✅ **Gate sampling by template cluster** (`mirror_net.clusterSample`): one representative
+   page PER cluster (diverse layouts), not the first N — which on supercar had been fr-FR +
+   home + en (one layout, two locales). Plan `recon_max` raised 3 → 5. This immediately
+   surfaced real weak pages the old sampling hid (liferay `capabilities_*`, supercar
+   `fr-FR_exposer` form).
+
+### Still open (not regressions — genuine next work)
+- **Metric honesty stands**: reconstruct pixelSim is segmentation coverage of a masked DOM,
+  not a rebuild from extracted data (see the §3 note). A true from-extraction reconstruction
+  is the step-4 templatization check.
+- Junk low-freq roles survive on non-SXA (`ul`, `div`, `js-form-item`) — light noise filter.
+- Liferay-class layout-div markup still yields an anemic model (few semantic types) — needs
+  altitude tuning for layout-engine markup, beyond the naming gate that now flags it.
+- Crawler has **no JS render** — add Playwright render for JS-hydrated sites (runtime-repair
+  handles assets, not client-rendered CONTENT).
+- Then: templatization (step 4) using the diff PNGs as the spec.
 
 ## 10. Security
 
