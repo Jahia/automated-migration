@@ -63,3 +63,13 @@ ns_hero.j:linkType.ui.tooltip=Link for the CTA button. Choose internal page or e
 ## Mixins
 
 17. **Extract shared fields into mixins before writing the second content type.** Common: `nsmix:cta` (link + label), `nsmix:media` (image + alt), `nsmix:badge` (label + color), `nsmix:seo` (metaTitle + metaDesc).
+
+## Local mirror & analyze pipeline (learned on the 5 reference sites)
+
+18. **Never trust static asset discovery alone.** JS-composed URLs (Liferay AMD/combo loader, Next.js `/_next/static/*` chunk maps) only surface when a real browser renders the mirror — the `mirror_probe` runtime-repair fixpoint captures them into `runtime-manifest.json`. Never skip or bypass the mirror gate before the fidelity gate.
+
+19. **Never fetch scrape-detection or consent hosts during repair.** contentful.com embeds `canarytokens.com` beacons that exfiltrate the requesting URL — fetching one FIRES it. The tracker blocklist in `mirror_net.mjs` (canarytokens, osano, onetrust, trustarc…) is a security boundary, not an optimization.
+
+20. **Charset is a silent fidelity killer.** Rewritten `<head>` can push `<meta charset>` past the browser's 1024-byte sniff window → Latin-1 mojibake → ~9 pixel-fidelity points lost (measured on supercar). The localizer injects `<meta charset="utf-8">` first in head and mirror servers send explicit `; charset=utf-8`. Any new artifact-serving path must do the same.
+
+21. **Judge the component model editorially at the model gate, not just structurally.** Hash-suffixed type names (`ctf:callToActionCard9pqm4`), bare tags (`lfr:div`), or leaked layout classes (`lgColSpan8`, `lfrLayoutStructureItemSection`) mean the grouping failed editorially even if every gate is green. Expect: SXA → clean names; Next.js → good structure/bad names; Liferay-class layout markup → anemic model needing altitude tuning.

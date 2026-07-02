@@ -441,17 +441,20 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
 
 def _infer_gate_type(step: StepState) -> str | None:
     """Map a halted step to a migration-profile gate panel (frontend routing).
-    Derived from the step id / title / acceptance_criteria — no plan schema change."""
-    text = " ".join([step.id or "", step.title or "", " ".join(step.acceptance_criteria or [])]).lower()
-    if "reconstruct" in text or "fidelity" in text:
+    Matched on step id + title ONLY — acceptance criteria embed project paths
+    ("projects/contentful/…"), which poison broad substring matches."""
+    idt = f"{step.id or ''} {step.title or ''}".lower()
+    if "reconstruct" in idt or "fidelity" in idt:
         return "fidelity"
-    if "component_model" in text or "step_model" in text or ("component" in text and "model" in text):
+    if "localize" in idt or "mirror" in idt:
+        return "mirror"
+    if "component_model" in idt or "step_model" in idt or "group" in idt or "cnd" in idt or ("component" in idt and "model" in idt):
         return "model"
-    if "visual" in text or "vanity" in text or "go-live" in text or "golive" in text:
+    if "visual" in idt or "vanity" in idt or "go-live" in idt or "golive" in idt:
         return "golive"
-    if "content" in text and "extract" not in text:
+    if "content" in idt and "extract" not in idt:
         return "content"
-    if "scope" in text or "analyze" in text or "crawl" in text:
+    if "scope" in idt or "analyze" in idt or "crawl" in idt:
         return "scope"
     return None
 
@@ -815,6 +818,29 @@ async def try_resume_run(run_id: str, client: OpenCodeClient, event_listener: Op
         resume = get_resume_event(run_id)
         resume.set()
     else:
+        # Fresh loop (engine restarted / loop gone): the in-flight resume & halt
+        # handling can't fire, so normalize state here or the loop dies instantly —
+        #  - halted step: resuming IS the operator's gate approval → done;
+        #  - orphaned running/verifying step (loop died mid-step): re-run it;
+        #  - failed step: give it fresh attempts;
+        #  - failed story/epic with runnable work left: back to pending so
+        #    select_next_ready_* re-enters instead of re-failing immediately.
+        for epic in run.epics:
+            for story in epic.stories:
+                for step in story.steps:
+                    if step.status == StepStatus.halted:
+                        step.status = StepStatus.done
+                    elif step.status in (StepStatus.running, StepStatus.verifying, StepStatus.ready, StepStatus.failed):
+                        # back to *pending*: despite its name, select_next_ready_step
+                        # only picks pending steps ('ready' is jump's forced state)
+                        step.status = StepStatus.pending
+                        step.attempt = 0
+                if story.status == StoryStatus.failed and any(
+                        s.status == StepStatus.pending for s in story.steps):
+                    story.status = StoryStatus.pending
+            if epic.status == EpicStatus.failed and any(
+                    st.status != StoryStatus.approved for st in epic.stories):
+                epic.status = EpicStatus.pending
         task = asyncio.create_task(_run_loop(run, client, event_listener))
         _active_tasks[run_id] = task
     await notify_sse(run, "run_resumed", {})

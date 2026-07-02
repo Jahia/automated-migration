@@ -38,8 +38,9 @@ first attempt (0 hallucination / 0 omission).
 | Tool | Purpose | Usage |
 |---|---|---|
 | `crawl-site.py` | cached, rate-limited crawl + assets → `page-inventory.json`. (urllib — **no JS render**; fine for server-rendered SXA/Drupal, a gap for JS-hydrated sites.) | `python3 crawl-site.py <proj> <url> --max-pages N --depth D` |
-| `localize_site.py` | **build a TRULY-LOCAL mirror** from the crawl cache: discover every asset (HTML refs **+ recursion into CSS** `@import`/`url()`/`@font-face`), download the missing (cache-first, WAF-aware), rewrite ALL refs (HTML+CSS) to hash-named local paths → `workflow-output/local-mirror/<slug>.html` + `assets/` + `mirror.json` (residue + localizable %). Deterministic. | `python3 localize_site.py <proj> [--max-asset-size MB]` |
-| `mirror_probe.mjs` | **the local-mirror gate.** Serves the mirror from an ephemeral 127.0.0.1 server and renders each page with **every other origin blocked**. GATE = zero blocked *static-asset* requests (css/font/image/script/media) that aren't a known tracker/residue (runtime beacons/xhr are ignorable); asserts stylesheets applied. Also pixel-diffs offline-vs-live → **mirror-fidelity %**. Writes `mirror/mirror-review.html`. | `node mirror_probe.mjs <proj> [maxPages] [--pages a,b] [--all] [--no-live]` |
+| `localize_site.py` | **build a TRULY-LOCAL mirror** from the crawl cache: discover every asset (HTML refs **+ recursion into CSS** `@import`/`url()`/`@font-face`), download the missing (cache-first, WAF-aware), rewrite ALL refs (HTML+CSS) to hash-named local paths → `workflow-output/local-mirror/<slug>.html` + `assets/` + `mirror.json` (residue + localizable %). Injects `<meta charset="utf-8">` FIRST in `<head>` (rewritten `<link>` tags can push the original meta past the browser's 1024-byte sniff window → Latin-1 mojibake; this cost supercar ~9 fidelity points before the fix). Deterministic. | `python3 localize_site.py <proj> [--max-asset-size MB]` |
+| `mirror_probe.mjs` | **the local-mirror gate.** Serves the mirror from an ephemeral 127.0.0.1 server and renders each page with **every other origin blocked**. GATE = zero blocked *static-asset* requests (css/font/image/script/media) that aren't a known tracker/residue (runtime beacons/xhr are ignorable) + **zero local-404s**; asserts stylesheets applied. **Runtime repair to fixpoint:** URLs composed by JS at render time (Liferay AMD/combo loader, Next.js chunk maps) are invisible to static discovery — on a miss the probe fetches the asset ONCE from the live origin into `local-mirror/runtime-assets/` (ledger: `runtime-manifest.json`), re-renders, and loops (≤5 rounds — repaired modules import further modules in waves). Un-fetchable refs (404 live / oversize) become explicit residue. Also pixel-diffs offline-vs-live → **mirror-fidelity %**. Writes `mirror/mirror-review.html`. | `node mirror_probe.mjs <proj> [maxPages] [--pages a,b] [--all] [--no-live] [--no-repair]` |
+| `mirror_net.mjs` | **shared offline-serving module** (mirror_probe + reconstruct_probe): manifest-aware ephemeral server (exact path+query lookup for combo/loader URLs, then plain files), `offlineRoute()` (local → continue; manifest-captured cross-origin → fulfilled from disk; rest → abort), `fetchRuntimeAsset()`. Text MIME types get explicit `; charset=utf-8`. The tracker-host blocklist includes consent managers (osano, onetrust…) **and `canarytokens.com` — contentful embeds scrape-detection canaries that exfiltrate the local URL; they must never be repaired/fetched.** | imported by the two probes |
 | `semantic_extract.py` | **deterministic candidates.** SXA fast-path (`class="component"`) + agnostic recursive **altitude finder** (descend single-block wrappers → first multi-block "component row" → stop; titled sections kept whole). Data-shape signatures, cross-page frequency, **cross-cutting by ubiquity+position**, template clusters. | `python3 semantic_extract.py <proj>` → `semantic-candidates.json`, `semantic-templates.json` |
 | `grouping-prompt.md` | the site-**agnostic** grouping prompt (feature-driven, no site/CMS names). Merge liberally by shape; the sanitizer splits bad merges. | consumed by `group_llm.py` |
 | `group_llm.py` | **the single bounded LLM step.** Calls DeepSeek V4 Flash (temp 0) with the compact candidate set; self-corrects on the partition gate. | `python3 group_llm.py <proj> --model deepseek-v4-flash --ns <ns>` → `grouping.json` |
@@ -59,8 +60,19 @@ Plan template: `orchestration/plans/acquia-analyze.plan.json` (crawl → **local
 1. **Partition gate** (`assemble_manifest`): every group member must be a known candidate id, and every candidate covered exactly once → **hallucination and omission are impossible to pass**.
 2. **dup-shape sanitizer** (`assemble_manifest`): within an LLM group, split members whose data-shapes are incompatible (or containers with disjoint child-shapes) → **no grab-bag types**. dup-shape across *distinct roles* is a review WARN, not a hard fail (real sites reuse shapes: Breadcrumb vs CTA).
 3. **Stability gate** (`stability_gate`): naming-invariant grouping agreement + cross-cutting presence across N runs.
-4. **Mirror gate** (`mirror_probe`, runs BEFORE the fidelity gate): every sample page renders **fully offline** — 0 blocked static-asset requests (only runtime trackers blocked) + stylesheets applied. So the local render is *truly* local, not silently pulling from the source. Mirror-fidelity (offline vs live) reported alongside (acquia: 99.97–99.98%).
+4. **Mirror gate** (`mirror_probe`, runs BEFORE the fidelity gate): every sample page renders **fully offline** — 0 blocked static-asset requests (only runtime trackers blocked) + 0 local-404s + stylesheets applied, **after the runtime-repair fixpoint**. So the local render is *truly* local, not silently pulling from the source. Mirror-fidelity (offline vs live) reported alongside (acquia 99.97–99.98%, supercar 99.95–100%, contentful 99.91–99.99%, liferay 86–90% — hero `<video>` webm residue).
 5. **Fidelity gate** (`reconstruct_probe`): content coverage ≥ threshold; renders from the local mirror (offline/deterministic); the visual review (`review.html`) is the human approval before templatization.
+
+> **Honest scope of the fidelity metrics (adversarial review, 2026-07-02):** the "reconstruction"
+> is the SAME live DOM with non-component regions masked (`visibility:hidden`) — it measures
+> **segmentation coverage** (is every visible box inside a detected component?), NOT a rebuild
+> from the extracted data. Consequences: (1) pixelSim is anti-correlated with decomposition
+> quality at the coarse end — a whole-page grab-bag type (liferay's `lfr:div`) scores high
+> *because* it is coarse; always read pixelSim **together with the model's naming/type quality**;
+> (2) coverage is character-based and chrome (header/footer) inflates the denominator;
+> (3) both screenshots come from the same offline render, so mirror gaps are invisible to this
+> gate (that's the mirror gate's job). A *true* reconstruction — rendering from the extracted
+> field values — is the step-4 templatization check, not this gate.
 
 ---
 
@@ -78,6 +90,17 @@ component** (title + intro + items) — a node carrying its own heading is emitt
 nesting made every titled div a "component". The altitude finder fixed it (→ 300
 instances, 3/3 cross-cutting). **Always validate agnosticism on a real non-SXA site,
 never a toy fixture. The fidelity gate is what catches these gaps.**
+
+### Platform fingerprints (measured on the 5 reference sites)
+
+What each source platform does to the pipeline — read this before running a new site:
+
+| Platform | Mirror | Model quality |
+|---|---|---|
+| **Sitecore SXA** (supercar) | clean static discovery; fontawesome-pro webfonts 404 on source (residue) | **excellent** — semantic classes → clean names (`usg:richText`, `usg:contentBlock`) |
+| **Drupal** (acquia) | clean; trustarc + theme icons residue | good (21 types) after the altitude-finder fix |
+| **Next.js** (contentful) | ~110 runtime chunks/fonts per page (`/_next/static/*` composed by JS) → **repair pass is mandatory**; embeds **canarytokens** scrape detectors (never fetch) | good structure (21 types) but **hash-suffixed names** (`callToActionCard9pqm4`) + leaked layout classes (`lgColSpan8`) — naming needs a quality gate |
+| **Liferay DXP** (liferay.com) | AMD/combo loader loads JS in waves (`/o/…/__liferay__/*.js`, `/combo/?…`) → repair needs the **fixpoint loop** (3 rounds on home); hero webm videos > size cap → residue → mirror-fidelity stuck at 86–90% | **poor/anemic** — 7 types incl. `lfr:div`, `lfr:lfrLayoutStructureItemSection`: non-semantic nested layout divs defeat both the altitude finder and the LLM naming. Needs a naming-quality gate + altitude tuning for layout-engine markup |
 
 ---
 
@@ -111,6 +134,21 @@ Turn the generic Run→Epic→Story→Step engine into a **migration cockpit** �
 | pixel fidelity (components-only) | 91–95% | 73–99% (rest = section backgrounds / hero = template job) |
 | mainResource / detail pages | — | `acq:article` from `blog_*` cluster (listing `blog` ✓); detail pages: content 100%, pixel 98.5–98.9% |
 
+### 7b. 3-site orchestrated batch (2026-07-02, 20 pages each, via the cockpit engine)
+
+Full pipeline through the engine (OpenCode/DeepSeek agents + engine-enforced PROBEs),
+all three runs halted GREEN at the fidelity gate:
+
+| | supercar (SXA) | contentful (Next.js) | liferay (Liferay DXP) |
+|---|---|---|---|
+| mirror localized | 94.3% | 99.8% | 98.6% |
+| runtime repair | 0 needed | 124 chunks (home: 111) | 20 AMD modules, 3 fixpoint rounds |
+| mirror gate / fidelity vs live | GREEN / 99.95–100% | GREEN / 99.91–99.99% | GREEN / 86–90% (hero webm residue) |
+| model | 16 types + 3 x-cut + 5 tpl | 21 types + 3 x-cut + 6 tpl | **7 types** + 1 x-cut + 6 tpl |
+| naming quality | clean | hashed suffixes + layout leaks | poor (`lfr:div`) |
+| fidelity gate | GREEN 100% / 99.9% | GREEN 98% / 99.5% (4 real orphans: announcement bar + CTA band) | GREEN 96% / 98.5% (21 orphans) |
+| cost (DeepSeek) | $0.03 | $0.02 | ~$0.03 |
+
 ---
 
 ## 8. `mainResource` / detail-page detection — ✅ SHIPPED
@@ -143,11 +181,41 @@ detail pages: **content 100%, pixelSim 98.5–98.9%, GATE GREEN**. Byte-stable a
 carries `mix:title` + `image` + rich `text` + CTA link itself, not just an image. Container
 facets (FAQ, related-content lists) stay separate components placed in the detail template.
 
-## 9. Open items / next
+## 9. Open items / next (priority order, fed by the 2026-07-02 adversarial review)
 
-- Junk low-freq roles survive on non-SXA (`ul`, `div`, `js-form-item`) — light noise filter.
-- Crawler has **no JS render** — add Playwright render for JS-hydrated sites.
-- Then: templatization (step 4) using the diff PNGs as the spec.
+1. **Naming-quality gate for the grouping** (highest editorial impact): the partition gate
+   validates structure, not editorial quality. Deterministic check on manifest type names —
+   reject hash suffixes (`…9pqm4`), bare tags (`div`), layout classes (`lgColSpan8`,
+   `lfrLayoutStructureItemSection`) and leaked tokens in **choicelist values** → feed back
+   to the LLM like the partition gate does. contentful: 21/21 names editor-hostile;
+   liferay: 7 types with `lfr:div` at freq 66. Liferay-class markup also needs altitude tuning.
+2. **CND generator completeness** (`cnd_emit.py`) — violations found in all 3 CNDs:
+   emit shared mixins (`nsmix:cta`, `nsmix:media`) instead of copy-pasting field groups;
+   emit a `nsmix:linkTo` (resolve the CLAUDE.md-9 vs migration.md-9 `j:url`/`j:linknode`
+   contradiction empirically on a local Jahia first); i18n default fallbacks; always emit
+   namespace-adapted `JCRQuery` + `GridRow` types (rule 16).
+3. **Mirror-gate hardening** (from the refuted "cannot false-pass" claim):
+   surface `runtimeResidue` + excused counts in the gate verdict ("GREEN with N excused"),
+   render the residue list in mirror-review.html; reject repairs whose content-type
+   contradicts the request type (soft-404 HTML saved as a script poisons the manifest);
+   split the tracker list into never-visible (analytics) vs embed-content
+   (youtube/fbcdn/hubspot — count or waive per-project); account extension-less/json
+   same-origin xhr; strengthen `offlineRendered` (visible-text/element-count signal,
+   not just `sheets>0`).
+4. **Orphan scan visibility filter** (`reconstruct_probe.identify()`): computed-style +
+   bounding-box filter (`<title>` and Next.js hydration timestamps currently count as
+   real orphans); drive masking from extractor-emitted selectors to kill the
+   className-token drift between the probe and `semantic_extract.py`.
+5. **Gate sampling breadth**: gates run on 3 pages/site (and supercar's sample was
+   fr-FR + home + en = ONE unique layout twice) — sample per **template cluster**
+   (one page per cluster) instead of the first N inventory pages.
+6. Junk low-freq roles survive on non-SXA (`ul`, `div`, `js-form-item`) — light noise filter.
+7. Crawler has **no JS render** — add Playwright render for JS-hydrated sites (the
+   runtime-repair pass compensates for assets, not for content).
+8. Large-media residue (liferay hero webm, Source Serif Pro variable font) caps
+   mirror-fidelity ~86–90% — raise the repair cap for fonts/media or poster-frame
+   substitution; live-capture interaction states (open mega-menu) also pollute the diff.
+9. Then: templatization (step 4) using the diff PNGs as the spec.
 
 ## 10. Security
 

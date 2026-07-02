@@ -36,6 +36,22 @@ def parse_agent_result(text: str, step: StepState) -> AgentResult | None:
         return None
 
 
+PROBE_TIMEOUT_S = 600  # a probe may drive a real browser (playwright) — cap, don't hang
+
+
+def probe_commands(step: StepState) -> list[str]:
+    """The deterministic gate: every `PROBE: <cmd>` in the step's acceptance
+    criteria. Extracted and executed by the ENGINE, never trusted to the agent's
+    self-report — an LLM that skips or excuses a failing probe must not be able
+    to advance the run."""
+    cmds: list[str] = []
+    for crit in step.acceptance_criteria or []:
+        m = re.match(r"\s*PROBE:\s*(.+)", crit, re.DOTALL)
+        if m:
+            cmds.append(" ".join(m.group(1).split()))
+    return cmds
+
+
 async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run_id: str | None = None) -> VerificationResult:
     checks: list[str] = []
     errors: list[str] = []
@@ -60,7 +76,10 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
     elif result.modified_files:
         checks.append("files_claimed")
 
-    for cmd in result.commands_requested:
+    # Engine-enforced probes first (the real gate), then any agent-declared
+    # commands not already covered. dict.fromkeys dedups while keeping order.
+    to_run = list(dict.fromkeys(probe_commands(step) + list(result.commands_requested)))
+    for cmd in to_run:
         cmd_start = time.time() * 1000
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -69,7 +88,13 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=PROBE_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.communicate()
+                errors.append(f"Command timed out after {PROBE_TIMEOUT_S}s: {cmd[:80]}")
+                continue
             cmd_duration = time.time() * 1000 - cmd_start
             stdout_text = stdout.decode("utf-8", errors="replace")[:2000]
             stderr_text = stderr.decode("utf-8", errors="replace")[:2000]

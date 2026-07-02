@@ -237,6 +237,9 @@ class Localizer:
                 link["href"] = new
                 link.attrs.pop("integrity", None)
                 link.attrs.pop("crossorigin", None)
+        # Handle imagesrcset on link tags (Next.js preload pattern)
+        for link in soup.find_all("link", imagesrcset=True):
+            link["imagesrcset"] = self._srcset(link["imagesrcset"], page_url)
         for scr in soup.find_all("script"):
             if scr.get("src"):
                 new = relink(scr["src"], "js")
@@ -261,6 +264,15 @@ class Localizer:
         for st in soup.find_all("style"):
             if st.string:
                 st.string = self._rewrite_css(st.string, page_url, prefix="assets/").decode("utf-8", "replace")
+
+        # charset FIRST in <head>: rewritten <link> tags can push an existing meta
+        # past the browser's 1024-byte sniff window → Latin-1 fallback → mojibake.
+        head = soup.find("head")
+        if head is not None:
+            for m in head.find_all("meta", charset=True):
+                m.decompose()
+            meta = soup.new_tag("meta", charset="utf-8")
+            head.insert(0, meta)
 
         out = os.path.join(self.mirror, f"{slug}.html")
         with open(out, "w", encoding="utf-8") as f:

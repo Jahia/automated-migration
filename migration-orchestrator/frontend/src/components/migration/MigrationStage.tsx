@@ -2,18 +2,21 @@ import type { RunState, StepState } from '../../types'
 import { FidelityGate } from '../fidelity/FidelityGate'
 import { ComponentModelView } from './ComponentModelView'
 import { ScopeGate } from './ScopeGate'
+import { MirrorGate } from './MirrorGate'
 import { ContentGate } from './ContentGate'
 import { GoLiveGate } from './GoLiveGate'
 import { EmptyArtifact } from './GateShell'
 import { MIGRATION_PHASES } from './types'
 
-type Panel = 'scope' | 'model' | 'fidelity' | 'content' | 'golive' | null
+type Panel = 'scope' | 'mirror' | 'model' | 'fidelity' | 'content' | 'golive' | null
 
 function panelForPhase(key?: string | null): Panel {
   switch (key) {
     case 'capture':
     case 'analyze':
       return 'scope'
+    case 'mirror':
+      return 'mirror'
     case 'model':
     case 'implement':
       return 'model'
@@ -32,6 +35,8 @@ function panelForGate(gt?: string | null): Panel {
   switch (gt) {
     case 'scope':
       return 'scope'
+    case 'mirror':
+      return 'mirror'
     case 'model':
       return 'model'
     case 'fidelity':
@@ -49,6 +54,8 @@ function renderPanel(panel: Panel, o: { runId: string; readOnly: boolean; stepId
   switch (panel) {
     case 'scope':
       return <ScopeGate runId={o.runId} onApproved={o.onApproved} readOnly={o.readOnly} />
+    case 'mirror':
+      return <MirrorGate runId={o.runId} onApproved={o.onApproved} readOnly={o.readOnly} />
     case 'model':
       return <ComponentModelView runId={o.runId} />
     case 'fidelity':

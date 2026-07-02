@@ -46,7 +46,8 @@ export interface PhaseDef {
 }
 
 export const MIGRATION_PHASES: PhaseDef[] = [
-  { key: 'capture', title: 'Capture', badges: ['deterministic'], match: ['crawl', 'capture', 'localize', 'mirror'] },
+  { key: 'capture', title: 'Capture', badges: ['deterministic'], match: ['crawl', 'capture'] },
+  { key: 'mirror', title: 'Miroir local', badges: ['gated'], match: ['localize', 'mirror'] },
   { key: 'analyze', title: 'Analyze', badges: ['deterministic'], match: ['extract', 'semantic', 'analyze', 'block'] },
   { key: 'model', title: 'Model components', badges: ['DeepSeek V4', 'gated'], match: ['group', 'component_model', 'assemble', 'discover', 'cluster', 'cnd', 'content_type'] },
   { key: 'fidelity', title: 'Fidelity gate', badges: ['gated'], match: ['reconstruct', 'fidelity'] },
@@ -65,5 +66,5 @@ export interface StepLike {
 /** Phase keys that have a dedicated review panel (MigrationStage.panelForPhase).
  * 'scaffold' has none → not reviewable. Used to gate rail clickability. */
 export const REVIEWABLE_PHASE_KEYS = new Set<string>([
-  'capture', 'analyze', 'model', 'fidelity', 'implement', 'content', 'golive',
+  'capture', 'mirror', 'analyze', 'model', 'fidelity', 'implement', 'content', 'golive',
 ])

@@ -84,7 +84,17 @@ async def start_run_endpoint(run_id: str, request: Request, background_tasks: Ba
 
 @router.get("/runs")
 async def get_runs():
-    return await list_runs()
+    """Run list with live-truth status: in-memory beats the persisted column, and a
+    persisted 'running' with no active loop means the engine restarted → 'paused'
+    (same normalization load_run applies to the state blob)."""
+    rows = await list_runs()
+    for r in rows:
+        mem = get_run(r["run_id"])
+        if mem:
+            r["status"] = mem.status.value
+        elif r["status"] == "running":
+            r["status"] = "paused"
+    return rows
 
 
 @router.get("/runs/{run_id}")

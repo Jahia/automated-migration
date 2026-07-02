@@ -15,6 +15,7 @@ const NOTCH = { clipPath: 'polygon(0 0, calc(100% - 13px) 0, 100% 13px, 100% 100
 export function KpiBar({ run }: { run: RunState }) {
   const [manifest, setManifest] = useState<ComponentManifest | null>(null)
   const [recon, setRecon] = useState<ReconstructReport | null>(null)
+  const [inventory, setInventory] = useState<{ pages: unknown[] } | null>(null)
 
   const steps = run.epics.flatMap((e) => e.stories).flatMap((s) => s.steps)
   const doneCount = steps.filter((s) => s.status === 'done').length
@@ -28,6 +29,7 @@ export function KpiBar({ run }: { run: RunState }) {
         .catch(() => {})
     grab<ComponentManifest>('component-manifest.json', setManifest)
     grab<ReconstructReport>('reconstruct/reconstruct.json', setRecon)
+    grab<{ pages: unknown[] }>('page-inventory.json', setInventory)
     return () => {
       alive = false
     }
@@ -39,7 +41,8 @@ export function KpiBar({ run }: { run: RunState }) {
   const types = manifest?.components.length
   const templates = manifest?.templates.length
   const xcut = manifest?.crossCutting.length
-  const pages = manifest ? new Set(manifest.templates.flatMap((t) => t.pages)).size : undefined
+  // crawled inventory is the honest page count; template-covered pages as fallback
+  const pages = inventory?.pages?.length ?? (manifest ? new Set(manifest.templates.flatMap((t) => t.pages)).size : undefined)
 
   const covPages = recon?.pages.filter((p) => p.contentCoverage != null) ?? []
   const coverage = covPages.length

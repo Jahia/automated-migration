@@ -26,6 +26,7 @@ from .models import RunState, StepState
 # Mirrors the frontend MIGRATION_PHASES (migration/types.ts) — keep in sync.
 PHASES: list[tuple[str, str, list[str]]] = [
     ("capture", "Capture", ["crawl", "capture"]),
+    ("mirror", "Local mirror", ["localize", "mirror"]),
     ("analyze", "Analyze", ["extract", "semantic", "analyze", "block"]),
     ("model", "Model components", ["group", "component_model", "assemble", "discover", "cluster", "cnd", "content_type"]),
     ("fidelity", "Fidelity gate", ["reconstruct", "fidelity"]),
@@ -93,6 +94,26 @@ def _verdict_fidelity(wo: Path) -> dict | None:
     }, "reasons": reasons}
 
 
+def _verdict_mirror(wo: Path) -> dict | None:
+    f = wo / "mirror" / "mirror-check.json"
+    if not f.is_file():
+        return None
+    d = json.loads(f.read_text())
+    pages = d.get("pages", [])
+    misses = sum((p.get("realMissCount") or 0) + (p.get("localMissCount") or 0) for p in pages)
+    repaired = sum(p.get("runtimeRepaired") or 0 for p in pages)
+    fid = [p.get("mirrorFidelity") for p in pages if p.get("mirrorFidelity") is not None]
+    gate = bool(d.get("gatePass"))
+    verdict = "green" if gate else ("amber" if misses <= 3 else "red")
+    reasons = ["mirror renders fully offline" if gate else f"{misses} asset(s) still missing offline"]
+    if repaired:
+        reasons.append(f"{repaired} runtime asset(s) captured by repair")
+    return {"verdict": verdict, "gate": "mirror", "metrics": {
+        "gatePass": gate, "pages": len(pages), "misses": misses, "runtimeRepaired": repaired,
+        "worstMirrorFidelity": min(fid) if fid else None,
+    }, "reasons": reasons}
+
+
 def _verdict_model(wo: Path) -> dict | None:
     f = wo / "component-manifest.json"
     if not f.is_file():
@@ -124,6 +145,7 @@ def quality_verdict(run: RunState, gate_type: str | None, wo: Path | None) -> di
         return {"verdict": "unknown", "metrics": {}, "reasons": ["no workflow-output yet"]}
     by_gate = {
         "fidelity": [_verdict_fidelity],
+        "mirror": [_verdict_mirror],
         "model": [_verdict_model],
         "scope": [_verdict_scope],
         "content": [_verdict_model],

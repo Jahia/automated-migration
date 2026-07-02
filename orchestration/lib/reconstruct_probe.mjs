@@ -20,8 +20,8 @@ import { chromium } from 'playwright';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import fs from 'fs';
-import http from 'http';
 import path from 'path';
+import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
 
 const argv = process.argv.slice(2);
 const flags = {}, pos = [];
@@ -157,27 +157,9 @@ const identify = (sxaMode) => {
 // (no live dependency / WAF timeouts) when localize_site.py has run.
 const mirrorDir = `${proj}/workflow-output/local-mirror`;
 const useMirror = fs.existsSync(`${mirrorDir}/mirror.json`);
-const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.mjs': 'text/javascript',
-  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif', '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.eot': 'application/vnd.ms-fontobject' };
-function serveMirror(dir) {
-  const root = path.resolve(dir);
-  const rootPfx = root.endsWith(path.sep) ? root : root + path.sep;
-  const srv = http.createServer((req, res) => {
-    let p;
-    try { p = decodeURIComponent((req.url || '/').split('?')[0]); } catch { res.writeHead(400); return res.end(); }
-    if (p === '/') p = '/index.html';
-    const fp = path.resolve(path.join(root, p));
-    if (fp !== root && !fp.startsWith(rootPfx)) { res.writeHead(403); return res.end(); }
-    fs.readFile(fp, (e, data) => {
-      if (e) { res.writeHead(404); return res.end(); }
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(fp).toLowerCase()] || 'application/octet-stream' });
-      res.end(data);
-    });
-  });
-  return new Promise(r => srv.listen(0, '127.0.0.1', () => r({ srv, port: srv.address().port })));
-}
+// runtime-manifest.json (written by mirror_probe's repair pass) lets JS-composed
+// URLs (Liferay combo loader, Next.js chunks) resolve offline here too.
+const runtimeManifest = useMirror ? loadRuntimeManifest(mirrorDir) : null;
 
 function readPng(p) { return PNG.sync.read(fs.readFileSync(p)); }
 
@@ -191,7 +173,7 @@ else if (pageSel) {
 if (!pages.length) { console.error('no pages selected'); process.exit(2); }
 const results = [];
 let mserver = null, mbase = null;
-if (useMirror) { const s = await serveMirror(mirrorDir); mserver = s.srv; mbase = `http://127.0.0.1:${s.port}`; }
+if (useMirror) { const s = await serveMirror(mirrorDir, runtimeManifest); mserver = s.srv; mbase = `http://127.0.0.1:${s.port}`; }
 console.error(useMirror ? `  [mirror] rendering from local mirror (offline) at ${mbase}` : '  [live] no local mirror — rendering live source');
 const browser = await chromium.launch({ headless: true });
 for (const p of pages) {
@@ -200,12 +182,9 @@ for (const p of pages) {
   const localMode = useMirror && fs.existsSync(`${mirrorDir}/${p.slug}.html`);
   try {
     if (localMode) {
-      await page.route('**/*', (route) => {
-        const u = route.request().url();
-        if (u.startsWith(mbase)) return route.continue();
-        if (u.startsWith('http')) return route.abort();   // offline: block external
-        return route.continue();
-      });
+      // offline: local server continues, manifest-captured runtime assets are
+      // fulfilled from disk, everything else external is blocked
+      await page.route('**/*', offlineRoute(mbase, mirrorDir, runtimeManifest, null));
     }
     await page.goto(localMode ? `${mbase}/${p.slug}.html` : p.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     try { await page.waitForLoadState('load', { timeout: 15000 }); } catch {}

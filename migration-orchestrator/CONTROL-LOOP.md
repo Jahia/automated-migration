@@ -113,5 +113,34 @@ Rules of thumb for an assisted agent:
 - **Fidelity rerun** (`gate {rerun, pages}`) is for after you've fixed an extraction
   gap and want to re-verify a page sample — not a retry of the same inputs.
 
+## Engine integrity + recovery semantics (learned 2026-07-02, 3-site batch)
+
+- **PROBEs are engine-enforced.** `verifier.py` extracts every `PROBE:` line from the
+  step's acceptance criteria and executes them itself (600s timeout each) — the agent's
+  self-report can neither skip nor excuse a failing probe. Before this, enforcement
+  depended on the agent *choosing* to declare the probe in `commands_requested`
+  (observed: one DeepSeek agent halted honestly on a red gate, another sailed past it).
+- **`resume` vs `jump` vs `restart`** — three different recovery tools:
+  - `POST /runs/{id}/resume` — resumes paused AND recovers failed runs. On a fresh
+    loop (engine restarted since), it normalizes state first: halted step → done
+    (resume = the operator's gate approval), orphaned running/verifying/failed steps →
+    **pending** (not `ready`: despite its name, `select_next_ready_step` only picks
+    *pending* steps — `ready` is jump's forced state), failed story/epic with runnable
+    steps → pending. Without this, resuming a failed run re-fails in ~20 ms.
+  - `POST /runs/{id}/jump {step_id}` — reset a specific step + dependents and force it
+    next. Use to REDO a halted gate instead of approving it.
+  - `POST /runs/{id}/restart` — full reset (all steps pending), full re-run. Cheap when
+    the crawl cache + mirror already exist (cache-first).
+- **A run-level `failed` with parallel branches is not what it looks like:** independent
+  steps (e.g. semantic/group/cnd don't depend on localize) keep running after a sibling
+  fails; the run only fails when the failed step exhausts retries AND a dependent needs
+  it. Read per-step `verification.errors`, not just the run status.
+- **`gate_type` inference matches step id+title ONLY** — acceptance criteria embed
+  project paths, and a project named `contentful` turned every halted gate into a
+  "content" panel (substring poisoning). Keep broad keywords away from criteria text.
+- **Persisted "running" is a lie after an engine restart** — `load_run` and the runs
+  list normalize it to `paused` (no loop exists). In-memory status wins when a loop is
+  registered.
+
 See the fixed pipeline + gates in [`../orchestration/ANALYZE-PIPELINE.md`](../orchestration/ANALYZE-PIPELINE.md)
 and the cockpit UI in [`frontend/MIGRATION_PROFILE.md`](frontend/MIGRATION_PROFILE.md).
