@@ -268,28 +268,21 @@ def load_overrides(project):
         return {}
 
 
-def make_skeleton(html, fields):
-    """Instance markup -> skeleton template: each field VALUE that occurs
-    EXACTLY ONCE (raw or html-escaped) becomes {{f:<name>}}. Non-unique or
-    unfound values stay inline (field still loads; edits won't reflow — the
-    substitution stats are recorded so this is visible, never silent)."""
-    import html as html_mod
-    subs, missed = [], []
-    for name, val in fields.items():
-        v = (val or "").strip()
-        if len(v) < 3:
-            continue
-        cand = [v, html_mod.escape(v)]
-        done = False
-        for c in cand:
-            if html.count(c) == 1:
-                html = html.replace(c, "{{f:%s}}" % name, 1)
-                subs.append(name)
-                done = True
-                break
-        if not done:
-            missed.append(name)
-    return html, subs, missed
+def _reparse_root(html):
+    """Fragment -> single root Tag, ONLY when bs4 re-serialization is byte-
+    idempotent (str(parse(html)) == html). Otherwise None — the caller keeps
+    the fragment as verbatim rawHtml rather than risk serialization drift."""
+    from bs4 import BeautifulSoup, Tag
+    if not (html or "").strip().startswith("<"):
+        return None
+    frag = BeautifulSoup(html, "lxml")
+    body = frag.body or frag
+    roots = [c for c in body.children if isinstance(c, Tag)]
+    if len(roots) != 1:
+        return None
+    if str(roots[0]) != html:
+        return None
+    return roots[0]
 
 
 _EXT_SCRIPT_RE = re.compile(
@@ -409,7 +402,7 @@ def page_shell(txt, base):
     }
 
 
-def semantic_page(txt, slug, overrides=None):
+def semantic_page(txt, slug, overrides=None, manifest=None):
     """v2 adapter: reuse semantic_extract's deterministic component walk so each
     instance's `type` is the same ROLE the manifest's instanceTypeMap keys on —
     the whole point of the bridge (load_content resolves role -> ns:nodeType).
@@ -420,7 +413,13 @@ def semantic_page(txt, slug, overrides=None):
     leaf of <main> reaches the JCR exactly once (the ≥99 % fidelity invariant).
 
     Overrides (P1 dial): demoted roles load as verbatim rawHtml; chrome
-    (header/nav/footer) can load as area-flagged rawHtml singletons."""
+    (header/nav/footer) can load as area-flagged rawHtml singletons.
+
+    P2.5: promoted groups are DECOMPOSED (semantic_extract.decompose_group) —
+    repeated items become child payloads (own skeleton + title/body* fields),
+    group text runs become richtext body* props. Byte-identity is self-checked;
+    any failure falls back to verbatim rawHtml (fidelity before contribution)."""
+    import semantic_extract as SE
     from semantic_extract import extract_page  # bs4/lxml — pipeline dependency
     ov = overrides or {}
     demote = set(ov.get("demoteRoles") or [])
@@ -428,8 +427,19 @@ def semantic_page(txt, slug, overrides=None):
     promote = set(ov.get("promoteRoles") or [])
     chrome_pass = bool(ov.get("chromePassthrough"))
     base = ov.get("assetBase") or ""
+    # manifest awareness: items become CHILD NODES only when the mapped type
+    # declares a childType (else the loader could not create them and the
+    # unresolved {{child:N}} markers would break fidelity)
+    itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
+    container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
+                       if c.get("isContainer") and c.get("childType")}
+
+    def type_allows_items(role):
+        return itm.get((role or "").lower()) in container_types
+
     _, comps, partition = extract_page(txt, slug)
     out, remap = [], {}
+    lift_stats = {"byteFail": 0, "emptyShell": 0}
 
     def emit(i):
         if i in remap:
@@ -484,41 +494,81 @@ def semantic_page(txt, slug, overrides=None):
             inst["area"] = area
         return inst
 
-    def emit_promoted(ci, group_html=None):
-        """Promoted TOP GROUP -> ONE semantic instance with a SKELETON: the
-        top-level child's full markup (wrappers included — same granularity as
-        demotion, or grid/flex classes are lost) with the dominant region's
-        field values swapped for {{f:name}} markers. The skeleton view renders
-        it pixel-identical while title/text become editable JCR properties.
-        Children stay inline in the markup (monolith — P3 refines per-item)."""
+    def raw_lifted_instance(el, html):
+        """Demoted top group -> ANONYMOUS editable block (P2.5): still an
+        honest ns:rawHtml (no invented type name), but its text runs are lifted
+        into richtext body* props via the same skeleton mechanism. Headings are
+        NOT lifted (rawHtml carries no mix:title) — they join the body runs.
+        Returns None when nothing was liftable (plain verbatim raw instead)."""
+        if el is None:
+            return None
+        d = SE.decompose_group(el, allow_items=False, lift_titles=False)
+        if not d["ok"]:
+            lift_stats["byteFail"] += 1
+            return None
+        if not d["fields"]:
+            return None
+        return {"type": "rawHtml", "parent": None, "passthrough": True,
+                "fields": {k: rewrite_asset_refs(v, base)
+                           for k, v in d["fields"].items()},
+                "skeleton": rewrite_asset_refs(d["skeleton"], base),
+                "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                "images": [], "links": []}
+
+    def emit_promoted(ci, group_el=None, group_html=None):
+        """Promoted TOP GROUP -> decomposed skeleton instance (P2.5): repeated
+        items -> child payloads ({{child:i}} markers), text runs -> richtext
+        body* props, headings -> title. All markers placed at DOM level, so
+        every loaded field is WIRED to the render by construction. Returns True
+        if promoted; False when the group fell back to verbatim rawHtml (byte
+        self-check failure or nothing liftable — an empty shell would lie to
+        editors)."""
         c = comps[ci]
-        # lift ONLY round-trippable fields (title -> jcr:title, text -> text|body):
-        # a lifted value whose property never loads would VANISH from the render.
-        # Secondary headings stay inline in the skeleton (P3: per-item fields).
-        fields = {}
-        headings = c.get("headings") or []
-        if headings:
-            fields["title"] = headings[0]
-        body = c.get("fullText") or ""
-        for h in headings:
-            body = body.replace(h, " ", 1)
-        body = clean(body)
-        if len(body) >= 2:
-            fields["text"] = body[:5000]
-        raw = rewrite_asset_refs(group_html if group_html is not None
-                                 else (c.get("outerHTML") or ""), base)
-        skeleton, subs, missed = make_skeleton(raw, fields)
+        el = group_el
+        if el is None:
+            el = _reparse_root(group_html if group_html is not None
+                               else (c.get("outerHTML") or ""))
+        if el is None:
+            out.append(raw_instance(group_html or c.get("outerHTML") or ""))
+            lift_stats["byteFail"] += 1
+            for j in subtree(ci):
+                remap[j] = None
+            return False
+        d = SE.decompose_group(el, allow_items=type_allows_items(c["role"]))
+        if not d["ok"]:
+            out.append(raw_instance(d["original"]))
+            lift_stats["byteFail"] += 1
+            for j in subtree(ci):
+                remap[j] = None
+            return False
+        if not d["fields"] and not any(ch["fields"] for ch in d["children"]):
+            out.append(raw_instance(d["original"]))  # honest: raw, not a lying type
+            lift_stats["emptyShell"] += 1
+            for j in subtree(ci):
+                remap[j] = None
+            return False
+        # asset refs -> module static (skeletons AND richtext bodies carry markup)
+        def rw_fields(flds):
+            return {k: (rewrite_asset_refs(v, base) if k.startswith("body") else v)
+                    for k, v in flds.items()}
         out.append({
             "type": c["role"], "parent": None, "promoted": True,
-            "fields": fields, "skeleton": skeleton,
-            "skeletonSubs": subs, "skeletonMissed": missed,
-            "images": [{"file": filename_for(d["src"]), "alt": d.get("alt", "")}
-                       for d in (c.get("imageDetails") or [])],
-            "links": [{"text": d.get("text", ""), "href": d["href"]}
-                      for d in (c.get("linkDetails") or [])],
+            "fields": rw_fields(d["fields"]),
+            "skeleton": rewrite_asset_refs(d["skeleton"], base),
+            "children": [{"fields": rw_fields(ch["fields"]),
+                          "skeleton": rewrite_asset_refs(ch["skeleton"], base)}
+                         for ch in d["children"]],
+            "skeletonSubs": sorted(d["fields"]) + sorted(
+                k for ch in d["children"] for k in ch["fields"]),
+            "skeletonMissed": [],
+            "images": [{"file": filename_for(dd["src"]), "alt": dd.get("alt", "")}
+                       for dd in (c.get("imageDetails") or [])],
+            "links": [{"text": dd.get("text", ""), "href": dd["href"]}
+                      for dd in (c.get("linkDetails") or [])],
         })
         for j in subtree(ci):
-            remap[j] = None  # absorbed into the skeleton monolith
+            remap[j] = None  # absorbed into the skeleton
+        return True
 
     # chrome (header/footer/nav — routed to absolute areas by the loader) and any
     # off-main components first; then <main> strictly in document order
@@ -569,15 +619,23 @@ def semantic_page(txt, slug, overrides=None):
             # top-level child (wrappers intact) becomes one skeleton instance,
             # typed and titled by its dominant promoted region
             dom = max(promoted, key=lambda r: r.get("leaves", 0))
-            emit_promoted(dom["compIndex"], group_html=top_levels[ti]["html"])
-            promoted_group_leaves += sum(r.get("leaves", 0) for r in group)
+            ok = emit_promoted(dom["compIndex"],
+                               group_el=top_levels[ti].get("el"),
+                               group_html=top_levels[ti]["html"])
+            glv = sum(r.get("leaves", 0) for r in group)
+            if ok:
+                promoted_group_leaves += glv
+            else:
+                demoted_leaves += glv
             for r in group:
                 if r.get("compIndex") is not None:
                     for j in subtree(r["compIndex"]):
                         remap[j] = None
             continue
         if not promoted and in_top:
-            out.append(raw_instance(top_levels[ti]["html"]))
+            lifted = raw_lifted_instance(top_levels[ti].get("el"),
+                                         top_levels[ti]["html"])
+            out.append(lifted or raw_instance(top_levels[ti]["html"]))
             demoted_leaves += sum(r.get("leaves", 0) for r in group
                                   if r["kind"] == "component")
             for r in group:
@@ -591,8 +649,10 @@ def semantic_page(txt, slug, overrides=None):
                 if ci is None:
                     continue
                 if region_promoted(r):
-                    emit_promoted(ci)
-                    promoted_group_leaves += r.get("leaves", 0)
+                    if emit_promoted(ci):
+                        promoted_group_leaves += r.get("leaves", 0)
+                    else:
+                        demoted_leaves += r.get("leaves", 0)
                 else:
                     out.append(raw_instance(comps[ci].get("outerHTML") or ""))
                     demoted_leaves += r.get("leaves", 0)
@@ -614,6 +674,10 @@ def semantic_page(txt, slug, overrides=None):
     total = summary.get("leavesTotal") or 0
     summary["semanticLeafShare"] = round(promoted_group_leaves / total, 3) if total else None
     summary["demotedLeaves"] = demoted_leaves
+    # P2.5 contribution accounting (probes/contribution.py judges the floors)
+    summary["liftByteFail"] = lift_stats["byteFail"]
+    summary["liftEmptyShell"] = lift_stats["emptyShell"]
+    summary["childItems"] = sum(len(i.get("children") or []) for i in out)
     n_comp = sum(1 for i in out if not i.get("passthrough") and i.get("parent") is None
                  and not i.get("area"))
     summary["componentRegions"] = n_comp
@@ -638,6 +702,10 @@ def main():
         print(f"extract_content: passthrough overrides active — demoteRoles="
               f"{overrides.get('demoteRoles')}, chromePassthrough="
               f"{overrides.get('chromePassthrough')}, assetBase={overrides.get('assetBase')}")
+    try:  # P2.5: childType awareness — items become child nodes only when typed
+        manifest = json.load(open(f"projects/{project}/workflow-output/component-manifest.json"))
+    except Exception:
+        manifest = None
     data = {"adapter": None, "pages": {}}
     sxa_pages = sem_pages = 0
     for slug, path, _ in pages:
@@ -673,7 +741,7 @@ def main():
             sxa_pages += 1
         else:
             try:
-                data["pages"][slug] = semantic_page(txt, slug, overrides)
+                data["pages"][slug] = semantic_page(txt, slug, overrides, manifest)
                 sem_pages += 1
             except ImportError:
                 # bs4 unavailable: legacy ordered-blocks fallback (NOT loadable by

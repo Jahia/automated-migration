@@ -61,20 +61,24 @@ def build_plan(p):
              [f"Run: python3 orchestration/lib/group_llm.py {PP} --model deepseek-v4-flash --ns {NS} --out {PP}/workflow-output/grouping.json",
               f"PROBE: python3 orchestration/lib/assemble_manifest.py {PP}/workflow-output/semantic-candidates.json --group {PP}/workflow-output/grouping.json --ns {NS} --out {PP}/workflow-output/component-manifest.json"],
              deps=["step_semantic"]),
-        step("step_cnd", "Emit CND + view plan", "build",
-             [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json",
+        # P2.5: extraction BEFORE the CND — cnd_emit sizes the body..bodyN
+        # richtext props per type from the OBSERVED lift (wired-only types:
+        # a declared-but-unwired prop is a dead prop, G1 forbids it)
+        step("step_content_extract", "Content-load payload + partition/contribution gates", "build",
+             [f"Run: python3 orchestration/lib/extract_content.py {P}",
+              f"PROBE: python3 orchestration/probes/partition.py {P}",
+              f"PROBE: python3 orchestration/probes/contribution.py {P}"],
+             deps=["step_group"]),
+        step("step_cnd", "Emit CND + view plan (wired-only sizing)", "build",
+             [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json --content-load orchestration/content/{P}.content-load.json",
               f"PROBE: test -s {PP}/workflow-output/definitions.cnd",
               f"PROBE: grep -q \"{NS} = \" {PP}/workflow-output/definitions.cnd",
               f"PROBE: test -s {PP}/workflow-output/views.json"],
-             deps=["step_group"]),
-        step("step_content_extract", "Content-load payload + HARD partition gate", "build",
-             [f"Run: python3 orchestration/lib/extract_content.py {P}",
-              f"PROBE: python3 orchestration/probes/partition.py {P}"],
-             deps=["step_cnd"]),
+             deps=["step_content_extract"]),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
              [f"PROBE[900]: node orchestration/lib/reconstruct_probe.mjs {PP} 10 {THR}",
               "Gate: present worst pages + semantic share, return status halt."],
-             deps=["step_content_extract"]),
+             deps=["step_cnd"]),
     ]
 
     # fidelity-first profile (P1): the module ships the agnostic fidelity-shell
@@ -100,8 +104,8 @@ def build_plan(p):
               f"PROBE: bash orchestration/probes/cnd.sh {PP} {NS}",
               f"PROBE: bash orchestration/probes/cnd-patterns.sh {PP} {NS}"],
              deps=["step_scaffold"]),
-        step("step_shell_templates", "Agnostic fidelity-shell template set", "build",
-             [f"Run: python3 orchestration/lib/install_shell_templates.py {P} --ns {NS}",
+        step("step_shell_templates", "Agnostic fidelity-shell template set + skeleton views", "build",
+             [f"Run: python3 orchestration/lib/install_shell_templates.py {P} --ns {NS} --manifest {PP}/workflow-output/component-manifest.json",
               f"PROBE: grep -q 'rawHtml' {PP}/src/components/RawHtml/default.server.tsx"],
              deps=["step_assets", "step_cnd_merge"]),
         step("step_deploy", "Build + deploy to Jahia (deploy gate)", "deploy",
@@ -124,7 +128,8 @@ def build_plan(p):
              deps=["step_mcp"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
              [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
-              f"PROBE: python3 orchestration/probes/partition.py {P}"],
+              f"PROBE: python3 orchestration/probes/partition.py {P}",
+              f"PROBE: python3 orchestration/probes/contribution.py {P}"],
              deps=["step_pages"]),
         step("step_publish_parity", "default vs live parity", "publish",
              [f"PROBE: bash orchestration/probes/publish-parity.sh {PP} {SITE} en,fr"],
@@ -132,13 +137,19 @@ def build_plan(p):
         step("step_edit_frame", "Pages editable in jContent", "verify",
              [f"PROBE: bash orchestration/probes/edit-frame.sh {PP} {SITE} en"],
              deps=["step_publish_parity"]),
+        # G2 (P2.5): sentinel edits must reach the live render, then restore —
+        # runs BEFORE the ground-truth gate so the final GT measures the
+        # restored state (roundtrip always restores, pass or fail)
+        step("step_roundtrip", "G2 contribution round-trip (sentinel edits)", "verify",
+             [f"PROBE[900]: python3 orchestration/probes/roundtrip.py {P} {SITE}"],
+             deps=["step_edit_frame"]),
     ]
 
     groundtruth = [
         step("step_ground_truth", "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)", "verify",
              [f"PROBE[900]: bash orchestration/probes/groundtruth.sh {P} {SITE} 99",
               "Gate: present groundtruth/review.html per-page fidelity, return status halt."],
-             deps=["step_edit_frame"]),
+             deps=["step_roundtrip"]),
     ]
 
     def epic(id, title, goal, steps):

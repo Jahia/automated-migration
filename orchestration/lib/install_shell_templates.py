@@ -64,19 +64,28 @@ def main():
     if a.manifest:
         m = json.load(open(a.manifest))
         tpl = open(os.path.join(SRC, "SkeletonView.tsx.template"), encoding="utf-8").read()
-        for c in (m.get("components") or []):
-            if not c.get("skeleton"):
-                continue
-            nt = c["nodeType"]
+
+        def write_view(nt, display):
+            nonlocal n_views
             short = nt.split(":")[-1]
             comp_dir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
             os.makedirs(comp_dir, exist_ok=True)
             out = (tpl.replace("$NODETYPE", nt)
-                      .replace("$DISPLAYNAME", re.sub(r'"', "'", c.get("name") or short))
+                      .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
                       .replace("$RELROOT", ".."))
             with open(f"{comp_dir}/default.server.tsx", "w", encoding="utf-8") as f:
                 f.write(out)
             n_views += 1
+
+        for c in (m.get("components") or []):
+            if not c.get("skeleton"):
+                continue
+            write_view(c["nodeType"], c.get("name"))
+            # child ITEM views (P2.5): items are skeleton nodes too — the view
+            # is what Content Editor preview and standalone renders use
+            child = c.get("childType")
+            if c.get("isContainer") and isinstance(child, dict) and child.get("nodeType"):
+                write_view(child["nodeType"], child.get("name"))
 
     print(f"[install_shell_templates] fidelity shell (ns={a.ns}) -> {module}/src "
           f"(Layout, basic template, RawHtml view"

@@ -500,6 +500,215 @@ def detect_repeated_child(comp_el, comp_set):
     return True, shape_from_fields(item_acc), str(best[0])
 
 
+# ── Contribution lift (QUALITY-PLAN P2.5, workstreams A+B) ────────
+# DOM-level field extraction: markers replace element CONTENT in the tree, so
+# substitution can never miss (the P2 string-unique-match produced 59/62 dead
+# `text` props). decompose_group() self-checks: recompose(skeleton, fields,
+# children) must equal the group's original serialization BYTE-FOR-BYTE, or the
+# caller falls back to verbatim rawHtml — a broken skeleton never ships.
+
+TEXT_BLOCK = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote",
+              "pre", "table", "hr"}
+# elements a richtext body must never swallow (script-driven / form widgets)
+NEVER_IN_BODY = {"form", "script", "style", "iframe", "select", "input",
+                 "textarea", "video", "button"}
+# block-level names that disqualify a div/span/a from being a pseudo-paragraph
+_BLOCKY = {"div", "section", "article", "aside", "header", "footer", "nav",
+           "ul", "ol", "li", "table", "form", "p", "blockquote", "pre",
+           "h1", "h2", "h3", "h4", "h5", "h6", "figure", "main",
+           "iframe", "video", "select", "input", "textarea", "script", "style"}
+FIELD_MARK = "{{f:%s}}"
+CHILD_MARK = "{{child:%d}}"
+
+
+def _esc_text(v):
+    """bs4-minimal escaping (&, <, > — quotes stay raw). The TS view MUST use
+    the same rule or recomposition diverges from the certified bytes."""
+    import html as _h
+    return _h.escape(v, quote=False)
+
+
+def ban_subtree(banned_ids, el):
+    banned_ids.add(id(el))
+    if isinstance(el, Tag):
+        for d in el.descendants:
+            banned_ids.add(id(d))
+
+
+def lift_title(scope, banned_ids):
+    """First pure-text heading whose content round-trips exactly (modulo
+    lead/trail whitespace, which stays in the skeleton). Marks it {{f:title}}
+    and returns the clean value — or None (heading with markup / entities that
+    don't minimal-escape back stay inline; honesty over coverage)."""
+    from bs4 import NavigableString
+    import html as _h
+    for d in scope.find_all(sorted(HEADING_TAGS)):
+        if id(d) in banned_ids or d.find(True) is not None:
+            continue
+        raw = d.decode_contents()
+        core = raw.strip()
+        if len(core) < 2:
+            continue
+        value = _h.unescape(core)
+        if _esc_text(value) != core:
+            continue
+        lead = raw[:len(raw) - len(raw.lstrip())]
+        trail = raw[len(raw.rstrip()):]
+        d.clear()
+        d.append(NavigableString(lead + FIELD_MARK % "title" + trail))
+        ban_subtree(banned_ids, d)  # marked — never part of a body run
+        return value
+    return None
+
+
+def _run_eligible(el, banned_ids):
+    """Run member: classic text block, image, figure, or an element whose
+    subtree is purely inline (CTA link, name div) — all valid inside richtext."""
+    if not isinstance(el, Tag) or id(el) in banned_ids:
+        return False
+    if any(id(d) in banned_ids for d in el.descendants):
+        return False
+    if el.name in NEVER_IN_BODY:
+        return False
+    if any(isinstance(d, Tag) and d.name in NEVER_IN_BODY for d in el.descendants):
+        return False
+    if el.name in TEXT_BLOCK or el.name in ("img", "picture", "figure"):
+        return True
+    if el.name in ("div", "span", "a", "strong", "em"):
+        return not any(isinstance(d, Tag) and d.name in _BLOCKY
+                       for d in el.descendants)
+    return False
+
+
+def _run_chars(pieces):
+    return sum(len(p.get_text(" ", strip=True)) for p in pieces
+               if isinstance(p, Tag))
+
+
+def lift_bodies(scope, banned_ids, cap=18, min_chars=8):
+    """ALL contiguous sibling runs of run-eligible elements (whitespace between
+    members joins the run), document order, greedy non-overlapping. Each run
+    becomes {{f:body}}/{{f:body2}}/…; returns {name: exact serialized HTML} —
+    the richtext values. Pure-image runs (no text) stay inline for phase C."""
+    from bs4 import NavigableString
+    runs = []
+    for node in [scope] + scope.find_all(True):
+        if id(node) in banned_ids:
+            continue
+        kids = list(node.children)
+        i = 0
+        while i < len(kids):
+            if not _run_eligible(kids[i], banned_ids):
+                i += 1
+                continue
+            pieces = [kids[i]]
+            k = i + 1
+            while k < len(kids):
+                nxt = kids[k]
+                if isinstance(nxt, NavigableString) and not str(nxt).strip():
+                    if k + 1 < len(kids) and _run_eligible(kids[k + 1], banned_ids):
+                        pieces.extend([nxt, kids[k + 1]])
+                        k += 2
+                        continue
+                    break
+                if _run_eligible(nxt, banned_ids):
+                    pieces.append(nxt)
+                    k += 1
+                    continue
+                break
+            if _run_chars(pieces) >= min_chars:
+                runs.append(pieces)
+                for p in pieces:
+                    ban_subtree(banned_ids, p)  # later scans skip taken runs
+            i = k
+    if len(runs) > cap:  # keep the biggest `cap` runs, back in document order
+        keep = sorted(sorted(range(len(runs)),
+                             key=lambda r: -_run_chars(runs[r]))[:cap])
+        runs = [runs[r] for r in keep]
+    fields = {}
+    for n, pieces in enumerate(runs):
+        name = "body" if n == 0 else f"body{n + 1}"
+        fields[name] = "".join(str(p) for p in pieces)
+        pieces[0].replace_with(NavigableString(FIELD_MARK % name))
+        for p in pieces[1:]:
+            p.extract()
+    return fields
+
+
+def find_repeated_items(group):
+    """Outermost element whose children hold >=3 same-signature content-bearing
+    Tags — those are the container's ITEMS (each becomes a child node)."""
+    for node in [group] + group.find_all(True):
+        kids = [c for c in node.children if isinstance(c, Tag)]
+        if len(kids) < 3:
+            continue
+        sigs = [(k.name, " ".join(sorted(classes_of(k)))) for k in kids]
+        top, n = Counter(sigs).most_common(1)[0]
+        if n >= 3:
+            items = [k for k, s in zip(kids, sigs) if s == top]
+            if all(_count_leaves(k) for k in items):
+                return items
+    return None
+
+
+def decompose_group(group, allow_items=True, run_cap=18, min_chars=8,
+                    lift_titles=True):
+    """MUTATES `group`. Splits a promoted top group into an editable skeleton:
+      - items (repeated same-signature children) -> child payloads, each with
+        its own skeleton + lifted title/body* fields, replaced by {{child:i}}
+      - group-level title + body runs -> {{f:...}} markers (item subtrees and
+        already-marked elements are banned from group runs)
+    lift_titles=False (anonymous rawHtml blocks, which carry no mix:title):
+    headings are NOT lifted separately — being TEXT_BLOCKs they simply join
+    the richtext body runs, still fully editable.
+    Returns {ok, original, skeleton, fields, children}; ok=False means the
+    byte-identity self-check failed and the caller MUST load `original` as
+    verbatim rawHtml instead."""
+    from bs4 import NavigableString
+    original = str(group)
+    items = (find_repeated_items(group) or []) if allow_items else []
+    children = []
+    for it in items:
+        f = {}
+        item_banned = set()
+        t = lift_title(it, item_banned) if lift_titles else None
+        if t:
+            f["title"] = t
+        f.update(lift_bodies(it, item_banned, cap=run_cap, min_chars=min_chars))
+        children.append({"el": it, "fields": f})
+    banned_ids = set()
+    for it in items:
+        ban_subtree(banned_ids, it)
+    fields = {}
+    t = lift_title(group, banned_ids) if lift_titles else None
+    if t:
+        fields["title"] = t
+    fields.update(lift_bodies(group, banned_ids, cap=run_cap, min_chars=min_chars))
+    for i, ch in enumerate(children):
+        ch["skeleton"] = str(ch["el"])
+        ch["el"].replace_with(NavigableString(CHILD_MARK % i))
+        del ch["el"]
+    skeleton = str(group)
+    ok = recompose_group(skeleton, fields, children) == original
+    return {"ok": ok, "original": original, "skeleton": skeleton,
+            "fields": fields, "children": children}
+
+
+def recompose_group(skeleton, fields, children):
+    """Reference recomposition (the TS SkeletonView implements the same rules):
+    child markers -> child skeleton with its fields substituted; body* values
+    splice RAW (they are richtext HTML), everything else minimal-escaped."""
+    def subst(html, flds):
+        for k, v in flds.items():
+            html = html.replace(FIELD_MARK % k,
+                                v if k.startswith("body") else _esc_text(v))
+        return html
+    out = skeleton
+    for i, ch in enumerate(children):
+        out = out.replace(CHILD_MARK % i, subst(ch["skeleton"], ch["fields"]))
+    return subst(out, fields)
+
+
 # ── Main-region partition (passthrough layer, QUALITY-PLAN P1.2) ──
 # The ≥99 % fidelity invariant requires that EVERY content region of <main> is
 # either a detected component or an explicit raw-HTML passthrough — nothing
@@ -566,7 +775,7 @@ def partition_main(soup, obj_set):
         n = _count_leaves(root)
         return {"regions": [{"kind": "component", "el": root, "topIndex": 0}],
                 "leavesTotal": n,
-                "topLevels": [{"html": str(root), "leaves": n}]}
+                "topLevels": [{"html": str(root), "leaves": n, "el": root}]}
     has_comp_below = set()
     for el in obj_set:
         for anc in el.parents:
@@ -613,7 +822,11 @@ def partition_main(soup, obj_set):
                 top_levels.append({"html": txt, "leaves": 1})
                 ti += 1
             continue
-        top_levels.append({"html": str(child), "leaves": _count_leaves(child)})
+        # `el` = live Tag ref for the P2.5 contribution lift (decompose_group
+        # mutates the ORIGINAL parse — no re-serialization drift). Never JSON-
+        # dumped: extract_content and the templates writer both strip topLevels.
+        top_levels.append({"html": str(child), "leaves": _count_leaves(child),
+                           "el": child})
         if child in obj_set:
             regions.append({"kind": "component", "el": child, "topIndex": ti})
         elif id(child) in has_comp_below:
@@ -1004,7 +1217,8 @@ def main():
         html = open(html_path, errors="replace").read()
         sxa_mode, comps, partition = extract_page(html, page["slug"])
         sxa_any = sxa_any or sxa_mode
-        page_partitions[page["slug"]] = {k: v for k, v in partition.items() if k != "regions"}
+        page_partitions[page["slug"]] = {k: v for k, v in partition.items()
+                                         if k not in ("regions", "topLevels")}
         all_components.extend(comps)
         # main-region skeleton = top-level components in <main>; features are
         # DATA-SHAPE archetypes (cross-CMS comparable), roles kept for display.

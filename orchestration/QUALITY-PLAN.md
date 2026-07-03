@@ -335,3 +335,41 @@ Crawler JS-render only if the holdout demands it.
     | B vision (Qwen2.5-VL) | 31 comps, naming good | **18/18 PASS** | 69 %/96 % | **WINNER — shipping state** |
     Same skeleton mechanism both arms (apples-to-apples). Heuristics promote MORE but break
     fidelity on 2 pages; vision's segment boundaries survive the pixel judge. **P2 COMPLETE.**
+
+- **2026-07-03 — P2.5 CONTRIBUTION MODEL COMPLETE (all four pre-registered gates green on acquia).**
+  Trigger: Julian's editorial review of the deployed site — the P2 skeleton monolith was NOT
+  usable by CMS contributors. Honest metric finding first: `semanticLeafShare` measured
+  STRUCTURAL coverage only; the real contributable-text share of the P2 state was **1.8 %**
+  (59/62 `text` props dead via string-match substitution misses, 19/67 promoted instances were
+  zero-field empty shells, 151 images + 171 links baked). Plan pre-registered in
+  `orchestration/CONTRIBUTION-PLAN.md` BEFORE implementation (incl. the forms-excluded metric
+  refinement, registered before the probe existed).
+  - **Mechanism (one skeleton mechanism, three altitudes):** DOM-level marker substitution
+    (`semantic_extract.decompose_group` — markers replace element CONTENT in the tree; a field
+    that cannot be placed is NOT loaded), per-item decomposition at repeated-sibling boundaries
+    (typed container + `item-N` child nodes, richtext `body*` = exact innerHTML runs), and
+    anonymous rawHtml blocks lift their text runs too (honest name, editable text). CND is
+    sized from the OBSERVED lift (`cnd_emit --content-load`, wired-only types — mix:title and
+    body..bodyN only where ≥1 instance lifts them). Byte-identity self-check at extract time:
+    recompose(skeleton, fields, children) must equal the original serialization or the group
+    falls back to verbatim rawHtml (fidelity before contribution; 0 byte-fails on acquia).
+  - **GATES: G1 static contribution min 89.1 %/avg 98.1 % forms-excluded (floors 60/85), dead
+    props = 0, phantom markers = 0, empty shells = 0 — PASS. G2 round-trip 18/18 sentinel
+    edits visible live + restored (publication is ASYNC → probe polls to convergence) — PASS.
+    G3 ground truth 18/18 pages = 100 % AFTER the G2 mutations+restores (careers up from
+    99.93 % — real-root item rendering recovered it) — PASS. G4 careers = acq:contentGrid +
+    5 × acq:contentGridItem, item body richtext carries the card heading+copy — PASS** (card
+    titles live INSIDE body richtext when the source heading is span-wrapped; strict jcr:title
+    lift only takes pure-text headings — recorded, not hidden).
+  - **Loader truths (hard-won):** the mark_for_deletion + publish clean flow is UNRELIABLE for
+    skeleton nodes (jmix:markedForDeletion survivors whose deletion-publication never lands;
+    'already exists' create collisions from the ASYNC race). Replaced by GraphQL EDIT-workspace
+    `deleteNode` (synchronous, publication-state-agnostic) + ONE parent publication to purge
+    LIVE. Create retries on 'already exists' kept as belt-and-braces. 239→240/240 nodes loaded
+    (82 parents + 157 items + shells/chrome).
+  - Pipeline reordered in `gen_plan.py`: extract_content BEFORE cnd_emit (wired-only sizing),
+    contribution probe on extract + load, `step_roundtrip` before the ground-truth HALT gate
+    (roundtrip always restores). 22 steps/31 probes, plan regenerated.
+  - Deferred to phase C (recorded): images → DAM weakreference (151 baked), links →
+    j:linkType + addMixins (171 baked); per-node body-run variance (an item with fewer runs
+    than its type declares shows empty-but-inert extra fields).

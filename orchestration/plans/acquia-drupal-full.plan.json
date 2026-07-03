@@ -88,8 +88,8 @@
               "max_attempts": 3
             },
             {
-              "id": "step_cnd",
-              "title": "Emit CND + view plan",
+              "id": "step_content_extract",
+              "title": "Content-load payload + partition/contribution gates",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
@@ -97,25 +97,26 @@
               ],
               "inputs": {},
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/cnd_emit.py projects/acquia-drupal/workflow-output/component-manifest.json --ns acq --mixns acqmix --project acquia-drupal --out-cnd projects/acquia-drupal/workflow-output/definitions.cnd --out-views projects/acquia-drupal/workflow-output/views.json",
-                "PROBE: test -s projects/acquia-drupal/workflow-output/definitions.cnd",
-                "PROBE: grep -q \"acq = \" projects/acquia-drupal/workflow-output/definitions.cnd",
-                "PROBE: test -s projects/acquia-drupal/workflow-output/views.json"
+                "Run: python3 orchestration/lib/extract_content.py acquia-drupal",
+                "PROBE: python3 orchestration/probes/partition.py acquia-drupal",
+                "PROBE: python3 orchestration/probes/contribution.py acquia-drupal"
               ],
               "max_attempts": 3
             },
             {
-              "id": "step_content_extract",
-              "title": "Content-load payload + HARD partition gate",
+              "id": "step_cnd",
+              "title": "Emit CND + view plan (wired-only sizing)",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_cnd"
+                "step_content_extract"
               ],
               "inputs": {},
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/extract_content.py acquia-drupal",
-                "PROBE: python3 orchestration/probes/partition.py acquia-drupal"
+                "Run: python3 orchestration/lib/cnd_emit.py projects/acquia-drupal/workflow-output/component-manifest.json --ns acq --mixns acqmix --project acquia-drupal --out-cnd projects/acquia-drupal/workflow-output/definitions.cnd --out-views projects/acquia-drupal/workflow-output/views.json --content-load orchestration/content/acquia-drupal.content-load.json",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/definitions.cnd",
+                "PROBE: grep -q \"acq = \" projects/acquia-drupal/workflow-output/definitions.cnd",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/views.json"
               ],
               "max_attempts": 3
             },
@@ -125,7 +126,7 @@
               "task_type": "verify",
               "agent": "code",
               "depends_on": [
-                "step_content_extract"
+                "step_cnd"
               ],
               "inputs": {},
               "acceptance_criteria": [
@@ -214,7 +215,7 @@
             },
             {
               "id": "step_shell_templates",
-              "title": "Agnostic fidelity-shell template set",
+              "title": "Agnostic fidelity-shell template set + skeleton views",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
@@ -223,7 +224,7 @@
               ],
               "inputs": {},
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/install_shell_templates.py acquia-drupal --ns acq",
+                "Run: python3 orchestration/lib/install_shell_templates.py acquia-drupal --ns acq --manifest projects/acquia-drupal/workflow-output/component-manifest.json",
                 "PROBE: grep -q 'rawHtml' projects/acquia-drupal/src/components/RawHtml/default.server.tsx"
               ],
               "max_attempts": 3
@@ -312,7 +313,8 @@
               "inputs": {},
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/load_content.py acquia-drupal acquia --clean --locale en",
-                "PROBE: python3 orchestration/probes/partition.py acquia-drupal"
+                "PROBE: python3 orchestration/probes/partition.py acquia-drupal",
+                "PROBE: python3 orchestration/probes/contribution.py acquia-drupal"
               ],
               "max_attempts": 3
             },
@@ -343,6 +345,20 @@
                 "PROBE: bash orchestration/probes/edit-frame.sh projects/acquia-drupal acquia en"
               ],
               "max_attempts": 3
+            },
+            {
+              "id": "step_roundtrip",
+              "title": "G2 contribution round-trip (sentinel edits)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_edit_frame"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE[900]: python3 orchestration/probes/roundtrip.py acquia-drupal acquia"
+              ],
+              "max_attempts": 3
             }
           ]
         }
@@ -364,7 +380,7 @@
               "task_type": "verify",
               "agent": "code",
               "depends_on": [
-                "step_edit_frame"
+                "step_roundtrip"
               ],
               "inputs": {},
               "acceptance_criteria": [

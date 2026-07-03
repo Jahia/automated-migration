@@ -81,7 +81,13 @@ class Loader:
         self.content = load_json(f"orchestration/content/{project}.content-load.json", {"pages": {}})
         self.imported = load_json(f"orchestration/images/{project}.imported.json", {})
         self.type_map = build_type_map(self.manifest)
+        # container nodeType -> its item child nodeType (P2.5 decomposition)
+        self.child_type = {c["nodeType"]: c["childType"]["nodeType"]
+                           for c in self.manifest.get("components", []) or []
+                           if c.get("isContainer") and isinstance(c.get("childType"), dict)
+                           and c["childType"].get("nodeType")}
         self._props = {}  # nodeType -> {"text":[names], "weakref":[names], "names":set}
+        self.prop_misses = []  # (nodeType, prop) — lifted value with no CND home = LOST TEXT
 
     def props_of(self, nodetype):
         if nodetype in self._props:
@@ -113,6 +119,28 @@ class Loader:
                 if x.get("file") == filename and x.get("jcrPath"):
                     return x["jcrPath"]
         return None
+
+    def promoted_props(self, payload, pdef, nodetype):
+        """P2.5 EXPLICIT contract for skeleton nodes (parent or item) — no
+        introspection zip: `skeleton` (hidden prop, settable though absent from
+        content.type), title -> jcr:title (mix:title), body/bodyN -> richtext.
+        A lifted body value whose prop is missing from the deployed type is
+        LOST TEXT (it was lifted OUT of the skeleton) — recorded loudly; the
+        ground-truth gate would catch the pixel loss."""
+        f = payload.get("fields", {})
+        props = {"skeleton": (payload.get("skeleton") or "")[:200_000]}
+        if f.get("title"):
+            props["jcr:title"] = f["title"][:250]
+        for k, v in f.items():
+            if not k.startswith("body") or not v:
+                continue
+            if k in pdef["names"]:
+                props[k] = v[:200_000]
+            else:
+                self.prop_misses.append((nodetype, k))
+                print(f"    !! {nodetype} lacks prop '{k}' — lifted text LOST",
+                      file=sys.stderr)
+        return props
 
     # weakref property names that are image/asset references (not node refs like startNode, excludeNodes)
     IMAGE_WEAKREF_PROPS = {"image", "backgroundImage", "logo", "photo", "icon"}
@@ -175,13 +203,16 @@ class Loader:
             return False
 
     def clean_area(self, area_path):
-        """Delete existing content children of an area so the load is idempotent.
-        Published nodes refuse a plain delete — unpublish first, then delete
-        (leaving them would DOUBLE the page content on every reload; observed
-        live: Δheight exploded to 80-180% on the second load).
-        content.list PAGINATES (default ~20) — loop until the area is empty or
-        nothing shrinks (observed live: 4 stale nodes surviving one pass put a
-        leftover FAQ block on top of an otherwise-100% page)."""
+        """Delete existing content children of an area so the load is idempotent
+        (leftovers would DOUBLE page content on reload; observed live: Δheight
+        80-180%). GraphQL EDIT-workspace deleteNode is SYNCHRONOUS and works
+        regardless of publication state — the MCP delete guard refuses published
+        nodes, and the mark-for-deletion + publish flow proved unreliable for
+        skeleton nodes (jmix:markedForDeletion survivors) with an ASYNC deletion
+        publication that raced the reload's create ('already exists' collisions,
+        observed live P2.5). After clearing, ONE parent publication purges the
+        LIVE copies (rule 2: always publish after JCR mutations).
+        content.list PAGINATES (~20) — loop until empty or no progress."""
         n = 0
         for _round in range(12):
             try:
@@ -190,40 +221,27 @@ class Loader:
                 return n
             kids = d.get("children", d.get("nodes", [])) if isinstance(d, dict) else []
             if not kids:
-                return n
-            before = n
-            n += self._delete_kids(kids)
-            if n == before:  # nothing deletable left — stop, report
+                break
+            progressed = False
+            for k in kids:
+                p = k.get("path") if isinstance(k, dict) else None
+                if not p:
+                    continue
+                try:
+                    self.m.delete_edit(p)
+                    n += 1
+                    progressed = True
+                except Exception as e:
+                    print(f"    ! clean {p}: {str(e)[:160]}", file=sys.stderr)
+            if not progressed:
                 for k in kids[:3]:
                     print(f"    ! clean leftover: {k.get('path') or k.get('name')}", file=sys.stderr)
-                return n
-        return n
-
-    def _delete_kids(self, kids):
-        n = 0
-        for k in kids:
-            p = k.get("path") if isinstance(k, dict) else None
-            if not p:
-                continue
+                break
+        if n:
             try:
-                self.m.call("content.delete", {"path": p})
-                n += 1
+                self.m.publish(area_path)
             except Exception:
-                # published content refuses hard delete AND per-language
-                # unpublish misses non-i18n nodes — the sanctioned flow is
-                # two-phase: mark for deletion, then publish the deletion
-                try:
-                    try:
-                        self.m.call("content.mark_for_deletion", {"path": p})
-                    except Exception as me:
-                        if "locked" not in str(me).lower():
-                            raise
-                        # already marked (locked) by a previous failed pass —
-                        # publishing completes the pending deletion
-                    self.m.call("publication.publish", {"path": p, "languages": ["en", "fr"]})
-                    n += 1
-                except Exception as e:
-                    print(f"    ! clean {p}: {e}", file=sys.stderr)
+                pass
         return n
 
     def _slug_to_jcr_path(self, slug):
@@ -300,20 +318,9 @@ class Loader:
             pdef = self.props_of(nt)
             if not pdef["names"]:
                 continue
-            if inst.get("promoted"):
-                # promoted skeleton instance: EXPLICIT contract, no introspection
-                # zip — `skeleton` is a hidden prop (absent from content.type but
-                # settable), title lives in jcr:title (mix:title supertype),
-                # text goes to the type's text/body property.
-                f = inst.get("fields", {})
-                props = {"skeleton": (inst.get("skeleton") or "")[:200_000]}
-                if f.get("title"):
-                    props["jcr:title"] = f["title"][:250]
-                if f.get("text"):
-                    tgt = "text" if "text" in pdef["names"] else \
-                          "body" if "body" in pdef["names"] else None
-                    if tgt:
-                        props[tgt] = f["text"][:5000]
+            if inst.get("promoted") or inst.get("skeleton"):
+                # typed skeleton instance OR lifted anonymous raw block (P2.5)
+                props = self.promoted_props(inst, pdef, nt)
             else:
                 props = self.map_props(page, inst, pdef)
             is_container = any(c.get("nodeType") == nt and c.get("isContainer")
@@ -323,15 +330,29 @@ class Loader:
                 continue
             parent = parent_for(idx, inst, nt)
             name = f"{nt.split(':')[-1]}-{page}-{idx}"
+            kids = inst.get("children") or []
             if dry:
                 nest = "(nested)" if inst.get("parent") in created_path else ""
-                print(f"  [dry] {parent}/{name} <- {nt} {nest} props={list(props)}")
+                print(f"  [dry] {parent}/{name} <- {nt} {nest} props={list(props)}"
+                      + (f" +{len(kids)} item(s)" if kids else ""))
                 created_path[idx] = f"{parent}/{name}"
                 created += 1
                 continue
+            path = None
             try:
-                r = self.m.create(parent, nt, props, name=name, locale=self.locale)
-                path = r.get("path") if isinstance(r, dict) else None
+                import time
+                for attempt in range(4):
+                    try:
+                        r = self.m.create(parent, nt, props, name=name, locale=self.locale)
+                        path = r.get("path") if isinstance(r, dict) else None
+                        break
+                    except Exception as ce:
+                        # async deletion race: the old node vanishes when its
+                        # publication job lands — wait and retry, don't fail
+                        if "already exists" in str(ce) and attempt < 3:
+                            time.sleep(2 * (attempt + 1))
+                            continue
+                        raise
                 if path:
                     created_path[idx] = path
                     created += 1
@@ -341,6 +362,30 @@ class Loader:
                     print(f"  + {path}  ({str(label)[:48]})")
             except Exception as e:
                 print(f"  ! create {name} ({nt}) failed: {e}", file=sys.stderr)
+                continue
+            # P2.5: item child nodes — one per {{child:N}} marker, SAME ORDER
+            # (the skeleton view splices child i into marker i)
+            if kids and path:
+                cnt = self.child_type.get(nt)
+                if not cnt:
+                    print(f"  !! {nt} carries {len(kids)} item(s) but no childType "
+                          f"in manifest — markers would render EMPTY", file=sys.stderr)
+                    self.prop_misses.append((nt, "childType"))
+                else:
+                    cpdef = self.props_of(cnt)
+                    for n, ch in enumerate(kids):
+                        cprops = self.promoted_props(ch, cpdef, cnt)
+                        try:
+                            rc = self.m.create(path, cnt, cprops,
+                                               name=f"item-{n + 1}", locale=self.locale)
+                            cpath = rc.get("path") if isinstance(rc, dict) else None
+                            if cpath:
+                                created += 1
+                                self.m.publish(cpath)
+                                published += 1
+                        except Exception as e:
+                            print(f"  ! item-{n + 1} ({cnt}) under {name} failed: {e}",
+                                  file=sys.stderr)
         return (created, published)
 
     def install_shell(self, page, pdata, page_base):
@@ -442,6 +487,13 @@ def main():
         c, p = ld.load_page(pg, limit=limit, dry=dry, clean=clean)
         tot_c += c; tot_p += p
     print(f"\nload_content: created {tot_c}, published {tot_p} node(s){' [dry]' if dry else ''}")
+    if ld.prop_misses:
+        # a lifted value with no CND home = text LOST from the render — this is
+        # a build/CND mismatch, never acceptable (G1/G3 will be red)
+        uniq = sorted(set(ld.prop_misses))
+        print(f"load_content: {len(ld.prop_misses)} LOST-TEXT prop miss(es) across "
+              f"{len(uniq)} (type,prop) pair(s): {uniq[:10]}", file=sys.stderr)
+        sys.exit(3)
 
 
 if __name__ == "__main__":

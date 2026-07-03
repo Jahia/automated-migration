@@ -111,17 +111,42 @@ def _own_fields(fields):
     return out
 
 
-def type_block(comp, ns, mixns):
-    """Emit the CND [ns:type] block for a component (and return child block text)."""
+def _body_lines(n_runs):
+    """body..bodyN richtext props — one per lifted text run (P2.5)."""
+    out = []
+    for n in range(n_runs):
+        name = "body" if n == 0 else f"body{n + 1}"
+        out.append(f"  - {name} (string, richtext) i18n")
+    return out
+
+
+def type_block(comp, ns, mixns, stats=None):
+    """Emit the CND [ns:type] block for a component (and return child block text).
+
+    stats (P2.5, from --content-load): per-nodeType observed lift shape
+    {runs, childRuns, titles, childTitles}. When present for a SKELETON type,
+    the type declares ONLY wired properties — title (mix:title) + body..bodyN
+    richtext + hidden skeleton. Shape-derived image/link/text props are dropped
+    until the phase that wires them: a declared-but-unwired prop is a DEAD prop
+    (shown in Content Editor, edits change nothing) — G1 requires zero."""
     node = comp["nodeType"]
     fields = comp.get("fields", []) or []
-    supertypes = _supertypes(fields, mixns, comp.get("needsMainResource"))
+    st = (stats or {}).get(node)
+    wired_only = bool(comp.get("skeleton")) and st is not None
+    # mix:title only when >=1 instance actually lifted a title — a Title field
+    # whose edits change nothing is exactly the dead prop G1 forbids
+    supertypes = _supertypes(fields if not wired_only
+                             else ([{"name": "title"}] if st["titles"] else []),
+                             mixns, comp.get("needsMainResource"))
 
     lines = [f"[{node}] > {', '.join(supertypes)}"]
-    for f in _own_fields(fields):
-        lines.append(field_line(f))
-    if has_link_field(fields):
-        lines.extend(link_lines())
+    if wired_only:
+        lines.extend(_body_lines(st["runs"]))
+    else:
+        for f in _own_fields(fields):
+            lines.append(field_line(f))
+        if has_link_field(fields):
+            lines.extend(link_lines())
     if comp.get("skeleton"):
         # P2 skeleton rendering: the instance's own markup with {{f:name}}
         # markers — the view substitutes property values (pixel-exact +
@@ -139,25 +164,77 @@ def type_block(comp, ns, mixns):
         if isinstance(child, dict) and child.get("nodeType"):
             child_node = child["nodeType"]
             lines.append(f"  + * ({child_node})")
-            cfields = child.get("fields", []) or []
-            csuper = _supertypes(cfields, mixns)
-            clines = [f"[{child_node}] > {', '.join(csuper)}"]
-            for f in _own_fields(cfields):
-                clines.append(field_line(f))
-            if has_link_field(cfields):
-                clines.extend(link_lines())
+            if wired_only:
+                # items are skeleton nodes too: title + body runs + skeleton
+                csuper = _supertypes([{"name": "title"}] if st["childTitles"] else [],
+                                     mixns)
+                clines = [f"[{child_node}] > {', '.join(csuper)}"]
+                clines.extend(_body_lines(st["childRuns"]))
+                clines.append("  - skeleton (string, textarea) hidden")
+            else:
+                cfields = child.get("fields", []) or []
+                csuper = _supertypes(cfields, mixns)
+                clines = [f"[{child_node}] > {', '.join(csuper)}"]
+                for f in _own_fields(cfields):
+                    clines.append(field_line(f))
+                if has_link_field(cfields):
+                    clines.extend(link_lines())
             child_text = "\n".join(clines)
         else:
             lines.append(f"  + * ({node}Item)")
     return "\n".join(lines), child_text
 
 
-def query_and_grid_types(ns, mixns):
+def run_stats_from_content_load(path, manifest):
+    """content-load -> per-nodeType observed lift shape (P2.5 CND sizing):
+    {runs: max body-runs on the type, childRuns: max on its items,
+     titles/childTitles: any instance lifted a title}. Types with no promoted
+    instance stay absent (their block keeps the manifest shape)."""
+    itm = {k.lower(): v for k, v in (manifest.get("instanceTypeMap") or {}).items()}
+    data = json.load(open(path))
+    st = {}
+    for page in data.get("pages", {}).values():
+        for inst in page.get("instances", []):
+            # promoted skeleton instances AND lifted anonymous raw blocks
+            if not (inst.get("promoted")
+                    or (inst.get("passthrough") and inst.get("skeleton"))):
+                continue
+            nt = itm.get((inst.get("type") or "").lower())
+            if not nt:
+                continue
+            e = st.setdefault(nt, {"runs": 0, "childRuns": 0,
+                                   "titles": False, "childTitles": False})
+            e["runs"] = max(e["runs"], sum(1 for k in inst.get("fields", {})
+                                           if k.startswith("body")))
+            e["titles"] |= "title" in inst.get("fields", {})
+            for ch in inst.get("children") or []:
+                e["childRuns"] = max(e["childRuns"],
+                                     sum(1 for k in ch.get("fields", {})
+                                         if k.startswith("body")))
+                e["childTitles"] |= "title" in ch.get("fields", {})
+    return st
+
+
+def query_and_grid_types(ns, mixns, raw_runs=0):
     """Every module ships a JCRQuery + GridRow (migration.md rule 12 / CLAUDE.md rule 16):
     the editor's primary tools for building listing/grid pages without a developer.
     JCRQuery is `jmix:list` ONLY — the deployed reference modules deliberately omit
     jmix:renderableList (it limits the type to built-in views and injects j:linknode/
-    j:url, breaking the custom default.server.tsx view). GridRow holds any component."""
+    j:url, breaking the custom default.server.tsx view). GridRow holds any component.
+
+    raw_runs (P2.5): demoted anonymous blocks lift their text runs too — rawHtml
+    then also carries a hidden skeleton + body..bodyN richtext (same mechanism,
+    honest name; no mix:title — headings stay inside the richtext runs)."""
+    raw_lines = [
+        "// passthrough (P1.2): verbatim source markup for regions no semantic",
+        "// component covers — the nothing-is-dropped half of the fidelity invariant.",
+        "// P2.5: text runs of demoted blocks are still editable (body* + skeleton).",
+        f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
+        "  - html (string, textarea)",
+    ]
+    raw_lines.extend(_body_lines(raw_runs))
+    if raw_runs:
+        raw_lines.append("  - skeleton (string, textarea) hidden")
     return [
         f"// listing + grid tools (editor-facing, every module ships these)",
         f"[{ns}:jcrQuery] > jnt:content, {mixns}:component, jmix:list",
@@ -170,10 +247,7 @@ def query_and_grid_types(ns, mixns):
         "  - gap (string, choicelist) = 'md' < 'none', 'sm', 'md', 'lg'",
         f"  + * ({mixns}:component)",
         "",
-        "// passthrough (P1.2): verbatim source markup for regions no semantic",
-        "// component covers — the nothing-is-dropped half of the fidelity invariant",
-        f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
-        "  - html (string, textarea)",
+        *raw_lines,
         "",
     ]
 
@@ -201,10 +275,18 @@ def main():
     ap.add_argument("--project", default="site")
     ap.add_argument("--out-cnd")
     ap.add_argument("--out-views")
+    ap.add_argument("--content-load",
+                    help="content-load.json — sizes body..bodyN per type from the "
+                         "OBSERVED lift (P2.5 wired-only CND for skeleton types)")
     args = ap.parse_args()
 
     m = json.load(open(args.manifest))
     ns, mixns, proj = args.ns, args.mixns, args.project
+    stats = None
+    if args.content_load:
+        stats = run_stats_from_content_load(args.content_load, m)
+        print(f"[cnd_emit] wired-only sizing from {args.content_load}: "
+              f"{len(stats)} promoted type(s)", file=sys.stderr)
 
     header = [
         "<jnt = 'http://www.jahia.org/jahia/nt/1.0'>",
@@ -217,7 +299,8 @@ def main():
         "",
     ]
     body, children, view_plans = [], [], []
-    body.extend(query_and_grid_types(ns, mixns))
+    raw_runs = (stats or {}).get(f"{ns}:rawHtml", {}).get("runs", 0)
+    body.extend(query_and_grid_types(ns, mixns, raw_runs=raw_runs))
     view_plans.append({"component": "JCR Query", "nodeType": f"{ns}:jcrQuery",
                        "views": ["default.server.tsx"]})
     view_plans.append({"component": "Grid Row", "nodeType": f"{ns}:gridRow",
@@ -238,7 +321,7 @@ def main():
         view_plans.append(views_for(cc))
 
     for c in m.get("components", []) or []:
-        blk, child = type_block(c, ns, mixns)
+        blk, child = type_block(c, ns, mixns, stats=stats)
         tags = []
         if c.get("isContainer"):
             tags.append("container")

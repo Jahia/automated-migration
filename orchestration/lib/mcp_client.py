@@ -92,6 +92,28 @@ class MCP:
         """Wire an image/link weakreference to an imported DAM node (by absolute path)."""
         return self.update(path, {prop: target_path}, locale=locale)
 
+    def gql(self, query):
+        """Direct GraphQL (rule 3/6: Origin header MUST match JAHIA_URL). Used
+        where the MCP tools have no working path — e.g. deleting a published
+        node from EDIT (the MCP delete guard blocks it; mark-for-deletion +
+        publish proved unreliable for skeleton nodes, observed live P2.5)."""
+        body = json.dumps({"query": query}).encode()
+        h = self._headers()
+        h["Origin"] = self.host
+        req = urllib.request.Request(self.host + "/modules/graphql", body, h)
+        with urllib.request.urlopen(req, timeout=60) as r:
+            out = json.loads(r.read().decode())
+        if out.get("errors"):
+            raise RuntimeError(f"GraphQL error: {out['errors'][:2]}")
+        return out.get("data")
+
+    def delete_edit(self, path):
+        """Delete a node from the EDIT workspace regardless of publication
+        state. The caller MUST publish the parent afterwards to purge the
+        LIVE copy (always publish after JCR mutations)."""
+        q = 'mutation { jcr(workspace: EDIT) { deleteNode(pathOrId: "%s") } }' % path
+        return self.gql(q)
+
     def publish(self, path, languages=("fr", "en")):
         return self.call("publication.publish", {"path": path, "languages": list(languages)})
 
