@@ -247,17 +247,41 @@ class Localizer:
                     scr["src"] = new
                     scr.attrs.pop("integrity", None)
                     scr.attrs.pop("crossorigin", None)
+        # lazy-load attributes: the crawl captures PRE-hydration HTML where the
+        # real URL lives ONLY in a data-* attr (src empty/absent); the site's JS
+        # copies it to src on scroll — JS that runs neither in the offline mirror
+        # NOR in the JS-stripped Jahia render. So we localise the data-* URL AND
+        # MATERIALISE it into src/srcset, making the image load without any JS
+        # (observed live: discoverasr 44 DAM images + contentful cards invisible).
+        LAZY_SRC = ("data-src", "data-lazy-src", "data-original", "data-url")
+        LAZY_SET = ("data-srcset", "data-lazy-srcset")
         for tag in soup.find_all(["img", "source", "video", "audio"]):
+            lazy_src = next((tag.get(a) for a in LAZY_SRC if tag.get(a)), None)
+            lazy_set = next((tag.get(a) for a in LAZY_SET if tag.get(a)), None)
             if tag.get("src"):
                 new = relink(tag["src"], "img")
                 if new:
                     tag["src"] = new
+            elif lazy_src:                       # no src — materialise from data-*
+                new = relink(lazy_src, "img")
+                if new:
+                    tag["src"] = new
+            for a in LAZY_SRC:                   # localise the data-* attr in place too
+                if tag.get(a):
+                    nm = relink(tag[a], "img")
+                    if nm:
+                        tag[a] = nm
             if tag.get("poster"):
                 new = relink(tag["poster"], "img")
                 if new:
                     tag["poster"] = new
             if tag.get("srcset"):
                 tag["srcset"] = self._srcset(tag["srcset"], page_url)
+            elif lazy_set:                       # materialise srcset from data-srcset
+                tag["srcset"] = self._srcset(lazy_set, page_url)
+            for a in LAZY_SET:
+                if tag.get(a):
+                    tag[a] = self._srcset(tag[a], page_url)
         # inline style="… url() …" and <style> blocks live at the page root → prefix assets/
         for tag in soup.find_all(style=True):
             tag["style"] = self._rewrite_css(tag["style"], page_url, prefix="assets/").decode("utf-8", "replace")
