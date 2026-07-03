@@ -485,3 +485,9 @@ Crawler JS-render only if the holdout demands it.
     ≥90%); the holdout was blocked upstream at the mirror gate. Honest verdict: **partial** —
     the pipeline generalizes structurally + editorially to all stacks, but per-page pixel
     GREEN depends on image-capture completeness, which is the next work item.
+
+- **2026-07-03 — SPA acceptance via render-based crawl (answers "how to accept discoverasr without overfitting").**
+  Root cause of the discoverasr block was an outdated crawl assumption (HTTP response = content), false for any client-rendered site. Fix is UNIFORM and overfit-free: `crawl-site.py` renders each page's post-hydration DOM (`render_page.mjs` — network-idle + scroll + MutationObserver quiescence), no per-site / no "is-this-a-SPA" branch. Supporting generic fixes: lazy `data-src`→`src` materialisation (localize), WAF-beacon path-ignore (Incapsula/Cloudflare/Akamai/PerimeterX, mirror_probe, same class as rule-19 trackers).
+  - **discoverasr: mirror gate BLOCKED (5.6%) → PASS (0 ext-miss / 0 local-404 on every page), fully rendered offline.**
+  - **Anti-overfit proof: same code, zero site-specific logic, run on 2 UNSEEN SPAs** — vercel +44%, notion +82% visible text vs raw HTTP (modest where partially-SSR, dramatic where fully client-rendered — exactly what a uniform mechanism should do). discoverasr itself 7× (400 KB→1.5 MB).
+  - **Boundary that correctly remains:** content not deterministically materialisable even by render+scroll (auth-gated / per-user personalized / infinite-scroll) still fails the mirror gate. The gate draws the line objectively, not "is it a SPA". Determinism note: freezing clock/rng during render breaks framework init — render faithfully, normalise output; the snapshot does not re-hydrate-wipe offline (no script neutralization needed).
