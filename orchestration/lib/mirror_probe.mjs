@@ -68,6 +68,14 @@ const ANALYTICS_HOST = /(^|\.)(google-analytics|googletagmanager|doubleclick|lin
 // www.gstatic.com (libs) stay HARD-GATED — excusing them let a mirror that never
 // localized its webfonts pass GREEN. maps.google/maps.gstatic tiles are embeds.
 const EMBED_HOST = /(^|\.)(youtube|ytimg|youtu\.be|vimeo|facebook|fbcdn|instagram|hubspot|hsforms|marketo|mktoresp|recaptcha|wistia|vidyard)\.|(^|\.)maps\.(google|gstatic)\./i;
+// WAF / anti-bot runtime BEACONS — same-origin endpoints a security layer injects
+// at render time (random query each load), NOT real assets. They 404 offline
+// correctly and must not count as localize holes (same class as the scrape-
+// detection blocklist, rule 19). Matched on PATH (they're served from the site's
+// own origin). Well-known signatures only, not site-specific:
+//   Imperva/Incapsula (_Incapsula_Resource, SWKMTFSR), Cloudflare (/cdn-cgi/),
+//   Akamai bot-manager (/akam/), PerimeterX/HUMAN (/px/ captcha).
+const WAF_BEACON = /(_Incapsula_Resource|SWKMTFSR|\/cdn-cgi\/|\/akam\/|(^|\/)_sec\/|\/px\/(api|captcha)|\/perimeterx)/i;
 function hostOf(u) { try { return new URL(u).hostname; } catch { return u; } }
 // CMS back-office / edit-mode chrome that some platforms serve into a page even
 // for anonymous crawls (Liferay management_toolbar / control_panel / creation menu,
@@ -81,7 +89,8 @@ const isEmbed = (u) => EMBED_HOST.test(hostOf(u));
 const inResidue = (u) => residue.has(u) || residue.has(u.replace(/%20/g, ' '));
 // excused = doesn't count as a real miss. Analytics + residue always; embed is excused
 // from the HARD gate but tracked separately so a reviewer sees it.
-const isIgnorable = (u) => isAnalytics(u) || isEmbed(u) || isAdminChrome(u) || inResidue(u);
+const isWafBeacon = (u) => { try { return WAF_BEACON.test(new URL(u).pathname + new URL(u).search); } catch { return WAF_BEACON.test(u); } };
+const isIgnorable = (u) => isAnalytics(u) || isEmbed(u) || isAdminChrome(u) || inResidue(u) || isWafBeacon(u);
 // localizable static-asset resource types; xhr/fetch handled specially (below).
 const STATIC = new Set(['stylesheet', 'font', 'image', 'media', 'imageset', 'script']);
 const STATIC_EXT = /\.(css|js|mjs|woff2?|ttf|otf|eot|png|jpe?g|gif|svg|webp|avif|ico|mp4|webm|m4s|ogg|mp3)(\?|#|$)/i;
@@ -154,7 +163,7 @@ async function offlineRender(slug) {
   const blocked = [...new Map(blockedRaw.map(b => [b.url, b])).values()];
   return { page, health, blocked,
     // real miss = static asset that is neither analytics-excused, embed, nor residue.
-    realMiss: blocked.filter(b => isStaticAsset(b) && !isAnalytics(b.url) && !isEmbed(b.url) && !inResidue(b.url) && !runtimeIgnorable(b.url)),
+    realMiss: blocked.filter(b => isStaticAsset(b) && !isAnalytics(b.url) && !isEmbed(b.url) && !inResidue(b.url) && !runtimeIgnorable(b.url) && !isWafBeacon(b.url)),
     embedMiss: blocked.filter(b => isEmbed(b.url) && isStaticAsset(b)),
     dataMiss: blocked.filter(b => isDataFetch(b) && !isAnalytics(b.url) && !isEmbed(b.url)),
     localMiss: [...new Set(local404)] };
