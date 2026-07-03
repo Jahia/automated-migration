@@ -403,3 +403,24 @@ Crawler JS-render only if the holdout demands it.
     <img> follows the weakref, restores) + 1 j:url sentinel. G3 ground truth 18/18 ≥99 %
     with all wiring live. publish-parity (162 DAM weakref targets resolve in LIVE) +
     edit-frame PASS.** 238+ nodes, 2 transient create failures replayed to zero.
+
+- **2026-07-03 — P2.5-D: per-node slot mixins (editor form = exactly the node's real fields).**
+  Julian's second editorial review caught the per-node variance flaw shipping C left open:
+  type-level body..bodyN sized every node's form to the RICHEST instance (contentGrid nodes
+  showing empty unjustified body2/body3). Fix = Jahia's own pattern (jmix:externalLink):
+  wired-only types now declare ONLY the hidden `skeleton`; every editor-facing slot is a
+  module mixin (`acqmix:contribBody[N]`, `acqmix:contribImage[N]` incl. hidden companions,
+  `acqmix:contribLink`, plus `mix:title`) that the LOADER adds per node — create(skeleton)
+  → addMixins (one GraphQL call) → update(mixin props) → weakrefs → publish. Verified live:
+  contentGrid-careers-11 = [contribBody] + body only; its item-1 = [mix:title, contribBody,
+  contribImage] = Title + Body + Image. merge_cnd generates bundle labels for the slot
+  mixins ("Text (3)", not raw "body3").
+  - **Two loader truths found by the gates:** (a) publishing a PARENT while its item
+    children are still being created ABORTS the publication job — the EDIT node never
+    reaches LIVE (2 big articles, GT 92 %, parity translation gaps); parents now publish
+    AFTER their subtree is complete + one area publication sweeps stragglers. (b) MCP
+    content.create fails transiently under sustained write load (~1-3 %) — generic
+    retry-with-backoff on 'already exists' AND 'failed unexpectedly'.
+  - **Re-certified: GT 18/18 ≥99 %, round-trip 23/23 (text+media+link on mixin props),
+    publish-parity + edit-frame PASS, G1/G5 floors hold** (probe unchanged — dead-prop
+    semantics are per-node by construction now).

@@ -16,6 +16,11 @@ G2+ 23/23 round-trips (incl. 4 media swaps + j:url sentinel), G3 18/18 ≥99 % w
 live, G1 zeros hold. 162 DAM files, 201/207 media units wired, 60/60 link payloads wired
 (5 external, 3 internal resolved, 52 honest linkOrig fallbacks). See §8 + QUALITY-PLAN §7.
 
+**P2.5-D (same day):** slot props moved from types to per-node mixins
+(`acqmix:contribBody[N]`/`contribImage[N]`/`contribLink` + mix:title, added by the loader)
+— the editor form shows EXACTLY the fields each node carries; no more empty unjustified
+body2/body3 on leaner nodes. Re-certified: GT 18/18, round-trip 23/23, parity green.
+
 ---
 
 ## 8. Phase C design (REGISTERED 2026-07-03, before implementation/measurement)

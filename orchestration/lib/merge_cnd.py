@@ -64,8 +64,15 @@ TOOLTIP_FR = {
 }
 
 
-def label(name):
+def label(name, lang="en"):
     n = name.split(":")[-1]
+    m = re.match(r"^(body|image)(\d*)$", n)
+    if m:  # P2.5 contribution slots — numbered, human labels
+        base = ("Texte" if lang == "fr" else "Text") if m.group(1) == "body" \
+            else "Image"
+        return base + (f" ({m.group(2)})" if m.group(2) else "")
+    if n == "linkLabel":
+        return "Libellé du lien" if lang == "fr" else "Link label"
     n = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", n).replace("-", " ").replace("_", " ")
     return n.strip().title()
 
@@ -98,7 +105,7 @@ def bundle_lines(types, lang):
         for f in fields:
             fn = f["name"]
             if lang == "fr":
-                flabel = FIELD_FR.get(fn, label(fn))
+                flabel = FIELD_FR.get(fn, label(fn, "fr"))
                 tip = TOOLTIP_FR.get(fn, f"Valeur « {flabel} » du composant {name}.")
             else:
                 flabel = label(fn) if fn != "j:linkType" else "Link"
@@ -167,6 +174,26 @@ def main():
         types.append(c)
         if c.get("childType"):
             types.append(c["childType"])
+    # P2.5-D: contribution slot mixins (acqmix:contrib*) now carry the editor-
+    # facing props — parse them from the generated CND (hidden props skipped)
+    slot_names = {"body": "Text", "linkLabel": "Link label"}
+    for blk in re.finditer(
+            rf"^\[({re.escape(mixns)}:contrib\w+)\] mixin\n((?:  - .*\n?)*)", cnd, re.M):
+        nt, blines = blk.group(1), blk.group(2)
+        fields = []
+        for pl in blines.splitlines():
+            mm = re.match(r"\s*- ([\w:]+) \(", pl)
+            if not mm or " hidden" in pl:
+                continue
+            fields.append({"name": mm.group(1)})
+        if not fields:
+            continue
+        short = nt.split(":")[-1]
+        num = re.search(r"(\d+)$", short)
+        disp = ("Link" if "Link" in short else
+                "Image" + (f" ({num.group(1)})" if num else "") if "Image" in short else
+                "Text" + (f" ({num.group(1)})" if num else ""))
+        types.append({"nodeType": nt, "name": disp, "fields": fields})
     module_name = os.path.basename(os.path.abspath(module))
     os.makedirs(f"{module}/settings/resources", exist_ok=True)
     for lang in ("en", "fr"):

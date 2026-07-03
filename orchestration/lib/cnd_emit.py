@@ -135,6 +135,40 @@ def _media_lines(n_units):
     return out
 
 
+def contrib_mixins(mixns, stats):
+    """P2.5-C fix (observed live): declaring body..bodyN / imageN / link props
+    on the TYPE sizes every node's editor form to the RICHEST instance of that
+    type — nodes without those runs show unjustified EMPTY fields. Jahia's
+    per-node answer is MIXINS (the jmix:externalLink pattern): each slot is a
+    module-level mixin the loader adds ONLY on nodes that actually carry the
+    field. Sized to the global max across the content-load."""
+    if not stats:
+        return []
+    max_runs = max([0] + [max(e.get("runs", 0), e.get("childRuns", 0))
+                          for e in stats.values()])
+    max_media = max([0] + [max(e.get("media", 0), e.get("childMedia", 0))
+                           for e in stats.values()])
+    any_link = any(e.get("link") or e.get("childLink") for e in stats.values())
+    out = ["// P2.5-C contribution slots — added PER NODE by the loader, so the",
+           "// editor form shows exactly the fields the node really carries"]
+    for n in range(max_runs):
+        nm = "contribBody" if n == 0 else f"contribBody{n + 1}"
+        out.append(f"[{mixns}:{nm}] mixin")
+        out.extend(_body_lines(n + 1)[n:])  # just the n-th body line
+        out.append("")
+    for i in range(max_media):
+        nm = "contribImage" if i == 0 else f"contribImage{i + 1}"
+        out.append(f"[{mixns}:{nm}] mixin")
+        out.extend(_media_lines(i + 1)[3 * i:])  # just the i-th unit's 3 lines
+        out.append("")
+    if any_link:
+        out.append(f"[{mixns}:contribLink] mixin")
+        out.extend(link_lines())
+        out.append("  - linkOrig (string) hidden")
+        out.append("")
+    return out
+
+
 def type_block(comp, ns, mixns, stats=None):
     """Emit the CND [ns:type] block for a component (and return child block text).
 
@@ -148,20 +182,16 @@ def type_block(comp, ns, mixns, stats=None):
     fields = comp.get("fields", []) or []
     st = (stats or {}).get(node)
     wired_only = bool(comp.get("skeleton")) and st is not None
-    # mix:title only when >=1 instance actually lifted a title — a Title field
-    # whose edits change nothing is exactly the dead prop G1 forbids
-    supertypes = _supertypes(fields if not wired_only
-                             else ([{"name": "title"}] if st["titles"] else []),
+    # wired-only types declare NO editable props at type level: title/body*/
+    # image*/link live in the acqmix:contrib* slot mixins (+ mix:title), added
+    # PER NODE by the loader — a node's editor form shows exactly what it
+    # carries (observed live: type-level body..bodyN meant empty unjustified
+    # fields on every leaner node of the type)
+    supertypes = _supertypes([] if wired_only else fields,
                              mixns, comp.get("needsMainResource"))
 
     lines = [f"[{node}] > {', '.join(supertypes)}"]
-    if wired_only:
-        lines.extend(_body_lines(st["runs"]))
-        lines.extend(_media_lines(st.get("media", 0)))
-        if st.get("link"):
-            lines.extend(link_lines())
-            lines.append("  - linkOrig (string) hidden")
-    else:
+    if not wired_only:
         for f in _own_fields(fields):
             lines.append(field_line(f))
         if has_link_field(fields):
@@ -184,15 +214,9 @@ def type_block(comp, ns, mixns, stats=None):
             child_node = child["nodeType"]
             lines.append(f"  + * ({child_node})")
             if wired_only:
-                # items are skeleton nodes too: title + body runs + skeleton
-                csuper = _supertypes([{"name": "title"}] if st["childTitles"] else [],
-                                     mixns)
+                # items are skeleton nodes too — same per-node mixin contract
+                csuper = _supertypes([], mixns)
                 clines = [f"[{child_node}] > {', '.join(csuper)}"]
-                clines.extend(_body_lines(st["childRuns"]))
-                clines.extend(_media_lines(st.get("childMedia", 0)))
-                if st.get("childLink"):
-                    clines.extend(link_lines())
-                    clines.append("  - linkOrig (string) hidden")
                 clines.append("  - skeleton (string, textarea) hidden")
             else:
                 cfields = child.get("fields", []) or []
@@ -256,20 +280,15 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
     honest name; no mix:title — headings stay inside the richtext runs).
     raw_stats (P2.5-C): media weakrefs + contributor link on lifted raw blocks."""
     rs = raw_stats or {}
-    raw_runs = max(raw_runs, rs.get("runs", 0))
     raw_lines = [
         "// passthrough (P1.2): verbatim source markup for regions no semantic",
         "// component covers — the nothing-is-dropped half of the fidelity invariant.",
-        "// P2.5: text runs of demoted blocks are still editable (body* + skeleton).",
+        "// P2.5: lifted raw blocks carry contribution slots via acqmix:contrib*",
+        "// mixins (added per node by the loader) + the hidden skeleton.",
         f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
         "  - html (string, textarea)",
     ]
-    raw_lines.extend(_body_lines(raw_runs))
-    raw_lines.extend(_media_lines(rs.get("media", 0)))
-    if rs.get("link"):
-        raw_lines.extend(link_lines())
-        raw_lines.append("  - linkOrig (string) hidden")
-    if raw_runs or rs.get("media") or rs.get("link"):
+    if raw_runs or rs.get("runs") or rs.get("media") or rs.get("link"):
         raw_lines.append("  - skeleton (string, textarea) hidden")
     return [
         f"// listing + grid tools (editor-facing, every module ships these)",
@@ -335,6 +354,7 @@ def main():
         "",
     ]
     body, children, view_plans = [], [], []
+    body.extend(contrib_mixins(mixns, stats))
     raw_stats = (stats or {}).get(f"{ns}:rawHtml", {})
     body.extend(query_and_grid_types(ns, mixns, raw_stats=raw_stats))
     view_plans.append({"component": "JCR Query", "nodeType": f"{ns}:jcrQuery",

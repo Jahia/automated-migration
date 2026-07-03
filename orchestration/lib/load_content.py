@@ -81,6 +81,8 @@ class Loader:
         self.content = load_json(f"orchestration/content/{project}.content-load.json", {"pages": {}})
         self.imported = load_json(f"orchestration/images/{project}.imported.json", {})
         self.type_map = build_type_map(self.manifest)
+        ns = (self.manifest.get("passthroughType") or "ns:x").split(":")[0]
+        self.mixns = f"{ns}mix"  # module mixin namespace (gen_plan convention)
         # container nodeType -> its item child nodeType (P2.5 decomposition)
         self.child_type = {c["nodeType"]: c["childType"]["nodeType"]
                            for c in self.manifest.get("components", []) or []
@@ -147,9 +149,9 @@ class Loader:
         return None, None
 
     def wire_payload(self, path, payload):
-        """Post-create wiring (needs the node path): media weakrefs to the DAM
-        copies; the contributor link's mixin + target (rule 9: j:url/j:linknode
-        are mixin-injected — GraphQL addMixins, the proven flow)."""
+        """Weakref wiring (after mixins + props): media DAM copies and the
+        internal link's j:linknode (its jmix:internalLink mixin and j:url were
+        handled by apply_payload)."""
         for m in payload.get("media") or []:
             dam = m.pop("_dam", None)
             if not dam:
@@ -166,13 +168,8 @@ class Loader:
         kind, target = lnk.pop("_kind", None), lnk.pop("_target", None)
         try:
             if kind == "external":
-                self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
-                           '{ addMixins(mixins: ["jmix:externalLink"]) } } }' % path)
-                self.m.update(path, {"j:url": lnk["href"][:1000]}, locale=self.locale)
                 self.wire_stats["linkExternal"] += 1
             elif kind == "internal":
-                self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
-                           '{ addMixins(mixins: ["jmix:internalLink"]) } } }' % path)
                 self.m.set_weakref(path, "j:linknode", target, locale=self.locale)
                 self.wire_stats["linkInternal"] += 1
             else:
@@ -185,9 +182,13 @@ class Loader:
         if nodetype in self._props:
             return self._props[nodetype]
         text, weak, names = [], [], set()
+        exists = False
         try:
             d = self.m.call("content.type", {"nodeType": nodetype})
             t = d["types"][0]
+            exists = True  # P2.5-D: minimal skeleton types may declare ZERO
+            # visible props (everything rides per-node mixins) — existence of
+            # the type, not its prop count, is the deploy gate
             for p in (t.get("mandatoryProperties", []) + t.get("optionalProperties", [])):
                 n = p.get("name"); names.add(n)
                 if n in SKIP_PROP or n.startswith("j:"):
@@ -198,7 +199,8 @@ class Loader:
                     text.append(n)
         except Exception as e:
             print(f"    ! content.type {nodetype} failed: {e}", file=sys.stderr)
-        self._props[nodetype] = {"text": text, "weakref": weak, "names": names}
+        self._props[nodetype] = {"text": text, "weakref": weak, "names": names,
+                                 "exists": exists}
         return self._props[nodetype]
 
     def imported_path(self, page, filename):
@@ -213,56 +215,72 @@ class Loader:
         return None
 
     def promoted_props(self, payload, pdef, nodetype):
-        """P2.5 EXPLICIT contract for skeleton nodes (parent or item) — no
-        introspection zip: `skeleton` (hidden prop, settable though absent from
-        content.type), title -> jcr:title (mix:title), body/bodyN -> richtext,
-        linkLabel, media hidden companions (imageNOrig / imageNOrigRef) and the
-        link's j:linkType + linkOrig (P2.5-C). A lifted value whose prop is
-        missing from the deployed type is LOST CONTENT (it was lifted OUT of
-        the skeleton) — recorded loudly; ground truth would catch pixel loss."""
+        """P2.5-D EXPLICIT contract for skeleton nodes (parent or item).
+        The TYPE declares only the hidden `skeleton`; every editor-facing field
+        rides a slot MIXIN added per node (so the edit form shows exactly what
+        the node carries — no unjustified empty body2/body3, observed live):
+          title    -> mix:title (jcr:title)
+          bodyN    -> {mixns}:contribBody[N]
+          imageN   -> {mixns}:contribImage[N] (+Orig/+OrigRef hidden)
+          link     -> {mixns}:contribLink (j:linkType, linkLabel, linkOrig)
+                      + jmix:externalLink/internalLink for j:url/j:linknode
+        Returns (create_props, mixins, post_props): create carries skeleton
+        only; mixin props are settable AFTER addMixins."""
+        mixns = self.mixns
         f = payload.get("fields", {})
-        props = {"skeleton": (payload.get("skeleton") or "")[:200_000]}
+        create_props = {"skeleton": (payload.get("skeleton") or "")[:200_000]}
+        mixins, post = [], {}
         if f.get("title"):
-            props["jcr:title"] = f["title"][:250]
-        if f.get("linkLabel"):
-            if "linkLabel" in pdef["names"]:
-                props["linkLabel"] = f["linkLabel"][:250]
-            else:
-                self.prop_misses.append((nodetype, "linkLabel"))
+            mixins.append("mix:title")
+            post["jcr:title"] = f["title"][:250]
         for k, v in f.items():
             if not k.startswith("body") or not v:
                 continue
-            if k in pdef["names"]:
-                props[k] = v[:200_000]
-            else:
-                self.prop_misses.append((nodetype, k))
-                print(f"    !! {nodetype} lacks prop '{k}' — lifted text LOST",
-                      file=sys.stderr)
-        # media units: Orig ALWAYS (the view's verbatim default); OrigRef +
-        # weakref only when the DAM copy exists (wire_payload sets the weakref)
+            n = k[len("body"):]
+            mixins.append(f"{mixns}:contribBody{n}")
+            post[k] = v[:200_000]
         for m in payload.get("media") or []:
             nm = m["name"]
-            if nm not in pdef["names"]:
-                self.prop_misses.append((nodetype, nm))
-                print(f"    !! {nodetype} lacks prop '{nm}' — media unit would VANISH",
-                      file=sys.stderr)
-                continue
-            props[nm + "Orig"] = m["orig"][:200_000]
+            n = nm[len("image"):]
+            mixins.append(f"{mixns}:contribImage{n}")
+            post[nm + "Orig"] = m["orig"][:200_000]
             dam = self.upload_dam(m.get("file"))
             if dam:
-                props[nm + "OrigRef"] = dam["uuid"]
+                post[nm + "OrigRef"] = dam["uuid"]
                 m["_dam"] = dam
         lnk = payload.get("link")
         if lnk:
-            if "linkOrig" in pdef["names"] or "j:linkType" in pdef["names"]:
-                props["linkOrig"] = lnk["href"][:1000]
-                kind, target = self.resolve_link(lnk["href"])
-                if kind:
-                    props["j:linkType"] = kind
-                lnk["_kind"], lnk["_target"] = kind, target
-            else:
-                self.prop_misses.append((nodetype, "linkOrig"))
-        return props
+            mixins.append(f"{mixns}:contribLink")
+            post["linkOrig"] = lnk["href"][:1000]
+            kind, target = self.resolve_link(lnk["href"])
+            lnk["_kind"], lnk["_target"] = kind, target
+            if kind == "external":
+                mixins.append("jmix:externalLink")
+                post["j:linkType"] = "external"
+                post["j:url"] = lnk["href"][:1000]
+            elif kind == "internal":
+                mixins.append("jmix:internalLink")
+                post["j:linkType"] = "internal"
+            if f.get("linkLabel"):
+                post["linkLabel"] = f["linkLabel"][:250]
+        return create_props, mixins, post
+
+    def apply_payload(self, path, mixins, post, payload, nodetype):
+        """Post-create wiring: addMixins (one GraphQL call), set the mixin-
+        carried props, then the weakrefs (media DAM copies, j:linknode). Any
+        failure here is LOST CONTENT — recorded in prop_misses (loud exit)."""
+        try:
+            if mixins:
+                ml = ", ".join(f'"{x}"' for x in dict.fromkeys(mixins))
+                self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                           '{ addMixins(mixins: [%s]) } } }' % (path, ml))
+            if post:
+                self.m.update(path, post, locale=self.locale)
+        except Exception as e:
+            self.prop_misses.append((nodetype, "mixins/props"))
+            print(f"    !! payload wiring on {path}: {str(e)[:160]}", file=sys.stderr)
+            return
+        self.wire_payload(path, payload)
 
     # weakref property names that are image/asset references (not node refs like startNode, excludeNodes)
     IMAGE_WEAKREF_PROPS = {"image", "backgroundImage", "logo", "photo", "icon"}
@@ -438,11 +456,12 @@ class Loader:
                 continue
 
             pdef = self.props_of(nt)
-            if not pdef["names"]:
+            if not pdef.get("exists"):
                 continue
+            mixins, post = [], {}
             if inst.get("promoted") or inst.get("skeleton"):
                 # typed skeleton instance OR lifted anonymous raw block (P2.5)
-                props = self.promoted_props(inst, pdef, nt)
+                props, mixins, post = self.promoted_props(inst, pdef, nt)
             else:
                 props = self.map_props(page, inst, pdef)
             is_container = any(c.get("nodeType") == nt and c.get("isContainer")
@@ -455,7 +474,8 @@ class Loader:
             kids = inst.get("children") or []
             if dry:
                 nest = "(nested)" if inst.get("parent") in created_path else ""
-                print(f"  [dry] {parent}/{name} <- {nt} {nest} props={list(props)}"
+                print(f"  [dry] {parent}/{name} <- {nt} {nest} props={list(props) + list(post)}"
+                      + (f" mixins={mixins}" if mixins else "")
                       + (f" +{len(kids)} item(s)" if kids else ""))
                 created_path[idx] = f"{parent}/{name}"
                 created += 1
@@ -469,9 +489,12 @@ class Loader:
                         path = r.get("path") if isinstance(r, dict) else None
                         break
                     except Exception as ce:
-                        # async deletion race: the old node vanishes when its
-                        # publication job lands — wait and retry, don't fail
-                        if "already exists" in str(ce) and attempt < 3:
+                        # retry-able: the async-deletion race ("already exists" —
+                        # the old node vanishes when its publication job lands)
+                        # AND transient MCP failures under sustained write load
+                        # ("failed unexpectedly", observed ~1-3% of creates)
+                        if attempt < 3 and ("already exists" in str(ce)
+                                            or "failed unexpectedly" in str(ce)):
                             time.sleep(2 * (attempt + 1))
                             continue
                         raise
@@ -479,10 +502,13 @@ class Loader:
                     created_path[idx] = path
                     created += 1
                     if inst.get("promoted") or inst.get("skeleton"):
-                        self.wire_payload(path, inst)  # media weakrefs + link mixins
-                    self.m.publish(path)
-                    published += 1
-                    label = props.get("heading") or (list(props.values())[0] if props else nt)
+                        # P2.5-D: per-node slot mixins, mixin props, weakrefs
+                        self.apply_payload(path, mixins, post, inst, nt)
+                    # publish AFTER the item children exist (below) — publishing
+                    # a parent while its subtree is still being created aborts
+                    # the publication job (observed live: 2 big articles whose
+                    # EDIT nodes never reached LIVE)
+                    label = post.get("jcr:title") or props.get("heading") or nt
                     print(f"  + {path}  ({str(label)[:48]})")
             except Exception as e:
                 print(f"  ! create {name} ({nt}) failed: {e}", file=sys.stderr)
@@ -498,19 +524,41 @@ class Loader:
                 else:
                     cpdef = self.props_of(cnt)
                     for n, ch in enumerate(kids):
-                        cprops = self.promoted_props(ch, cpdef, cnt)
+                        cprops, cmix, cpost = self.promoted_props(ch, cpdef, cnt)
                         try:
-                            rc = self.m.create(path, cnt, cprops,
-                                               name=f"item-{n + 1}", locale=self.locale)
+                            import time
+                            rc = None
+                            for attempt in range(4):
+                                try:
+                                    rc = self.m.create(path, cnt, cprops,
+                                                       name=f"item-{n + 1}", locale=self.locale)
+                                    break
+                                except Exception as ce:
+                                    if attempt < 3 and ("already exists" in str(ce)
+                                                        or "failed unexpectedly" in str(ce)):
+                                        time.sleep(2 * (attempt + 1))
+                                        continue
+                                    raise
                             cpath = rc.get("path") if isinstance(rc, dict) else None
                             if cpath:
                                 created += 1
-                                self.wire_payload(cpath, ch)
+                                self.apply_payload(cpath, cmix, cpost, ch, cnt)
                                 self.m.publish(cpath)
                                 published += 1
                         except Exception as e:
                             print(f"  ! item-{n + 1} ({cnt}) under {name} failed: {e}",
                                   file=sys.stderr)
+            if path:  # parent LAST — its subtree is complete and stable now
+                try:
+                    self.m.publish(path)
+                    published += 1
+                except Exception as e:
+                    print(f"  ! publish {name}: {str(e)[:120]}", file=sys.stderr)
+        if not dry and instances:
+            try:  # belt-and-braces: the area publication sweeps any straggler
+                self.m.publish(main_area)
+            except Exception:
+                pass
         return (created, published)
 
     def install_shell(self, page, pdata, page_base):
