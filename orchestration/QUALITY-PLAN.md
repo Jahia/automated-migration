@@ -504,3 +504,27 @@ Crawler JS-render only if the holdout demands it.
   - **The engine handled the FAILURE path correctly:** step PROBE RED → retried (max_attempts 3, vision is non-deterministic so each retry re-rolled) → stability stayed < 0.8 → run `failed`, `next_actions: [rollback, restart]`. Combined with the earlier success-path demo (gate HALT → approve → resume → done), the orchestrator is now proven on BOTH paths.
   - **I did NOT lower the 0.8 stability threshold.** That is the retroactive-threshold-change the plan forbids, and fudging a frozen gate to "make the holdout green" would betray the entire anti-overfit exercise. The honest verdict stands: **discoverasr is ACCEPTED at the mirror/acceptance gate (render-crawl) but its vision COMPONENT MODEL does not clear the frozen stability bar on this site's busy single-template DOM.** That maps a real boundary of the vision-segmentation approach — which is exactly what a holdout is for.
   - Legitimate (non-fudge) options if pursuing discoverasr further: (a) accept the boundary as reported; (b) a GENERIC robustness improvement to the stability estimate (single-cluster sites rest the estimate on one page — sample more pages of the same template, or N=3 majority) — only helps if the model is merely measurement-fragile, not fundamentally unstable; (c) `--segmentation heuristic` for this site (but that is a per-site choice bordering on overfit, and P2's A/B showed heuristics lose on fidelity). None of these is a threshold change.
+
+---
+
+## SESSION CONSOLIDATION (2026-07-03) — state of play, open questions, next steps
+
+**What is PROVEN (committed on `v2-heuristics`):**
+- **Contribution model (P2.5 A→E):** skeleton + DOM-marker lift + per-item child nodes + per-node slot mixins + media(DAM weakref)/link(j:linkType) + edit-mode item frames. Gates G1 (contribution coverage, 0 dead/phantom/shell), G5 (media/links), G6 (editor surface = forms.editForm + Page Builder frames), G2 (round-trip). acquia fully green.
+- **P3 generalization (Drupal/SXA/Next.js):** G1/G5 green on all deployed; ground truth acquia 18/18=100%, supercar 15/20 (residual = `<Area>` in a grid `div.row` stacks columns, §6), contentful 2/20≥99% but 18/20≥90% (residual = next/image srcset-variant selection — images present+editable, different responsive crop). 15 generic hardening fixes committed.
+- **SPA acceptance (render-crawl):** crawl captures the POST-HYDRATION DOM uniformly (no SPA branch). discoverasr mirror gate 5.6% BLOCKED → PASS (0 miss/404). Generalizes to unseen SPAs (vercel +44%, notion +82%). WAF beacons ignored, lazy `data-src` materialized.
+- **Orchestrator-driven (both paths):** real engine (`migration-orchestrator` :8001 + opencode :4096) drives steps via agents, PROBEs gate deterministically. Success path: gate HALT → `POST /gate {approve}` (audited) → resume → done. Failure path: PROBE RED → retry 3× → escalate. Two engine-integrity facts fixed: plan `repo_dir` must be ABSOLUTE (verifier cwd), engine binds 127.0.0.1.
+
+**HONEST BOUNDARIES (mapped, not bugs):**
+- discoverasr: ACCEPTED at the mirror gate, but its vision component MODEL fails the FROZEN 0.8 stability bar (0.733) on its busy single-template SPA home. Threshold deliberately NOT lowered.
+- A pure client-rendered SPA whose content isn't render-materializable (auth/personalized/infinite) still fails the mirror gate — correct.
+- Contribution floors (60/85) and stability (0.8) are FROZEN — never lowered to "make a site green".
+
+**OPEN ITEMS / NEXT STEPS (priority order):**
+1. **Wire the FULL P2.5/P3 plan into ONE engine run on a KNOWN-GOOD site (acquia)** — the full-loop orchestrator run has only been attempted on discoverasr (blocked at segment). Prove the engine drives module+content+G6+roundtrip+ground-truth end-to-end where the P3 manual fixes lived. gen_plan must emit an absolute repo_dir.
+2. **supercar homepage-variant drift (§6):** stop `main_content_root` descending into a multi-column grid `div.row`; validate no regression on the 15 passing pages + acquia + contentful before changing.
+3. **contentful next/image srcset-variant:** pin a single `<img src>` variant on both render sides, or align viewport/DPR, so image-grid pages reach ≥99%.
+4. **discoverasr (if pursued, non-fudge only):** generic stability-estimate robustness (multi-page sample for single-cluster sites / N=3 majority) — only if the instability is measurement-fragility, not fundamental.
+5. **Push the 20+ session commits to remote `fork`** (none pushed) — Julian's decision.
+
+**RUNNING PROCESSES:** engine (uvicorn :8001) + opencode (:4096) still up. Deployed Jahia sites: acquia, supercarv2, contentfulv2 (EE license caps ~1 active reliably — a `restart jahia` clears a transient "License terms violation"). discoverasr NOT deployed (blocked at segment).
