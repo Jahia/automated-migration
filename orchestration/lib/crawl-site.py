@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -211,6 +212,28 @@ def download(url, dest, rate_delay=RATE_DELAY, max_size=0):
     return False, 0
 
 
+def render_html(url, dest, timeout=60):
+    """Capture the POST-HYDRATION DOM via render_page.mjs (Playwright). The raw
+    HTTP response is the empty shell of any client-rendered site; this is what a
+    visitor actually sees. UNIFORM — every HTML page is rendered, no SPA branch
+    (a server-rendered page's post-JS DOM ≈ its HTML). Returns (ok, bytes)."""
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    here = os.path.dirname(os.path.abspath(__file__))
+    try:
+        r = subprocess.run(["node", os.path.join(here, "render_page.mjs"), url, dest],
+                           capture_output=True, text=True, timeout=timeout,
+                           cwd=os.path.dirname(os.path.dirname(here)))
+        if r.returncode == 0 and os.path.isfile(dest) and os.path.getsize(dest) > 0:
+            return True, os.path.getsize(dest)
+        if r.stderr:
+            print(f"  render fallback ({r.stderr.strip().splitlines()[-1][:80] if r.stderr.strip() else 'no output'})", file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        print(f"  render timeout → urllib fallback: {url}", file=sys.stderr)
+    except Exception as e:
+        print(f"  render error → urllib fallback: {str(e)[:80]}", file=sys.stderr)
+    return False, 0
+
+
 def extract_assets(html_path, base_url):
     """Extract asset URLs from an HTML file."""
     try:
@@ -267,6 +290,9 @@ def main():
     parser.add_argument('--force', action='store_true', help='Re-download even if cached')
     parser.add_argument('--max-asset-size', type=float, default=5, help='Skip assets larger than N MB (default 5)')
     parser.add_argument('--rate-delay', type=float, default=RATE_DELAY, help='Base delay between requests')
+    parser.add_argument('--no-render', action='store_true',
+                        help='disable browser rendering (raw HTTP only) — server-rendered sites '
+                             'only; client-rendered pages will capture the empty shell')
     args = parser.parse_args()
 
     proj = args.project
@@ -326,7 +352,15 @@ def main():
         else:
             print(f"  [{len(pages)+1}] {url}")
             time.sleep(rate_delay)
-            ok, _ = download(url, page_cache, rate_delay)
+            # render the post-hydration DOM (uniform; captures client-rendered
+            # content), fall back to raw HTTP if the render fails
+            ok = False
+            if not args.no_render:
+                ok, nbytes = render_html(url, page_cache)
+                if ok:
+                    print(f"      rendered {nbytes//1024} KB (post-hydration DOM)")
+            if not ok:
+                ok, _ = download(url, page_cache, rate_delay)
             if not ok:
                 failed.append({'url': url, 'error': 'download failed'})
                 continue
