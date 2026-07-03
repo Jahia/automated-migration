@@ -81,10 +81,11 @@ else
     || fail "provisioning API call failed (is module '$tset' deployed and started?)"
   [ -n "$out" ] && echo "$out" | head -3
   # provisioning createSite has NO languages parameter (verified in the Jahia
-  # log: SiteCreationInfo carries locale only) — set j:languages right after
-  vals=""
-  for l in ${langs//,/ }; do vals="$vals\\\"$l\\\", "; done
-  vals="${vals%, }"
+  # log: SiteCreationInfo carries locale only) — set j:languages right after.
+  # values as a JSON list (bash-escaping the GraphQL string double-quotes was
+  # fragile — the mutation silently no-op'd, observed live on contentfulv2)
+  vals="$(printf '"%s",' ${langs//,/ } | sed 's/,$//')"
+  sleep 3  # site node must exist in EDIT before the mutation
   gql "mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: \"/sites/$site\") { p: mutateProperty(name: \"j:languages\") { setValues(values: [$vals]) } } } }" >/dev/null \
     || echo "[create_site] WARN: post-create language set failed"
 fi

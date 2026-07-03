@@ -22,9 +22,13 @@ try {
   await p.click('button[type="submit"], input[type="submit"]').catch(() => {});
   await p.waitForTimeout(2500);
   await p.goto(`${host}/jahia/jcontent/${site}/${lang}/pages/${path}`,
-               { waitUntil: "networkidle", timeout: 60000 }).catch(() => {});
-  await p.waitForTimeout(7000);
-  const fr = p.frames().find((f) => f.url().includes("editframe"));
+               { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => {});
+  let fr = null;
+  for (let i = 0; i < 12; i++) {
+    await p.waitForTimeout(2500);
+    fr = p.frames().find((f) => f.url().includes("editframe"));
+    if (fr) break;
+  }
   if (!fr) {
     out.error = "no editframe iframe (Page Builder did not load)";
   } else {

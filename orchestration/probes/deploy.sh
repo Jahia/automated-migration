@@ -38,7 +38,7 @@ UP="${JAHIA_USER:-root}"; [[ "$UP" == *:* ]] || UP="$UP:${JAHIA_PASS:-root}"
 ns="$(grep -oE '^\[[a-zA-Z][a-zA-Z0-9]*:rawHtml\]' "$proj/settings/definitions.cnd" 2>/dev/null | head -1 | tr -d '[]' | cut -d: -f1)"
 if [ -n "$ns" ] && grep -q "\[$ns:rawHtml\]" "$proj/settings/definitions.cnd" 2>/dev/null; then
   ok=""
-  for _i in $(seq 1 15); do
+  for _i in $(seq 1 30); do
     if curl -sf -u "$UP" -H "Origin: $HOST" -H 'Content-Type: application/json' \
         -X POST "$HOST/modules/graphql" \
         -d "{\"query\":\"{ jcr { nodeTypesByNames(names: [\\\"$ns:rawHtml\\\"]) { name } } }\"}" \

@@ -121,7 +121,7 @@ class Loader:
             h["Origin"] = self.m.host
             h["Content-Type"] = mime
             req = urllib.request.Request(r["uploadUrl"], data=data, method="PUT", headers=h)
-            urllib.request.urlopen(req, timeout=120).read()
+            self.m._urlopen_retry(req, timeout=120)  # transient-reset safe
             fin = self.m.call("media.upload.finalize", {"token": r["token"]})
             entry = {"path": fin["path"], "uuid": fin["identifier"]}
             self.m.publish(entry["path"])  # weakref targets must resolve in LIVE

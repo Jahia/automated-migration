@@ -42,13 +42,33 @@ class MCP:
             h["Authorization"] = "Basic " + base64.b64encode(self.user.encode()).decode()
         return h
 
+    @staticmethod
+    def _urlopen_retry(req, timeout=60, tries=5):
+        """Transport-level retry for TRANSIENT network faults — the MCP server
+        drops connections under sustained write load (observed live: a 384-media
+        site → 'Connection reset by peer' cascading into lost content). HTTP
+        error responses (4xx/5xx) are NOT retried here; they carry tool errors
+        the caller must see."""
+        import socket
+        import time
+        last = None
+        for i in range(tries):
+            try:
+                return urllib.request.urlopen(req, timeout=timeout).read()
+            except urllib.error.HTTPError:
+                raise  # real HTTP status — surface it
+            except (ConnectionResetError, ConnectionError, socket.timeout,
+                    urllib.error.URLError, OSError) as e:
+                last = e
+                time.sleep(1.5 * (i + 1))
+        raise last
+
     def call(self, tool, arguments):
         """Invoke an MCP tool. Returns the parsed result payload (dict) or raises."""
         body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                            "params": {"name": tool, "arguments": arguments}}).encode()
         req = urllib.request.Request(self.host + "/modules/mcp", body, self._headers())
-        with urllib.request.urlopen(req, timeout=60) as r:
-            resp = json.load(r)
+        resp = json.loads(self._urlopen_retry(req, timeout=60))
         if "error" in resp:
             raise RuntimeError(f"MCP {tool} error: {resp['error']}")
         result = resp.get("result", {})
@@ -101,8 +121,7 @@ class MCP:
         h = self._headers()
         h["Origin"] = self.host
         req = urllib.request.Request(self.host + "/modules/graphql", body, h)
-        with urllib.request.urlopen(req, timeout=60) as r:
-            out = json.loads(r.read().decode())
+        out = json.loads(self._urlopen_retry(req, timeout=60).decode())
         if out.get("errors"):
             raise RuntimeError(f"GraphQL error: {out['errors'][:2]}")
         return out.get("data")

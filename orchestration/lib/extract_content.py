@@ -260,9 +260,18 @@ def load_runtime_map(project):
         if not f:
             continue
         RUNTIME_URL_MAP[k] = f
+        # markup references the SAME asset in several URL forms — register each
+        # so the static rewrite matches whatever the captured HTML actually uses
+        # (observed live: manifest key `https://host/path`, HTML uses the
+        # protocol-relative `//host/path`; contentful CDN logos + discoverasr's
+        # absolute refs were left un-rewritten -> broken for real visitors).
         if k.startswith(("http://", "https://")):
-            path = re.sub(r"^https?://[^/]+", "", k)
-            if path:
+            proto_rel = re.sub(r"^https?:", "", k)           # //host/path
+            RUNTIME_URL_MAP.setdefault(proto_rel, f)
+            RUNTIME_URL_MAP.setdefault(
+                ("http:" if k.startswith("https:") else "https:") + proto_rel, f)
+            path = re.sub(r"^https?://[^/]+", "", k)          # /path
+            if path and path != k:
                 RUNTIME_URL_MAP.setdefault(path, f)
 
 
