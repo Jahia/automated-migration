@@ -19,6 +19,8 @@ Same-origin base = the engine (default `http://localhost:8001`).
 | `GET` | `/runs/{id}/quality` | the green/amber/red verdict alone (active gate) |
 | `GET` | `/runs/{id}/log?since=<ts>&limit=N` | poll-friendly log tail (events + streaming + errors) |
 | `POST` | `/runs/{id}/gate` | `{decision: approve\|reject\|rerun, reason, pages?}` — typed, **audited** gate decision |
+| `GET` | `/runs/{id}/decisions` | pending **decision bundles** (attempts, strategies remaining/applied, probe stdout/stderr tails, inputs) |
+| `POST` | `/runs/{id}/steps/{step_id}/decide` | `{strategy_id?, rules?, rules_file?, patch?, action, rerun_from?, rationale}` — typed, **audited** decision |
 | `POST` | `/runs/{id}/rollback` | `{to_step, reason}` — re-run from an earlier step, reset dependents (audited) |
 | `GET` | `/runs/{id}/artifacts/{path}` | raw artifact (e.g. `reconstruct/reconstruct.json`, `component-manifest.json`) |
 | `POST` | `/runs/{id}/pause` · `/resume` · `/abort` | lifecycle |
@@ -31,10 +33,60 @@ Same-origin base = the engine (default `http://localhost:8001`).
   (survives engine restarts). The run stays paused: a rejected step behaves like a
   failed step with no retries left, until the operator uses `jump`/`rollback` to
   redo it (jump to the rejected step resets it to re-run).
-- `POST /runs/{id}/resume` with a `halted` or `rejected` step present is refused:
-  the run stays paused and the engine logs which step blocks it and what to do
-  (approve/reject via the gate endpoint, or jump/rollback). Resuming is never a
-  silent approval.
+- `POST /runs/{id}/resume` with a `halted`, `rejected` or `decision_pending` step
+  present is refused: the run stays paused and the engine logs which step blocks it
+  and what to do (approve/reject via the gate endpoint, decide via the decide
+  endpoint, or jump/rollback). Resuming is never a silent approval.
+
+## Decision points (ASSIST-PLAN §3) — `decision_pending` + `/decide`
+
+A step reaches **`decision_pending`** (run → `paused`, persisted, survives engine
+restarts) in two cases:
+
+1. **Retries exhausted with strategies left.** `attempt` is a 1-based execution
+   counter and `max_attempts` the total budget; when the budget is spent and the
+   step carries unconsumed `strategies`, it parks as `decision_pending` instead of
+   failing the run. Strategies exhausted + still red → `failed` as before.
+2. **Review steps** (`review: true`, e.g. `step_model_review`): scheduled
+   checkpoints the engine NEVER sends to an agent — selection = `decision_pending`.
+   Review steps are exempt from the deploy/content PROBE plan lint.
+
+`GET /runs/{id}/decisions` returns the decision bundle per pending step: attempts,
+strategies remaining/applied, last verification errors + probe stdout/stderr tails
+(from the audit trail), step inputs, and the derived default scope-rules file.
+`status.gate` shows `{type: "decision", step_id, summary}` with
+`next_actions: ["decide", "rollback", "restart"]`.
+
+`POST /runs/{id}/steps/{step_id}/decide` — the ONLY way out of `decision_pending`:
+
+```jsonc
+{
+  "strategy_id": "consensus3",      // pre-registered on the step (single-shot)
+  "rules": [{"id": "exclude-consent-banner", "action": "exclude",
+             "match": {"selector": "#onetrust-banner-sdk"}, "scope": "site",
+             "reason": "…", "decidedBy": "claude", "date": "2026-07-03"}],
+  "rules_file": null,                // default: <projects/X>/workflow-output/scope-rules.json
+  "patch": null,                     // free-form — autonomy=manual (Julian) ONLY
+  "action": "apply_and_rerun",       // or "proceed" (review steps: step → done)
+  "rerun_from": null,                // default: the decided step (arm swap: the patched arm)
+  "rationale": "stability RED 0.733; widen the estimator"   // required, audited
+}
+```
+
+- **`strategy_id`** applies the strategy's `patches` (full replacement of the
+  provided fields on each target step) and `skip` list (steps marked done without
+  execution), then resets + reruns via the jump machinery (dependents reset). A
+  `halt: true` strategy (manual_review) converts the decision into a `halted` gate
+  (`gate_type: "segmentation"`) for Julian instead.
+- **`rules`** are appended (deduped by id) to the project's `scope-rules.json`
+  whatever the action — pattern-keyed only (`selector`/`signature`, never a page
+  URL). Emitting rules with no strategy reruns the decided step against them.
+- **Frozen bars never move:** the plan lint refuses any non-`arm_swap` strategy
+  patch that drops/modifies a `PROBE:` line of its target step, and `/decide`
+  refuses free-form patches that do — free-form patches additionally require
+  `autonomy: "manual"`.
+- Every decision lands in the event log as a `decision` event (strategy, patch,
+  rules, rationale) — same audit contract as `gate_decision`.
 
 ### `GET /runs/{id}/status` (the poll target)
 
@@ -141,6 +193,12 @@ Rules of thumb for an assisted agent:
   at least one `PROBE:` line in `acceptance_criteria` — the error lists the offending
   steps. Any other step with zero PROBEs is only logged as a warning (it auto-passes
   on the agent's self-report).
+- **Retries actually retry (fixed 2026-07-03).** The old retry branch re-queued a
+  failed step as `ready`, which `select_next_ready_step` never picks — every step
+  silently got ZERO retries (P4: step_segment died at attempt 1/3). Failed steps
+  now re-queue as `pending`; the same fix applies to answered `waiting_human`
+  steps, and the human answer is now injected into the rebuilt prompt
+  ("Réponse humaine à ta question précédente: …").
 - **`gate` vs `resume` vs `jump` vs `restart`** — four different tools:
   - `POST /runs/{id}/gate {approve|reject}` — decides a halted gate (see above).
     Approve is the only halted→done path; reject persists a `rejected` step state.

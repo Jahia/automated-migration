@@ -39,21 +39,54 @@ def _has_probe(step_input: StepInput) -> bool:
     return any(PROBE_RE.match(c) for c in step_input.acceptance_criteria or [])
 
 
+def probe_lines(criteria: list[str] | None) -> list[str]:
+    return [c for c in (criteria or []) if PROBE_RE.match(c)]
+
+
 def lint_plan(plan: PlanInput) -> None:
-    """Plan-load gate: deploy/content/publish/scaffold steps without a PROBE
-    fail creation; any other PROBE-less step is only warned (it will auto-pass
-    on the agent's self-report)."""
+    """Plan-load gate:
+    - deploy/content/publish/scaffold steps without a PROBE fail creation
+      (review:true steps are exempt — the engine never sends them to an agent);
+    - any other PROBE-less step is only warned (it will auto-pass on the
+      agent's self-report);
+    - strategy patches must PRESERVE every PROBE: line of the target step
+      verbatim (additions allowed) unless the strategy is a generator-emitted
+      arm_swap — frozen bars live in probe code, patches never touch them."""
     offenders: list[str] = []
     unprobed: list[str] = []
+    strategy_offenders: list[str] = []
+    steps_by_id: dict[str, StepInput] = {
+        step.id: step for epic in plan.epics for story in epic.stories for step in story.steps
+    }
     for epic in plan.epics:
         for story in epic.stories:
             for step in story.steps:
-                if _has_probe(step):
+                for strat in step.strategies or []:
+                    for patch in strat.patches:
+                        target = steps_by_id.get(patch.step_id)
+                        if target is None:
+                            strategy_offenders.append(
+                                f"{step.id}/{strat.id}: patch targets unknown step '{patch.step_id}'")
+                            continue
+                        if strat.arm_swap or patch.acceptance_criteria is None:
+                            continue
+                        missing = [p for p in probe_lines(target.acceptance_criteria)
+                                   if p not in patch.acceptance_criteria]
+                        if missing:
+                            strategy_offenders.append(
+                                f"{step.id}/{strat.id} → {patch.step_id}: PROBE line(s) removed or "
+                                f"modified (arm_swap=false forbids it): {'; '.join(m[:120] for m in missing)}")
+                if _has_probe(step) or step.review:
                     continue
                 if GATED_STEP_RE.search(step.id) or GATED_STEP_RE.search(step.title):
                     offenders.append(f"{epic.id}/{story.id}/{step.id} ({step.title})")
                 else:
                     unprobed.append(step.id)
+    if strategy_offenders:
+        raise PlanLintError(
+            "plan lint: non-arm_swap strategy patches must preserve every PROBE: line of the "
+            "target step verbatim — " + "; ".join(strategy_offenders)
+        )
     if offenders:
         raise PlanLintError(
             "plan lint: deploy/content/publish/scaffold steps must carry at least one "
@@ -75,6 +108,8 @@ def build_step_state(step_input: StepInput, story_id: str) -> StepState:
         expected_outputs=step_input.expected_outputs,
         acceptance_criteria=step_input.acceptance_criteria,
         max_attempts=step_input.max_attempts,
+        strategies=step_input.strategies,
+        review=step_input.review,
     )
 
 
@@ -220,13 +255,22 @@ def find_halted_step(run: RunState) -> tuple[EpicState, StoryState, StepState] |
 
 def gate_blocked_step(run: RunState) -> StepState | None:
     """The step (if any) that blocks a plain resume: a halted gate awaiting an
-    approve/reject decision, or a rejected gate awaiting jump/rollback."""
+    approve/reject decision, a rejected gate awaiting jump/rollback, or a
+    decision_pending step awaiting POST /decide."""
     for epic in run.epics:
         for story in epic.stories:
             for step in story.steps:
-                if step.status in (StepStatus.halted, StepStatus.rejected):
+                if step.status in (StepStatus.halted, StepStatus.rejected, StepStatus.decision_pending):
                     return step
     return None
+
+
+def find_decision_steps(run: RunState) -> list[tuple[EpicState, StoryState, StepState]]:
+    return [(epic, story, step)
+            for epic in run.epics
+            for story in epic.stories
+            for step in story.steps
+            if step.status == StepStatus.decision_pending]
 
 
 def approve_gate_step(step: StepState) -> bool:
@@ -250,8 +294,9 @@ def normalize_for_resume(run: RunState) -> None:
       - failed step: give it fresh attempts;
       - failed story/epic with runnable work left: back to pending so
         select_next_ready_* re-enters instead of re-failing immediately.
-    Halted and rejected steps are left UNTOUCHED — resume never decides a gate
-    (gate_blocked_step refuses the resume outright while one exists)."""
+    Halted, rejected AND decision_pending steps are left UNTOUCHED — resume
+    never decides a gate or a decision point (gate_blocked_step refuses the
+    resume outright while one exists)."""
     for epic in run.epics:
         for story in epic.stories:
             for step in story.steps:

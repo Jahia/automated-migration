@@ -55,16 +55,25 @@ def main():
     if not os.path.isdir(seg_dir):
         sys.exit(f"FAIL: {seg_dir} missing (run segment_probe first)")
 
+    # Cluster-aware merge (ASSIST-PLAN B2 / protocol v2): only PASSING pages feed
+    # the manifest — gatePass true (v1 stability or v2 consensus) or adjudicated
+    # true (B6, green-by-adjudication). Non-passing pages are SKIPPED and logged,
+    # never silently merged; the run-level verdict is segment-check.json's
+    # majority gate, not this filter.
     segs = []
+    skipped = []
     for fn in sorted(os.listdir(seg_dir)):
-        if fn.endswith(".segmentation.json"):
-            segs.append(json.load(open(os.path.join(seg_dir, fn))))
-    segs = [s for s in segs if s.get("ok")]
+        if not fn.endswith(".segmentation.json"):
+            continue
+        s = json.load(open(os.path.join(seg_dir, fn)))
+        if s.get("gatePass") is True or s.get("adjudicated") is True:
+            segs.append(s)
+        else:
+            skipped.append(fn)
+    for fn in skipped:
+        print(f"  ! skipping non-passing segmentation: {fn}", file=sys.stderr)
     if not segs:
-        sys.exit("FAIL: no successful segmentations")
-    red = [s["slug"] for s in segs if not s.get("gatePass")]
-    if red:
-        sys.exit(f"FAIL: segmentation gate RED on {red} — fix before assembling a manifest")
+        sys.exit("FAIL: no passing segmentations")
 
     # detail templates (heuristic prior, vocabulary-independent)
     detail = {}

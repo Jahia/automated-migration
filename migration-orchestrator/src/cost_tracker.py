@@ -24,6 +24,11 @@ MODEL_PRICING = {
 
 DEFAULT_PRICING = (0.07, 0.28, 0.014)  # DeepSeek V4 Flash
 
+# Absolute, anchored on the engine package dir (…/migration-orchestrator/costs).
+# A relative default resolved against the process CWD and nested a spurious
+# migration-orchestrator/migration-orchestrator/costs/ tree (ASSIST-PLAN C3).
+DEFAULT_COST_DIR = Path(__file__).resolve().parent.parent / "costs"
+
 
 def calculate_cost(tokens_in: int, tokens_out: int, tokens_cache: int = 0,
                    model: str = "deepseek/deepseek-v4-flash") -> dict:
@@ -54,7 +59,7 @@ def calculate_cost(tokens_in: int, tokens_out: int, tokens_cache: int = 0,
 
 
 def write_run_cost(run_id: str, model: str, steps: list[dict],
-                   cost_dir: str | Path = "migration-orchestrator/costs") -> dict:
+                   cost_dir: str | Path = DEFAULT_COST_DIR) -> dict:
     """Write a cost report for a completed run.
 
     Args:

@@ -31,15 +31,90 @@ def step(id, title, task_type, criteria, deps=None, inputs=None, agent="code",
     return s
 
 
+def review_step(id, title, criteria, deps=None, inputs=None):
+    """Scheduled decision point (ASSIST-PLAN §3 A6): the engine NEVER sends it
+    to an agent — when selected it becomes decision_pending and the run pauses.
+    Exempt from the deploy/content PROBE lint (no PROBE lines by design)."""
+    s = step(id, title, "verify", criteria, deps=deps, inputs=inputs)
+    s["review"] = True
+    return s
+
+
 def build_plan(p):
     P, URL, NS, MIXNS = p["project"], p["url"], p["ns"], p["mixns"]
     SITE, MODULE, TITLE = p["site"], p["module"], p["title"]
     N, THR = p["max_pages"], p["threshold"]
+    K = p.get("per_cluster", 3)
     SEGMENTATION = p.get("segmentation", "vision")
     PP = f"projects/{P}"
     URI = f"https://jahia.com/{P}/nt/1.0"
     common = {"project": P, "project_path": PP, "namespace": NS,
               "mixNamespace": MIXNS, "siteKey": SITE, "moduleName": MODULE}
+
+    # ── segmentation gate (protocol v2, ASSIST-PLAN §7) ──────────────────
+    # The REAL segmentation work is an engine-enforced PROBE (segment_probe is
+    # incremental, so retries never re-bill vision; a Run: agent step would hit
+    # the 600s opencode completion deadline). Strategy patches with
+    # arm_swap=false must carry this line VERBATIM (plan lint).
+    SEG_PROBE = (f"PROBE[2700]: node orchestration/lib/segment_probe.mjs {PP} "
+                 f"--consensus --stability 3 --per-cluster {K}")
+
+    # heuristic-arm criteria — the SAME lines gen_plan emits for
+    # --segmentation heuristic; reused verbatim by the heuristic_arm swap.
+    heuristic_criteria = [
+        f"Run: python3 orchestration/lib/group_llm.py {PP} --model deepseek-v4-flash --ns {NS} --out {PP}/workflow-output/grouping.json",
+        f"PROBE: python3 orchestration/lib/assemble_manifest.py {PP}/workflow-output/semantic-candidates.json --group {PP}/workflow-output/grouping.json --ns {NS} --out {PP}/workflow-output/component-manifest.json"]
+
+    # Pre-registered strategy library for the segmentation decision point
+    # (ASSIST-PLAN §4 B4-B6). consensus3/per-cluster sampling are NOT
+    # strategies — they ARE the v2 default probe. Each strategy is single-shot.
+    seg_strategies = [
+        {"id": "claude_adjudicate",
+         "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
+         "when": "on_retries_exhausted", "order": 1, "arm_swap": False, "halt": False,
+         "patches": [{"step_id": "step_segment",
+                      "inputs": {"project": PP},
+                      "acceptance_criteria": [
+                          f"Run: node orchestration/lib/adjudicate_ingest.mjs {PP}",
+                          SEG_PROBE]}],
+         "skip": [],
+         "notes": ("The assistant reviews <slug>.segmap.html + <slug>.page.png and writes "
+                   f"{PP}/workflow-output/segment/adjudication/<slug>.json (rootIds validated "
+                   "against the real block universe — hallucination-impossible). ingest "
+                   "converts them to adjudicated segmentations; the SAME probe then re-checks "
+                   "cluster majority with adjudicated pages counting green-by-adjudication.")},
+        {"id": "ab_test",
+         "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
+         "when": "on_retries_exhausted", "order": 2, "arm_swap": False, "halt": False,
+         "patches": [{"step_id": "step_segment",
+                      "inputs": {"project": PP},
+                      "acceptance_criteria": [
+                          "Run: echo ab evidence",
+                          f"PROBE[2700]: bash orchestration/lib/ab_segment.sh {PP}",
+                          SEG_PROBE]}],
+         "skip": [],
+         "notes": ("Information strategy: runs the heuristic arm into "
+                   f"{PP}/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and "
+                   f"writes {PP}/workflow-output/segment/ab-report.json. The original gate is "
+                   "unchanged and probably still red — the NEXT decision has the A/B report.")},
+        {"id": "heuristic_arm",
+         "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
+         "when": "on_retries_exhausted", "order": 3, "arm_swap": True, "halt": False,
+         "patches": [{"step_id": "step_group",
+                      "inputs": {"project": PP},
+                      "acceptance_criteria": heuristic_criteria}],
+         "skip": ["step_segment"],
+         "notes": ("Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-"
+                   "PROBE lint): step_segment is skipped and step_group becomes the exact "
+                   "criteria gen_plan emits for --segmentation heuristic.")},
+        {"id": "manual_review",
+         "title": "Manual review (Julian): halt with the segmentation bundle",
+         "when": "on_retries_exhausted", "order": 4, "arm_swap": False, "halt": True,
+         "patches": [], "skip": [],
+         "notes": ("Converts the decision into halted (gate_type: segmentation) with the review "
+                   "bundle (segmap overlays, consensus diff). Overriding a red segmentation "
+                   "gate is Julian's prerogative only — recorded as a waiver.")},
+    ]
 
     analyze = [
         step("step_connect", "Env + Jahia reachable", "verify",
@@ -54,7 +129,8 @@ def build_plan(p):
               f"PROBE[900]: node orchestration/lib/mirror_probe.mjs {PP} 10"],
              deps=["step_crawl"]),
         step("step_semantic", "Deterministic candidates + partitions", "build",
-             [f"Run: python3 orchestration/lib/semantic_extract.py {PP}",
+             [f"Run: python3 orchestration/lib/scope_apply.py {PP}",
+              f"Run: python3 orchestration/lib/semantic_extract.py {PP}",
               f"PROBE: test -s {PP}/workflow-output/semantic-candidates.json",
               f"PROBE: test -s {PP}/workflow-output/semantic-templates.json"],
              deps=["step_localize"]),
@@ -62,10 +138,14 @@ def build_plan(p):
         # A/B winner judged by the ground-truth gate); --segmentation heuristic
         # keeps the LLM-grouping arm for comparisons. The vision step keeps the
         # id "step_group" so every downstream dependency is identical.
-        *([step("step_segment", "Vision segmentation (gated + stability)", "build",
-                [f"Run: node orchestration/lib/segment_probe.mjs {PP}",
-                 f"PROBE: ls {PP}/workflow-output/segment/*.segmentation.json"],
-                deps=["step_semantic"]),
+        # step_segment's Run: is a trivial echo — the REAL work is the engine-
+        # enforced PROBE (avoids the 600s opencode completion deadline;
+        # segment_probe is incremental so retries never re-bill vision).
+        *([{**step("step_segment", "Vision segmentation (protocol v2: consensus + per-cluster)", "build",
+                   ["Run: echo segmentation is executed by the engine probe",
+                    SEG_PROBE],
+                   deps=["step_semantic"]),
+            "strategies": seg_strategies},
            step("step_group", "Vision -> manifest + contribution dial", "build",
                 [f"Run: python3 orchestration/lib/segment2manifest.py {P} --ns {NS}",
                  f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
@@ -74,9 +154,16 @@ def build_plan(p):
                 deps=["step_segment"])]
           if SEGMENTATION == "vision" else
           [step("step_group", "LLM grouping (bounded) + partition gate", "build",
-                [f"Run: python3 orchestration/lib/group_llm.py {PP} --model deepseek-v4-flash --ns {NS} --out {PP}/workflow-output/grouping.json",
-                 f"PROBE: python3 orchestration/lib/assemble_manifest.py {PP}/workflow-output/semantic-candidates.json --group {PP}/workflow-output/grouping.json --ns {NS} --out {PP}/workflow-output/component-manifest.json"],
+                heuristic_criteria,
                 deps=["step_semantic"])]),
+        # Scheduled decision point A6-1: the assistant judges the component
+        # model EDITORIALLY (migration rule 21) before any extraction — may
+        # emit pattern-keyed scope rules or proceed. Reached ALWAYS.
+        review_step("step_model_review", "Model review (scheduled decision point)",
+                    [f"Review: {PP}/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and {PP}/workflow-output/segment/*.segmap.html overlays.",
+                     f"Decide: POST /runs/{{run_id}}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to {PP}/workflow-output/scope-rules.json + action=apply_and_rerun.",
+                     "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."],
+                    deps=["step_group"]),
         # P2.5: extraction BEFORE the CND — cnd_emit sizes the body..bodyN
         # richtext props per type from the OBSERVED lift (wired-only types:
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
@@ -84,7 +171,7 @@ def build_plan(p):
              [f"Run: python3 orchestration/lib/extract_content.py {P}",
               f"PROBE: python3 orchestration/probes/partition.py {P}",
               f"PROBE: python3 orchestration/probes/contribution.py {P}"],
-             deps=["step_group"]),
+             deps=["step_model_review"]),
         step("step_cnd", "Emit CND + view plan (wired-only sizing)", "build",
              [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json --content-load orchestration/content/{P}.content-load.json",
               f"PROBE: test -s {PP}/workflow-output/definitions.cnd",
@@ -165,14 +252,28 @@ def build_plan(p):
         step("step_roundtrip", "G2 contribution round-trip (sentinel edits)", "verify",
              [f"PROBE[900]: python3 orchestration/probes/roundtrip.py {P} {SITE}"],
              deps=["step_editor_surface"]),
+        # Scheduled decision point A6-2: end-of-batch exceptions review — ONE
+        # checkpoint for the whole batch, never per page.
+        review_step("step_exceptions_review", "Batch exceptions review (scheduled decision point)",
+                    [f"Review: per-page probe results ({PP}/workflow-output/contribution + partition + publish-parity + roundtrip outputs) and the exceptions report — pages that did not fit the frozen profile.",
+                     f"Decide: POST /runs/{{run_id}}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into {PP}/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
+                     "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."],
+                    deps=["step_roundtrip"]),
     ]
 
     groundtruth = [
         step("step_ground_truth", "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)", "verify",
              [f"PROBE[900]: bash orchestration/probes/groundtruth.sh {P} {SITE} 99",
               "Gate: present groundtruth/review.html per-page fidelity, return status halt."],
-             deps=["step_roundtrip"]),
+             deps=["step_exceptions_review"]),
     ]
+
+    # every step carries inputs.project = the project PATH (^projects/...) —
+    # the engine derives the scope-rules file (<PP>/workflow-output/
+    # scope-rules.json) from it at /decide time.
+    for grp in (analyze, module, content, groundtruth):
+        for s in grp:
+            s["inputs"].setdefault("project", PP)
 
     def epic(id, title, goal, steps):
         return {"id": id, "title": title, "goal": goal,
@@ -206,6 +307,8 @@ def main():
     ap.add_argument("--module")
     ap.add_argument("--title")
     ap.add_argument("--max-pages", type=int, default=18)
+    ap.add_argument("--per-cluster", type=int, default=3,
+                    help="protocol v2: pages sampled per template cluster (k)")
     ap.add_argument("--threshold", type=int, default=95)
     ap.add_argument("--model", default="opencode/deepseek-v4-flash")
     ap.add_argument("--segmentation", choices=["vision", "heuristic"], default="vision",
@@ -219,6 +322,7 @@ def main():
         "module": a.module or a.project,
         "title": a.title or f"{a.site} (migrated)",
         "max_pages": a.max_pages, "threshold": a.threshold,
+        "per_cluster": a.per_cluster,
         "segmentation": a.segmentation,
         "model": a.model, "repo_dir": a.repo_dir,
     }

@@ -203,6 +203,21 @@ intact: adjudication happens at a decision point, applies cluster-wide, batch un
 manual_review]` — assistant adjudication is tried before sacrificing fidelity to the
 heuristic arm.
 
+**Implementation decisions (2026-07-03, recorded at build time, pre-measurement):**
+- `consensus3` + `sample3` are folded into the DEFAULT probe: protocol v2 (§7) **is** the
+  emitted `step_segment` (`--consensus --stability 3 --per-cluster 3`), not a fallback. The
+  registered fallback ladder is therefore `[claude_adjudicate, ab_test, heuristic_arm,
+  manual_review]`.
+- `step_segment` runs as `PROBE[2700]` (engine-executed, per-probe timeout) with a trivial
+  Run line — this settles M2 question (b) by construction: no opencode 600s completion
+  deadline applies, retries re-run the probe, and the probe's incremental skip prevents
+  re-billing vision calls. It also removes the "agent self-reports green" ambiguity seen in
+  P4: the probe output is the only record.
+- Adjudication mechanics: the assistant writes proposal files
+  (`workflow-output/segment/adjudication/<slug>.json`) as ATTACHMENTS to the audited
+  `claude_adjudicate` decision (the decision event carries the rationale; `adjudicate_ingest`
+  validates ids against the real block universe and refuses hallucinated ids).
+
 ## 5. Scope rules — editorial decisions as generalized data (second decision type)
 
 Strategy decisions (§4) change **how evidence is gathered**. Scope rules change **what is in

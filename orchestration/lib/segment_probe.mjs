@@ -24,13 +24,25 @@
 // decides by best-agreeing pair. Also dumps the data-seg-annotated DOM
 // (<slug>.dom.html) for the deterministic segmentation->manifest adapter.
 //
+// PROTOCOL v2 (ASSIST-PLAN §7, pre-registered): --consensus runs N (--stability,
+// default 3) gated segmentations UPFRONT per page; page agreement = MEAN pairwise
+// Jaccard of the component root-sets; the emitted run is the MEDOID (max summed
+// Jaccard vs the others); page PASS iff agreement >= 0.8 AND coverage >= 50 (both
+// FROZEN constants — never flags). Pages are sampled per cluster (--per-cluster k
+// = each cluster's first k pages); cluster PASS = strict majority of its sampled
+// pages; gate GREEN iff every cluster passes. segment-check.json switches to the
+// v2 cluster shape and already-passing pages (protocol v2 or adjudicated) are
+// skipped unless --force. WITHOUT --consensus, behavior is exactly v1 above.
+//
 // Usage: node segment_probe.mjs <project> --pages <slug>[,slug2]
 //        [--retries 3] [--min-coverage 50] [--stability 2]
+//        [--consensus] [--per-cluster k] [--force]   (protocol v2)
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
 import { ovhVision, downscalePng, extractJson, OVH_VISION_MODEL } from './ovh_vision.mjs';
+import { STABILITY_BAR, MIN_COVERAGE_BAR, meanPairwiseJaccard, medoidIndex, consensusRootIds, pagePassV2, clusterPassV2 } from './segment_consensus.mjs';
 
 const argv = process.argv.slice(2);
 const flags = {}; const pos = [];
@@ -40,17 +52,26 @@ for (let i = 0; i < argv.length; i++) {
   else pos.push(a);
 }
 const proj = pos[0];
-if (!proj) { console.error('usage: segment_probe.mjs <project> --pages slug[,slug2]'); process.exit(2); }
+if (!proj) { console.error('usage: segment_probe.mjs <project> --pages slug[,slug2] [--consensus] [--per-cluster k] [--force]'); process.exit(2); }
+const CONSENSUS = !!flags.consensus;   // protocol v2 (ASSIST-PLAN §7)
+const FORCE = !!flags.force;
 const mirrorDir = path.resolve(`${proj}/workflow-output/local-mirror`);
 const outDir = `${proj}/workflow-output/segment`;
 fs.mkdirSync(outDir, { recursive: true });
 const inv = JSON.parse(fs.readFileSync(`${proj}/workflow-output/page-inventory.json`, 'utf8'));
 // default page set (P2.2 multi-page): one representative per TEMPLATE CLUSTER
-// (semantic-templates.json) — segmentation is per-cluster, not per-page
+// (semantic-templates.json) — segmentation is per-cluster, not per-page.
+// --per-cluster k (B1) widens the sample to each cluster's first k pages.
 let defaultPages = inv.pages.slice(0, 1).map(p => p.slug);
+const clusterOf = {};   // slug -> clusterId, for the v2 per-cluster gate
 try {
   const tpl = JSON.parse(fs.readFileSync(`${proj}/workflow-output/semantic-templates.json`, 'utf8'));
-  const reps = (tpl.clusters || []).map(c => (c.pages || [])[0]).filter(Boolean);
+  const perCluster = Math.max(1, Number(flags['per-cluster']) || 1);
+  const reps = [];
+  for (const c of (tpl.clusters || [])) {
+    for (const slug of (c.pages || [])) if (slug) clusterOf[slug] = c.clusterId || 'unclustered';
+    for (const slug of (c.pages || []).slice(0, perCluster)) if (slug) reps.push(slug);
+  }
   if (reps.length) defaultPages = reps;
 } catch { /* keep single-page fallback */ }
 const pageSel = typeof flags.pages === 'string' ? flags.pages.split(',').map(s => s.trim()) : defaultPages;
@@ -132,7 +153,12 @@ JSON only.`;
 
 const RETRIES = Number(flags.retries) || 3;
 const MIN_COVERAGE = Number(flags['min-coverage']) || 50;
-const STABILITY = Number(flags.stability) || 2;
+// v1 stability default = 2 (best-pair protocol); v2 consensus default = 3 upfront runs.
+const STABILITY = Number(flags.stability) || (CONSENSUS ? 3 : 2);
+// scope rules in force (ASSIST-PLAN §5) — reported in the v2 segment-check.
+// (The DOM-level application lives in the shared scope_rules library/consumers.)
+let scopeRules = [];
+try { scopeRules = JSON.parse(fs.readFileSync(`${proj}/workflow-output/scope-rules.json`, 'utf8')).rules || []; } catch { /* no rules file */ }
 
 const server = await serveMirror(mirrorDir, loadRuntimeManifest(mirrorDir));
 const base = `http://127.0.0.1:${server.port}`;
@@ -225,7 +251,51 @@ async function segmentStable(nodes, shot, slug) {
            gatePass: best.gatePass && bestJ >= 0.8 };
 }
 
+// ── protocol v2 (--consensus, ASSIST-PLAN §7): N UPFRONT gated runs ──
+// agreement = MEAN pairwise Jaccard of root-sets; emitted run = MEDOID (max
+// summed Jaccard vs the others); page pass = agreement >= 0.8 AND coverage >= 50
+// (FROZEN bars from segment_consensus.mjs) — and the medoid run itself must have
+// cleared the deterministic gate (parses, real ids only).
+async function segmentConsensus(nodes, shot, slug, N) {
+  const runs = [];
+  for (let i = 1; i <= N; i++) runs.push(await segmentGated(nodes, shot, `${slug}#${i}`));
+  const sets = runs.map(rootSet);
+  const { agreement, pairwise } = meanPairwiseJaccard(sets);
+  const mi = medoidIndex(sets);
+  const chosen = runs[mi];
+  const pass = chosen.gatePass && pagePassV2(agreement, chosen.coverage);
+  console.error(`    ${slug}: consensus agreement ${agreement.toFixed(3)} over ${N} runs (medoid = run #${mi + 1})`);
+  return { ...chosen, protocol: 'v2', consensus: true, runs: N,
+           agreement: +agreement.toFixed(3), pairwise, chosenRun: mi + 1,
+           consensusRootIds: consensusRootIds(sets, N), gatePass: pass };
+}
+
+// ── incremental (v2): a page already green under protocol v2, or adjudicated
+// (B6 — adjudicate_ingest.mjs writes {adjudicated:true, gatePass:true}), is
+// skipped and never re-sent to the vision model unless --force. ──
+function priorPass(slug) {
+  try {
+    const s = JSON.parse(fs.readFileSync(`${outDir}/${slug}.segmentation.json`, 'utf8'));
+    if (s.adjudicated === true && s.gatePass === true) return { greenBy: 'adjudication', s };
+    if (s.protocol === 'v2' && s.gatePass === true) return { greenBy: 'stability', s };
+  } catch { /* no prior segmentation */ }
+  return null;
+}
+
 for (const slug of pageSel) {
+  if (CONSENSUS && !FORCE) {
+    const prior = priorPass(slug);
+    if (prior) {
+      console.error(`  ${slug}: SKIP — already green by ${prior.greenBy} (--force to re-run)`);
+      results.push({ slug, ok: true, skipped: true, gatePass: true, protocol: 'v2',
+                     greenBy: prior.greenBy, adjudicated: prior.s.adjudicated === true,
+                     agreement: prior.s.agreement ?? null, coverage: prior.s.coverage ?? null,
+                     attempts: prior.s.attempts ?? null, stabilityRuns: prior.s.stabilityRuns ?? null,
+                     components: prior.s.components || [], passthrough: prior.s.passthrough || [],
+                     model: prior.s.model || OVH_VISION_MODEL });
+      continue;
+    }
+  }
   const rec = { slug, model: OVH_VISION_MODEL };
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -250,7 +320,8 @@ for (const slug of pageSel) {
     rec.blocks = nodes.length; rec.leaves = nodes.filter(n => n.leaf).length;
     console.error(`  ${slug}: ${rec.blocks} blocks (${rec.leaves} leaves) → OVH ${OVH_VISION_MODEL} (${Math.round(shot.length / 1024)}KB img)`);
 
-    const run = await segmentStable(nodes, shot, slug);
+    const run = CONSENSUS ? await segmentConsensus(nodes, shot, slug, STABILITY)
+                          : await segmentStable(nodes, shot, slug);
     const byId2 = new Map(nodes.map(n => [n.id, n]));
     const rid2 = v => Number(v);
 
@@ -266,6 +337,14 @@ for (const slug of pageSel) {
     rec.stabilityRuns = run.runs;
     rec.agreement = run.agreement;
     rec.gatePass = !!run.gatePass;        // parses + real ids + coverage >= MIN + stability
+    if (CONSENSUS) {                      // protocol v2 extras (segmentation.json contract)
+      rec.protocol = 'v2';
+      rec.consensus = true;
+      rec.chosenRun = run.chosenRun;
+      rec.pairwise = run.pairwise;
+      rec.consensusRootIds = run.consensusRootIds;
+      rec.greenBy = rec.gatePass ? 'stability' : null;
+    }
     rec.nodes = nodes;
     console.error(`  ${slug}: ${rec.components.length} components (${rec.components.filter(c => c.kind === 'container').length} containers), `
       + `leaf coverage ${rec.coverage}%, ${rec.passthrough.length} passthrough, attempts ${rec.attempts}, `
@@ -277,7 +356,8 @@ for (const slug of pageSel) {
 await browser.close(); server.srv.close();
 
 for (const r of results) {
-  if (r.ok) { fs.writeFileSync(`${outDir}/${r.slug}.segmentation.json`, JSON.stringify(r, null, 2)); writeSegmap(r); }
+  // skipped pages keep their existing (prior-green / adjudicated) segmentation.json untouched
+  if (r.ok && !r.skipped) { fs.writeFileSync(`${outDir}/${r.slug}.segmentation.json`, JSON.stringify(r, null, 2)); writeSegmap(r); }
 }
 
 // coloured component map — every region shown, NOTHING hidden. component=blue,
@@ -314,6 +394,39 @@ function writeSegmap(r) {
   <div class=wrap><img src="${esc(r.slug)}.page.png">${parts.join('')}</div>`;
   fs.writeFileSync(`${outDir}/${r.slug}.segmap.html`, html);
 }
+// ── protocol v2 (--consensus): cluster-grouped segment-check + majority gate ──
+if (CONSENSUS) {
+  const byCluster = new Map();
+  for (const r of results) {
+    const cid = clusterOf[r.slug] || 'unclustered';
+    if (!byCluster.has(cid)) byCluster.set(cid, []);
+    byCluster.get(cid).push({
+      slug: r.slug,
+      agreement: r.agreement ?? null,
+      coverage: r.coverage ?? null,
+      pass: !!(r.ok && r.gatePass),
+      greenBy: (r.ok && r.gatePass) ? (r.greenBy || 'stability') : null,
+    });
+  }
+  const clusters = [...byCluster.entries()].map(([id, pages]) => ({ id, pages, pass: clusterPassV2(pages) }));
+  const gatePass = clusters.length > 0 && clusters.every(c => c.pass);
+  const rulesInForce = scopeRules.map(rl => rl.id).filter(Boolean);
+  fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify({
+    protocol: 'v2', minCoverage: MIN_COVERAGE_BAR, stabilityBar: STABILITY_BAR,
+    project: proj, model: OVH_VISION_MODEL, stabilityRuns: STABILITY,
+    clusters, gatePass, rulesInForce,
+  }, null, 2));
+  console.log(`\n=== SEGMENTATION v2 consensus (OVH ${OVH_VISION_MODEL}) — ${proj} ===`);
+  for (const c of clusters) {
+    console.log(`  cluster ${c.id}: ${c.pass ? 'PASS' : 'FAIL'} (majority of ${c.pages.length} sampled)`);
+    for (const p of c.pages) console.log(`    ${p.slug}: agreement ${p.agreement ?? 'n/a'}, coverage ${p.coverage ?? 'n/a'}%, ${p.pass ? `PASS (${p.greenBy})` : 'FAIL'}`);
+  }
+  if (rulesInForce.length) console.log(`  scope rules in force: ${rulesInForce.join(', ')}`);
+  console.log(`  gate: ${gatePass ? 'GREEN' : 'RED'}`);
+  process.exit(gatePass ? 0 : 1);
+}
+
+// ── v1 (no --consensus): unchanged output shape + per-page gate ──
 fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify(
   { project: proj, model: OVH_VISION_MODEL, pages: results.map(({ nodes, ...r }) => r) }, null, 2));
 

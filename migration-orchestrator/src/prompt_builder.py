@@ -20,6 +20,7 @@ def build_step_prompt(
     github_block = _format_github_issues(story.github_issues_content)
     previous = _format_previous_stories(epic, story)
     loop_block = _format_loop_context(step)
+    answer_block = _format_human_answer(step)
 
     inputs_block = ""
     if step.inputs:
@@ -41,7 +42,7 @@ Ce fichier contient les conventions, le contexte et les règles du projet.
 Respecte ses instructions tout au long de ton travail.
 
 Tu es dans la tâche "{task_type}" de la story "{story.title}".
-{loop_block}
+{loop_block}{answer_block}
 STORY:
 - Titre: {story.title}
 - Description: {story.description}
@@ -174,6 +175,19 @@ def _format_previous_stories(epic: EpicState, current: StoryState) -> str:
                 if step.agent_result.modified_files:
                     lines.append(f"    Fichiers: {', '.join(step.agent_result.modified_files[:10])}")
     return "\n".join(lines)
+
+
+def _format_human_answer(step: StepState) -> str:
+    """G-D fix: a step re-executed after POST /steps/{id}/answer must SEE the
+    answer — without this block the step just re-executes blind."""
+    if not step.human_answer:
+        return ""
+    text = "\nRÉPONSE HUMAINE — Cette étape avait posé une question; un humain a répondu.\n"
+    if step.question:
+        text += f"Ta question précédente: {step.question.question}\n"
+    text += f"Réponse humaine à ta question précédente: {step.human_answer}\n"
+    text += "Prends cette réponse en compte et NE repose PAS la même question.\n"
+    return text
 
 
 def _format_loop_context(step: StepState) -> str:

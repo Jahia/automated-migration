@@ -16,6 +16,8 @@ from ..opencode_events import OpenCodeEventListener
 from ..orchestrator import (
     abort_run,
     approve_gate,
+    decide_step,
+    decision_bundles,
     delete_run,
     get_run,
     jump_to_step,
@@ -461,6 +463,54 @@ async def run_gate(run_id: str, req: GateDecision, request: Request):
         subprocess.Popen(args, cwd=run.repo_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return {"status": "rerunning", "decision": dec, "pages": req.pages}
     raise HTTPException(status_code=400, detail="decision must be approve|reject|rerun")
+
+
+class DecideRequest(BaseModel):
+    """POST /runs/{id}/steps/{id}/decide — decide a decision_pending step.
+    strategy_id: apply a pre-registered strategy (patches/skips/halt);
+    rules: scope rules appended (deduped by id) to rules_file (default derived
+    from the step's projects/<name> input → workflow-output/scope-rules.json);
+    patch: free-form step patch — autonomy=manual ONLY;
+    action: apply_and_rerun (reset via jump machinery) | proceed (review steps)."""
+    strategy_id: str | None = None
+    rules: list[dict] | None = None
+    rules_file: str | None = None
+    patch: dict | None = None
+    action: str
+    rerun_from: str | None = None
+    rationale: str
+
+
+@router.get("/runs/{run_id}/decisions")
+async def run_decisions(run_id: str):
+    """Pending decision bundles: step identity, attempts, strategies
+    remaining/applied, last verification + probe stdout/stderr tails, inputs —
+    everything the strategist needs to pick a strategy or emit scope rules."""
+    run = await _resolve_run(run_id)
+    return {"run_id": run_id, "autonomy": getattr(run, "autonomy", "assisted"),
+            "decisions": decision_bundles(run)}
+
+
+@router.post("/runs/{run_id}/steps/{step_id}/decide")
+async def run_decide(run_id: str, step_id: str, req: DecideRequest, request: Request):
+    """Typed, audited decision — the ONLY way to move a step out of
+    decision_pending (a plain resume is refused while one exists)."""
+    await _resolve_run(run_id)
+    result = await decide_step(
+        run_id, step_id,
+        action=req.action,
+        rationale=req.rationale,
+        strategy_id=req.strategy_id,
+        rules=req.rules,
+        rules_file=req.rules_file,
+        patch=req.patch,
+        rerun_from=req.rerun_from,
+        client=request.app.state.opencode_client,
+        event_listener=request.app.state.event_listener,
+    )
+    if result.get("error"):
+        raise HTTPException(status_code=result.get("code", 400), detail=result["error"])
+    return result
 
 
 class Rollback(BaseModel):

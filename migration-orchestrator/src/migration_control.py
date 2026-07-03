@@ -57,6 +57,12 @@ def active_gate(steps: list[StepState]) -> StepState | None:
     return next((s for s in steps if s.status.value in _GATE_STATUSES and s.gate_type), None)
 
 
+def pending_decision(steps: list[StepState]) -> StepState | None:
+    """A decision_pending step (ASSIST-PLAN §3): retries exhausted with
+    strategies left, or a scheduled review checkpoint. Decided via /decide."""
+    return next((s for s in steps if s.status.value == "decision_pending"), None)
+
+
 def project_path(run: RunState) -> str | None:
     """The project dir this run migrates (from any step's inputs)."""
     for s in all_steps(run):
@@ -184,6 +190,20 @@ def quality_verdict(run: RunState, gate_type: str | None, wo: Path | None) -> di
 
 # ── compact status ────────────────────────────────────────────────
 
+def _decision_summary(step: StepState) -> str:
+    if step.review:
+        return f"review checkpoint: {step.title}"
+    remaining = [s.id for s in step.strategies if s.id not in step.strategies_applied]
+    err = ""
+    if step.verification and step.verification.errors:
+        err = "; ".join(step.verification.errors)[:200]
+    elif step.agent_result and step.agent_result.summary:
+        err = step.agent_result.summary[:200]
+    return (f"retries exhausted ({step.attempt}/{step.max_attempts}); "
+            f"strategies remaining: {', '.join(remaining) or 'none'}"
+            + (f" — {err}" if err else ""))
+
+
 def _last_error(steps: list[StepState]) -> str | None:
     for s in reversed(steps):
         if s.status.value == "failed":
@@ -199,11 +219,15 @@ def compact_status(run: RunState, wo: Path | None) -> dict:
     steps = all_steps(run)
     running = next((s for s in steps if s.status.value == "running"), None)
     gate = active_gate(steps)
-    cur = running or gate or next((s for s in reversed(steps) if s.agent_result or s.streaming_text), None)
+    decision = pending_decision(steps)
+    cur = running or gate or decision or next((s for s in reversed(steps) if s.agent_result or s.streaming_text), None)
     done = [s for s in steps if s.status.value == "done"]
     q = quality_verdict(run, gate.gate_type if gate else None, wo)
 
-    if gate and gate.status.value == "rejected":
+    if decision and not gate:
+        # a pending decision point: decided ONLY via POST /steps/{id}/decide
+        actions = ["decide", "rollback", "restart"]
+    elif gate and gate.status.value == "rejected":
         # a rejected gate cannot be approved anymore — only redone or restarted
         actions = ["rollback", "jump", "restart"]
     elif gate:
@@ -227,7 +251,10 @@ def compact_status(run: RunState, wo: Path | None) -> dict:
                           "attempt": cur.attempt} if cur else None),
         "gate": ({"active": True, "type": gate.gate_type, "step_id": gate.id,
                   "status": gate.status.value,
-                  "summary": (gate.agent_result.summary if gate.agent_result else "")} if gate else None),
+                  "summary": (gate.agent_result.summary if gate.agent_result else "")} if gate
+                 else ({"active": True, "type": "decision", "step_id": decision.id,
+                        "status": "decision_pending",
+                        "summary": _decision_summary(decision)} if decision else None)),
         "quality": q,
         "progress": {"steps_done": len(done), "steps_total": len(steps),
                      "pct": round(100 * len(done) / len(steps)) if steps else 0},

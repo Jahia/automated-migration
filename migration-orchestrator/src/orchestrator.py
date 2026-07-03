@@ -33,8 +33,10 @@ from .state import (
     build_story_state,
     check_transition,
     find_all_dependents,
+    find_decision_steps,
     find_halted_step,
     gate_blocked_step,
+    probe_lines,
     get_epic_by_id,
     get_resume_event,
     get_step_by_id,
@@ -247,6 +249,52 @@ async def _execute_epic_stories(run: RunState, epic: EpicState, client: OpenCode
         await notify_sse(run, "story_status", {"status": story.status.value}, epic_id=epic.id, story_id=story.id)
 
 
+def _remaining_strategies(step: StepState) -> list:
+    """Unconsumed pre-registered strategies, in declared order."""
+    return sorted(
+        (s for s in step.strategies if s.id not in step.strategies_applied),
+        key=lambda s: s.order,
+    )
+
+
+async def _park_for_decision(run: RunState, epic: EpicState, story: StoryState, step: StepState, reason: str) -> bool:
+    """Decision point (ASSIST-PLAN §3 A2): set the step decision_pending, pause
+    the run like a halted gate, notify SSE, and park until the decide endpoint
+    moves the step out of decision_pending (strategy applied via jump machinery,
+    or 'proceed' on a review step). Returns False iff the run was aborted."""
+    step.status = StepStatus.decision_pending
+    step.completed_at = time.time() * 1000
+    if step.started_at:
+        step.duration_ms = step.completed_at - step.started_at
+    run.status = RunStatus.paused
+    run.updated_at = time.time() * 1000
+    await save_run(run)
+    remaining = _remaining_strategies(step)
+    await notify_sse(run, "step_decision", {
+        "status": "decision_pending", "reason": reason, "review": step.review,
+        "attempt": step.attempt, "max_attempts": step.max_attempts,
+        "strategies_remaining": [s.id for s in remaining],
+        "strategies_applied": list(step.strategies_applied),
+    }, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    await notify_sse(run, "run_paused", {"reason": "decision", "step_id": step.id})
+    resume = get_resume_event(run.run_id)
+    resume.clear()
+    # Parked exactly like a halted gate: only POST /runs/{id}/steps/{id}/decide
+    # moves the step out of decision_pending; a plain resume never does.
+    while True:
+        await resume.wait()
+        if run.status == RunStatus.aborted:
+            return False
+        if step.status == StepStatus.decision_pending:
+            log.warning(f"Step {step.id}: still decision_pending — resume does not decide; POST /runs/{run.run_id}/steps/{step.id}/decide.")
+            run.status = RunStatus.paused
+            resume.clear()
+            continue
+        break
+    run.status = RunStatus.running
+    return True
+
+
 async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
     while True:
         if run.forced_next_step:
@@ -262,7 +310,16 @@ async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState
             break
 
         run.current_step_id = step.id
+
+        # Review steps (ASSIST-PLAN §3 A6) are scheduled decision checkpoints:
+        # the engine NEVER sends them to an agent — selection = decision_pending.
+        if step.review:
+            if not await _park_for_decision(run, epic, story, step, "review"):
+                return
+            continue
+
         step.status = StepStatus.ready
+        step.attempt += 1  # attempt = 1-based execution counter (max_attempts = total budget)
         await _execute_single_step(run, epic, story, step, client, event_listener)
 
         if step.status == StepStatus.done:
@@ -300,8 +357,15 @@ async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState
             continue
         elif step.status == StepStatus.failed:
             if step.attempt < step.max_attempts:
-                step.attempt += 1
-                step.status = StepStatus.ready
+                # Back to *pending*, NOT ready: select_next_ready_step only picks
+                # pending steps ('ready' is jump's forced state). Setting ready here
+                # silently skipped every retry (P4: step_segment died at attempt 1/3).
+                step.status = StepStatus.pending
+                continue
+            if _remaining_strategies(step):
+                # Retries exhausted WITH strategies left → decision point, not failure.
+                if not await _park_for_decision(run, epic, story, step, "retries_exhausted"):
+                    return
                 continue
             return
         elif step.status == StepStatus.waiting_human:
@@ -916,10 +980,14 @@ async def jump_to_step(
     reset_dependents: bool = True,
     client: OpenCodeClient | None = None,
     event_listener: OpenCodeEventListener | None = None,
+    skip_done: list[str] | None = None,
 ) -> dict:
     """Force the run to redo a step (the ONLY documented redo path for a
-    rejected gate). Works with an in-flight loop (wakes it) or after an engine
-    restart (spawns a fresh loop, like try_resume_run)."""
+    rejected gate; also the reset machinery for /decide strategies). Works with
+    an in-flight loop (wakes it) or after an engine restart (spawns a fresh
+    loop, like try_resume_run). skip_done marks the given steps done AFTER the
+    dependent reset (strategy 'skip' semantics — e.g. an arm swap that skips
+    step_segment)."""
     run = await _resolve_registered_run(run_id)
     if not run:
         return {"error": "run not found"}
@@ -963,6 +1031,16 @@ async def jump_to_step(
     target_step.streaming_text = ""
     target_step.attempt = 0
 
+    skipped: list[str] = []
+    for skip_id in skip_done or []:
+        for epic in run.epics:
+            for story in epic.stories:
+                sk = get_step_by_id(story, skip_id)
+                if sk:
+                    sk.status = StepStatus.done
+                    sk.completed_at = time.time() * 1000
+                    skipped.append(skip_id)
+
     run.forced_next_step = step_id
     run.current_epic_id = target_epic.id
     run.current_story_id = target_story.id
@@ -987,8 +1065,262 @@ async def jump_to_step(
 
     run.updated_at = time.time() * 1000
     await save_run(run)
-    await notify_sse(run, "step_jumped", {"step_id": step_id, "reset_steps": reset_ids}, step_id=step_id, story_id=target_story.id, epic_id=target_epic.id)
-    return {"status": "jump_scheduled", "step_id": step_id, "reset_steps": reset_ids}
+    await notify_sse(run, "step_jumped", {"step_id": step_id, "reset_steps": reset_ids, "skipped_steps": skipped}, step_id=step_id, story_id=target_story.id, epic_id=target_epic.id)
+    return {"status": "jump_scheduled", "step_id": step_id, "reset_steps": reset_ids, "skipped_steps": skipped}
+
+
+# ── Decision protocol (ASSIST-PLAN §3) ────────────────────────────────
+# A decision_pending step is decided ONLY here: apply a pre-registered strategy
+# (patches + skips + reset via the jump machinery), proceed a review step, or
+# (manual autonomy only) apply a free-form patch. Every decision is audited.
+
+
+_PROJECT_PATH_RE = re.compile(r"^projects/[\w-]+")
+
+
+def derive_rules_file(step: StepState) -> str | None:
+    """Default scope-rules file from the step's inputs: any input value matching
+    ^projects/<name> → <PP>/workflow-output/scope-rules.json."""
+    for v in step.inputs.values():
+        if isinstance(v, str):
+            m = _PROJECT_PATH_RE.match(v)
+            if m:
+                return f"{m.group(0)}/workflow-output/scope-rules.json"
+    return None
+
+
+def append_scope_rules(repo_dir: str, rules_file: str, rules: list[dict]) -> dict:
+    """Append rules (deduped by rule id) to the scope-rules file
+    ({"rules": [...]}, ASSIST-PLAN §5). Returns {path, added, skipped}."""
+    import json
+    from pathlib import Path
+
+    path = Path(rules_file)
+    if not path.is_absolute():
+        path = Path(repo_dir) / rules_file
+    path.parent.mkdir(parents=True, exist_ok=True)
+    doc = {"rules": []}
+    if path.is_file():
+        try:
+            doc = json.loads(path.read_text())
+        except Exception:
+            doc = {"rules": []}
+    existing = {r.get("id") for r in doc.get("rules", [])}
+    added, skipped = [], []
+    for rule in rules:
+        rid = rule.get("id")
+        if rid in existing:
+            skipped.append(rid)
+            continue
+        doc.setdefault("rules", []).append(rule)
+        existing.add(rid)
+        added.append(rid)
+    path.write_text(json.dumps(doc, indent=2) + "\n")
+    return {"path": str(path), "added": added, "skipped": skipped}
+
+
+def _find_step_anywhere(run: RunState, step_id: str) -> tuple[EpicState | None, StoryState | None, StepState | None]:
+    for epic in run.epics:
+        for story in epic.stories:
+            step = get_step_by_id(story, step_id)
+            if step:
+                return epic, story, step
+    return None, None, None
+
+
+async def _resume_after_decision(run: RunState, client: OpenCodeClient | None, event_listener: OpenCodeEventListener | None) -> None:
+    """Resume a run whose decision step just left decision_pending: wake the
+    parked in-flight loop, or spawn a fresh one after an engine restart."""
+    if run.run_id in _active_tasks and not _active_tasks[run.run_id].done():
+        run.status = RunStatus.running
+        get_resume_event(run.run_id).set()
+        await notify_sse(run, "run_resumed", {})
+    else:
+        await try_resume_run(run.run_id, client, event_listener)
+
+
+async def decide_step(
+    run_id: str,
+    step_id: str,
+    *,
+    action: str,
+    rationale: str,
+    strategy_id: str | None = None,
+    rules: list[dict] | None = None,
+    rules_file: str | None = None,
+    patch: dict | None = None,
+    rerun_from: str | None = None,
+    client: OpenCodeClient | None = None,
+    event_listener: OpenCodeEventListener | None = None,
+) -> dict:
+    """Decide a decision_pending step (POST /runs/{id}/steps/{id}/decide).
+    Returns {"error", "code"} on refusal, else a success dict. Semantics:
+      - action=proceed (review steps only) → step done, run resumes;
+      - strategy_id → apply the strategy's patches/skips (or halt), reset via
+        jump machinery (reset_dependents), resume. Single-shot per strategy.
+      - patch (free-form) → autonomy=manual ONLY; PROBE lines must be preserved.
+      - rules → appended (deduped by id) to the scope-rules file, whatever the action.
+    """
+    run = await _resolve_registered_run(run_id)
+    if not run:
+        return {"error": "run not found", "code": 404}
+    epic, story, step = _find_step_anywhere(run, step_id)
+    if not step:
+        return {"error": "step not found", "code": 404}
+    if step.status != StepStatus.decision_pending:
+        return {"error": f"step {step_id} is '{step.status.value}', not decision_pending — nothing to decide", "code": 409}
+    if not (rationale or "").strip():
+        return {"error": "rationale is required", "code": 400}
+    if action not in ("apply_and_rerun", "proceed"):
+        return {"error": "action must be apply_and_rerun|proceed", "code": 400}
+    if patch is not None and strategy_id is not None:
+        return {"error": "provide either strategy_id or patch, not both", "code": 400}
+    if patch is not None and getattr(run, "autonomy", "assisted") != "manual":
+        return {"error": "free-form patch is allowed only when run.autonomy == 'manual' (assisted picks from the registered strategy list)", "code": 403}
+
+    # Scope rules (ASSIST-PLAN §5) — appended whatever the action (a review
+    # checkpoint may emit rules then proceed).
+    rules_result = None
+    if rules:
+        for rule in rules:
+            if not rule.get("id"):
+                return {"error": "every rule needs an 'id'", "code": 400}
+            match = rule.get("match") or {}
+            if not (match.get("selector") or match.get("signature")):
+                return {"error": f"rule '{rule['id']}': match must be pattern-keyed (selector or signature), never a page URL", "code": 400}
+        rf = rules_file or derive_rules_file(step)
+        if not rf:
+            return {"error": "rules given but no rules_file derivable from the step's inputs (no projects/<name> path) and none provided", "code": 400}
+        rules_result = append_scope_rules(run.repo_dir, rf, rules)
+
+    audit_payload = {
+        "step_id": step_id, "action": action, "rationale": rationale,
+        "strategy_id": strategy_id, "patch": patch, "rerun_from": rerun_from,
+        "rules": rules_result, "autonomy": getattr(run, "autonomy", "assisted"),
+    }
+
+    if action == "proceed":
+        if not step.review:
+            return {"error": "proceed is only valid on review steps", "code": 400}
+        step.status = StepStatus.done
+        step.completed_at = time.time() * 1000
+        run.updated_at = time.time() * 1000
+        await save_run(run)
+        await save_event(run_id, "decision", audit_payload, step_id=step_id, story_id=story.id, epic_id=epic.id)
+        await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "decision": "proceed"}, step_id=step_id, story_id=story.id, epic_id=epic.id)
+        await _resume_after_decision(run, client, event_listener)
+        return {"status": "proceeded", "step_id": step_id, "rules": rules_result}
+
+    # apply_and_rerun
+    skip_ids: list[str] = []
+    rerun_target = rerun_from or step_id
+    if strategy_id is not None:
+        strategy = next((s for s in step.strategies if s.id == strategy_id), None)
+        if not strategy:
+            return {"error": f"unknown strategy '{strategy_id}' on step {step_id}", "code": 400}
+        if strategy.id in step.strategies_applied:
+            return {"error": f"strategy '{strategy_id}' already consumed (single-shot)", "code": 409}
+        step.strategies_applied.append(strategy.id)
+
+        if strategy.halt:
+            # manual_review class: the decision becomes a halted gate for Julian.
+            step.status = StepStatus.halted
+            step.gate_type = "segmentation"
+            run.status = RunStatus.paused
+            run.updated_at = time.time() * 1000
+            await save_run(run)
+            await save_event(run_id, "decision", {**audit_payload, "halt": True}, step_id=step_id, story_id=story.id, epic_id=epic.id)
+            await notify_sse(run, "step_status", {"status": "halted", "task_type": step.task_type, "gate_type": step.gate_type, "summary": f"strategy {strategy.id}: escalated to human review"}, step_id=step_id, story_id=story.id, epic_id=epic.id)
+            return {"status": "halted", "step_id": step_id, "strategy": strategy.id, "gate_type": "segmentation", "rules": rules_result}
+
+        for p in strategy.patches:
+            _, _, ps = _find_step_anywhere(run, p.step_id)
+            if not ps:
+                return {"error": f"strategy patch targets unknown step '{p.step_id}'", "code": 400}
+            if p.inputs is not None:
+                ps.inputs = dict(p.inputs)
+            if p.acceptance_criteria is not None:
+                ps.acceptance_criteria = list(p.acceptance_criteria)
+        skip_ids = list(strategy.skip)
+        if rerun_from is None and step_id in skip_ids and strategy.patches:
+            # arm swap: the decided step itself is skipped — rerun from the patched arm
+            rerun_target = strategy.patches[0].step_id
+        audit_payload["patched_steps"] = [p.step_id for p in strategy.patches]
+        audit_payload["skipped_steps"] = skip_ids
+
+    elif patch is not None:
+        p_step_id = patch.get("step_id") or step_id
+        _, _, ps = _find_step_anywhere(run, p_step_id)
+        if not ps:
+            return {"error": f"patch targets unknown step '{p_step_id}'", "code": 400}
+        new_criteria = patch.get("acceptance_criteria")
+        if new_criteria is not None:
+            missing = [l for l in probe_lines(ps.acceptance_criteria) if l not in new_criteria]
+            if missing:
+                return {"error": "patch removes or modifies PROBE line(s) — frozen bars never move: " + "; ".join(m[:120] for m in missing), "code": 400}
+            ps.acceptance_criteria = list(new_criteria)
+        if patch.get("inputs") is not None:
+            ps.inputs = dict(patch["inputs"])
+        rerun_target = rerun_from or p_step_id
+    # else: rules-only decision — rerun the decided step against the new rules.
+
+    # Leave decision_pending BEFORE the jump wakes the parked loop: if the rerun
+    # target is elsewhere and the step is neither reset by the jump nor skipped,
+    # it must not stay parked as decision_pending.
+    if step_id != rerun_target and step_id not in skip_ids:
+        step.status = StepStatus.pending
+        step.attempt = 0
+
+    await save_event(run_id, "decision", audit_payload, step_id=step_id, story_id=story.id, epic_id=epic.id)
+    result = await jump_to_step(run_id, rerun_target, None, True, client=client, event_listener=event_listener, skip_done=skip_ids)
+    if result.get("error"):
+        return {"error": result["error"], "code": 400}
+    return {"status": "applied", "step_id": step_id, "strategy": strategy_id,
+            "rerun_from": rerun_target, "rules": rules_result, "jump": result}
+
+
+def decision_bundles(run: RunState) -> list[dict]:
+    """GET /runs/{id}/decisions — the full decision bundle per pending step:
+    identity, attempts, strategies remaining/applied, verification (incl. probe
+    stdout/stderr tails from the audit trail), inputs and criteria."""
+    bundles = []
+    for epic, story, step in find_decision_steps(run):
+        probes = []
+        try:
+            import json
+            from pathlib import Path
+            audit_file = Path("/tmp/orch-audit") / f"{run.run_id}.jsonl"
+            if audit_file.is_file():
+                for line in audit_file.read_text().splitlines():
+                    try:
+                        ev = json.loads(line)
+                    except Exception:
+                        continue
+                    if ev.get("event") == "probe_executed" and ev.get("step_id") == step.id:
+                        probes.append({
+                            "command": ev.get("command"), "exit_code": ev.get("exit_code"),
+                            "passed": ev.get("passed"),
+                            "stdout_tail": (ev.get("stdout") or "")[-1000:],
+                            "stderr_tail": (ev.get("stderr") or "")[-1000:],
+                            "ts": ev.get("ts"),
+                        })
+        except Exception:
+            pass
+        remaining = _remaining_strategies(step)
+        bundles.append({
+            "step_id": step.id, "title": step.title, "epic_id": epic.id, "story_id": story.id,
+            "review": step.review,
+            "attempt": step.attempt, "max_attempts": step.max_attempts,
+            "inputs": step.inputs,
+            "acceptance_criteria": step.acceptance_criteria,
+            "strategies_remaining": [s.model_dump() for s in remaining],
+            "strategies_applied": list(step.strategies_applied),
+            "verification": step.verification.model_dump() if step.verification else None,
+            "agent_summary": step.agent_result.summary if step.agent_result else None,
+            "probes": probes[-5:],
+            "rules_file_default": derive_rules_file(step),
+        })
+    return bundles
 
 
 async def restart_run(run_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> dict:
@@ -1015,6 +1347,7 @@ async def restart_run(run_id: str, client: OpenCodeClient, event_listener: OpenC
                 step.question = None
                 step.human_answer = None
                 step.opencode_session_id = None
+                step.strategies_applied = []
     run.status = RunStatus.running
     run.current_epic_id = None
     run.current_story_id = None
@@ -1041,6 +1374,7 @@ def _reset_step(step: StepState) -> None:
     step.question = None
     step.human_answer = None
     step.opencode_session_id = None
+    step.strategies_applied = []
 
 
 def _reset_story_state(story: StoryState) -> None:
@@ -1237,7 +1571,9 @@ async def submit_human_answer(run_id: str, step_id: str, answer: str) -> bool:
             step = get_step_by_id(story, step_id)
             if step and step.status == StepStatus.waiting_human:
                 step.human_answer = answer
-                step.status = StepStatus.ready
+                # pending, NOT ready: after _wait_for_human_answer the loop
+                # re-selects via select_next_ready_step, which only picks pending.
+                step.status = StepStatus.pending
                 return True
     return False
 
