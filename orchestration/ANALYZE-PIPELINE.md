@@ -101,7 +101,15 @@ accounting) for the cockpit KPI.
 | `lib/merge_cnd.py <project> --ns X --mixns Xmix` | installs `workflow-output/definitions.cnd` into the module + generates rule-18 resource bundles (every field key + `.ui.tooltip`, en+fr, self-checked) + fixes the placeholder mixin icon |
 | `probes/namespace-check.sh <prefix> <uri>` | **scripted Jackrabbit registry gate** (rule 13) — drives the tools Groovy console over POST; PASS free-or-matching, FAIL on prefix/URI conflict |
 | `lib/create_site.sh <siteKey> <title> <templateSet> [langs]` | provisioning-API `createSite` (never GraphQL addNode — rule 19) + full invariant verification (languages as YAML LIST — csv silently drops extra langs); idempotent |
-| `lib/gen_plan.py --project P --url U --ns N --site S` | parameterized **v2 full-loop plan** generator: analyze (mirror gate → partition gates → fidelity HALT) → module (namespace gate → scaffold → assets → CND merge → components from html-fragments → deploy gate) → site+content (create_site → MCP load → publish parity → edit frame) → ground-truth HALT. Output passes the engine plan lint. |
+| `lib/gen_plan.py --project P --url U --ns N --site S [--segmentation vision\|heuristic]` | parameterized **v2 full-loop plan** generator: analyze (mirror gate → segmentation → partition/contribution gates → fidelity HALT) → module (namespace gate → scaffold → assets → CND merge → skeleton views → deploy gate) → site+content (create_site → MCP load → publish parity → edit frame → G6 → G2) → ground-truth HALT. **`--segmentation vision` (default) is the P2 A/B winner** — replaces `group_llm` with `segment_probe` + `segment2manifest`. Output passes the engine plan lint. |
+| `lib/segment_probe.mjs <proj>` | **vision segmentation** — OVH Qwen2.5-VL over cluster representatives; gate = parse + real ids + coverage ≥50% + stability N=2 (Jaccard ≥0.8); dumps `segment/<slug>.dom.html` (data-seg annotated) for deterministic re-extraction. |
+| `lib/segment2manifest.py <proj> --ns N` | vision naming authority → manifest: cross-page aggregation, field re-extraction on `[data-seg]` roots, heuristic-role bridge; emits `component-manifest.json` + `promote-roles.json`. |
+| `lib/make_overrides.py <proj> --module M` | deterministic `passthrough-overrides.json` (the fidelity/contribution dial) from `promote-roles.json`. |
+| `lib/install_shell_templates.py <proj> --ns N --manifest M` | installs the agnostic fidelity-shell set (Layout, basic template, RawHtml, `skeletonRender.ts`, `rawRoot.ts`) + one skeleton view per promoted type AND its item child type. |
+| `lib/run_plan.py <plan> [--from S] [--until S]` | generic sequential plan executor (successor to `run_local.py` for full-loop plans): runs every `Run:`/`PROBE:` line in order, stops at first failure. Does NOT export `.env.local` (probes self-load; jahia-deploy dotenv must not be overridden). |
+| `probes/contribution.py <proj>` | G1 (editable-text coverage) + G5 (media/link wiring). |
+| `probes/editor-surface.py <proj> <site>` + `.mjs` | G6 (forms.editForm completeness + Page Builder item frames). |
+| `probes/roundtrip.py <proj> <site>` | G2 (sentinel-edit round-trip: text/media/link). |
 
 ---
 
@@ -110,8 +118,13 @@ accounting) for the cockpit KPI.
 1. **Partition gate** (`assemble_manifest`): every group member must be a known candidate id, and every candidate covered exactly once → **hallucination and omission are impossible to pass**.
 2. **dup-shape sanitizer** (`assemble_manifest`): within an LLM group, split members whose data-shapes are incompatible (or containers with disjoint child-shapes) → **no grab-bag types**. dup-shape across *distinct roles* is a review WARN, not a hard fail (real sites reuse shapes: Breadcrumb vs CTA).
 3. **Stability gate** (`stability_gate`): naming-invariant grouping agreement + cross-cutting presence across N runs.
-4. **Mirror gate** (`mirror_probe`, runs BEFORE the fidelity gate): every sample page renders **fully offline** — 0 blocked static-asset requests (only runtime trackers blocked) + 0 local-404s + stylesheets applied, **after the runtime-repair fixpoint**. So the local render is *truly* local, not silently pulling from the source. Mirror-fidelity (offline vs live) reported alongside (acquia 99.97–99.98%, supercar 99.95–100%, contentful 99.91–99.99%, liferay 86–90% — hero `<video>` webm residue).
-5. **Fidelity gate** (`reconstruct_probe`): content coverage ≥ threshold; renders from the local mirror (offline/deterministic); the visual review (`review.html`) is the human approval before templatization.
+4. **Mirror gate** (`mirror_probe`, runs BEFORE the fidelity gate): every sample page renders **fully offline** — 0 blocked static-asset requests (only runtime trackers blocked) + 0 local-404s + stylesheets applied, **after the runtime-repair fixpoint**. So the local render is *truly* local, not silently pulling from the source. Mirror-fidelity (offline vs live) reported alongside (acquia 99.97–99.98%, supercar 99.95–100%, contentful 99.91–99.99%, liferay 86–90% — hero `<video>` webm residue). **A pure client-rendered SPA whose MAIN content loads via runtime XHR (thin `<main>` text + high `data-xhr`, e.g. discoverasr) will stay stuck at ~5% mirror-fidelity no matter what assets are captured — the content isn't in the HTML. The gate correctly REFUSES it; that is the anti-overfit boundary, not a bug to force past.**
+5. **Fidelity gate** (`reconstruct_probe`): content coverage ≥ threshold; renders from the local mirror (offline/deterministic); the visual review (`review.html`) is the human approval before templatization. Script-rendered pages (real orphan text < 300 chars) are judged on pixels alone.
+6. **Contribution gate G1** (`probes/contribution.py`): editable-text coverage ≥ 60% min / 85% avg per page (forms/widgets excluded), and **0 dead props, 0 phantom markers, 0 empty shells**. Pixel fidelity never proves editability — this measures what an editor can actually change (see migration.md §22-29).
+7. **Media/link gate G5** (`probes/contribution.py`): ≥90% of media units wired to DAM weakrefs; ≥95% of link-bearing nodes have a `j:linkType`.
+8. **Editor-surface gate G6** (`probes/editor-surface.py`): G6a — every wired prop is a read-write field in an activated `forms.editForm` fieldSet (Content Editor's own form source); G6b — every item child node has a `[path]` edit frame in the Page Builder (Playwright). This is the gate that catches "the JCR is perfect but I can't edit the block".
+9. **Round-trip gate G2** (`probes/roundtrip.py`): sentinel edits to sampled props (text, media weakref swap, `j:url`) must appear in the LIVE render and then restore cleanly (publication is async → the probe polls). The dynamic proof that G1's props are not dead.
+10. **Ground-truth gate G3** (`probes/groundtruth.sh`): DEPLOYED Jahia pages pixel-diffed vs the certified mirror, ≥99%/page — the LIVE side under the SAME offline resolution as the reference (jahia.md §26). Output caches flushed first.
 
 > **Honest scope of the fidelity metrics (adversarial review, 2026-07-02):** the "reconstruction"
 > is the SAME live DOM with non-component regions masked (`visibility:hidden`) — it measures
@@ -151,6 +164,22 @@ What each source platform does to the pipeline — read this before running a ne
 | **Drupal** (acquia) | clean; trustarc + theme icons residue | good (21 types) after the altitude-finder fix |
 | **Next.js** (contentful) | ~110 runtime chunks/fonts per page (`/_next/static/*` composed by JS) → **repair pass is mandatory**; embeds **canarytokens** scrape detectors (never fetch) | good structure (21 types) but **hash-suffixed names** (`callToActionCard9pqm4`) + leaked layout classes (`lgColSpan8`) — naming needs a quality gate |
 | **Liferay DXP** (liferay.com) | AMD/combo loader loads JS in waves (`/o/…/__liferay__/*.js`, `/combo/?…`) → repair needs the **fixpoint loop** (3 rounds on home); hero webm videos > size cap → residue → mirror-fidelity stuck at 86–90% | **poor/anemic** — 7 types incl. `lfr:div`, `lfr:lfrLayoutStructureItemSection`: non-semantic nested layout divs defeat both the altitude finder and the LLM naming. Needs a naming-quality gate + altitude tuning for layout-engine markup |
+| **AEM SPA** (discoverasr — P3 holdout) | header/footer server-rendered; **entire main content client-rendered via runtime XHR** (`data-xhr`, `hiddenMain`) → mirror-fidelity ~5%, un-fixable by asset capture. Lazy images use `data-src` only (materialised by localize now). | **N/A — blocked at the mirror gate** (correctly). A pure-client SPA cannot be mirrored offline; the pipeline refuses rather than fake-migrate. |
+
+### P3 full-loop verdicts (2026-07-03, 20 pages/site, vision profile)
+
+| Site | Stack | Ground truth ≥99% | GT avg | G1 (min/avg) | G5 media/links | Dominant residual |
+|---|---|---|---|---|---|---|
+| acquia (ref) | Drupal | 18/18 | 100% | 88/98% | 97% / 100% | — fully green |
+| supercar | SXA | 15/20 | 96.6% | 76/98% | 100% / 100% | homepage-variant ~8% drift: `<Area>` dropped inside a grid `div.row` → columns stack (see §6 open item) |
+| contentful | Next.js | see reload | 93.9%→ | 99/99.6% | 98% / 100% | case-study card images were lazy `data-src` (now materialised by the localize fix) |
+| discoverasr | AEM SPA | — | — | — | — | mirror gate blocks (client-rendered main) |
+
+The single dominant fidelity residual across all three was **one generic root cause: images the crawl didn't materialise** (lazy `data-src` / all-URL-form CDN refs) — fixed in `localize_site.py` + `extract_content.py`. Text, layout, contribution model, and editor surface generalise cleanly to every stack.
+
+## 6. Known open item — grid-row Area altitude
+
+`main_content_root` descends through single-content-child wrappers so the `<Area>` sits at section altitude. On a page whose content root is a multi-column grid `div.row` (Bootstrap-style), it descends INTO the row and drops the Area there → the row's column children render as stacked block instances instead of flowing as grid columns (~8% cumulative vertical drift; supercar homepage variants). The fix is to STOP the descent at a horizontal layout row (class matches `row`/grid + multiple content-bearing children) — but it must not regress the 15/20 supercar pages + acquia + contentful that pass, so validate broadly before changing `main_content_root`.
 
 ---
 
