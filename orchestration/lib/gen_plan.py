@@ -35,6 +35,7 @@ def build_plan(p):
     P, URL, NS, MIXNS = p["project"], p["url"], p["ns"], p["mixns"]
     SITE, MODULE, TITLE = p["site"], p["module"], p["title"]
     N, THR = p["max_pages"], p["threshold"]
+    SEGMENTATION = p.get("segmentation", "vision")
     PP = f"projects/{P}"
     URI = f"https://jahia.com/{P}/nt/1.0"
     common = {"project": P, "project_path": PP, "namespace": NS,
@@ -57,10 +58,25 @@ def build_plan(p):
               f"PROBE: test -s {PP}/workflow-output/semantic-candidates.json",
               f"PROBE: test -s {PP}/workflow-output/semantic-templates.json"],
              deps=["step_localize"]),
-        step("step_group", "LLM grouping (bounded) + partition gate", "build",
-             [f"Run: python3 orchestration/lib/group_llm.py {PP} --model deepseek-v4-flash --ns {NS} --out {PP}/workflow-output/grouping.json",
-              f"PROBE: python3 orchestration/lib/assemble_manifest.py {PP}/workflow-output/semantic-candidates.json --group {PP}/workflow-output/grouping.json --ns {NS} --out {PP}/workflow-output/component-manifest.json"],
-             deps=["step_semantic"]),
+        # component model: VISION segmentation is the shipping default (the P2
+        # A/B winner judged by the ground-truth gate); --segmentation heuristic
+        # keeps the LLM-grouping arm for comparisons. The vision step keeps the
+        # id "step_group" so every downstream dependency is identical.
+        *([step("step_segment", "Vision segmentation (gated + stability)", "build",
+                [f"Run: node orchestration/lib/segment_probe.mjs {PP}",
+                 f"PROBE: ls {PP}/workflow-output/segment/*.segmentation.json"],
+                deps=["step_semantic"]),
+           step("step_group", "Vision -> manifest + contribution dial", "build",
+                [f"Run: python3 orchestration/lib/segment2manifest.py {P} --ns {NS}",
+                 f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
+                 f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
+                 f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json"],
+                deps=["step_segment"])]
+          if SEGMENTATION == "vision" else
+          [step("step_group", "LLM grouping (bounded) + partition gate", "build",
+                [f"Run: python3 orchestration/lib/group_llm.py {PP} --model deepseek-v4-flash --ns {NS} --out {PP}/workflow-output/grouping.json",
+                 f"PROBE: python3 orchestration/lib/assemble_manifest.py {PP}/workflow-output/semantic-candidates.json --group {PP}/workflow-output/grouping.json --ns {NS} --out {PP}/workflow-output/component-manifest.json"],
+                deps=["step_semantic"])]),
         # P2.5: extraction BEFORE the CND — cnd_emit sizes the body..bodyN
         # richtext props per type from the OBSERVED lift (wired-only types:
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
@@ -192,6 +208,8 @@ def main():
     ap.add_argument("--max-pages", type=int, default=18)
     ap.add_argument("--threshold", type=int, default=95)
     ap.add_argument("--model", default="opencode/deepseek-v4-flash")
+    ap.add_argument("--segmentation", choices=["vision", "heuristic"], default="vision",
+                    help="component-model arm: vision (P2 A/B winner, default) or heuristic")
     ap.add_argument("--repo-dir", default=".")
     ap.add_argument("--out")
     a = ap.parse_args()
@@ -201,6 +219,7 @@ def main():
         "module": a.module or a.project,
         "title": a.title or f"{a.site} (migrated)",
         "max_pages": a.max_pages, "threshold": a.threshold,
+        "segmentation": a.segmentation,
         "model": a.model, "repo_dir": a.repo_dir,
     }
     plan = build_plan(params)

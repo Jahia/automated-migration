@@ -708,8 +708,13 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
 
 def main():
     if len(sys.argv) < 2:
-        sys.exit("usage: extract_content.py <project> [site_key]")
+        sys.exit("usage: extract_content.py <project> [site_key] [--adapter semantic|sxa]")
     project = sys.argv[1]
+    # P3: the SEMANTIC adapter (shell + skeleton + per-item contribution) is THE
+    # v2 architecture for every source CMS — SXA is just another HTML renderer.
+    # The v1 SXA adapter stays available behind --adapter sxa for the legacy
+    # reference modules only.
+    force_sxa = "--adapter" in sys.argv and "sxa" in sys.argv
     proj = f"projects/{project}"
     pages = captured_pages(proj)
     if not pages:
@@ -732,7 +737,7 @@ def main():
         except Exception as e:
             print(f"  ! {slug}: {e}", file=sys.stderr)
             continue
-        if detect_sxa(txt):
+        if force_sxa and detect_sxa(txt):
             p = SXAContent()
             p.feed(txt)
             # distribute a grid container's images to its item children positionally:
