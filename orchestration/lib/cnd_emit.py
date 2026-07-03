@@ -165,6 +165,11 @@ def query_and_grid_types(ns, mixns):
         "  - gap (string, choicelist) = 'md' < 'none', 'sm', 'md', 'lg'",
         f"  + * ({mixns}:component)",
         "",
+        "// passthrough (P1.2): verbatim source markup for regions no semantic",
+        "// component covers — the nothing-is-dropped half of the fidelity invariant",
+        f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
+        "  - html (string, textarea)",
+        "",
     ]
 
 
@@ -212,6 +217,9 @@ def main():
                        "views": ["default.server.tsx"]})
     view_plans.append({"component": "Grid Row", "nodeType": f"{ns}:gridRow",
                        "views": ["default.server.tsx"], "childType": f"{mixns}:component"})
+    view_plans.append({"component": "Raw HTML (passthrough)", "nodeType": f"{ns}:rawHtml",
+                       "views": ["default.server.tsx"],
+                       "note": "renders the html property verbatim (server-side, no Island)"})
 
     for c in m.get("crossCutting", []) or []:
         # cross-cutting components are page-area (absolute) content types too

@@ -478,8 +478,13 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
                                              comp["childType"]["nodeType"])
                 break
 
+    # passthrough type (P1.2): uncovered main-region content loads verbatim as
+    # ns:rawHtml — the guarantee that nothing is dropped (fidelity invariant §2)
+    instance_type_map["rawhtml"] = f"{ns}:rawHtml"
+
     return {"crossCutting": xcut, "components": components, "templates": templates,
-            "typeCount": len(components), "instanceTypeMap": instance_type_map}
+            "typeCount": len(components), "instanceTypeMap": instance_type_map,
+            "passthroughType": f"{ns}:rawHtml"}
 
 
 def partition_gate(candidates, groups):

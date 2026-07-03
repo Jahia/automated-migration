@@ -235,9 +235,13 @@ def semantic_page(txt, slug):
     """v2 adapter: reuse semantic_extract's deterministic component walk so each
     instance's `type` is the same ROLE the manifest's instanceTypeMap keys on —
     the whole point of the bridge (load_content resolves role -> ns:nodeType).
-    Emits load-shaped instances: parents always precede their children."""
+
+    Emits load-shaped instances with parents always preceding their children.
+    Main-region instances follow the P1.2 partition in DOCUMENT ORDER, with
+    uncovered regions emitted as `rawHtml` passthrough instances — every content
+    leaf of <main> reaches the JCR exactly once (the ≥99 % fidelity invariant)."""
     from semantic_extract import extract_page  # bs4/lxml — pipeline dependency
-    _, comps = extract_page(txt, slug)
+    _, comps, partition = extract_page(txt, slug)
     out, remap = [], {}
 
     def emit(i):
@@ -268,12 +272,41 @@ def semantic_page(txt, slug):
         })
         return remap[i]
 
+    children_of = {}
+    for i, c in enumerate(comps):
+        pi = c.get("parentIndex")
+        if pi is not None:
+            children_of.setdefault(pi, []).append(i)
+
+    def subtree(i):
+        yield i
+        for j in children_of.get(i, []):
+            yield from subtree(j)
+
+    regions = partition.get("regions", [])
+    main_idx = set()
+    for r in regions:
+        if r["kind"] == "component" and r.get("compIndex") is not None:
+            main_idx.update(subtree(r["compIndex"]))
+    # chrome (header/footer/nav — routed to absolute areas by the loader) and any
+    # off-main components first; then <main> strictly in document order
     for i in range(len(comps)):
-        emit(i)
+        if i not in main_idx:
+            emit(i)
+    for r in regions:
+        if r["kind"] == "component":
+            if r.get("compIndex") is not None:
+                for j in subtree(r["compIndex"]):
+                    emit(j)
+        else:
+            out.append({"type": "rawHtml", "parent": None, "passthrough": True,
+                        "fields": {"html": r["html"]}, "images": [], "links": []})
+
     parents = {i["parent"] for i in out if i.get("parent") is not None}
     for idx, i in enumerate(out):
         i["empty"] = not (i["fields"] or i["images"] or i["links"]) and idx not in parents
-    return {"adapter": "semantic", "instances": out}
+    return {"adapter": "semantic", "instances": out,
+            "partition": {k: v for k, v in partition.items() if k != "regions"}}
 
 
 def main():

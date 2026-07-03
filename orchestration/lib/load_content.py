@@ -131,7 +131,9 @@ class Loader:
         # text fields -> text props in order (heading first, etc.)
         vals = [v.strip() for v in inst.get("fields", {}).values() if v and v.strip()]
         for name, val in zip(pdef["text"], vals):
-            out[name] = val[:5000]
+            # passthrough markup must load VERBATIM (fidelity invariant) — only
+            # ordinary text fields get the sanity cap
+            out[name] = val[:200_000] if name == "html" else val[:5000]
         # link -> ctaLabel + external url (best-effort)
         links = inst.get("links", [])
         if links and "ctaLabel" in pdef["names"] and "ctaLabel" not in out:

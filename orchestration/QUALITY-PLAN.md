@@ -188,3 +188,15 @@ Crawler JS-render only if the holdout demands it.
   (32 types + 20 child types); SXA mode regression-checked in-memory on supercar. NOTE: the
   existing acquia `grouping.json` references pre-BEM-collapse candidate ids — the group step must
   re-run before the E2E (normal pipeline step, self-corrects on the partition gate).
+- 2026-07-03 — **P1.2 passthrough layer shipped.** `partition_main()` (semantic_extract):
+  document-ordered TOTAL partition of `<main>` (component | passthrough; unit = content leaves =
+  non-empty text + media tags; chrome excluded — cross-cutting owns it). Semantic adapter emits
+  main instances in document order with uncovered regions as `rawHtml` instances (verbatim,
+  loader-untruncated ≤200k). `cnd_emit` always ships `ns:rawHtml`; manifest carries
+  `passthroughType` + `instanceTypeMap["rawhtml"]`. NEW hard gate
+  `orchestration/probes/partition.py` (fails on non-total partition, payload/summary mismatch,
+  optional `--min-semantic-share` floor for P2). Baseline measured (per §5 P1 "no floor"):
+  acquia 18/18 pages partition-total, semantic leaf share min 94 %/avg 99 %, 11 passthrough
+  instances, 274/274 resolve; supercar SXA 100 % semantic. `semantic-templates.json` gains
+  `pagePartitions`. Follow-up noted: passthrough asset URLs still point at source paths —
+  rewrite to module-static/DAM at the /3-assets step (tracked for P1.3+).

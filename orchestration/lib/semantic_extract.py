@@ -500,6 +500,77 @@ def detect_repeated_child(comp_el, comp_set):
     return True, shape_from_fields(item_acc), str(best[0])
 
 
+# ── Main-region partition (passthrough layer, QUALITY-PLAN P1.2) ──
+# The ≥99 % fidelity invariant requires that EVERY content region of <main> is
+# either a detected component or an explicit raw-HTML passthrough — nothing
+# dropped. The partition is total by construction: every child of <main> is
+# routed to exactly one bucket (component | descend-into-wrapper | passthrough).
+
+_LEAF_MEDIA = {"img", "picture", "video", "iframe", "svg"}
+_CHROME_NAMES = {"header", "footer", "nav"}
+
+
+def _count_leaves(el):
+    """Content leaves = non-empty text nodes + media tags (svg counted once,
+    not its internals). The partition gate's accounting unit."""
+    n = 0
+    for d in el.descendants:
+        in_svg = any(isinstance(a, Tag) and a.name == "svg" for a in d.parents)
+        in_chrome = any(isinstance(a, Tag) and a.name in _CHROME_NAMES for a in d.parents)
+        if in_svg or in_chrome:
+            continue
+        if isinstance(d, Tag):
+            if d.name in _LEAF_MEDIA:
+                n += 1
+        elif str(d).strip():
+            n += 1
+    if isinstance(el, Tag) and el.name in _LEAF_MEDIA:
+        n += 1
+    return n
+
+
+def partition_main(soup, obj_set):
+    """Document-ordered total partition of the page's main region into
+    component regions and passthrough regions. Chrome subtrees are excluded
+    (covered by cross-cutting components in absolute areas).
+    Returns {"regions": [...], "leavesTotal": N}."""
+    root = soup.find("main") or soup.body
+    if root is None:
+        return {"regions": [], "leavesTotal": 0}
+    if root in obj_set:
+        return {"regions": [{"kind": "component", "el": root}],
+                "leavesTotal": _count_leaves(root)}
+    has_comp_below = set()
+    for el in obj_set:
+        for anc in el.parents:
+            if isinstance(anc, Tag):
+                has_comp_below.add(id(anc))
+    regions = []
+
+    def rec(node):
+        for child in node.children:
+            if not isinstance(child, Tag):
+                txt = str(child).strip()
+                if len(txt) >= 2:
+                    regions.append({"kind": "passthroughText", "html": txt,
+                                    "leaves": 1})
+                continue
+            if child.name in _CHROME_NAMES:
+                continue  # chrome — cross-cutting components own it
+            if child in obj_set:
+                regions.append({"kind": "component", "el": child})
+            elif id(child) in has_comp_below:
+                rec(child)
+            else:
+                leaves = _count_leaves(child)
+                if leaves:  # spacers / empty scaffolding carry no content
+                    regions.append({"kind": "passthrough", "html": str(child),
+                                    "leaves": leaves})
+
+    rec(root)
+    return {"regions": regions, "leavesTotal": _count_leaves(root)}
+
+
 # ── Per-page component extraction ─────────────────────────────────
 
 def extract_page(html, slug):
@@ -575,7 +646,29 @@ def extract_page(html, slug):
             "outerHTML": str(el),
             "itemOuterHTML": item_html,
         })
-    return sxa_mode, components
+
+    # ── passthrough partition of <main> (P1.2) ──
+    part = partition_main(soup, obj_set)
+    regions = []
+    covered = 0
+    for r in part["regions"]:
+        if r["kind"] == "component":
+            el = r.pop("el")
+            r["compIndex"] = index_of.get(id(el))
+            r["leaves"] = _count_leaves(el)
+        covered += r["leaves"]
+        regions.append(r)
+    partition = {
+        "regions": regions,
+        "leavesTotal": part["leavesTotal"],
+        "leavesCovered": covered,
+        "componentRegions": sum(1 for r in regions if r["kind"] == "component"),
+        "passthroughRegions": sum(1 for r in regions if r["kind"] != "component"),
+        "semanticLeafShare": round(
+            sum(r["leaves"] for r in regions if r["kind"] == "component")
+            / part["leavesTotal"], 3) if part["leavesTotal"] else None,
+    }
+    return sxa_mode, components, partition
 
 
 # ── Cross-page aggregation ────────────────────────────────────────
@@ -839,6 +932,7 @@ def main():
     all_components = []
     page_main_roles = {}
     page_main_items = {}   # slug -> [(role, archetypeFeature)] for top-level main comps
+    page_partitions = {}   # slug -> partition summary (P1.2 passthrough accounting)
     sxa_any = False
 
     for page in pages:
@@ -847,8 +941,9 @@ def main():
             print(f"  WARNING: cached file missing for {page['slug']}", file=sys.stderr)
             continue
         html = open(html_path, errors="replace").read()
-        sxa_mode, comps = extract_page(html, page["slug"])
+        sxa_mode, comps, partition = extract_page(html, page["slug"])
         sxa_any = sxa_any or sxa_mode
+        page_partitions[page["slug"]] = {k: v for k, v in partition.items() if k != "regions"}
         all_components.extend(comps)
         # main-region skeleton = top-level components in <main>; features are
         # DATA-SHAPE archetypes (cross-CMS comparable), roles kept for display.
@@ -950,6 +1045,8 @@ def main():
         "nestedPartRoles": sorted(nested_roles),
         "detailTemplates": detail_templates,
         "clusters": clusters,
+        # P1.2 passthrough accounting per page (semantic share = quality dial §2)
+        "pagePartitions": page_partitions,
     }
     with open(f"{out_dir}/semantic-templates.json", "w") as f:
         json.dump(tpl_out, f, indent=2, ensure_ascii=False)
@@ -979,6 +1076,17 @@ def main():
         kind = cl.get("kind", "?")
         tag = f"  [{kind}]" + (f" of '{cl['detailOf']}'" if kind == "detail" else "")
         print(f"  {cl['clusterId']}  pages={cl['pageCount']:2d}{tag}  {cl['pages']}")
+    shares = [p["semanticLeafShare"] for p in page_partitions.values()
+              if p.get("semanticLeafShare") is not None]
+    uncov = [(s, p) for s, p in page_partitions.items()
+             if p["leavesCovered"] < p["leavesTotal"]]
+    print()
+    print(f"PARTITION (P1.2): semantic leaf share min={min(shares):.0%} "
+          f"avg={sum(shares)/len(shares):.0%}" if shares else "PARTITION: no pages")
+    if uncov:
+        print(f"  !! {len(uncov)} page(s) with uncovered leaves (partition NOT total):")
+        for s, p in uncov[:6]:
+            print(f"     {s}: {p['leavesCovered']}/{p['leavesTotal']}")
         print(f"        skeleton: {cl['mainRolesRepresentative']}")
     print()
     print(f"DETAIL PAGES (mainResource): {len(detail_templates)} detected")

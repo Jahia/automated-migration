@@ -74,6 +74,25 @@ comes from — all deterministic, validated 100 % instance→type resolution on 
 Loader v2 routing: cross-cutting nodeTypes resolve to absolute areas (`/home/<header|footer|nav>`)
 via the manifest's `crossCutting[].area` — chrome is populated once, never per page (rule 16).
 
+### 2c. Passthrough layer + hard partition gate (QUALITY-PLAN P1.2, shipped 2026-07-03)
+
+The ≥99 % fidelity invariant's mechanism: `semantic_extract.partition_main()` produces a
+document-ordered TOTAL partition of each page's `<main>` — every child routes to exactly one
+bucket (component region | descend-into-wrapper | passthrough region); accounting unit =
+content leaves (non-empty text nodes + media tags). The semantic adapter emits main-region
+instances in document order, uncovered regions as `rawHtml` passthrough instances
+(`fields.html` = verbatim source markup, loaded untruncated up to 200 k chars). `cnd_emit`
+always ships `ns:rawHtml` (+ view plan: render `html` verbatim server-side); the manifest
+carries `passthroughType` and maps `rawhtml` in `instanceTypeMap`.
+
+**Gate:** `orchestration/probes/partition.py <project> [--min-semantic-share PCT]` — fails if
+any page's partition is not total (leaves covered ≠ leaves total), if the payload's passthrough
+instances disagree with the partition summary, or (P2+) if the semantic share drops below the
+floor. P1 measures the share without a floor (§5). Baseline acquia-drupal: partition total on
+18/18 pages, semantic leaf share min 94 % / avg 99 %, 11 passthrough instances; supercar SXA
+100 % semantic, 0 passthrough. `semantic-templates.json` gains `pagePartitions` (per-page
+accounting) for the cockpit KPI.
+
 ---
 
 ## 3. The gates (what makes it trustworthy)
