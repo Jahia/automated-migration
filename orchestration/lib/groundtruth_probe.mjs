@@ -97,7 +97,22 @@ for (const slug of slugs) {
     await ref.close();
 
     // ── live: the deployed Jahia page ──
+    // OFFLINE PARITY: the reference runs fully offline (offlineRoute), so the
+    // live side must not reach the internet either — otherwise external-only
+    // widgets (observed live: the OneTrust cookie banner from cdn.cookielaw.org
+    // on supercar) render on ONE side and eat ~20 fidelity points. Only the
+    // Jahia host is allowed.
+    const jahiaHost = new URL(HOST).host;
     const live = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const offlineForLive = offlineRoute(mbase, mirrorDir, runtimeManifest, null);
+    await live.route('**/*', (route) => {
+      const h = new URL(route.request().url()).host;
+      if (h === jahiaHost) return route.continue();
+      // external request: SAME offline resolution as the reference (mirror-
+      // cached fonts/CDN files served, everything else aborted) — the two
+      // sides must see an identical world outside the Jahia host
+      return offlineForLive(route);
+    });
     const resp = await live.goto(HOST + rec.livePath, { waitUntil: 'domcontentloaded', timeout: 45000 });
     rec.httpStatus = resp ? resp.status() : 0;
     try { await live.waitForLoadState('load', { timeout: 15000 }); } catch {}

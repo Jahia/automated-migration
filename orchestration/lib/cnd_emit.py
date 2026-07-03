@@ -228,7 +228,11 @@ def type_block(comp, ns, mixns, stats=None):
                     clines.extend(link_lines())
             child_text = "\n".join(clines)
         else:
-            lines.append(f"  + * ({node}Item)")
+            # container WITHOUT a typed item: never reference an undefined
+            # {node}Item type — the OSGi bundle then carries an unresolvable
+            # nodetype requirement and the whole module fails to start
+            # (observed live: scg:keyFiguresItem). Accept module components.
+            lines.append(f"  + * ({mixns}:component)")
     return "\n".join(lines), child_text
 
 

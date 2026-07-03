@@ -297,7 +297,14 @@ for (const p of pages) {
             mirrorPage: localMode ? `local-mirror/${p.slug}.html` : null,   // faithful local page (workflow-output-relative)
             overlayMap: `${p.slug}.overlay.html`,           // annotated component map
             local: localMode,
-            dims: `${w}x${h}`, pass: info.contentCoveragePct >= threshold };
+            dims: `${w}x${h}`,
+            // SCRIPT-RENDERED pages (embeds — e.g. a Typeform body that is
+            // only scripts): the visible text exists ONLY at runtime, so
+            // content-coverage is meaningless; the bytes contract carries the
+            // scripts and the page is judged on pixels alone (the authoritative
+            // judge stays the ground-truth gate, live vs mirror, both with JS).
+            pass: info.contentCoveragePct >= threshold
+                  || (info.realOrphanChars < 300 && pixelSimilarity >= threshold) };
   } catch (e) {
     rec = { ...rec, ok: false, error: (e.message || String(e)).split('\\n')[0] };
   }

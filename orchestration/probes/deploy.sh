@@ -27,4 +27,24 @@ fi
 
 require_node 20
 ( cd "$proj" && yarn build && yarn jahia-deploy )
-pass "build + jahia-deploy succeeded for $proj"
+
+# rule 14: 'Operation successful' is NOT 'bundle started' — an unresolvable
+# nodetype requirement (a view registered for an undeclared type) leaves the
+# module INSTALLED but never ACTIVE, silently (observed live:
+# scg:keyFiguresItem). Verify a module type actually exists; module start is
+# async, so poll briefly.
+HOST="${JAHIA_URL:-${JAHIA_HOST:-http://localhost:8080}}"; HOST="${HOST%/}"
+UP="${JAHIA_USER:-root}"; [[ "$UP" == *:* ]] || UP="$UP:${JAHIA_PASS:-root}"
+ns="$(grep -oE '^\[[a-zA-Z][a-zA-Z0-9]*:rawHtml\]' "$proj/settings/definitions.cnd" 2>/dev/null | head -1 | tr -d '[]' | cut -d: -f1)"
+if [ -n "$ns" ] && grep -q "\[$ns:rawHtml\]" "$proj/settings/definitions.cnd" 2>/dev/null; then
+  ok=""
+  for _i in $(seq 1 15); do
+    if curl -sf -u "$UP" -H "Origin: $HOST" -H 'Content-Type: application/json' \
+        -X POST "$HOST/modules/graphql" \
+        -d "{\"query\":\"{ jcr { nodeTypesByNames(names: [\\\"$ns:rawHtml\\\"]) { name } } }\"}" \
+        2>/dev/null | grep -q "\"$ns:rawHtml\""; then ok=1; break; fi
+    sleep 4
+  done
+  [ -n "$ok" ] || fail "module deployed but type $ns:rawHtml never appeared — bundle did NOT start (check Jahia logs for unresolved requirements)"
+fi
+pass "build + jahia-deploy succeeded for $proj${ns:+ (types live: $ns)}"

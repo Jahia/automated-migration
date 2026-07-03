@@ -20,7 +20,11 @@ PROBE_RE = re.compile(r"^PROBE(\[(\d+)\])?:\s*(.+)$")
 
 
 def sh(cmd, timeout):
-    full = f"set -a; . ./.env.local 2>/dev/null; set +a; {cmd}"
+    # NO blanket env export: probes self-load (.sh via load_env, python via
+    # mcp_client's .env parsing) and jahia-deploy's dotenv DOES NOT OVERRIDE
+    # already-exported vars — exporting .env.local here poisoned it with a
+    # passwordless JAHIA_USER (observed live: guest 401 on provisioning).
+    full = cmd
     t0 = time.time()
     r = subprocess.run(["bash", "-c", full], capture_output=True, text=True,
                        timeout=timeout)

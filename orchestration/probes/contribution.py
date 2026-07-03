@@ -39,12 +39,23 @@ def text_of(html):
     return re.sub(r"\s+", " ", soup.get_text(" ", strip=True))
 
 
+INTERACTIVE = ["form", "button", "select", "textarea", "video", "iframe"]
+
+
 def form_text_of(html):
-    if not html or "<form" not in html:
+    """Text inside interactive controls — the elements NEVER_IN_BODY refuses
+    to lift by design (script-driven widgets: webforms, filter panels,
+    carousel controls). Excluded from the G1 denominator, printed separately.
+    (Amendment 2026-07-03: extended from <form> only to the NEVER_IN_BODY set —
+    same principle, observed live on a Next.js filter panel of <button>s.)"""
+    if not html or not any(f"<{t}" in html for t in INTERACTIVE):
         return ""
     soup = BeautifulSoup(html, "lxml")
-    return " ".join(re.sub(r"\s+", " ", f.get_text(" ", strip=True))
-                    for f in soup.find_all("form"))
+    seen = []
+    for f in soup.find_all(INTERACTIVE):
+        f.extract()  # avoid double-count when nested (button inside form)
+        seen.append(re.sub(r"\s+", " ", f.get_text(" ", strip=True)))
+    return " ".join(x for x in seen if x)
 
 
 def main():

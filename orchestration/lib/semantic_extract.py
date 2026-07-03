@@ -425,6 +425,8 @@ def extract_fields(comp_el, comp_set):
                 if txt:
                     acc["text_parts"].append(txt)
                 continue
+            if child.name in ("script", "style", "noscript"):
+                continue  # code, not contributor content (bytes stay in blobs)
             if child in comp_set:
                 acc["child_components"].append(child)
                 continue  # do not descend into a nested component
@@ -566,7 +568,7 @@ def _esc_attr(v):
              .replace(">", "&gt;").replace('"', "&quot;"))
 
 
-def lift_media(scope, banned_ids, cap=6):
+def lift_media(scope, banned_ids, cap=16):
     """P2.5-C2: media units in the skeleton residue (whole <picture> elements
     and standalone <img>) -> {{media:imageN}} markers. Returns (media, total):
     media = [{name, orig, src, alt}] for the first `cap` units (orig = exact
@@ -713,6 +715,11 @@ def find_repeated_items(group):
         sigs = [(k.name, " ".join(sorted(classes_of(k)))) for k in kids]
         top, n = Counter(sigs).most_common(1)[0]
         if n >= 3:
+            if top[0] in TEXT_BLOCK:
+                # repeated <p>/<h*>/<ul> = a text RUN (one richtext body),
+                # never container items (observed live: a Next.js article's
+                # typography_paragraph* <p>s became 10 near-empty item nodes)
+                continue
             items = [k for k, s in zip(kids, sigs) if s == top]
             if all(_count_leaves(k) for k in items):
                 return items
@@ -851,6 +858,7 @@ def partition_main(soup, obj_set):
     component regions and passthrough regions. Chrome subtrees are excluded
     (covered by cross-cutting components in absolute areas).
     Returns {"regions": [...], "leavesTotal": N}."""
+    no_main = soup.find("main") is None
     root = soup.find("main") or soup.body
     if root is None:
         return {"regions": [], "leavesTotal": 0}
@@ -877,7 +885,7 @@ def partition_main(soup, obj_set):
         for child in node.children:
             if not isinstance(child, Tag):
                 txt = str(child).strip()
-                if len(txt) >= 2:
+                if txt:  # even 1-char separators are counted leaves (bytes contract)
                     regions.append({"kind": "passthroughText", "html": txt,
                                     "leaves": 1, "topIndex": top_index})
                 continue
@@ -900,7 +908,7 @@ def partition_main(soup, obj_set):
             continue
         if not isinstance(child, Tag):
             txt = str(child).strip()
-            if len(txt) >= 2:
+            if txt:  # 1-char text leaves count too (bytes contract)
                 regions.append({"kind": "passthroughText", "html": txt,
                                 "leaves": 1, "topIndex": ti})
                 top_levels.append({"html": txt, "leaves": 1})
@@ -925,15 +933,21 @@ def partition_main(soup, obj_set):
         ti += 1
 
     return {"regions": regions, "leavesTotal": _count_leaves(root),
-            "topLevels": top_levels}
+            "topLevels": top_levels,
+            # embed/landing pages without <main> (observed: a Typeform page):
+            # EVERYTHING must flow through the body partition — component
+            # emission outside a main region would double-emit junk
+            "noMain": no_main}
 
 
 # ── Per-page component extraction ─────────────────────────────────
 
 def extract_page(html, slug):
+    # NO decompose: script/style/noscript are part of the BYTES contract — the
+    # partition's passthrough blobs must carry them (observed live: a Typeform
+    # embed page whose body is script-only lost everything). Detection and
+    # field extraction SKIP those subtrees instead (see extract_fields).
     soup = BeautifulSoup(html, "lxml")
-    for t in soup(["script", "style", "noscript"]):
-        t.decompose()
 
     sxa_mode = soup.find(class_="component") is not None
     comp_nodes = build_component_index(soup, sxa_mode)

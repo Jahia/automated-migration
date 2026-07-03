@@ -242,14 +242,43 @@ def detect_sxa(htmltext):
 
 _ASSET_REF_RE = re.compile(r'(?<![\w/-])(\.?/?)((?:runtime-)?assets/)')
 
+# runtime-manifest URL map (P3): source URLs the mirror serves from its local
+# runtime-assets copies (Sitecore /-/media/..., JS-composed CDN paths). The
+# LIVE page has no offline resolver — every mapped URL must point at the
+# module's static copy or it 404s (observed live: supercar section imagery).
+RUNTIME_URL_MAP = {}
+
+
+def load_runtime_map(project):
+    RUNTIME_URL_MAP.clear()
+    try:
+        rm = json.load(open(f"projects/{project}/workflow-output/local-mirror/runtime-manifest.json"))
+    except Exception:
+        return
+    for k, v in (rm.get("assets") or {}).items():
+        f = (v or {}).get("file")
+        if not f:
+            continue
+        RUNTIME_URL_MAP[k] = f
+        if k.startswith(("http://", "https://")):
+            path = re.sub(r"^https?://[^/]+", "", k)
+            if path:
+                RUNTIME_URL_MAP.setdefault(path, f)
+
 
 def rewrite_asset_refs(html, base):
     """Mirror markup references assets RELATIVELY (`assets/<hash>`) — valid at
     the mirror root, broken under /sites/... Rewrite to the module's static
-    mirror copy (assetBase, e.g. /modules/<m>/static/)."""
+    mirror copy (assetBase, e.g. /modules/<m>/static/). Runtime-manifest URLs
+    (absolute source paths) are rewritten too, raw and attr-escaped forms."""
     if not base or not html:
         return html
-    return _ASSET_REF_RE.sub(lambda m: base + m.group(2), html)
+    html = _ASSET_REF_RE.sub(lambda m: base + m.group(2), html)
+    for k in sorted(RUNTIME_URL_MAP, key=len, reverse=True):
+        if k in html or k.replace("&", "&amp;") in html:
+            tgt = base + RUNTIME_URL_MAP[k]
+            html = html.replace(k, tgt).replace(k.replace("&", "&amp;"), tgt)
+    return html
 
 
 def load_overrides(project):
@@ -319,7 +348,10 @@ def page_shell(txt, base):
         return None
     main = body.find("main") or body.find(attrs={"role": "main"})
     if main is None:
-        return None
+        # embed/landing page without <main>: the BODY is the content root —
+        # head + body attrs still matter (the shell renders a <main> wrapper
+        # around the area; pixel-neutral, judged by the ground-truth gate)
+        main = body
 
     head_items = []
     for el in (soup.head.children if soup.head else []):
@@ -350,12 +382,23 @@ def page_shell(txt, base):
                                "text": rewrite_asset_refs(el.get_text(), base)})
 
     chain = [body]
-    p = main.parent
-    anc = []
-    while p is not None and p is not body:
-        anc.append(p)
-        p = p.parent
-    chain += list(reversed(anc))  # body, wrapper1, ..., main.parent
+    if main is not body:
+        p = main.parent
+        anc = []
+        while p is not None and p is not body:
+            anc.append(p)
+            p = p.parent
+        chain += list(reversed(anc))  # body, wrapper1, ..., main.parent
+
+    from bs4 import Comment
+
+    def ser(node):
+        # bs4 str(Comment) yields the BARE text — the <!-- --> markers must be
+        # re-wrapped or comment content becomes VISIBLE text (observed live:
+        # 'End Google Tag Manager' + '#wrapper' markers rendered on supercar)
+        if isinstance(node, Comment):
+            return f"<!--{node}-->"
+        return str(node)
 
     def chunk(parts):
         html = _EXT_SCRIPT_RE.sub("", rewrite_asset_refs("".join(parts), base))
@@ -365,11 +408,12 @@ def page_shell(txt, base):
     for i, node in enumerate(chain):
         nxt = chain[i + 1] if i + 1 < len(chain) else main
         before, after, seen = [], [], False
-        for child in node.children:
-            if child is nxt:
-                seen = True
-                continue
-            (after if seen else before).append(str(child))
+        if node is not main:  # main==body (no-main page): its children all
+            for child in node.children:  # flow through the partition instances
+                if child is nxt:
+                    seen = True
+                    continue
+                (after if seen else before).append(ser(child))
         levels.append({
             "tag": node.name if node is not body else "body",
             "attrs": _attrs_of(node),
@@ -389,7 +433,7 @@ def page_shell(txt, base):
             if child is node:
                 seen = True
                 continue
-            (after if seen else before).append(str(child))
+            (after if seen else before).append(ser(child))
         inner_levels.append({"tag": node.name, "attrs": _attrs_of(node),
                              "before": chunk(before), "after": chunk(after)})
 
@@ -589,8 +633,14 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
         return True
 
     # chrome (header/footer/nav — routed to absolute areas by the loader) and any
-    # off-main components first; then <main> strictly in document order
+    # off-main components first; then <main> strictly in document order.
+    # Pages WITHOUT <main> (embed/landing, e.g. Typeform): every top child of
+    # <body> already flows through the partition below — emitting "off-main"
+    # components here would double-emit fragments (observed: title/svg debris).
+    no_main = partition.get("noMain")
     for i in range(len(comps)):
+        if no_main:
+            break
         if i in main_idx:
             continue
         c = comps[i]
@@ -720,6 +770,7 @@ def main():
     if not pages:
         sys.exit(f"extract_content: no captured pages under {proj}/.reference")
 
+    load_runtime_map(project)
     overrides = load_overrides(project)
     if overrides:
         print(f"extract_content: passthrough overrides active — demoteRoles="

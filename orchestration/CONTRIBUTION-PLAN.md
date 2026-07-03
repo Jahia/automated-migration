@@ -38,7 +38,7 @@ and LEAVE the body richtext.
 
 ### C2 — Media contract (fidelity-safe by construction)
 - Unit = a whole `<picture>` element or a standalone `<img>` in skeleton residue.
-- Per payload, up to **6** units wired (`image`..`image6` — weakreference,
+- Per payload, up to **16** units wired (`image`..`image16` — sponsor walls need them; per-node mixins keep lean nodes lean — weakreference,
   picker[type='image'], < jmix:image); the rest stay verbatim and are COUNTED.
 - Per unit, two hidden companions: `imageNOrig` (the unit's exact original markup) and
   `imageNOrigRef` (UUID of the DAM copy of the original primary file).
@@ -145,7 +145,7 @@ feasibility data — not on a gate run):** text inside `<form>` subtrees is excl
 from the G1 denominator — form widgets/labels are script-driven webform content, not
 contributor richtext (measured: 83 % of the contact page's main group text lives in
 its Drupal webform). The probe MUST print both numbers (raw and forms-excluded);
-the gate judges forms-excluded. No other exclusions.
+the gate judges widget-excluded: the denominator drops text inside the NEVER_IN_BODY element set (form, button, select, textarea, video, iframe) — the elements the lift REFUSES by design (script-driven widgets). Amended 2026-07-03 from "form only" when a Next.js filter panel of buttons surfaced the general case; the probe always prints raw AND excluded numbers.
 | G2 round-trip (dynamic) | sample ≥ 3 props/page × 6 pages: sentinel edit visible in live; after revert, ground truth re-PASS 18/18 ≥ 99 % | `probes/roundtrip.sh` |
 | G3 fidelity (unchanged invariant) | ground truth 18/18 pages ≥ 99 % | existing `probes/groundtruth.sh` |
 | G4 editorial | careers = 1 Content Grid + 5 item children, each with editable title/body/image; home hero title+body editable and wired | manual/cockpit review |
