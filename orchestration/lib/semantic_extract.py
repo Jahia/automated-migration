@@ -396,6 +396,16 @@ def nearest_region(el):
 
 # ── Field / data-shape extraction ─────────────────────────────────
 
+# DOM signals that a component needs client-side behaviour (a Jahia Island),
+# beyond a plain server-rendered view. Class tokens complement the tags for
+# JS-driven widgets built from bare divs (carousel, tabs, filter bars…).
+INTERACTIVE_TAGS = {"form", "input", "select", "textarea", "button",
+                    "video", "canvas", "details", "dialog"}
+INTERACTIVE_CLASS_RE = re.compile(
+    r"carousel|slider|swiper|tabs|accordion|search|filter|toggle|dropdown"
+    r"|modal|popin|player|lightbox", re.I)
+
+
 def extract_fields(comp_el, comp_set):
     """Walk comp_el's subtree, stopping at nested component nodes, and build the
     editable field shape a contributor would set."""
@@ -403,6 +413,9 @@ def extract_fields(comp_el, comp_set):
         "headings": [], "images": [], "links": [],
         "text_parts": [], "has_richtext": False,
         "child_components": [],
+        # bridge extras (content-load + Islands hint) — additive, never feed
+        # shape_from_fields, so candidate shapes stay byte-stable vs pre-bridge
+        "image_details": [], "link_details": [], "interactive": False,
     }
 
     def walk(node):
@@ -424,14 +437,21 @@ def extract_fields(comp_el, comp_set):
                 src = child.get("src") or child.get("data-src") or child.get("data-lazy-src") or ""
                 if src and not src.startswith("data:"):
                     acc["images"].append(src)
+                    acc["image_details"].append(
+                        {"src": src, "alt": child.get("alt", "") or ""})
             if name in ("video", "iframe"):
                 acc["images"].append(child.get("src") or "media")
+                acc["interactive"] = True
             if name == "a":
                 href = child.get("href", "")
                 if href and not href.startswith("#") and not href.startswith("javascript:"):
                     acc["links"].append(href)
+                    acc["link_details"].append(
+                        {"href": href, "text": child.get_text(" ", strip=True)[:120]})
             if name == "button":
                 acc["links"].append("button")
+            if name in INTERACTIVE_TAGS:
+                acc["interactive"] = True
             if name in RICHTEXT_TAGS:
                 acc["has_richtext"] = True
             walk(child)
@@ -461,7 +481,7 @@ def shape_from_fields(acc):
 def detect_repeated_child(comp_el, comp_set):
     """If the component has no nested component children but contains a repeated
     sibling structure (>=3 same tag+class), treat it as a container of items.
-    Returns (is_container, child_shape) or (False, None)."""
+    Returns (is_container, child_shape, item_outer_html) or (False, None, None)."""
     best = None
     for node in comp_el.find_all(True):
         if node in comp_set and node is not comp_el:
@@ -475,9 +495,9 @@ def detect_repeated_child(comp_el, comp_set):
             best = [k for k in kids if (k.name, " ".join(sorted(classes_of(k)))) == top_sig]
             break
     if not best:
-        return False, None
+        return False, None, None
     item_acc = extract_fields(best[0], comp_set)
-    return True, shape_from_fields(item_acc)
+    return True, shape_from_fields(item_acc), str(best[0])
 
 
 # ── Per-page component extraction ─────────────────────────────────
@@ -501,6 +521,7 @@ def extract_page(html, slug):
         return el in obj_set
 
     # top-level components = no component ancestor
+    index_of = {id(el): i for i, el in enumerate(comp_nodes)}
     components = []
     for el in comp_nodes:
         parent_comp = None
@@ -514,16 +535,18 @@ def extract_page(html, slug):
         acc = extract_fields(el, obj_set)
         shape = shape_from_fields(acc)
         is_container = bool(acc["child_components"])
-        child_shape = None
+        child_shape = item_html = None
         if is_container:
             # dominant child role shape
             child_roles = [role_and_variants(c, sxa_mode)[0] for c in acc["child_components"]]
         else:
-            rc, cs = detect_repeated_child(el, obj_set)
+            rc, cs, item_html = detect_repeated_child(el, obj_set)
             if rc:
                 is_container = True
                 child_shape = cs
         empty = (not shape and not is_container)
+        interactive = bool(acc["interactive"]) or bool(
+            INTERACTIVE_CLASS_RE.search(" ".join(classes_of(el))))
         components.append({
             "slug": slug,
             "role": role,
@@ -542,6 +565,15 @@ def extract_page(html, slug):
             "links": acc["links"][:8],
             "headings": [h[1] for h in acc["headings"]][:4],
             "topLevel": parent_comp is None,
+            # ── bridge extras (in-memory; consumed by extract_content's semantic
+            # adapter + the html-fragments emission, stripped from candidates) ──
+            "parentIndex": index_of.get(id(parent_comp)) if parent_comp is not None else None,
+            "interactive": interactive,
+            "imageDetails": acc["image_details"][:12],
+            "linkDetails": acc["link_details"][:12],
+            "fullText": " ".join(acc["text_parts"]),
+            "outerHTML": str(el),
+            "itemOuterHTML": item_html,
         })
     return sxa_mode, components
 
@@ -579,6 +611,14 @@ def aggregate(all_components, num_pages):
         candidates.append({
             "candidateId": f"cand_{role}",
             "role": role,
+            "interactive": any(i.get("interactive") for i in insts),
+            # representative markup, popped by main() into html-fragments/ files
+            "_sampleFragment": {
+                "slug": sample["slug"],
+                "classString": sample["classString"],
+                "html": sample.get("outerHTML") or "",
+                "itemHtml": sample.get("itemOuterHTML"),
+            },
             "position": position,
             "positionSpread": dict(positions),
             "dataShape": dom_shape,
@@ -863,6 +903,28 @@ def main():
 
     out_dir = f"{proj}/workflow-output"
     os.makedirs(out_dir, exist_ok=True)
+
+    # ── html-fragments: representative source markup per candidate ──
+    # The downstream bridge needs REAL DOM fragments: /5-components replicates the
+    # exact HTML structure (migration rule: fragments must match exactly), and the
+    # passthrough layer (P1.2) renders uncaptured regions verbatim. One file per
+    # candidate (+ .item.html for a repeated child), path recorded on the candidate.
+    frag_dir = os.path.join(out_dir, "html-fragments")
+    os.makedirs(frag_dir, exist_ok=True)
+    for c in candidates:
+        frag = c.pop("_sampleFragment", None) or {}
+        if not frag.get("html"):
+            continue
+        safe = re.sub(r"[^A-Za-z0-9._-]", "-", c["role"])
+        header = (f"<!-- role: {c['role']} | representative page: {frag['slug']}"
+                  f" | class: {frag['classString']} -->\n")
+        with open(os.path.join(frag_dir, f"{safe}.html"), "w") as f:
+            f.write(header + frag["html"])
+        c["htmlFragment"] = f"html-fragments/{safe}.html"
+        if frag.get("itemHtml"):
+            with open(os.path.join(frag_dir, f"{safe}.item.html"), "w") as f:
+                f.write(header + frag["itemHtml"])
+            c["itemHtmlFragment"] = f"html-fragments/{safe}.item.html"
 
     xcut = [c for c in candidates if c["isCrossCutting"]]
     nested = [c for c in candidates if c.get("alwaysNested")]

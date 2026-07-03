@@ -37,12 +37,22 @@ def load_json(p, default=None):
 
 
 def build_type_map(manifest):
-    """SXA instance type (lowercased) -> lsp:nodeType."""
+    """Instance type (lowercased) -> ns:nodeType.
+    v2 manifests carry an explicit instanceTypeMap (role -> nodeType, incl.
+    cross-cutting and nested-part child types); v1 manifests carry per-component
+    sxaSource lists; coversRoles is the derivation fallback for older v2 files."""
     m = {}
+    for k, v in (manifest.get("instanceTypeMap") or {}).items():
+        m[k.lower()] = v
     for c in manifest.get("components", []):
         nt = c.get("nodeType")
         for sxa in (c.get("sxaSource") or []):
-            m[sxa.lower()] = nt
+            m.setdefault(sxa.lower(), nt)
+        for role in (c.get("coversRoles") or []):
+            m.setdefault(role.lower(), nt)
+    for c in manifest.get("crossCutting", []):
+        if c.get("coversRole") and c.get("nodeType"):
+            m.setdefault(c["coversRole"].lower(), c["nodeType"])
     return m
 
 
@@ -53,6 +63,11 @@ def area_for(nodetype, manifest, site):
             short = nodetype.split(":")[-1]
             name = {"mainNav": "nav", "footer": "footer", "topBar": "topBar"}.get(short, short)
             return f"/sites/{site}/home/{name}"
+    # v2: cross-cutting chrome (header/footer/nav) lives in absolute areas — it is
+    # populated once, never dropped into a page's main area (migration rule 16)
+    for c in manifest.get("crossCutting", []):
+        if c.get("nodeType") == nodetype:
+            return f"/sites/{site}/home/{c.get('area') or nodetype.split(':')[-1]}"
     return None  # page area
 
 
@@ -257,7 +272,8 @@ def main():
     clean = "--clean" in args
     ld = Loader(project, site)
     if not ld.type_map:
-        sys.exit("load_content: empty SXA->lsp type map (manifest missing sxaSource)")
+        sys.exit("load_content: empty instance->nodeType map "
+                 "(manifest has neither instanceTypeMap/coversRoles (v2) nor sxaSource (v1))")
     pages = [page] if page else list(ld.content.get("pages", {}).keys())
     tot_c = tot_p = 0
     for pg in pages:

@@ -33,6 +33,20 @@ LAYOUT = re.compile(r"^(component|component-content|container|container-fluid|ro
 
 
 def captured_pages(proj):
+    # v2 source of truth first: page-inventory.json (crawl output) — its slugs are
+    # what semantic_extract, the template clusters and the page-creation step key
+    # on ("home", not "index"). Path-derived slugs below are the v1 fallback.
+    inv = f"{proj}/workflow-output/page-inventory.json"
+    if os.path.isfile(inv):
+        try:
+            pages = json.load(open(inv)).get("pages", [])
+        except Exception:
+            pages = []
+        out = [(p["slug"], os.path.join(proj, p["cachedAt"]), None)
+               for p in pages if p.get("slug") and p.get("cachedAt")
+               and os.path.isfile(os.path.join(proj, p["cachedAt"]))]
+        if out:
+            return out
     out = []
     capdir = f"{proj}/.reference/captured"
     if os.path.isdir(capdir):
@@ -217,6 +231,51 @@ def detect_sxa(htmltext):
     return 'class="component' in htmltext and "field-" in htmltext
 
 
+def semantic_page(txt, slug):
+    """v2 adapter: reuse semantic_extract's deterministic component walk so each
+    instance's `type` is the same ROLE the manifest's instanceTypeMap keys on —
+    the whole point of the bridge (load_content resolves role -> ns:nodeType).
+    Emits load-shaped instances: parents always precede their children."""
+    from semantic_extract import extract_page  # bs4/lxml — pipeline dependency
+    _, comps = extract_page(txt, slug)
+    out, remap = [], {}
+
+    def emit(i):
+        if i in remap:
+            return remap[i]
+        c = comps[i]
+        pi = c.get("parentIndex")
+        parent = emit(pi) if pi is not None else None
+        fields = {}
+        headings = c.get("headings") or []
+        for n, h in enumerate(headings):
+            fields["title" if n == 0 else f"title-{n + 1}"] = h
+        body = c.get("fullText") or ""
+        for h in headings:  # heading text repeats inside text_parts — strip once
+            body = body.replace(h, " ", 1)
+        body = clean(body)
+        if len(body) >= 2:
+            fields["text"] = body[:5000]
+        remap[i] = len(out)
+        out.append({
+            "type": c["role"],
+            "parent": parent,
+            "fields": fields,
+            "images": [{"file": filename_for(d["src"]), "alt": d.get("alt", "")}
+                       for d in (c.get("imageDetails") or [])],
+            "links": [{"text": d.get("text", ""), "href": d["href"]}
+                      for d in (c.get("linkDetails") or [])],
+        })
+        return remap[i]
+
+    for i in range(len(comps)):
+        emit(i)
+    parents = {i["parent"] for i in out if i.get("parent") is not None}
+    for idx, i in enumerate(out):
+        i["empty"] = not (i["fields"] or i["images"] or i["links"]) and idx not in parents
+    return {"adapter": "semantic", "instances": out}
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: extract_content.py <project> [site_key]")
@@ -227,7 +286,7 @@ def main():
         sys.exit(f"extract_content: no captured pages under {proj}/.reference")
 
     data = {"adapter": None, "pages": {}}
-    sxa_pages = 0
+    sxa_pages = sem_pages = 0
     for slug, path, _ in pages:
         try:
             txt = open(path, encoding="utf-8", errors="ignore").read()
@@ -260,10 +319,17 @@ def main():
             data["pages"][slug] = {"adapter": "sxa", "instances": p.instances}
             sxa_pages += 1
         else:
-            p = GenericContent()
-            p.feed(txt)
-            data["pages"][slug] = {"adapter": "generic", "blocks": p.blocks}
-    data["adapter"] = "sxa" if sxa_pages > len(pages) / 2 else "generic"
+            try:
+                data["pages"][slug] = semantic_page(txt, slug)
+                sem_pages += 1
+            except ImportError:
+                # bs4 unavailable: legacy ordered-blocks fallback (NOT loadable by
+                # load_content — instances only). Kept as a last-resort inspection aid.
+                p = GenericContent()
+                p.feed(txt)
+                data["pages"][slug] = {"adapter": "generic", "blocks": p.blocks}
+    data["adapter"] = ("sxa" if sxa_pages > len(pages) / 2
+                       else "semantic" if sem_pages else "generic")
 
     os.makedirs("orchestration/content", exist_ok=True)
     outp = f"orchestration/content/{project}.content-load.json"
@@ -276,7 +342,7 @@ def main():
           f"{tot_inst} component instances | {tot_text} chars of real field text -> {outp}")
     for slug, v in list(data["pages"].items())[:8]:
         n = len(v.get("instances", v.get("blocks", [])))
-        print(f"  {slug:28s} {v['adapter']:8s} {n} {'instances' if v['adapter']=='sxa' else 'blocks'}")
+        print(f"  {slug:28s} {v['adapter']:8s} {n} {'blocks' if v['adapter'] == 'generic' else 'instances'}")
 
 
 if __name__ == "__main__":

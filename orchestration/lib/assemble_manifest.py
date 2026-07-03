@@ -359,13 +359,26 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
                 "nodeType": f"{ns}:{camel(ld['role'])}Item",
                 "fields": child_fields or [{"name": "title", "type": "string", "i18n": True, "mandatory": False}],
             }
+            item_frag = next((c.get("itemHtmlFragment") for c in ms
+                              if c.get("itemHtmlFragment")), None)
+            if item_frag:
+                child["htmlFragment"] = item_frag
+        needs_mr = bool(d.get("mainResource"))
         components.append({
             "name": title_case(ld["role"]),
             "nodeType": node,
             "coversRoles": [c["role"] for c in ms],
             "isContainer": is_container,
             "childType": child,
-            "needsMainResource": bool(d.get("mainResource")),
+            "needsMainResource": needs_mr,
+            # downstream alias (v1 pipeline vocabulary): a mainResource entity is
+            # rendered by a fullPage template
+            "needsFullPage": needs_mr,
+            # Islands hint: DOM carried forms/media/JS-widget markers
+            "interactive": any(c.get("interactive") for c in ms),
+            # representative source markup per covered role (see html-fragments/)
+            "htmlFragments": {c["role"]: c["htmlFragment"]
+                              for c in ms if c.get("htmlFragment")},
             "layoutProperty": layout,
             "views": [{"name": v} for v in (d.get("views") or ["default"])],
             "fields": fields,
@@ -393,6 +406,7 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
         if not target or best < 1:
             continue
         target["needsMainResource"] = True
+        target["needsFullPage"] = True
         target["detailOf"] = dt["detailOf"]
 
         # Enrich the entity with its own core fields: fold the scalar-content facet
@@ -428,16 +442,44 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
     # cross-cutting: deterministic from candidate set
     xcut = []
     for c in candidates.get("crossCutting", []):
-        xcut.append({
+        entry = {
             "name": title_case(c["role"]),
             "nodeType": f"{ns}:{camel(c['role'])}",
             "area": "nav" if "nav" in c["role"] else c["position"],
             "fields": fields_from_shape(c["dataShape"]),
             "coversRole": c["role"],
-        })
+            "interactive": bool(c.get("interactive")),
+        }
+        if c.get("htmlFragment"):
+            entry["htmlFragment"] = c["htmlFragment"]
+        xcut.append(entry)
+
+    # instance→type map: source role (as emitted per-instance by semantic_extract
+    # and by extract_content's semantic adapter) → JCR nodeType. This is the
+    # contract load_content.build_type_map() consumes for v2 manifests (the v1
+    # equivalent was components[].sxaSource).
+    instance_type_map = {}
+    for comp in components:
+        for role in comp["coversRoles"]:
+            instance_type_map[role.lower()] = comp["nodeType"]
+    for x in xcut:
+        instance_type_map[x["coversRole"].lower()] = x["nodeType"]
+    # always-nested roles load as the child type of their dominant parent's
+    # container — extract_fields stops at nested component boundaries, so without
+    # this mapping their text would never reach the JCR (loader skips unmapped)
+    for c in candidates.get("nestedParts", []) or []:
+        parents = c.get("commonParents") or {}
+        dom_parent = max(parents.items(), key=lambda kv: kv[1])[0] if parents else None
+        if not dom_parent:
+            continue
+        for comp in components:
+            if dom_parent in comp["coversRoles"] and comp.get("childType"):
+                instance_type_map.setdefault(c["role"].lower(),
+                                             comp["childType"]["nodeType"])
+                break
 
     return {"crossCutting": xcut, "components": components, "templates": templates,
-            "typeCount": len(components)}
+            "typeCount": len(components), "instanceTypeMap": instance_type_map}
 
 
 def partition_gate(candidates, groups):

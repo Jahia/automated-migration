@@ -60,6 +60,20 @@ first attempt (0 hallucination / 0 omission).
 
 Plan template: `orchestration/plans/acquia-analyze.plan.json` (crawl → **localize (offline mirror gate)** → semantic → group → cnd → **reconstruct gate**).
 
+### 2b. v2→downstream artifact bridge (QUALITY-PLAN P1.1, shipped 2026-07-03)
+
+What the downstream (scaffold→components→content) consumes from the analyze phase, and where it
+comes from — all deterministic, validated 100 % instance→type resolution on acquia-drupal (263/263):
+
+| Artifact | Producer | Consumer |
+|---|---|---|
+| `workflow-output/html-fragments/<role>.html` (+ `.item.html` for repeated children) | `semantic_extract.py` — representative source markup per candidate, path recorded as `htmlFragment` on the candidate | `/5-components` (exact-HTML rule), passthrough layer (P1.2) |
+| `component-manifest.json` → `instanceTypeMap` (role → nodeType, incl. cross-cutting + nested-part→childType), per-component `needsFullPage` (alias of `needsMainResource`), `interactive` (Islands hint from DOM signals: forms/media/JS-widget classes), `htmlFragments` | `assemble_manifest.py` | `load_content.build_type_map()` (v2 contract; v1 `sxaSource` still honoured), `cnd_emit`, templatization |
+| `orchestration/content/<project>.content-load.json` (`adapter: "semantic"`) | `extract_content.py` **semantic adapter**: reuses `semantic_extract.extract_page()` so instance `type` = the same role the manifest keys on; parents precede children; slugs come from `page-inventory.json` (not path-derived) | `load_content.py` → MCP create+publish |
+
+Loader v2 routing: cross-cutting nodeTypes resolve to absolute areas (`/home/<header|footer|nav>`)
+via the manifest's `crossCutting[].area` — chrome is populated once, never per page (rule 16).
+
 ---
 
 ## 3. The gates (what makes it trustworthy)

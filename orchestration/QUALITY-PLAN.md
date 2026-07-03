@@ -173,3 +173,18 @@ Crawler JS-render only if the holdout demands it.
   as the blocking gate with `next_actions=[rollback, jump, restart]` (+ new `gate.status` field).
   Minor: `rejected` added to frontend `StepStatus` and `schema.py` states (incl. missing `halted`).
   pytest 16/16 (4 new regression tests). **P0 complete.**
+- 2026-07-03 — **P1.1 artifact bridge shipped.** `semantic_extract` emits `html-fragments/<role>.html`
+  (+ `.item.html`) with `htmlFragment` recorded per candidate, plus `interactive` (DOM-signal Islands
+  hint) — all additive: candidate ids and shapes byte-identical to HEAD on acquia-drupal (verified
+  by re-running the HEAD version side-by-side; the previously committed candidates file was stale,
+  pre-BEM-collapse). `assemble_manifest` emits `instanceTypeMap` (role→nodeType incl. cross-cutting
+  and nested-part→childType routing — nested-part text would otherwise never reach the JCR),
+  `needsFullPage` alias, `interactive`, `htmlFragments`. `load_content.build_type_map` consumes the
+  v2 contract (v1 `sxaSource` kept); cross-cutting chrome routes to absolute areas (rule 16).
+  `extract_content` gains the **semantic adapter** (reuses `extract_page`, parents-before-children,
+  slugs from `page-inventory.json` — fixes the `index`-vs-`home` slug drift). Validated on
+  acquia-drupal: 263/263 instances resolve (100 %), 0 non-empty unmapped, 0 ordering violations,
+  110 chrome instances routed to absolute areas; `cnd_emit` consumes the bridged manifest
+  (32 types + 20 child types); SXA mode regression-checked in-memory on supercar. NOTE: the
+  existing acquia `grouping.json` references pre-BEM-collapse candidate ids — the group step must
+  re-run before the E2E (normal pipeline step, self-corrects on the partition gate).
