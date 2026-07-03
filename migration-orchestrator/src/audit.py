@@ -167,6 +167,17 @@ class RunAuditLogger:
     def human_answer_received(self, step_id: str, answer: str) -> None:
         self._write("human_answer", {"step_id": step_id, "answer": answer[:500]})
 
+    # ── Decision points (ASSIST-PLAN §3) ──────────────
+
+    def decision(self, epic_id: str, story_id: str, step_id: str, payload: dict) -> None:
+        """A decision-point decision (POST /steps/{id}/decide). Mirrors the
+        SQLite 'decision' event into the JSONL audit trail so GET
+        /runs/{id}/audit?event_type=decision surfaces it (§3 A3 audit contract)."""
+        self._write("decision", {
+            "epic_id": epic_id, "story_id": story_id, "step_id": step_id,
+            **payload,
+        })
+
     # ── Token/cost summary ────────────────────────────
 
     def cost_summary(self, step_id: str, tokens_in: int, tokens_out: int, tokens_cache: int, cost: float) -> None:

@@ -1207,6 +1207,7 @@ async def decide_step(
         run.updated_at = time.time() * 1000
         await save_run(run)
         await save_event(run_id, "decision", audit_payload, step_id=step_id, story_id=story.id, epic_id=epic.id)
+        get_audit_logger(run_id).decision(epic.id, story.id, step_id, audit_payload)
         await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "decision": "proceed"}, step_id=step_id, story_id=story.id, epic_id=epic.id)
         await _resume_after_decision(run, client, event_listener)
         return {"status": "proceeded", "step_id": step_id, "rules": rules_result}
@@ -1230,6 +1231,7 @@ async def decide_step(
             run.updated_at = time.time() * 1000
             await save_run(run)
             await save_event(run_id, "decision", {**audit_payload, "halt": True}, step_id=step_id, story_id=story.id, epic_id=epic.id)
+            get_audit_logger(run_id).decision(epic.id, story.id, step_id, {**audit_payload, "halt": True})
             await notify_sse(run, "step_status", {"status": "halted", "task_type": step.task_type, "gate_type": step.gate_type, "summary": f"strategy {strategy.id}: escalated to human review"}, step_id=step_id, story_id=story.id, epic_id=epic.id)
             return {"status": "halted", "step_id": step_id, "strategy": strategy.id, "gate_type": "segmentation", "rules": rules_result}
 
@@ -1272,6 +1274,7 @@ async def decide_step(
         step.attempt = 0
 
     await save_event(run_id, "decision", audit_payload, step_id=step_id, story_id=story.id, epic_id=epic.id)
+    get_audit_logger(run_id).decision(epic.id, story.id, step_id, audit_payload)
     result = await jump_to_step(run_id, rerun_target, None, True, client=client, event_listener=event_listener, skip_done=skip_ids)
     if result.get("error"):
         return {"error": result["error"], "code": 400}

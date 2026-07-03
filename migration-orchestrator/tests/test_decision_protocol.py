@@ -612,6 +612,25 @@ def test_cost_dir_is_absolute_and_anchored_on_package():
     assert cost_tracker.DEFAULT_COST_DIR.name == "costs"
 
 
+def test_decision_event_written_to_jsonl_audit_trail(tmp_path):
+    # GET /runs/{id}/audit reads the JSONL audit file (stats.py), not the SQLite
+    # events table. A decision must appear there too or ?event_type=decision is
+    # blind. RunAuditLogger.decision() mirrors the SQLite 'decision' event.
+    from src.audit import RunAuditLogger
+
+    logger = RunAuditLogger("run_audit_decision", log_dir=tmp_path)
+    logger.decision("e1", "s1", "step_x",
+                    {"action": "apply_and_rerun", "strategy_id": "fix_flag",
+                     "rationale": "M2 smoke"})
+    lines = (tmp_path / "run_audit_decision.jsonl").read_text().splitlines()
+    entries = [json.loads(l) for l in lines if l.strip()]
+    decisions = [e for e in entries if e.get("event") == "decision"]
+    assert len(decisions) == 1
+    d = decisions[0]
+    assert d["step_id"] == "step_x" and d["epic_id"] == "e1" and d["story_id"] == "s1"
+    assert d["strategy_id"] == "fix_flag" and d["rationale"] == "M2 smoke"
+
+
 # ── (10) decision_pending survives persistence + restart normalization ──
 
 
