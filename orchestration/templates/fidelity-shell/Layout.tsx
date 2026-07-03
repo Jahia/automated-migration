@@ -27,6 +27,7 @@ export type Shell = {
   bodyAttrs: Record<string, string>;
   mainAttrs: Record<string, string>;
   levels: ShellLevel[];
+  innerLevels?: ShellLevel[];
   head?: HeadItem[];
 };
 
@@ -70,8 +71,23 @@ export const Layout = ({
   const siteNode = renderContext.getSite() as unknown as JCRNodeWrapper;
   const homePage = siteNode.getNode("home") as JCRNodeWrapper;
 
+  // inner wrapper chain (e.g. Drupal's region--content) recomposed around the
+  // Area — top groups load at real-section altitude with wrappers intact
+  const inner = shell
+    ? (shell.innerLevels ?? []).reduceRight<ReactNode>(
+        (acc, lvl) =>
+          createElement(
+            lvl.tag,
+            domAttrs(lvl.attrs),
+            <Raw key="b" html={lvl.before} />,
+            acc,
+            <Raw key="a" html={lvl.after} />,
+          ),
+        children,
+      )
+    : children;
   const main = shell ? (
-    <main {...domAttrs(shell.mainAttrs)}>{children}</main>
+    <main {...domAttrs(shell.mainAttrs)}>{inner}</main>
   ) : (
     children
   );

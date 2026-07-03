@@ -13,6 +13,13 @@ thr="${3:-99}"
 shift $(( $# >= 3 ? 3 : 2 )) || true
 load_env "projects/$project"
 require_node 20
+# flush Jahia's output caches first — a stale cached render measuring 100 %
+# against missing content is the worst possible false-positive (observed live)
+HOST="${JAHIA_URL:-${JAHIA_HOST:-http://localhost:8080}}"; HOST="${HOST%/}"
+UP="${JAHIA_USER:-root}"; [[ "$UP" == *:* ]] || UP="$UP:${JAHIA_PASS:-root}"
+curl -sf -u "$UP" -H "Origin: $HOST" -X POST \
+  "$HOST/modules/tools/cache.jsp" --data "action=flushOutputCaches" -o /dev/null \
+  || echo "WARN: output-cache flush failed (tools cache.jsp) — results may be stale" >&2
 node orchestration/lib/groundtruth_probe.mjs "projects/$project" "$site" "$thr" "$@" \
   || fail "ground-truth gate below ${thr}% (see projects/$project/workflow-output/groundtruth/review.html)"
 pass "ground truth >= ${thr}% on every migrated page"

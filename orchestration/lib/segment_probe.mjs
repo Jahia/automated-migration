@@ -13,7 +13,19 @@
 // Output: workflow-output/segment/<slug>.segmentation.json + <slug>.segmap.html
 //   (overlay coloured by kind: component / container / chrome / passthrough).
 //
+// GATE (QUALITY-PLAN P2.1 — pre-registered): a page passes only if the reply
+// parses, references only REAL block ids, and covers >= --min-coverage (50) %
+// of the content leaves. Unparseable/low-coverage replies get the exact error
+// fed back and retried (--retries, default 3) — the gate is RED on persistent
+// model failure, never silently green (the old gate passed on a total failure:
+// unparseable -> 0 components -> everything passthrough -> "GREEN").
+// STABILITY (P2.3): --stability 2 runs the gated segmentation twice; component
+// root-set Jaccard >= 0.8 accepts (higher-coverage run wins), else a THIRD run
+// decides by best-agreeing pair. Also dumps the data-seg-annotated DOM
+// (<slug>.dom.html) for the deterministic segmentation->manifest adapter.
+//
 // Usage: node segment_probe.mjs <project> --pages <slug>[,slug2]
+//        [--retries 3] [--min-coverage 50] [--stability 2]
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
@@ -33,7 +45,15 @@ const mirrorDir = path.resolve(`${proj}/workflow-output/local-mirror`);
 const outDir = `${proj}/workflow-output/segment`;
 fs.mkdirSync(outDir, { recursive: true });
 const inv = JSON.parse(fs.readFileSync(`${proj}/workflow-output/page-inventory.json`, 'utf8'));
-const pageSel = typeof flags.pages === 'string' ? flags.pages.split(',').map(s => s.trim()) : inv.pages.slice(0, 1).map(p => p.slug);
+// default page set (P2.2 multi-page): one representative per TEMPLATE CLUSTER
+// (semantic-templates.json) — segmentation is per-cluster, not per-page
+let defaultPages = inv.pages.slice(0, 1).map(p => p.slug);
+try {
+  const tpl = JSON.parse(fs.readFileSync(`${proj}/workflow-output/semantic-templates.json`, 'utf8'));
+  const reps = (tpl.clusters || []).map(c => (c.pages || [])[0]).filter(Boolean);
+  if (reps.length) defaultPages = reps;
+} catch { /* keep single-page fallback */ }
+const pageSel = typeof flags.pages === 'string' ? flags.pages.split(',').map(s => s.trim()) : defaultPages;
 
 // ── in-page: build a numbered outline of the significant block elements ──
 // Each block gets a stable seg-id (data attr). We record tag, cleaned classes, a text
@@ -110,10 +130,100 @@ ${ol}
 
 JSON only.`;
 
+const RETRIES = Number(flags.retries) || 3;
+const MIN_COVERAGE = Number(flags['min-coverage']) || 50;
+const STABILITY = Number(flags.stability) || 2;
+
 const server = await serveMirror(mirrorDir, loadRuntimeManifest(mirrorDir));
 const base = `http://127.0.0.1:${server.port}`;
 const browser = await chromium.launch({ headless: true });
 const results = [];
+
+// ── deterministic evaluation of one model reply against the outline ──
+function makeEvaluator(nodes) {
+  const rid = v => Number(v);
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const kids = new Map();
+  nodes.forEach(n => { if (!kids.has(n.parent)) kids.set(n.parent, []); kids.get(n.parent).push(n.id); });
+  const descendants = (id) => { const out = new Set([id]); const st = [id]; while (st.length) { for (const c of (kids.get(st.pop()) || [])) { out.add(c); st.push(c); } } return out; };
+  const leaves = nodes.filter(n => n.leaf).map(n => n.id);
+  return (comps) => {
+    const refIds = comps.flatMap(c => [rid(c.rootId), ...((c.children || []).map(ch => rid(ch.rootId)))]);
+    const roots = refIds.filter(id => byId.has(id));
+    const covered = new Set();
+    roots.forEach(id => descendants(id).forEach(d => covered.add(d)));
+    const coveredLeaves = leaves.filter(id => covered.has(id));
+    return {
+      badIds: refIds.filter(id => !byId.has(id)),
+      coverage: leaves.length ? +(100 * coveredLeaves.length / leaves.length).toFixed(1) : 100,
+      passthrough: leaves.filter(id => !covered.has(id)),
+      byId, rid,
+    };
+  };
+}
+
+// ── one GATED segmentation: retry with the exact failure fed back (P2.1) ──
+async function segmentGated(nodes, shot, tag) {
+  const evaluate = makeEvaluator(nodes);
+  let feedback = '';
+  let last = null;
+  for (let attempt = 1; attempt <= RETRIES; attempt++) {
+    const reply = await ovhVision(PROMPT(outlineText(nodes)) + feedback, shot);
+    const parsed = extractJson(reply);
+    if (!parsed || !Array.isArray(parsed.components)) {
+      console.error(`    ${tag} attempt ${attempt}: UNPARSEABLE reply (${reply.length} chars)`);
+      feedback = `\n\nYOUR PREVIOUS REPLY WAS NOT VALID JSON with a "components" array. Reply with STRICT JSON only.`;
+      last = { comps: [], badIds: [], coverage: 0, passthrough: [], parseError: true };
+      continue;
+    }
+    const comps = parsed.components;
+    const ev = evaluate(comps);
+    last = { comps, ...ev, parseError: false };
+    if (ev.badIds.length) {
+      console.error(`    ${tag} attempt ${attempt}: ${ev.badIds.length} hallucinated id(s) ${ev.badIds.slice(0, 8).join(',')}`);
+      feedback = `\n\nERROR: these rootIds do not exist in the outline: ${ev.badIds.join(', ')}. Use ONLY ids from the outline.`;
+      continue;
+    }
+    if (ev.coverage < MIN_COVERAGE) {
+      console.error(`    ${tag} attempt ${attempt}: coverage ${ev.coverage}% < ${MIN_COVERAGE}%`);
+      feedback = `\n\nERROR: your components cover only ${ev.coverage}% of the LEAF blocks — the target is >= ${MIN_COVERAGE}%. Uncovered leaf ids (cover the real content ones): ${ev.passthrough.slice(0, 30).join(', ')}.`;
+      continue;
+    }
+    return { ...last, attempts: attempt, gatePass: true };
+  }
+  return { ...last, attempts: RETRIES, gatePass: false };
+}
+
+// ── stability (P2.3): N gated runs must agree (root-set Jaccard >= 0.8) ──
+const jaccard = (a, b) => {
+  const A = new Set(a), B = new Set(b);
+  const inter = [...A].filter(x => B.has(x)).length;
+  const uni = new Set([...A, ...B]).size;
+  return uni ? inter / uni : 1;
+};
+const rootSet = (run) => run.comps.map(c => Number(c.rootId)).sort((x, y) => x - y);
+
+async function segmentStable(nodes, shot, slug) {
+  const runs = [await segmentGated(nodes, shot, `${slug}#1`)];
+  if (STABILITY < 2) return { ...runs[0], agreement: null, runs: 1 };
+  runs.push(await segmentGated(nodes, shot, `${slug}#2`));
+  let agreement = jaccard(rootSet(runs[0]), rootSet(runs[1]));
+  if (agreement >= 0.8) {
+    const best = runs[0].coverage >= runs[1].coverage ? runs[0] : runs[1];
+    return { ...best, agreement: +agreement.toFixed(3), runs: 2 };
+  }
+  console.error(`    ${slug}: stability Jaccard ${agreement.toFixed(2)} < 0.8 — third run (majority)`);
+  runs.push(await segmentGated(nodes, shot, `${slug}#3`));
+  let bi = 0, bj = 1, bestJ = -1;
+  for (let i = 0; i < runs.length; i++) for (let j = i + 1; j < runs.length; j++) {
+    const J = jaccard(rootSet(runs[i]), rootSet(runs[j]));
+    if (J > bestJ) { bestJ = J; bi = i; bj = j; }
+  }
+  const pair = [runs[bi], runs[bj]];
+  const best = pair[0].coverage >= pair[1].coverage ? pair[0] : pair[1];
+  return { ...best, agreement: +bestJ.toFixed(3), runs: 3,
+           gatePass: best.gatePass && bestJ >= 0.8 };
+}
 
 for (const slug of pageSel) {
   const rec = { slug, model: OVH_VISION_MODEL };
@@ -127,6 +237,9 @@ for (const slug of pageSel) {
     const shotFull = await page.screenshot({ fullPage: true });
     fs.writeFileSync(`${outDir}/${slug}.page.png`, shotFull);
     rec.dims = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
+    // data-seg-annotated DOM — the deterministic bridge for the manifest
+    // adapter (field re-extraction + skeleton generation per segment root)
+    fs.writeFileSync(`${outDir}/${slug}.dom.html`, await page.content());
     await page.close();
     const shot = downscalePng(shotFull);
     // LEAF = terminal significant block (no significant-block descendant). Direct-text
@@ -137,35 +250,26 @@ for (const slug of pageSel) {
     rec.blocks = nodes.length; rec.leaves = nodes.filter(n => n.leaf).length;
     console.error(`  ${slug}: ${rec.blocks} blocks (${rec.leaves} leaves) → OVH ${OVH_VISION_MODEL} (${Math.round(shot.length / 1024)}KB img)`);
 
-    const reply = await ovhVision(PROMPT(outlineText(nodes)), shot);
-    const parsed = extractJson(reply);
-    const comps = (parsed && parsed.components) || [];
+    const run = await segmentStable(nodes, shot, slug);
+    const byId2 = new Map(nodes.map(n => [n.id, n]));
+    const rid2 = v => Number(v);
 
-    // ── partition gate: validate ids, compute leaf coverage, passthrough the rest ──
-    // the model returns ids as strings; coerce to Number to match node ids.
-    const rid = v => Number(v);
-    const byId = new Map(nodes.map(n => [n.id, n]));
-    const descendants = (id) => { const out = new Set(); const rec2 = (p) => nodes.forEach(n => { if (n.parent === p) { out.add(n.id); rec2(n.id); } }); out.add(id); rec2(id); return out; };
-    const refIds = comps.flatMap(c => [rid(c.rootId), ...((c.children || []).map(ch => rid(ch.rootId)))]);
-    const allRoots = refIds.filter(id => byId.has(id));
-    const covered = new Set(); allRoots.forEach(id => descendants(id).forEach(d => covered.add(d)));
-    const leaves = nodes.filter(n => n.leaf).map(n => n.id);
-    const coveredLeaves = leaves.filter(id => covered.has(id));
-    const passthrough = leaves.filter(id => !covered.has(id));               // NOTHING dropped → passthrough
-    const badIds = refIds.filter(id => !byId.has(id));
-
-    rec.components = comps.map(c => ({
-      rootId: rid(c.rootId), name: c.name, kind: c.kind,
-      box: byId.get(rid(c.rootId)) ? (({ x, y, w, h, bg }) => ({ x, y, w, h, bg }))(byId.get(rid(c.rootId))) : null,
-      children: (c.children || []).map(ch => ({ rootId: rid(ch.rootId), name: ch.name, box: byId.get(rid(ch.rootId)) ? (({ x, y, w, h }) => ({ x, y, w, h }))(byId.get(rid(ch.rootId))) : null })),
+    rec.components = run.comps.map(c => ({
+      rootId: rid2(c.rootId), name: c.name, kind: c.kind,
+      box: byId2.get(rid2(c.rootId)) ? (({ x, y, w, h, bg }) => ({ x, y, w, h, bg }))(byId2.get(rid2(c.rootId))) : null,
+      children: (c.children || []).map(ch => ({ rootId: rid2(ch.rootId), name: ch.name, box: byId2.get(rid2(ch.rootId)) ? (({ x, y, w, h }) => ({ x, y, w, h }))(byId2.get(rid2(ch.rootId))) : null })),
     }));
-    rec.passthrough = passthrough.map(id => ({ ...byId.get(id) }));
-    rec.coverage = leaves.length ? +(100 * coveredLeaves.length / leaves.length).toFixed(1) : 100;
-    rec.hallucinatedIds = badIds;
-    rec.gatePass = badIds.length === 0;   // every referenced id is real (nothing invented). coverage<100 is fine → passthrough.
+    rec.passthrough = (run.passthrough || []).map(id => ({ ...byId2.get(id) }));
+    rec.coverage = run.coverage;
+    rec.hallucinatedIds = run.badIds || [];
+    rec.attempts = run.attempts;
+    rec.stabilityRuns = run.runs;
+    rec.agreement = run.agreement;
+    rec.gatePass = !!run.gatePass;        // parses + real ids + coverage >= MIN + stability
     rec.nodes = nodes;
     console.error(`  ${slug}: ${rec.components.length} components (${rec.components.filter(c => c.kind === 'container').length} containers), `
-      + `leaf coverage ${rec.coverage}%, ${passthrough.length} passthrough, ${badIds.length} hallucinated ids`);
+      + `leaf coverage ${rec.coverage}%, ${rec.passthrough.length} passthrough, attempts ${rec.attempts}, `
+      + `stability ${rec.agreement === null ? 'n/a' : rec.agreement} (${rec.stabilityRuns} runs) → gate ${rec.gatePass ? 'GREEN' : 'RED'}`);
     rec.ok = true;
   } catch (e) { rec.ok = false; rec.error = (e.message || String(e)).split('\n')[0]; console.error(`  ${slug}: FAIL ${rec.error}`); }
   results.push(rec);
@@ -216,7 +320,8 @@ fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify(
 console.log(`\n=== SEGMENTATION (OVH ${OVH_VISION_MODEL}) — ${proj} ===`);
 for (const r of results) {
   if (!r.ok) { console.log(`  ${r.slug}: FAIL ${r.error}`); continue; }
-  console.log(`  ${r.slug}: ${r.components.length} components, coverage ${r.coverage}% leaves, passthrough ${r.passthrough.length}, gate ${r.gatePass ? 'GREEN' : 'RED (hallucinated ids)'}`);
+  console.log(`  ${r.slug}: ${r.components.length} components, coverage ${r.coverage}% leaves, passthrough ${r.passthrough.length}, `
+    + `attempts ${r.attempts}, stability ${r.agreement === null ? 'n/a' : r.agreement}, gate ${r.gatePass ? 'GREEN' : 'RED'}`);
   for (const c of r.components) console.log(`     [${c.kind}] ${c.name}${c.children.length ? ' → ' + c.children.map(ch => ch.name).join(', ') : ''}`);
 }
 process.exit(results.every(r => r.ok && r.gatePass) ? 0 : 1);

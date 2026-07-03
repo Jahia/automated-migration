@@ -529,6 +529,30 @@ def _count_leaves(el):
     return n
 
 
+def main_content_root(main):
+    """Descend from <main> through SINGLE-significant-child wrappers (Drupal's
+    region--content etc.): partitioning at <main> altitude would yield ONE top
+    group per page (a full-page monolith — the §2 'pixel-perfect but editorially
+    useless' trap). The traversed chain is recorded so the page shell can
+    recompose those wrappers around the main Area. Returns (root, chain)."""
+    chain = []
+    node = main
+    while True:
+        tags = [c for c in node.children if isinstance(c, Tag)
+                and c.name not in _CHROME_NAMES]
+        content_tags = [c for c in tags if _count_leaves(c)]
+        stray_text = any(not isinstance(c, Tag) and str(c).strip()
+                         for c in node.children)
+        # descend while exactly ONE child carries content leaves — empty
+        # siblings (anchors, pre/post-content regions) are preserved by the
+        # page shell's innerLevels before/after chunks
+        if len(content_tags) == 1 and not stray_text:
+            chain.append(content_tags[0])
+            node = content_tags[0]
+            continue
+        return node, chain
+
+
 def partition_main(soup, obj_set):
     """Document-ordered total partition of the page's main region into
     component regions and passthrough regions. Chrome subtrees are excluded
@@ -537,6 +561,7 @@ def partition_main(soup, obj_set):
     root = soup.find("main") or soup.body
     if root is None:
         return {"regions": [], "leavesTotal": 0}
+    root, _chain = main_content_root(root)
     if root in obj_set:
         n = _count_leaves(root)
         return {"regions": [{"kind": "component", "el": root, "topIndex": 0}],
@@ -594,13 +619,12 @@ def partition_main(soup, obj_set):
         elif id(child) in has_comp_below:
             rec(child, ti)
         else:
-            leaves = _count_leaves(child)
-            if leaves:
-                regions.append({"kind": "passthrough", "html": str(child),
-                                "leaves": leaves, "topIndex": ti})
-            else:
-                top_levels.pop()  # empty scaffolding — no region, no top entry
-                ti -= 1
+            # content-less top children (spacer/decoration divs) STILL occupy
+            # pixels — dropping one cost 128px of section spacing (measured on
+            # careers). Emit as zero-leaf passthrough: free, and the spacing
+            # survives at section altitude.
+            regions.append({"kind": "passthrough", "html": str(child),
+                            "leaves": _count_leaves(child), "topIndex": ti})
         ti += 1
 
     return {"regions": regions, "leavesTotal": _count_leaves(root),

@@ -253,15 +253,43 @@ def rewrite_asset_refs(html, base):
 
 
 def load_overrides(project):
-    """workflow-output/passthrough-overrides.json — the P1 fidelity/semantic
-    DIAL: {"demoteRoles": ["*"|role...], "chromePassthrough": bool,
-    "assetBase": "/modules/<m>/static/"}. Demoted component regions load as
-    verbatim rawHtml; promotion = removing roles as views become exact."""
+    """workflow-output/passthrough-overrides.json — the fidelity/semantic DIAL:
+    {"demoteRoles": ["*"|role...], "promoteRoles": [role...],
+     "chromePassthrough": bool, "assetBase": "/modules/<m>/static/"}.
+    Demoted component regions load as verbatim rawHtml; promoteRoles WINS over
+    demoteRoles/"*" — promoted regions load as semantic instances carrying a
+    SKELETON (their own markup with field values replaced by {{f:name}}
+    markers) so the skeleton view renders pixel-identical with editable fields
+    (QUALITY-PLAN P2)."""
     p = f"projects/{project}/workflow-output/passthrough-overrides.json"
     try:
         return json.load(open(p))
     except Exception:
         return {}
+
+
+def make_skeleton(html, fields):
+    """Instance markup -> skeleton template: each field VALUE that occurs
+    EXACTLY ONCE (raw or html-escaped) becomes {{f:<name>}}. Non-unique or
+    unfound values stay inline (field still loads; edits won't reflow — the
+    substitution stats are recorded so this is visible, never silent)."""
+    import html as html_mod
+    subs, missed = [], []
+    for name, val in fields.items():
+        v = (val or "").strip()
+        if len(v) < 3:
+            continue
+        cand = [v, html_mod.escape(v)]
+        done = False
+        for c in cand:
+            if html.count(c) == 1:
+                html = html.replace(c, "{{f:%s}}" % name, 1)
+                subs.append(name)
+                done = True
+                break
+        if not done:
+            missed.append(name)
+    return html, subs, missed
 
 
 _EXT_SCRIPT_RE = re.compile(
@@ -355,10 +383,28 @@ def page_shell(txt, base):
             "before": chunk(before),
             "after": chunk(after),
         })
+    # inner wrapper chain (main -> content root, e.g. Drupal's region--content):
+    # recomposed INSIDE <main> around the Area — partition/top-groups operate at
+    # the content-root altitude (see semantic_extract.main_content_root)
+    from semantic_extract import main_content_root
+    _croot, inner_chain = main_content_root(main)
+    inner_levels = []
+    for i, node in enumerate(inner_chain):
+        parent = main if i == 0 else inner_chain[i - 1]
+        before, after, seen = [], [], False
+        for child in parent.children:
+            if child is node:
+                seen = True
+                continue
+            (after if seen else before).append(str(child))
+        inner_levels.append({"tag": node.name, "attrs": _attrs_of(node),
+                             "before": chunk(before), "after": chunk(after)})
+
     return {
         "bodyAttrs": _attrs_of(body),
         "mainAttrs": _attrs_of(main),
         "levels": levels,
+        "innerLevels": inner_levels,
         "head": head_items,
     }
 
@@ -379,6 +425,7 @@ def semantic_page(txt, slug, overrides=None):
     ov = overrides or {}
     demote = set(ov.get("demoteRoles") or [])
     demote_all = "*" in demote
+    promote = set(ov.get("promoteRoles") or [])
     chrome_pass = bool(ov.get("chromePassthrough"))
     base = ov.get("assetBase") or ""
     _, comps, partition = extract_page(txt, slug)
@@ -437,6 +484,42 @@ def semantic_page(txt, slug, overrides=None):
             inst["area"] = area
         return inst
 
+    def emit_promoted(ci, group_html=None):
+        """Promoted TOP GROUP -> ONE semantic instance with a SKELETON: the
+        top-level child's full markup (wrappers included — same granularity as
+        demotion, or grid/flex classes are lost) with the dominant region's
+        field values swapped for {{f:name}} markers. The skeleton view renders
+        it pixel-identical while title/text become editable JCR properties.
+        Children stay inline in the markup (monolith — P3 refines per-item)."""
+        c = comps[ci]
+        # lift ONLY round-trippable fields (title -> jcr:title, text -> text|body):
+        # a lifted value whose property never loads would VANISH from the render.
+        # Secondary headings stay inline in the skeleton (P3: per-item fields).
+        fields = {}
+        headings = c.get("headings") or []
+        if headings:
+            fields["title"] = headings[0]
+        body = c.get("fullText") or ""
+        for h in headings:
+            body = body.replace(h, " ", 1)
+        body = clean(body)
+        if len(body) >= 2:
+            fields["text"] = body[:5000]
+        raw = rewrite_asset_refs(group_html if group_html is not None
+                                 else (c.get("outerHTML") or ""), base)
+        skeleton, subs, missed = make_skeleton(raw, fields)
+        out.append({
+            "type": c["role"], "parent": None, "promoted": True,
+            "fields": fields, "skeleton": skeleton,
+            "skeletonSubs": subs, "skeletonMissed": missed,
+            "images": [{"file": filename_for(d["src"]), "alt": d.get("alt", "")}
+                       for d in (c.get("imageDetails") or [])],
+            "links": [{"text": d.get("text", ""), "href": d["href"]}
+                      for d in (c.get("linkDetails") or [])],
+        })
+        for j in subtree(ci):
+            remap[j] = None  # absorbed into the skeleton monolith
+
     # chrome (header/footer/nav — routed to absolute areas by the loader) and any
     # off-main components first; then <main> strictly in document order
     for i in range(len(comps)):
@@ -471,13 +554,29 @@ def semantic_page(txt, slug, overrides=None):
             return False
         ci = r.get("compIndex")
         role = comps[ci]["role"] if ci is not None else None
+        if role in promote:      # explicit promotion wins over demote/"*" (P2)
+            return True
         return not (demote_all or role in demote)
 
     demoted_leaves = 0
+    promoted_group_leaves = 0
     for ti in sorted(by_top.keys()):
         group = by_top[ti]
         promoted = [r for r in group if region_promoted(r)]
-        if not promoted and 0 <= ti < len(top_levels):
+        in_top = 0 <= ti < len(top_levels)
+        if promoted and in_top:
+            # promotion at TOP-GROUP granularity (same as demotion): the whole
+            # top-level child (wrappers intact) becomes one skeleton instance,
+            # typed and titled by its dominant promoted region
+            dom = max(promoted, key=lambda r: r.get("leaves", 0))
+            emit_promoted(dom["compIndex"], group_html=top_levels[ti]["html"])
+            promoted_group_leaves += sum(r.get("leaves", 0) for r in group)
+            for r in group:
+                if r.get("compIndex") is not None:
+                    for j in subtree(r["compIndex"]):
+                        remap[j] = None
+            continue
+        if not promoted and in_top:
             out.append(raw_instance(top_levels[ti]["html"]))
             demoted_leaves += sum(r.get("leaves", 0) for r in group
                                   if r["kind"] == "component")
@@ -486,14 +585,14 @@ def semantic_page(txt, slug, overrides=None):
                     for j in subtree(r["compIndex"]):
                         remap[j] = None
             continue
-        for r in group:
+        for r in group:  # fallback: regions without a top anchor
             if r["kind"] == "component":
                 ci = r.get("compIndex")
                 if ci is None:
                     continue
                 if region_promoted(r):
-                    for j in subtree(ci):
-                        emit(j)
+                    emit_promoted(ci)
+                    promoted_group_leaves += r.get("leaves", 0)
                 else:
                     out.append(raw_instance(comps[ci].get("outerHTML") or ""))
                     demoted_leaves += r.get("leaves", 0)
@@ -511,14 +610,10 @@ def semantic_page(txt, slug, overrides=None):
 
     # LOADED partition (what actually reaches the JCR) — the analyzer's
     # capability numbers stay in semantic-templates.json pagePartitions
-    summary = {k: v for k, v in partition.items() if k != "regions"}
-    if demoted_leaves:
-        total = summary.get("leavesTotal") or 0
-        sem = sum(r.get("leaves", 0) for r in regions if r["kind"] == "component"
-                  and r.get("compIndex") is not None
-                  and not (demote_all or comps[r["compIndex"]]["role"] in demote))
-        summary["semanticLeafShare"] = round(sem / total, 3) if total else None
-        summary["demotedLeaves"] = demoted_leaves
+    summary = {k: v for k, v in partition.items() if k not in ("regions", "topLevels")}
+    total = summary.get("leavesTotal") or 0
+    summary["semanticLeafShare"] = round(promoted_group_leaves / total, 3) if total else None
+    summary["demotedLeaves"] = demoted_leaves
     n_comp = sum(1 for i in out if not i.get("passthrough") and i.get("parent") is None
                  and not i.get("area"))
     summary["componentRegions"] = n_comp

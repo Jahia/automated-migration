@@ -122,6 +122,11 @@ def type_block(comp, ns, mixns):
         lines.append(field_line(f))
     if has_link_field(fields):
         lines.extend(link_lines())
+    if comp.get("skeleton"):
+        # P2 skeleton rendering: the instance's own markup with {{f:name}}
+        # markers — the view substitutes property values (pixel-exact +
+        # editable fields). Hidden: contributors edit the FIELDS, not the markup.
+        lines.append("  - skeleton (string, textarea) hidden")
     lp = comp.get("layoutProperty")
     if isinstance(lp, dict):
         ll = layout_line(lp)

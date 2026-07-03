@@ -1,0 +1,51 @@
+import { jahiaComponent } from "@jahia/javascript-modules-library";
+import { createElement } from "react";
+import { splitRoot, rootProps } from "$RELROOT/rawRoot.js";
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+/**
+ * Skeleton view for $NODETYPE (generated — QUALITY-PLAN P2).
+ * The node's `skeleton` property is its OWN captured markup with {{f:name}}
+ * markers where field values were lifted into JCR properties. Rendering =
+ * skeleton + current property values -> pixel-identical to the source when
+ * unedited, and title/text edits reflow into the exact same markup.
+ */
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "$NODETYPE",
+    name: "default",
+    displayName: "$DISPLAYNAME",
+  },
+  (props: Record<string, unknown>) => {
+    let html = typeof props.skeleton === "string" ? props.skeleton : "";
+    // loader contract: title lives in jcr:title (mix:title), text in text|body
+    const values: Record<string, unknown> = {
+      ...props,
+      title: props["jcr:title"] ?? props.title,
+      text: props.text ?? props.body,
+    };
+    for (const [k, v] of Object.entries(values)) {
+      if (k !== "skeleton" && typeof v === "string" && html.includes(`{{f:${k}}}`)) {
+        html = html.split(`{{f:${k}}}`).join(escapeHtml(v));
+      }
+    }
+    html = html.replace(/\{\{f:[^}]+\}\}/g, "");
+    // render the fragment's REAL root element — child/sibling CSS selectors
+    // (section spacing rules) must keep matching (display:contents does not
+    // participate in selector matching)
+    const root = splitRoot(html);
+    if (root) {
+      return createElement(root.tag, {
+        ...rootProps(root.attrs),
+        dangerouslySetInnerHTML: { __html: root.inner },
+      });
+    }
+    return (
+      // eslint-disable-next-line react/no-danger -- skeleton substitution is the mechanism
+      <div style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: html }} />
+    );
+  },
+);

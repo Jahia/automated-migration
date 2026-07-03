@@ -129,12 +129,23 @@ class Loader:
                 out[wname] = imgs[i][0]
         if imgs and "imageAltText" in pdef["names"]:
             out["imageAltText"] = imgs[0][1] or "image"
-        # text fields -> text props in order (heading first, etc.)
-        vals = [v.strip() for v in inst.get("fields", {}).values() if v and v.strip()]
-        for name, val in zip(pdef["text"], vals):
-            # passthrough markup must load VERBATIM (fidelity invariant) — only
-            # ordinary text fields get the sanity cap
-            out[name] = val[:200_000] if name == "html" else val[:5000]
+        # text fields: NAME-exact matches first (v2 fields are named after the
+        # manifest props: title, text, html, skeleton...), then order-zip the
+        # leftovers (v1 sxa field names -> heading first, etc.)
+        fields = {k: v.strip() for k, v in inst.get("fields", {}).items() if v and v.strip()}
+        if inst.get("skeleton"):
+            fields["skeleton"] = inst["skeleton"]
+        LONG = {"html", "skeleton"}  # verbatim markup — never truncate to 5k
+        used_props, used_fields = set(), set()
+        for name, val in fields.items():
+            if name in pdef["text"] or name in pdef["names"]:
+                out[name] = val[:200_000] if name in LONG else val[:5000]
+                used_props.add(name)
+                used_fields.add(name)
+        rest_props = [p for p in pdef["text"] if p not in used_props]
+        rest_vals = [v for k, v in fields.items() if k not in used_fields]
+        for name, val in zip(rest_props, rest_vals):
+            out[name] = val[:200_000] if name in LONG else val[:5000]
         # link -> ctaLabel + external url (best-effort)
         links = inst.get("links", [])
         if links and "ctaLabel" in pdef["names"] and "ctaLabel" not in out:
@@ -202,7 +213,13 @@ class Loader:
                 # unpublish misses non-i18n nodes — the sanctioned flow is
                 # two-phase: mark for deletion, then publish the deletion
                 try:
-                    self.m.call("content.mark_for_deletion", {"path": p})
+                    try:
+                        self.m.call("content.mark_for_deletion", {"path": p})
+                    except Exception as me:
+                        if "locked" not in str(me).lower():
+                            raise
+                        # already marked (locked) by a previous failed pass —
+                        # publishing completes the pending deletion
                     self.m.call("publication.publish", {"path": p, "languages": ["en", "fr"]})
                     n += 1
                 except Exception as e:
@@ -283,7 +300,22 @@ class Loader:
             pdef = self.props_of(nt)
             if not pdef["names"]:
                 continue
-            props = self.map_props(page, inst, pdef)
+            if inst.get("promoted"):
+                # promoted skeleton instance: EXPLICIT contract, no introspection
+                # zip — `skeleton` is a hidden prop (absent from content.type but
+                # settable), title lives in jcr:title (mix:title supertype),
+                # text goes to the type's text/body property.
+                f = inst.get("fields", {})
+                props = {"skeleton": (inst.get("skeleton") or "")[:200_000]}
+                if f.get("title"):
+                    props["jcr:title"] = f["title"][:250]
+                if f.get("text"):
+                    tgt = "text" if "text" in pdef["names"] else \
+                          "body" if "body" in pdef["names"] else None
+                    if tgt:
+                        props[tgt] = f["text"][:5000]
+            else:
+                props = self.map_props(page, inst, pdef)
             is_container = any(c.get("nodeType") == nt and c.get("isContainer")
                                for c in self.manifest.get("components", []))
             # skip empty leaves, but ALWAYS create containers (they hold children)

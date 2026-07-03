@@ -376,6 +376,9 @@ def assemble(candidates, groups, decide, templates, ns="ns"):
             "needsFullPage": needs_mr,
             # Islands hint: DOM carried forms/media/JS-widget markers
             "interactive": any(c.get("interactive") for c in ms),
+            # P2: promoted instances render via skeleton views (pixel-exact +
+            # editable fields) — same mechanism for both A/B arms
+            "skeleton": True,
             # representative source markup per covered role (see html-fragments/)
             "htmlFragments": {c["role"]: c["htmlFragment"]
                               for c in ms if c.get("htmlFragment")},

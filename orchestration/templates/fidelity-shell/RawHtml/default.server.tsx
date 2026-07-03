@@ -1,12 +1,14 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
+import { createElement } from "react";
+import { splitRoot, rootProps } from "../rawRoot.js";
 
 /**
  * Passthrough view (QUALITY-PLAN P1.2): renders the captured source markup
  * VERBATIM. This is the nothing-is-dropped half of the fidelity invariant —
  * every main-region area no semantic component covers is one of these nodes.
- * Asset URLs inside the markup are rewritten to the module's static/ mirror
- * copy at extraction time (extract_content assetBase), so the markup renders
- * offline-faithful under the source stylesheets loaded by the Layout.
+ * The fragment's REAL root element is rendered natively (child/sibling CSS
+ * selectors keep matching); multi-root fragments fall back to a
+ * display:contents wrapper.
  */
 jahiaComponent(
   {
@@ -15,14 +17,22 @@ jahiaComponent(
     name: "default",
     displayName: "Raw HTML (passthrough)",
   },
-  ({ html }: { html?: string }) => (
-    // display:contents — the wrapper must be layout-transparent so grid/flex
-    // relationships between sibling source regions survive
-    // eslint-disable-next-line react/no-danger -- passthrough is the point
-    <div
-      data-passthrough="1"
-      style={{ display: "contents" }}
-      dangerouslySetInnerHTML={{ __html: html ?? "" }}
-    />
-  ),
+  ({ html }: { html?: string }) => {
+    const root = splitRoot(html ?? "");
+    if (root) {
+      return createElement(root.tag, {
+        ...rootProps(root.attrs),
+        "data-passthrough": "1",
+        dangerouslySetInnerHTML: { __html: root.inner },
+      });
+    }
+    return (
+      // eslint-disable-next-line react/no-danger -- passthrough is the point
+      <div
+        data-passthrough="1"
+        style={{ display: "contents" }}
+        dangerouslySetInnerHTML={{ __html: html ?? "" }}
+      />
+    );
+  },
 );

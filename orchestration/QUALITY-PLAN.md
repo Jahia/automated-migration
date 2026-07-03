@@ -284,3 +284,54 @@ Crawler JS-render only if the holdout demands it.
   semantic share measured (loaded: 0 % — fidelity-first; capability: 94–99 %), j:linkType
   mutation recorded. → P2 (task #5): raise the LOADED semantic share ≥60 % by promoting roles
   (vision segmentation), fidelity staying ≥99 %.
+- 2026-07-03 — **P2 in progress (append per milestone):**
+  - **2.1 segmentation gate fixed** (`segment_probe.mjs`): unparseable / hallucinated-ids /
+    coverage<--min-coverage(50) replies get the exact failure fed back and retried
+    (--retries 3); gate RED on persistent failure — never silently green on model collapse.
+  - **2.3 stability shipped**: --stability 2 (default) runs the gated segmentation twice,
+    root-set Jaccard ≥0.8 accepts (higher coverage wins), else third run + best-agreeing pair.
+  - **Live on acquia (7 cluster representatives, OVH Qwen2.5-VL): 7/7 gate GREEN, 1 attempt
+    each, stability ≥0.8 (mostly 1.0), leaf coverage 94–100 %** — editorial names + hierarchy
+    (Hero Section, Press Release Cards→Card, Executive Leadership Section→Leader Card,
+    Logo Bar, Office Locations…).
+  - **2.2 adapter shipped** (`segment2manifest.py`): vision naming authority; deterministic
+    field re-extraction on the data-seg-annotated DOM; chrome→crossCutting; detail templates
+    reused (vocabulary-independent); representative fragments; heuristic-role bridge — each
+    vision component claims its root's + DESCENDANTS' candidate roles (vision roots rarely land
+    on the exact heuristic element; generic roles excluded to avoid site-wide relabeling) →
+    manifest 31 components + 3 chrome, naming GOOD, `instanceTypeMap` maps heuristic instance
+    roles onto vision-named types.
+  - **Promotion mechanism = SKELETON views** (fidelity + editability): a promoted region loads
+    as ONE semantic instance whose `skeleton` property is its own markup with {{f:name}}
+    markers where field values were lifted (unique-match substitution only — misses recorded,
+    never silent); generated per-type views substitute property values back
+    (`SkeletonView.tsx.template`, `install_shell_templates --manifest`). Children stay inline
+    (monolith; per-item editability = P3 refinement).
+  - **Loaded semantic share: min 69 % / avg 94 % / max 100 % — P2 floor (≥60 %/page) PASS on
+    18/18** (`partition.py --min-semantic-share 60`). Fidelity re-check under skeleton
+    rendering in progress (P2 gate pair: share ≥60 % AND ground truth still ≥99 %).
+  - **Skeleton-promotion iteration log (7 measured iterations to green):** (a) whole-page
+    monolith trap caught by independent JCR verification — Drupal wraps main in ONE
+    `region--content`, so top-group promotion produced a full-page "component" AND the gate
+    measured a STALE CACHED render (careers had 1 JCR node but rendered complete) → ground-truth
+    probe now flushes Jahia's output caches before measuring; `main_content_root()` descends
+    single-content-child wrappers (chain recomposed by the shell's `innerLevels`) so groups sit
+    at real-section altitude. (b) `skeleton` is a hidden prop → absent from content.type
+    introspection → the loader's order-zip silently mis-assigned it; promoted instances now use
+    an EXPLICIT contract (skeleton always set; title→jcr:title; text→text|body) and lift ONLY
+    round-trippable fields. (c) display:contents wrappers are layout-transparent but NOT
+    selector-transparent — views now render the fragment's REAL root element (`rawRoot.ts`).
+    (d) zero-leaf top children (spacer divs) must load as passthrough — dropping one cost 128px
+    of section spacing. (e) every skeleton type carries a `title` field → mix:title, or the
+    lifted heading is silently skipped at create and VANISHES from the render.
+  - **P2 GATE PAIR — FINAL: ground truth 18/18 ≥99 % (17×100 %, careers 99.93 %) AND loaded
+    semantic share min 69 %/avg 96 % (floor ≥60 % PASS 18/18), publish-parity + edit-frame
+    green, naming GOOD** — vision manifest: 31 components + 3 chrome, 31 generated skeleton
+    views, 83 nodes loaded.
+  - **2.4 A/B (judge = the ground-truth gate, pre-registered):**
+    | arm | manifest | fidelity | semantic share | verdict |
+    |---|---|---|---|---|
+    | A heuristics (LLM grouping) | 17 comps, naming good | **16/18 FAIL** (home 95.4 %, customer-success 97.6 %) | 96 %/100 % | loses on the judge |
+    | B vision (Qwen2.5-VL) | 31 comps, naming good | **18/18 PASS** | 69 %/96 % | **WINNER — shipping state** |
+    Same skeleton mechanism both arms (apples-to-apples). Heuristics promote MORE but break
+    fidelity on 2 pages; vision's segment boundaries survive the pixel judge. **P2 COMPLETE.**
