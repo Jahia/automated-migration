@@ -93,6 +93,16 @@ floor. P1 measures the share without a floor (§5). Baseline acquia-drupal: part
 100 % semantic, 0 passthrough. `semantic-templates.json` gains `pagePartitions` (per-page
 accounting) for the cockpit KPI.
 
+### 2d. Module bridge + full-loop plan (QUALITY-PLAN P1.3/1.4, shipped 2026-07-03)
+
+| Tool | Purpose |
+|---|---|
+| `lib/scaffold_module.sh <project> [module]` | **headless scaffold** — replicates `@jahia/create-module`'s exact copy+templating from the pinned official npm package (cached in `orchestration/.cache/`). No TTY, byte-identical to the interactive tool, lands inside `projects/<p>/`. Writes module `.env` from the repo env truth. Requires corepack (modules pin yarn 4). |
+| `lib/merge_cnd.py <project> --ns X --mixns Xmix` | installs `workflow-output/definitions.cnd` into the module + generates rule-18 resource bundles (every field key + `.ui.tooltip`, en+fr, self-checked) + fixes the placeholder mixin icon |
+| `probes/namespace-check.sh <prefix> <uri>` | **scripted Jackrabbit registry gate** (rule 13) — drives the tools Groovy console over POST; PASS free-or-matching, FAIL on prefix/URI conflict |
+| `lib/create_site.sh <siteKey> <title> <templateSet> [langs]` | provisioning-API `createSite` (never GraphQL addNode — rule 19) + full invariant verification (languages as YAML LIST — csv silently drops extra langs); idempotent |
+| `lib/gen_plan.py --project P --url U --ns N --site S` | parameterized **v2 full-loop plan** generator: analyze (mirror gate → partition gates → fidelity HALT) → module (namespace gate → scaffold → assets → CND merge → components from html-fragments → deploy gate) → site+content (create_site → MCP load → publish parity → edit frame) → ground-truth HALT. Output passes the engine plan lint. |
+
 ---
 
 ## 3. The gates (what makes it trustworthy)

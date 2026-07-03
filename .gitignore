@@ -26,5 +26,6 @@ __pycache__/
 node_modules/
 .DS_Store
 package-lock.json
-package.json
 projects/*/workflow-output/
+projects/*/dist/
+orchestration/.cache/

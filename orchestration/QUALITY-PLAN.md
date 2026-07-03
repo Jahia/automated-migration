@@ -200,3 +200,27 @@ Crawler JS-render only if the holdout demands it.
   instances, 274/274 resolve; supercar SXA 100 % semantic. `semantic-templates.json` gains
   `pagePartitions`. Follow-up noted: passthrough asset URLs still point at source paths —
   rewrite to module-static/DAM at the /3-assets step (tracked for P1.3+).
+- 2026-07-03 — **P1.3+1.4 shipped and validated LIVE on :8081.**
+  (1) `lib/scaffold_module.sh` — headless scaffold that replicates `@jahia/create-module`'s exact
+  logic (copy `module`+`template-set` templates with $MODULE/$NAMESPACE/$VERSION templating,
+  dot/→. rename) from the pinned official npm package — byte-identical, no TTY (expect-driving
+  clack's per-frame ANSI redraws proved brittle and was abandoned). Composes with our layout
+  (module inside projects/<p>/ next to workflow-output). Needs corepack (module pins yarn 4;
+  installed corepack + shims, replaced the global yarn 1.22).
+  (2) `lib/merge_cnd.py` — installs the analyze CND into the module + generates rule-18 resource
+  bundles (every field + `.ui.tooltip`, en+fr in sync, self-checked) + renames the placeholder
+  mixin icon; backup kept OUTSIDE settings/ (anything under settings/ ships in the bundle).
+  (3) `probes/namespace-check.sh` — the Groovy console accepts scripted POST (proved live):
+  reads Jackrabbit's registry, PASS on free-or-matching prefix, FAIL on conflicts (rule 13 gate).
+  (4) `lib/create_site.sh` — provisioning-API createSite + rule-19 verification. Live lesson:
+  `languages` must be a YAML LIST — a csv string silently yields default-language-only (the
+  verification caught it; fixed + site patched).
+  (5) `lib/gen_plan.py` → `plans/acquia-drupal-full.plan.json` — parameterized v2 full loop
+  (4 epics, 21 steps, 29 probes), passes the P0.3 engine lint (build_run_state).
+  **Live state: module `acquia-drupal` DEPLOYED (55 types; acq:rawHtml/jcrQuery/nav confirmed
+  via GraphQL — rule 14), site `acquia` created (en+fr, template set bound, home/files/contents/
+  groups verified).** Note: current module CND comes from the IDENTITY grouping (no LLM) —
+  the E2E run's group step will regenerate it (grouping.json was stale/pre-BEM anyway).
+  Also fixed: a bare `package.json` line in .gitignore silently excluded every new module's
+  package.json. Next: P1.5 ground-truth probe (`probes/groundtruth.sh`, referenced by the plan)
+  then the E2E run (#4).

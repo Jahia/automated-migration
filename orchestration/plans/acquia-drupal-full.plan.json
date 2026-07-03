@@ -1,0 +1,410 @@
+{
+  "goal": "Migrate https://www.acquia.com to a Jahia JS module (project: acquia-drupal, site: acquia, ns: acq) — v2 full loop, fidelity >=99%/page vs local mirror",
+  "repo_dir": ".",
+  "model": "opencode/deepseek-v4-flash",
+  "epics": [
+    {
+      "id": "epic_analyze",
+      "title": "Analyze (v2 deterministic + bounded LLM)",
+      "goal": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
+      "stories": [
+        {
+          "id": "story_analyze",
+          "title": "Analyze (v2 deterministic + bounded LLM)",
+          "description": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
+          "steps": [
+            {
+              "id": "step_connect",
+              "title": "Env + Jahia reachable",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/connect.sh projects/acquia-drupal"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_crawl",
+              "title": "Crawl the source site",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_connect"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/crawl-site.py projects/acquia-drupal https://www.acquia.com --max-pages 18 --depth 2 --rate-delay 2 --max-asset-size 1",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/page-inventory.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_localize",
+              "title": "Local mirror + offline mirror gate",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_crawl"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/localize_site.py projects/acquia-drupal --max-asset-size 15",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/local-mirror/mirror.json",
+                "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/acquia-drupal 10"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_semantic",
+              "title": "Deterministic candidates + partitions",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_localize"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/semantic_extract.py projects/acquia-drupal",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/semantic-candidates.json",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/semantic-templates.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_group",
+              "title": "LLM grouping (bounded) + partition gate",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_semantic"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/group_llm.py projects/acquia-drupal --model deepseek-v4-flash --ns acq --out projects/acquia-drupal/workflow-output/grouping.json",
+                "PROBE: python3 orchestration/lib/assemble_manifest.py projects/acquia-drupal/workflow-output/semantic-candidates.json --group projects/acquia-drupal/workflow-output/grouping.json --ns acq --out projects/acquia-drupal/workflow-output/component-manifest.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_cnd",
+              "title": "Emit CND + view plan",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_group"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/cnd_emit.py projects/acquia-drupal/workflow-output/component-manifest.json --ns acq --mixns acqmix --project acquia-drupal --out-cnd projects/acquia-drupal/workflow-output/definitions.cnd --out-views projects/acquia-drupal/workflow-output/views.json",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/definitions.cnd",
+                "PROBE: grep -q \"acq = \" projects/acquia-drupal/workflow-output/definitions.cnd",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/views.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_extract",
+              "title": "Content-load payload + HARD partition gate",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_cnd"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/extract_content.py acquia-drupal",
+                "PROBE: python3 orchestration/probes/partition.py acquia-drupal"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_fidelity_gate",
+              "title": "Fidelity gate (HALT: human reviews review.html)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_content_extract"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE[900]: node orchestration/lib/reconstruct_probe.mjs projects/acquia-drupal 10 95",
+                "Gate: present worst pages + semantic share, return status halt."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_module",
+      "title": "Module (scaffold, assets, CND, components, deploy)",
+      "goal": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
+      "stories": [
+        {
+          "id": "story_module",
+          "title": "Module (scaffold, assets, CND, components, deploy)",
+          "description": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
+          "steps": [
+            {
+              "id": "step_namespace_check",
+              "title": "Jackrabbit namespace free/matching",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_fidelity_gate"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/namespace-check.sh acq 'https://jahia.com/acquia-drupal/nt/1.0'"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_scaffold",
+              "title": "Headless scaffold (official templates)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_namespace_check"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: bash orchestration/lib/scaffold_module.sh acquia-drupal acquia-drupal",
+                "PROBE: bash orchestration/probes/build.sh projects/acquia-drupal"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/acquia-drupal/package.json"
+              }
+            },
+            {
+              "id": "step_assets",
+              "title": "Import CSS/JS/fonts/images into static/",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_scaffold"
+              ],
+              "inputs": {
+                "project": "acquia-drupal",
+                "project_path": "projects/acquia-drupal",
+                "namespace": "acq",
+                "mixNamespace": "acqmix",
+                "siteKey": "acquia",
+                "moduleName": "acquia-drupal",
+                "skill": ".agents/skills/03-import-assets/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Follow .agents/skills/03-import-assets/SKILL.md for projects/acquia-drupal (source: local-mirror assets).",
+                "PROBE: bash orchestration/probes/assets.sh projects/acquia-drupal"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_cnd_merge",
+              "title": "Install analyze CND + bundles into the module",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_scaffold"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/merge_cnd.py acquia-drupal --ns acq --mixns acqmix",
+                "PROBE: bash orchestration/probes/cnd.sh projects/acquia-drupal acq",
+                "PROBE: bash orchestration/probes/cnd-patterns.sh projects/acquia-drupal acq"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_components",
+              "title": "Implement ALL components (views from html-fragments)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_cnd_merge",
+                "step_assets"
+              ],
+              "inputs": {
+                "project": "acquia-drupal",
+                "project_path": "projects/acquia-drupal",
+                "namespace": "acq",
+                "mixNamespace": "acqmix",
+                "siteKey": "acquia",
+                "moduleName": "acquia-drupal",
+                "consumes": [
+                  "projects/acquia-drupal/workflow-output/component-manifest.json",
+                  "projects/acquia-drupal/workflow-output/html-fragments/",
+                  "projects/acquia-drupal/workflow-output/views.json"
+                ]
+              },
+              "acceptance_criteria": [
+                "Follow .agents/skills/07-implement-components/SKILL.md; one view per manifest type; HTML must match projects/acquia-drupal/workflow-output/html-fragments/ exactly; rawHtml renders its html property verbatim.",
+                "PROBE: bash orchestration/probes/components-all.sh projects/acquia-drupal acq",
+                "PROBE: bash orchestration/probes/contract.sh projects/acquia-drupal step_components"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_templates",
+              "title": "Layout + page templates + MainResource",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_components"
+              ],
+              "inputs": {
+                "project": "acquia-drupal",
+                "project_path": "projects/acquia-drupal",
+                "namespace": "acq",
+                "mixNamespace": "acqmix",
+                "siteKey": "acquia",
+                "moduleName": "acquia-drupal",
+                "skill": ".agents/skills/08-page-templates/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Follow .agents/skills/08-page-templates/SKILL.md for projects/acquia-drupal.",
+                "PROBE: bash orchestration/probes/templates.sh projects/acquia-drupal",
+                "PROBE: bash orchestration/probes/contract.sh projects/acquia-drupal step_templates"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_deploy",
+              "title": "Build + deploy to Jahia (deploy gate)",
+              "task_type": "deploy",
+              "agent": "code",
+              "depends_on": [
+                "step_templates"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE[900]: bash orchestration/probes/deploy.sh projects/acquia-drupal",
+                "PROBE: bash orchestration/probes/namespace-check.sh acq 'https://jahia.com/acquia-drupal/nt/1.0'"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_content",
+      "title": "Site + content + publish parity",
+      "goal": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
+      "stories": [
+        {
+          "id": "story_content",
+          "title": "Site + content + publish parity",
+          "description": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
+          "steps": [
+            {
+              "id": "step_create_site",
+              "title": "Create the site (provisioning API only)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_deploy"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: bash orchestration/lib/create_site.sh acquia \"acquia (migrated)\" acquia-drupal en,fr",
+                "PROBE: bash orchestration/lib/create_site.sh acquia \"acquia (migrated)\" acquia-drupal en,fr"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_mcp",
+              "title": "MCP write path up",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_create_site"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/mcp.sh projects/acquia-drupal"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_load",
+              "title": "Load real content via MCP (components + passthrough)",
+              "task_type": "content",
+              "agent": "code",
+              "depends_on": [
+                "step_mcp"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/load_content.py acquia-drupal acquia --clean",
+                "PROBE: python3 orchestration/probes/content-fidelity.py acquia projects/acquia-drupal"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_publish_parity",
+              "title": "default vs live parity",
+              "task_type": "publish",
+              "agent": "code",
+              "depends_on": [
+                "step_content_load"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/publish-parity.sh projects/acquia-drupal acquia fr,en"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_edit_frame",
+              "title": "Pages editable in jContent",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_publish_parity"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/edit-frame.sh projects/acquia-drupal acquia fr"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_groundtruth",
+      "title": "Ground truth (Jahia live vs source mirror)",
+      "goal": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
+      "stories": [
+        {
+          "id": "story_groundtruth",
+          "title": "Ground truth (Jahia live vs source mirror)",
+          "description": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
+          "steps": [
+            {
+              "id": "step_ground_truth",
+              "title": "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_edit_frame"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE[900]: bash orchestration/probes/groundtruth.sh acquia-drupal acquia 99",
+                "Gate: present groundtruth/review.html per-page fidelity, return status halt."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
