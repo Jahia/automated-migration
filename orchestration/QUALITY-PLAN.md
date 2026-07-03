@@ -224,3 +224,53 @@ Crawler JS-render only if the holdout demands it.
   Also fixed: a bare `package.json` line in .gitignore silently excluded every new module's
   package.json. Next: P1.5 ground-truth probe (`probes/groundtruth.sh`, referenced by the plan)
   then the E2E run (#4).
+- 2026-07-03 — **P1.5+1.6 E2E in progress — ground-truth loop iterations (append per iteration):**
+  Ground-truth gate built (`lib/groundtruth_probe.mjs` + `probes/groundtruth.sh`): deployed Jahia
+  live page pixel-diffed vs the certified offline mirror (mirror_net served), masks policy §2,
+  per-page review.html, semantic share reported. E2E chain executed for real: LLM grouping
+  (DeepSeek, 1 attempt, partition-clean) → 17+3 types manifest → CND redeploy → `import_assets`
+  (1639 mirror assets → module static/, ordered css) → `create_pages` (18 pages via MCP, en+fr,
+  published) → `load_content` (`--clean --chrome-from`, ensure_area) → gate.
+  - **iter1** (all-passthrough main + chrome in absolute areas + union CSS): 0/18, fidelity
+    44–95 %, HTTP 200 + non-empty main everywhere. Diagnosis from review.html: source is
+    JS-dependent (drupalSettings-driven behaviors, count-up numbers, grid/slider init) and CSS
+    keys off Drupal body classes — a CSS-only shell cannot converge.
+  - **iter2** (per-page SHELL v1: body attrs + exact ancestor chain + balanced chrome/scripts
+    around <main>, stored as a `shell` node composed by the basic template): fidelity flat,
+    Δheight EXPLODED (77–184 %) → duplicate content: `--clean` skipped PUBLISHED nodes.
+    Engine lessons encoded in the loader: area nodes are created lazily at first render
+    (`ensure_area` creates the jnt:contentList eagerly); published non-i18n nodes refuse both
+    hard delete AND per-language unpublish — the working idempotent clean is TWO-PHASE
+    (mark_for_deletion + publish-the-deletion).
+  - **iter3** (proper clean): duplicates gone, fidelity back to baseline — shell body renders
+    (body classes, wrapper chain, hero text present in DOM) but `drupalSettings` was missing:
+    it is an INLINE HEAD script, and Drupal aggregates CSS/JS per page — union manifests are
+    not faithful. → **shell v2**: per-page `<head>` captured in the shell (ordered stylesheets,
+    scripts, inline scripts incl. drupalSettings, inline styles; external hosts stripped for
+    parity), RawHtml wrapper made display:contents. iter4 running.
+  - **iter4** (shell v2 live-verified: drupalSettings ✓, per-page head ✓): fidelity flat again —
+    root cause finally isolated by DOM comparison: the partition DESCENDS into wrappers that
+    contain components without emitting the wrapper element itself, so its grid/flex classes are
+    lost and the layout collapses (the mirror keeps the wrapper; we didn't).
+  - **iter5** (demotion granularity = DIRECT CHILD OF <main>, wrappers intact — a fully-demoted
+    top group loads as ONE verbatim blob): **16/18 pages at 100 %, Δh 0**. Third loader lesson:
+    `content.list` paginates (~20) — one clean pass left 4 stale nodes and a leftover FAQ block
+    on top of an otherwise-100 % home; clean now loops until empty.
+  - **iter6**: home 100 % after full clean. about-us stable at 96.93 %: partner-logo rotator
+    (client JS replaces a static composite SVG with a randomized 3×3 logo grid — two renders of
+    the SOURCE differ). Masked per policy §2 with documented reason
+    (`workflow-output/groundtruth-masks.json`, committed).
+  - **RESULT: GROUND TRUTH 18/18 pages ≥ 99 % — ALL AT 100 % (1 masked dynamic zone).**
+    publish-parity PASS (weakrefs + translations in LIVE), edit-frame PASS (pages editable in
+    Page Builder). Semantic share of the LOADED site: **0 % (honest)** — fidelity-first profile
+    loads everything as shell+passthrough; the analyzer's measured capability is 94–99 %
+    (pagePartitions) and raising the loaded share is exactly P2's job. `j:linkType` confirming
+    mutation recorded (see migration.md rule 9: mixin injection is a Content-Editor flow; API
+    loaders must addMixins explicitly — MCP has no mixin support today).
+  - Fidelity-shell template set extracted as AGNOSTIC (`orchestration/templates/fidelity-shell/`
+    + `install_shell_templates.py`, only $NS substituted) — Julian's agnosticism constraint;
+    plan regenerated as a fully deterministic fidelity-first profile (21 steps, 28 probes,
+    engine-lint PASS). Single-run certification via `run_local.py` in progress; result appended
+    below. Known follow-ups: content-fidelity.py's nav/footer shell check predates the
+    shell-node architecture (needs a variant); `assets.sh`/`components-all.sh` idem;
+    P2 promotion will re-introduce semantic views + those probes.

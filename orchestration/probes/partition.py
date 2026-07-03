@@ -46,7 +46,9 @@ for slug, pg in sorted(data.get("pages", {}).items()):
     total, covered = part.get("leavesTotal", 0), part.get("leavesCovered", 0)
     if covered != total:
         fails.append(f"{slug}: partition NOT total — {covered}/{total} leaves covered")
-    n_pass_payload = sum(1 for i in pg.get("instances", []) if i.get("passthrough"))
+    # area-flagged chrome is not a main-region payload (installed once per site)
+    n_pass_payload = sum(1 for i in pg.get("instances", [])
+                         if i.get("passthrough") and not i.get("area"))
     if n_pass_payload != part.get("passthroughRegions", 0):
         fails.append(f"{slug}: payload/summary mismatch — {n_pass_payload} passthrough "
                      f"instances vs {part.get('passthroughRegions')} regions")

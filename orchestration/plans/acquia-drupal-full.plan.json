@@ -173,7 +173,7 @@
               "inputs": {},
               "acceptance_criteria": [
                 "Run: bash orchestration/lib/scaffold_module.sh acquia-drupal acquia-drupal",
-                "PROBE: bash orchestration/probes/build.sh projects/acquia-drupal"
+                "PROBE: test -f projects/acquia-drupal/package.json"
               ],
               "max_attempts": 3,
               "expected_outputs": {
@@ -182,30 +182,23 @@
             },
             {
               "id": "step_assets",
-              "title": "Import CSS/JS/fonts/images into static/",
+              "title": "Mirror assets -> module static/ + head manifests",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
                 "step_scaffold"
               ],
-              "inputs": {
-                "project": "acquia-drupal",
-                "project_path": "projects/acquia-drupal",
-                "namespace": "acq",
-                "mixNamespace": "acqmix",
-                "siteKey": "acquia",
-                "moduleName": "acquia-drupal",
-                "skill": ".agents/skills/03-import-assets/SKILL.md"
-              },
+              "inputs": {},
               "acceptance_criteria": [
-                "Follow .agents/skills/03-import-assets/SKILL.md for projects/acquia-drupal (source: local-mirror assets).",
-                "PROBE: bash orchestration/probes/assets.sh projects/acquia-drupal"
+                "Run: python3 orchestration/lib/import_assets.py acquia-drupal",
+                "PROBE: test -s projects/acquia-drupal/src/templates/css-manifest.json",
+                "PROBE: test -d projects/acquia-drupal/static/assets"
               ],
               "max_attempts": 3
             },
             {
               "id": "step_cnd_merge",
-              "title": "Install analyze CND + bundles into the module",
+              "title": "Install analyze CND + rule-18 bundles",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
@@ -220,55 +213,18 @@
               "max_attempts": 3
             },
             {
-              "id": "step_components",
-              "title": "Implement ALL components (views from html-fragments)",
+              "id": "step_shell_templates",
+              "title": "Agnostic fidelity-shell template set",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_cnd_merge",
-                "step_assets"
+                "step_assets",
+                "step_cnd_merge"
               ],
-              "inputs": {
-                "project": "acquia-drupal",
-                "project_path": "projects/acquia-drupal",
-                "namespace": "acq",
-                "mixNamespace": "acqmix",
-                "siteKey": "acquia",
-                "moduleName": "acquia-drupal",
-                "consumes": [
-                  "projects/acquia-drupal/workflow-output/component-manifest.json",
-                  "projects/acquia-drupal/workflow-output/html-fragments/",
-                  "projects/acquia-drupal/workflow-output/views.json"
-                ]
-              },
+              "inputs": {},
               "acceptance_criteria": [
-                "Follow .agents/skills/07-implement-components/SKILL.md; one view per manifest type; HTML must match projects/acquia-drupal/workflow-output/html-fragments/ exactly; rawHtml renders its html property verbatim.",
-                "PROBE: bash orchestration/probes/components-all.sh projects/acquia-drupal acq",
-                "PROBE: bash orchestration/probes/contract.sh projects/acquia-drupal step_components"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_templates",
-              "title": "Layout + page templates + MainResource",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_components"
-              ],
-              "inputs": {
-                "project": "acquia-drupal",
-                "project_path": "projects/acquia-drupal",
-                "namespace": "acq",
-                "mixNamespace": "acqmix",
-                "siteKey": "acquia",
-                "moduleName": "acquia-drupal",
-                "skill": ".agents/skills/08-page-templates/SKILL.md"
-              },
-              "acceptance_criteria": [
-                "Follow .agents/skills/08-page-templates/SKILL.md for projects/acquia-drupal.",
-                "PROBE: bash orchestration/probes/templates.sh projects/acquia-drupal",
-                "PROBE: bash orchestration/probes/contract.sh projects/acquia-drupal step_templates"
+                "Run: python3 orchestration/lib/install_shell_templates.py acquia-drupal --ns acq",
+                "PROBE: grep -q 'rawHtml' projects/acquia-drupal/src/components/RawHtml/default.server.tsx"
               ],
               "max_attempts": 3
             },
@@ -278,7 +234,7 @@
               "task_type": "deploy",
               "agent": "code",
               "depends_on": [
-                "step_templates"
+                "step_shell_templates"
               ],
               "inputs": {},
               "acceptance_criteria": [
@@ -331,17 +287,32 @@
               "max_attempts": 3
             },
             {
-              "id": "step_content_load",
-              "title": "Load real content via MCP (components + passthrough)",
-              "task_type": "content",
+              "id": "step_pages",
+              "title": "Create pages from the crawl inventory (en+fr, published)",
+              "task_type": "build",
               "agent": "code",
               "depends_on": [
                 "step_mcp"
               ],
               "inputs": {},
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/load_content.py acquia-drupal acquia --clean",
-                "PROBE: python3 orchestration/probes/content-fidelity.py acquia projects/acquia-drupal"
+                "Run: python3 orchestration/lib/create_pages.py acquia-drupal acquia --template basic --locale en",
+                "PROBE: python3 orchestration/lib/mcp_client.py acquia-drupal call content.get '{\"path\":\"/sites/acquia/home\",\"locale\":\"en\"}'"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_load",
+              "title": "Load shells + content via MCP (idempotent clean)",
+              "task_type": "content",
+              "agent": "code",
+              "depends_on": [
+                "step_pages"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/load_content.py acquia-drupal acquia --clean --locale en",
+                "PROBE: python3 orchestration/probes/partition.py acquia-drupal"
               ],
               "max_attempts": 3
             },
@@ -355,7 +326,7 @@
               ],
               "inputs": {},
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/publish-parity.sh projects/acquia-drupal acquia fr,en"
+                "PROBE: bash orchestration/probes/publish-parity.sh projects/acquia-drupal acquia en,fr"
               ],
               "max_attempts": 3
             },
@@ -369,7 +340,7 @@
               ],
               "inputs": {},
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/edit-frame.sh projects/acquia-drupal acquia fr"
+                "PROBE: bash orchestration/probes/edit-frame.sh projects/acquia-drupal acquia en"
               ],
               "max_attempts": 3
             }

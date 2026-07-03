@@ -72,10 +72,11 @@ def area_for(nodetype, manifest, site):
 
 
 class Loader:
-    def __init__(self, project, site):
+    def __init__(self, project, site, locale="en"):
         self.m = MCP(project)
         self.site = site
         self.project = project
+        self.locale = locale
         self.manifest = load_json(f"projects/{project}/workflow-output/component-manifest.json", {})
         self.content = load_json(f"orchestration/content/{project}.content-load.json", {"pages": {}})
         self.imported = load_json(f"orchestration/images/{project}.imported.json", {})
@@ -144,14 +145,50 @@ class Loader:
                 out["j:linkType"] = "external"
         return out
 
+    def ensure_area(self, area_path):
+        """Area nodes (page /main, home /header|/nav|/footer) are created LAZILY
+        by Jahia at first render — a freshly MCP-created page has none, and
+        content.create into it fails with 'Parent path does not exist'. Create
+        the jnt:contentList eagerly (exactly what the render engine would do)."""
+        try:
+            self.m.get(area_path, locale=self.locale)
+            return True
+        except Exception:
+            pass
+        parent, name = area_path.rsplit("/", 1)
+        try:
+            self.m.create(parent, "jnt:contentList", {}, name=name, locale=self.locale)
+            return True
+        except Exception as e:
+            print(f"    ! ensure_area {area_path}: {e}", file=sys.stderr)
+            return False
+
     def clean_area(self, area_path):
         """Delete existing content children of an area so the load is idempotent.
-        Skips published nodes (live content is preserved)."""
-        try:
-            d = self.m.call("content.list", {"parentPath": area_path, "locale": "fr"})
-        except Exception:
-            return 0
-        kids = d.get("children", d.get("nodes", [])) if isinstance(d, dict) else []
+        Published nodes refuse a plain delete — unpublish first, then delete
+        (leaving them would DOUBLE the page content on every reload; observed
+        live: Δheight exploded to 80-180% on the second load).
+        content.list PAGINATES (default ~20) — loop until the area is empty or
+        nothing shrinks (observed live: 4 stale nodes surviving one pass put a
+        leftover FAQ block on top of an otherwise-100% page)."""
+        n = 0
+        for _round in range(12):
+            try:
+                d = self.m.call("content.list", {"parentPath": area_path, "locale": self.locale})
+            except Exception:
+                return n
+            kids = d.get("children", d.get("nodes", [])) if isinstance(d, dict) else []
+            if not kids:
+                return n
+            before = n
+            n += self._delete_kids(kids)
+            if n == before:  # nothing deletable left — stop, report
+                for k in kids[:3]:
+                    print(f"    ! clean leftover: {k.get('path') or k.get('name')}", file=sys.stderr)
+                return n
+        return n
+
+    def _delete_kids(self, kids):
         n = 0
         for k in kids:
             p = k.get("path") if isinstance(k, dict) else None
@@ -161,8 +198,15 @@ class Loader:
                 self.m.call("content.delete", {"path": p})
                 n += 1
             except Exception:
-                # published or locked — skip, don't mark for deletion
-                pass
+                # published content refuses hard delete AND per-language
+                # unpublish misses non-i18n nodes — the sanctioned flow is
+                # two-phase: mark for deletion, then publish the deletion
+                try:
+                    self.m.call("content.mark_for_deletion", {"path": p})
+                    self.m.call("publication.publish", {"path": p, "languages": ["en", "fr"]})
+                    n += 1
+                except Exception as e:
+                    print(f"    ! clean {p}: {e}", file=sys.stderr)
         return n
 
     def _slug_to_jcr_path(self, slug):
@@ -201,6 +245,9 @@ class Loader:
         instances = pdata.get("instances", [])
         page_base = self._slug_to_jcr_path(page)
         main_area = f"{page_base}/main"
+        if not dry:
+            self.ensure_area(main_area)
+            self.install_shell(page, pdata, page_base)
         if clean and not dry:
             # Only clean the page's main area; absolute areas (nav/footer/topBar)
             # are singleton containers whose children should persist across loads.
@@ -221,10 +268,12 @@ class Loader:
         for idx, inst in enumerate(instances):
             if limit and created >= limit:
                 break
+            if inst.get("area"):
+                continue  # area-flagged chrome — installed once via load_chrome()
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
                 continue  # unmapped helper
-            
+
             # Absolute area singletons (topBar, mainNav, footer) are global site
             # chrome populated separately; the loader creates page-area content only.
             abs_area = area_for(nt, self.manifest, self.site)
@@ -249,7 +298,7 @@ class Loader:
                 created += 1
                 continue
             try:
-                r = self.m.create(parent, nt, props, name=name, locale="fr")
+                r = self.m.create(parent, nt, props, name=name, locale=self.locale)
                 path = r.get("path") if isinstance(r, dict) else None
                 if path:
                     created_path[idx] = path
@@ -262,22 +311,100 @@ class Loader:
                 print(f"  ! create {name} ({nt}) failed: {e}", file=sys.stderr)
         return (created, published)
 
+    def install_shell(self, page, pdata, page_base):
+        """Persist the per-page SHELL spec (body attrs + ancestor chain + the
+        balanced markup around <main>) as a `shell` child node of the page —
+        the basic template composes it around the main Area. This is what makes
+        a JS/body-class-dependent source render identically under Jahia."""
+        shell = pdata.get("shell")
+        if not shell:
+            return
+        nt = self.type_map.get("rawhtml")
+        if not nt:
+            return
+        payload = {"html": json.dumps(shell, ensure_ascii=False)}
+        spath = f"{page_base}/shell"
+        try:
+            self.m.update(spath, payload, locale=self.locale)
+        except Exception:
+            try:
+                self.m.create(page_base, nt, payload, name="shell", locale=self.locale)
+            except Exception as e:
+                print(f"  ! shell {page}: {e}", file=sys.stderr)
+                return
+        try:
+            self.m.publish(spath)
+        except Exception:
+            pass
+
+    def load_chrome(self, from_page, dry=False, clean=False):
+        """Install area-flagged chrome instances (header/nav/footer) ONCE from a
+        representative page into the absolute areas (migration rule 16)."""
+        pdata = self.content.get("pages", {}).get(from_page) or {}
+        chrome = [i for i in pdata.get("instances", []) if i.get("area")]
+        if not chrome:
+            print(f"  no area-flagged chrome on page '{from_page}'")
+            return (0, 0)
+        created = published = 0
+        done_areas = set()
+        for inst in chrome:
+            area_path = f"/sites/{self.site}/home/{inst['area']}"
+            nt = self.type_map.get(inst["type"].lower())
+            if not nt:
+                continue
+            if inst["area"] not in done_areas and not dry:
+                self.ensure_area(area_path)
+                if clean:
+                    removed = self.clean_area(area_path)
+                    if removed:
+                        print(f"  cleaned {removed} node(s) from {area_path}")
+            done_areas.add(inst["area"])
+            pdef = self.props_of(nt)
+            props = self.map_props(from_page, inst, pdef)
+            name = f"{nt.split(':')[-1]}-{inst['area']}"
+            if dry:
+                print(f"  [dry] {area_path}/{name} <- {nt} props={list(props)}")
+                created += 1
+                continue
+            try:
+                r = self.m.create(area_path, nt, props, name=name, locale=self.locale)
+                path = r.get("path") if isinstance(r, dict) else None
+                if path:
+                    created += 1
+                    self.m.publish(path)
+                    published += 1
+                    print(f"  + {path} (chrome:{inst['area']})")
+            except Exception as e:
+                print(f"  ! chrome {name} failed: {e}", file=sys.stderr)
+        return (created, published)
+
 
 def main():
     if len(sys.argv) < 3:
-        sys.exit("usage: load_content.py <project> <site> [--page home] [--limit N] [--clean] [--dry]")
+        sys.exit("usage: load_content.py <project> <site> [--page home] [--limit N] "
+                 "[--clean] [--dry] [--locale en] [--chrome-from home|auto]")
     project, site = sys.argv[1], sys.argv[2]
     args = sys.argv[3:]
     page = args[args.index("--page") + 1] if "--page" in args else None
     limit = int(args[args.index("--limit") + 1]) if "--limit" in args else None
+    locale = args[args.index("--locale") + 1] if "--locale" in args else "en"
+    chrome_from = args[args.index("--chrome-from") + 1] if "--chrome-from" in args else None
     dry = "--dry" in args
     clean = "--clean" in args
-    ld = Loader(project, site)
+    ld = Loader(project, site, locale=locale)
     if not ld.type_map:
         sys.exit("load_content: empty instance->nodeType map "
                  "(manifest has neither instanceTypeMap/coversRoles (v2) nor sxaSource (v1))")
-    pages = [page] if page else list(ld.content.get("pages", {}).keys())
     tot_c = tot_p = 0
+    if chrome_from:
+        if chrome_from == "auto":
+            chrome_from = next((s for s, p in ld.content.get("pages", {}).items()
+                                if any(i.get("area") for i in p.get("instances", []))), None)
+        if chrome_from:
+            print(f"== chrome (from {chrome_from}) ==")
+            c, p = ld.load_chrome(chrome_from, dry=dry, clean=clean)
+            tot_c += c; tot_p += p
+    pages = [page] if page else list(ld.content.get("pages", {}).keys())
     for pg in pages:
         print(f"== page {pg} ==")
         c, p = ld.load_page(pg, limit=limit, dry=dry, clean=clean)

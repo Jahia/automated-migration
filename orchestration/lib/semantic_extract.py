@@ -538,37 +538,73 @@ def partition_main(soup, obj_set):
     if root is None:
         return {"regions": [], "leavesTotal": 0}
     if root in obj_set:
-        return {"regions": [{"kind": "component", "el": root}],
-                "leavesTotal": _count_leaves(root)}
+        n = _count_leaves(root)
+        return {"regions": [{"kind": "component", "el": root, "topIndex": 0}],
+                "leavesTotal": n,
+                "topLevels": [{"html": str(root), "leaves": n}]}
     has_comp_below = set()
     for el in obj_set:
         for anc in el.parents:
             if isinstance(anc, Tag):
                 has_comp_below.add(id(anc))
     regions = []
+    top_levels = []   # coarse alternative: one entry per direct child of root,
+                      # WRAPPERS INTACT — descending into a component-bearing
+                      # wrapper drops the wrapper element itself (its grid/flex
+                      # classes!), which collapses layout when regions load
+                      # individually. A fully-demoted top group loads as one
+                      # verbatim blob instead (see extract_content).
 
-    def rec(node):
+    def rec(node, top_index):
         for child in node.children:
             if not isinstance(child, Tag):
                 txt = str(child).strip()
                 if len(txt) >= 2:
                     regions.append({"kind": "passthroughText", "html": txt,
-                                    "leaves": 1})
+                                    "leaves": 1, "topIndex": top_index})
                 continue
             if child.name in _CHROME_NAMES:
                 continue  # chrome — cross-cutting components own it
             if child in obj_set:
-                regions.append({"kind": "component", "el": child})
+                regions.append({"kind": "component", "el": child,
+                                "topIndex": top_index})
             elif id(child) in has_comp_below:
-                rec(child)
+                rec(child, top_index)
             else:
                 leaves = _count_leaves(child)
                 if leaves:  # spacers / empty scaffolding carry no content
                     regions.append({"kind": "passthrough", "html": str(child),
-                                    "leaves": leaves})
+                                    "leaves": leaves, "topIndex": top_index})
 
-    rec(root)
-    return {"regions": regions, "leavesTotal": _count_leaves(root)}
+    ti = 0
+    for child in root.children:
+        if isinstance(child, Tag) and child.name in _CHROME_NAMES:
+            continue
+        if not isinstance(child, Tag):
+            txt = str(child).strip()
+            if len(txt) >= 2:
+                regions.append({"kind": "passthroughText", "html": txt,
+                                "leaves": 1, "topIndex": ti})
+                top_levels.append({"html": txt, "leaves": 1})
+                ti += 1
+            continue
+        top_levels.append({"html": str(child), "leaves": _count_leaves(child)})
+        if child in obj_set:
+            regions.append({"kind": "component", "el": child, "topIndex": ti})
+        elif id(child) in has_comp_below:
+            rec(child, ti)
+        else:
+            leaves = _count_leaves(child)
+            if leaves:
+                regions.append({"kind": "passthrough", "html": str(child),
+                                "leaves": leaves, "topIndex": ti})
+            else:
+                top_levels.pop()  # empty scaffolding — no region, no top entry
+                ti -= 1
+        ti += 1
+
+    return {"regions": regions, "leavesTotal": _count_leaves(root),
+            "topLevels": top_levels}
 
 
 # ── Per-page component extraction ─────────────────────────────────
@@ -660,6 +696,7 @@ def extract_page(html, slug):
         regions.append(r)
     partition = {
         "regions": regions,
+        "topLevels": part.get("topLevels", []),
         "leavesTotal": part["leavesTotal"],
         "leavesCovered": covered,
         "componentRegions": sum(1 for r in regions if r["kind"] == "component"),

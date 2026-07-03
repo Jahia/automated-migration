@@ -27,7 +27,7 @@ description: Non-negotiable rules for Jahia website migration projects. Always a
 
 8. **Every contributor-facing link uses `linkTypeInitializer`** — `j:linkType (string, choicelist[linkTypeInitializer])` in the CND. Never store a URL in a plain `string` field.
 
-9. **`j:linkType (string, choicelist[linkTypeInitializer])` is declared INLINE on the type; `j:url`/`j:linknode` are NEVER declared in a CND** — Jahia's `jmix:externalLink`/`jmix:internalLink` inject them at runtime. Verified against the 3 deployed reference modules (supercar/sial/lesalondelaphoto `settings/definitions.cnd`; `cnd_emit.py` encodes the pattern); confirming mutation scheduled at first v2 deploy (QUALITY-PLAN P1).
+9. **`j:linkType (string, choicelist[linkTypeInitializer])` is declared INLINE on the type; `j:url`/`j:linknode` are NEVER declared in a CND** — Jahia's `jmix:externalLink`/`jmix:internalLink` inject them at runtime. Verified against the 3 deployed reference modules (supercar/sial/lesalondelaphoto `settings/definitions.cnd`; `cnd_emit.py` encodes the pattern) AND by mutation on the deployed v2 module (acquia, 2026-07-03): setting `j:url` without the mixin is a `ConstraintViolation` (proof the property is not on the type), and **the mixin is applied by the Content-Editor choicelist flow, NOT by raw JCR writes** — an API loader must add `jmix:externalLink` explicitly (GraphQL `mutateNode.addMixins`; the MCP content tools accept no `mixins` argument today) before setting `j:url`.
 
 ## Tags and Categories
 
