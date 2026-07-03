@@ -1,6 +1,7 @@
-import { jahiaComponent } from "@jahia/javascript-modules-library";
+import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
 import { createElement } from "react";
 import { splitRoot, rootProps } from "../rawRoot.js";
+import { composeNode } from "../skeletonRender.js";
 
 /**
  * Passthrough view (QUALITY-PLAN P1.2): renders the captured source markup
@@ -20,16 +21,11 @@ jahiaComponent(
     displayName: "Raw HTML (passthrough)",
   },
   (props: Record<string, unknown>) => {
+    const { currentNode } = useServerContext();
     let html = typeof props.html === "string" ? props.html : "";
     if (typeof props.skeleton === "string" && props.skeleton) {
-      html = props.skeleton;
-      for (const [k, v] of Object.entries(props)) {
-        // body* values are richtext HTML — spliced RAW (matches recompose_group)
-        if (typeof v === "string" && (k === "body" || /^body\d+$/.test(k))) {
-          html = html.split(`{{f:${k}}}`).join(v);
-        }
-      }
-      html = html.replace(/\{\{f:[^}]+\}\}/g, "");
+      // lifted anonymous block: full composition (body*/media/link markers)
+      html = composeNode(currentNode as never);
     }
     const root = splitRoot(html ?? "");
     if (root) {

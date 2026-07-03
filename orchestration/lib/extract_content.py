@@ -494,6 +494,19 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
             inst["area"] = area
         return inst
 
+    def conv_media(med):
+        """Payload media -> load contract: orig markup on module-static refs,
+        `file` = the mirror asset the loader uploads to the DAM."""
+        return [{"name": m["name"],
+                 "orig": rewrite_asset_refs(m["orig"], base),
+                 "file": filename_for(m["src"]),
+                 "alt": m.get("alt", "")} for m in (med or [])]
+
+    def payload_extras(d):
+        return {"media": conv_media(d.get("media")),
+                "mediaTotal": d.get("mediaTotal", 0),
+                "link": d.get("link"), "linkTotal": d.get("linkTotal", 0)}
+
     def raw_lifted_instance(el, html):
         """Demoted top group -> ANONYMOUS editable block (P2.5): still an
         honest ns:rawHtml (no invented type name), but its text runs are lifted
@@ -506,13 +519,14 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
         if not d["ok"]:
             lift_stats["byteFail"] += 1
             return None
-        if not d["fields"]:
+        if not d["fields"] and not d.get("media") and not d.get("link"):
             return None
         return {"type": "rawHtml", "parent": None, "passthrough": True,
                 "fields": {k: rewrite_asset_refs(v, base)
                            for k, v in d["fields"].items()},
                 "skeleton": rewrite_asset_refs(d["skeleton"], base),
                 "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                **payload_extras(d),
                 "images": [], "links": []}
 
     def emit_promoted(ci, group_el=None, group_html=None):
@@ -541,7 +555,9 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
             for j in subtree(ci):
                 remap[j] = None
             return False
-        if not d["fields"] and not any(ch["fields"] for ch in d["children"]):
+        def _has_content(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        if not _has_content(d) and not any(_has_content(ch) for ch in d["children"]):
             out.append(raw_instance(d["original"]))  # honest: raw, not a lying type
             lift_stats["emptyShell"] += 1
             for j in subtree(ci):
@@ -555,8 +571,10 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
             "type": c["role"], "parent": None, "promoted": True,
             "fields": rw_fields(d["fields"]),
             "skeleton": rewrite_asset_refs(d["skeleton"], base),
+            **payload_extras(d),
             "children": [{"fields": rw_fields(ch["fields"]),
-                          "skeleton": rewrite_asset_refs(ch["skeleton"], base)}
+                          "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                          **payload_extras(ch)}
                          for ch in d["children"]],
             "skeletonSubs": sorted(d["fields"]) + sorted(
                 k for ch in d["children"] for k in ch["fields"]),

@@ -141,9 +141,90 @@ def main():
         status = "✓" if not any(f[0] == label for f in failures) else "✗"
         print(f"  {status} {label}", flush=True)
 
+    # ── G2+ (phase C): media weakref swap + j:url sentinel ──
+    dam = {}
+    try:
+        dam = json.load(open(f"orchestration/images/{a.project}.dam.json"))
+    except Exception:
+        pass
+    dam_entries = [(f, e) for f, e in dam.items() if e]
+    media_samples, link_samples = [], []
+    for slug in sample_pages:
+        pdata = ld.content["pages"][slug]
+        page_base = ld._slug_to_jcr_path(slug)
+        for idx, inst in enumerate(pdata.get("instances", [])):
+            if inst.get("area") or not inst.get("skeleton"):
+                continue
+            nt = ld.type_map.get((inst.get("type") or "").lower())
+            if not nt:
+                continue
+            node = f"{page_base}/main/{nt.split(':')[-1]}-{slug}-{idx}"
+            for npath, pl in [(node, inst)] + [
+                    (f"{node}/item-{n + 1}", ch)
+                    for n, ch in enumerate(inst.get("children") or [])]:
+                med = (pl.get("media") or [])
+                if med and len(media_samples) < 4 and med[0].get("file") in dam:
+                    media_samples.append((page_base, npath, med[0]))
+                lnk = pl.get("link")
+                if (lnk and len(link_samples) < 4 and
+                        lnk["href"].startswith(("http://", "https://"))):
+                    link_samples.append((page_base, npath, lnk["href"]))
+            break  # first eligible instance per page is enough
+
+    for i, (page_base, npath, m) in enumerate(media_samples):
+        orig_entry = dam.get(m["file"])
+        target = next(((f, e) for f, e in dam_entries if f != m["file"]), None)
+        label = f"{npath.split('/main/')[-1]}::{m['name']}"
+        if not (orig_entry and target):
+            continue
+        tf, te = target
+        try:
+            ld.m.set_weakref(npath, m["name"], te["path"], locale="en")
+            ld.m.publish(npath)
+            seen = wait_live(page_base, lambda h: tf in h)
+            if not seen:
+                failures.append((label, f"swapped image {tf} NOT visible in live (45s)"))
+        except Exception as e:
+            failures.append((label, f"media mutation failed: {e}"))
+            seen = False
+        finally:
+            try:
+                ld.m.set_weakref(npath, m["name"], orig_entry["path"], locale="en")
+                ld.m.publish(npath)
+            except Exception as e:
+                failures.append((label, f"MEDIA RESTORE FAILED: {e}"))
+        if seen and not wait_live(page_base, lambda h: tf not in h):
+            failures.append((label, "swapped image STILL visible after restore"))
+        status = "✓" if not any(f[0] == label for f in failures) else "✗"
+        print(f"  {status} {label} (media swap)", flush=True)
+
+    for i, (page_base, npath, orig_href) in enumerate(link_samples):
+        tag = f"https://qa-roundtrip.example/ping-{i}"
+        label = f"{npath.split('/main/')[-1]}::j:url"
+        try:
+            ld.m.update(npath, {"j:url": tag}, locale="en")
+            ld.m.publish(npath)
+            seen = wait_live(page_base, lambda h: tag in h)
+            if not seen:
+                failures.append((label, "j:url sentinel NOT visible in live (45s)"))
+        except Exception as e:
+            failures.append((label, f"link mutation failed: {e}"))
+            seen = False
+        finally:
+            try:
+                ld.m.update(npath, {"j:url": orig_href}, locale="en")
+                ld.m.publish(npath)
+            except Exception as e:
+                failures.append((label, f"LINK RESTORE FAILED: {e}"))
+        if seen and not wait_live(page_base, lambda h: tag not in h):
+            failures.append((label, "j:url sentinel STILL visible after restore"))
+        status = "✓" if not any(f[0] == label for f in failures) else "✗"
+        print(f"  {status} {label} (link)", flush=True)
+
+    n_tests = len(samples) + len(media_samples) + len(link_samples)
     flush_caches()
-    print(f"\nroundtrip: {len(samples) - len(set(f[0] for f in failures))}/{len(samples)} "
-          f"props round-trip cleanly")
+    print(f"\nroundtrip: {n_tests - len(set(f[0] for f in failures))}/{n_tests} "
+          f"props round-trip cleanly ({len(media_samples)} media, {len(link_samples)} links)")
     for f in failures[:10]:
         print(f"  ✗ {f[0]}: {f[1]}")
     print(("PASS" if not failures else "FAIL") + ": G2 round-trip gate")

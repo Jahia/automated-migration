@@ -1,59 +1,16 @@
 import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
 import { createElement } from "react";
 import { splitRoot, rootProps } from "$RELROOT/rawRoot.js";
+import { composeNode } from "$RELROOT/skeletonRender.js";
 
 /**
- * Skeleton view for $NODETYPE (generated — QUALITY-PLAN P2.5).
- * The node's `skeleton` property is its OWN captured markup where:
- *   - {{f:title}} / {{f:body}} / {{f:bodyN}} mark lifted field values
- *     (title = jcr:title via mix:title; body* = richtext runs, spliced RAW)
- *   - {{child:N}} marks the position of the N-th child item node (containers)
- * Rendering = skeleton + current property values + child compositions ->
- * pixel-identical to the source when unedited; every edit reflows into the
- * exact same markup. Items added beyond the original count render after the
- * last original slot; deleted items simply drop out.
+ * Skeleton view for $NODETYPE (generated — QUALITY-PLAN P2.5/C).
+ * The node's `skeleton` property is its OWN captured markup; composeNode
+ * substitutes lifted field values (title, body runs, linkLabel), media units
+ * (verbatim by default, chosen image when edited), the contributor link and
+ * the item child nodes — pixel-identical to the source when unedited, every
+ * edit reflows into the exact same markup. See skeletonRender.ts.
  */
-
-// bs4-minimal escaping (&, <, > — quotes stay RAW): must match the extractor's
-// recompose_group() or the render drifts from the certified source bytes.
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-const substitute = (skeleton: string, values: Record<string, string>): string => {
-  let html = skeleton;
-  for (const [k, v] of Object.entries(values)) {
-    if (typeof v !== "string" || !v) continue;
-    const marker = `{{f:${k}}}`;
-    if (html.includes(marker)) {
-      html = html.split(marker).join(k.startsWith("body") ? v : escapeHtml(v));
-    }
-  }
-  return html;
-};
-
-/** skeleton + editable values of a CHILD item node, via the localized JCR
- * session (i18n props resolve to the current locale). */
-const childPayload = (n: unknown): { skeleton: string; values: Record<string, string> } => {
-  const values: Record<string, string> = {};
-  let skeleton = "";
-  try {
-    const node = n as {
-      getProperties: () => { hasNext: () => boolean; nextProperty: () => unknown };
-    };
-    const it = node.getProperties();
-    while (it.hasNext()) {
-      const p = it.nextProperty() as { getName: () => string; getString: () => string };
-      const name = String(p.getName());
-      if (name === "skeleton") skeleton = p.getString();
-      else if (name === "jcr:title") values.title = p.getString();
-      else if (name === "body" || /^body\d+$/.test(name)) values[name] = p.getString();
-    }
-  } catch {
-    /* not a content node — skip */
-  }
-  return { skeleton, values };
-};
-
 jahiaComponent(
   {
     componentType: "view",
@@ -61,43 +18,9 @@ jahiaComponent(
     name: "default",
     displayName: "$DISPLAYNAME",
   },
-  (props: Record<string, unknown>) => {
+  () => {
     const { currentNode } = useServerContext();
-    const values: Record<string, string> = {};
-    for (const [k, v] of Object.entries(props)) {
-      if (typeof v !== "string") continue;
-      if (k === "jcr:title") values.title = v;
-      else if (k === "body" || /^body\d+$/.test(k)) values[k] = v;
-    }
-    let html = substitute(typeof props.skeleton === "string" ? props.skeleton : "", values);
-
-    if (html.includes("{{child:")) {
-      const rendered: string[] = [];
-      try {
-        const it = (currentNode as unknown as {
-          getNodes: () => { hasNext: () => boolean; nextNode: () => unknown };
-        }).getNodes();
-        while (it.hasNext()) {
-          const child = it.nextNode() as { getName: () => string };
-          if (String(child.getName()).startsWith("j:")) continue; // translations/acl
-          const { skeleton, values: cv } = childPayload(child);
-          if (skeleton) rendered.push(substitute(skeleton, cv));
-        }
-      } catch {
-        /* no readable children */
-      }
-      let maxIdx = -1;
-      for (const m of html.matchAll(/\{\{child:(\d+)\}\}/g)) {
-        maxIdx = Math.max(maxIdx, Number(m[1]));
-      }
-      const extras = rendered.slice(maxIdx + 1).join("");
-      html = html.replace(/\{\{child:(\d+)\}\}/g, (_all, n) => {
-        const i = Number(n);
-        return (rendered[i] ?? "") + (i === maxIdx ? extras : "");
-      });
-    }
-    html = html.replace(/\{\{f:[^}]+\}\}/g, "");
-
+    const html = composeNode(currentNode as never);
     // render the fragment's REAL root element — child/sibling CSS selectors
     // (section spacing rules) must keep matching (display:contents does not
     // participate in selector matching)

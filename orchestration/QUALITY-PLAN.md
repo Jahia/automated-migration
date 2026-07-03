@@ -373,3 +373,33 @@ Crawler JS-render only if the holdout demands it.
   - Deferred to phase C (recorded): images → DAM weakreference (151 baked), links →
     j:linkType + addMixins (171 baked); per-node body-run variance (an item with fewer runs
     than its type declares shows empty-but-inert extra fields).
+
+- **2026-07-03 — P2.5-C COMPLETE (media DAM + links + titles; all gates green on acquia).**
+  Design registered in CONTRIBUTION-PLAN §8 BEFORE implementation (incl. one pre-measurement
+  amendment: G5b reworded from "95 % of external links" to "95 % of link-bearing payloads" —
+  the original contradicted C3's own j:linkType-singleton constraint; and the media cap is a
+  design parameter, raised 3→6 after G5a measured 87.9 % under the frozen 90 % floor).
+  - **C1 titles:** lift_title now takes any heading with EXACTLY ONE non-ws text node
+    (span/strong wrappers stay in the skeleton) — careers card titles land in jcr:title and
+    leave the body richtext (item-1 = title "Committed to Awesome" + clean per-card body).
+  - **C2 media:** 203 units (76 img + 127 picture); 201 wired (97.1 %). Per unit: `imageN`
+    weakref (picker[type='image'], jmix:image) + hidden `imageNOrig` (exact source markup)
+    + `imageNOrigRef` (UUID of the DAM copy). 162 unique mirror assets uploaded via MCP
+    `media.upload.create`/PUT/`finalize`, published, deduped in orchestration/images/
+    acquia-drupal.dam.json (committed). View: UUID==origRef → verbatim original (byte-exact
+    default, G3 safe by construction); UUID differs → chosen image wins (sources/srcset
+    dropped, img@src swapped). 1 missing mirror asset (SVG) counted, not silent.
+  - **C3 links:** 60/60 link-bearing payloads wired (100 %): j:linkType + linkLabel +
+    hidden linkOrig in CND (j:url/j:linknode NEVER declared — mixin-injected); loader does
+    GraphQL addMixins then j:url (external, 5) / j:linknode weakref (internal resolved, 3);
+    52 internal links target non-migrated pages → honest linkOrig fallback (render byte-
+    exact, j:linkType='none', editors can rewire). View href = j:url || linknode URL ||
+    linkOrig.
+  - Views refactored to a SHARED `skeletonRender.ts` (nodePayload/composeNode — JCR-read
+    based, one code path for SkeletonView, items and lifted rawHtml). TS gotcha: `body*/`
+    inside a JSDoc block comment terminates it — generated views must never embed `*/`.
+  - **GATES: G1 min 87.6 %/avg 98.0 % (floors 60/85), zeros hold. G5a media 97.1 % (floor
+    90). G5b links 100 % (floor 95). G2+ round-trip 23/23 — 18 text + 4 media swaps (live
+    <img> follows the weakref, restores) + 1 j:url sentinel. G3 ground truth 18/18 ≥99 %
+    with all wiring live. publish-parity (162 DAM weakref targets resolve in LIVE) +
+    edit-frame PASS.** 238+ nodes, 2 transient create failures replayed to zero.

@@ -46,6 +46,7 @@ def main():
         ("Layout.tsx", f"{module}/src/templates/Layout.tsx"),
         (os.path.join("Page", "basic.server.tsx"), f"{module}/src/templates/Page/basic.server.tsx"),
         ("rawRoot.ts", f"{module}/src/components/rawRoot.ts"),
+        ("skeletonRender.ts", f"{module}/src/components/skeletonRender.ts"),
         (os.path.join("RawHtml", "default.server.tsx"), f"{module}/src/components/RawHtml/default.server.tsx"),
     ]
     for rel, dst in plan:

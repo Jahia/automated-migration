@@ -88,6 +88,98 @@ class Loader:
                            and c["childType"].get("nodeType")}
         self._props = {}  # nodeType -> {"text":[names], "weakref":[names], "names":set}
         self.prop_misses = []  # (nodeType, prop) — lifted value with no CND home = LOST TEXT
+        # P2.5-C: DAM dedupe map (one jnt:file per unique mirror asset), committed
+        self._dam_path = f"orchestration/images/{project}.dam.json"
+        self._dam = load_json(self._dam_path, {})
+        self.wire_stats = {"mediaWired": 0, "mediaFailed": 0,
+                           "linkExternal": 0, "linkInternal": 0, "linkUnresolved": 0}
+
+    def upload_dam(self, fname):
+        """Mirror asset -> /sites/<site>/files via media.upload.create/PUT/
+        finalize, published, deduped by file name (mirror names are content
+        hashes). Returns {"path", "uuid"} or None (missing/failed — the view
+        then renders the original markup verbatim; nothing breaks)."""
+        if not fname:
+            return None
+        if fname in self._dam:
+            return self._dam[fname] or None
+        src = f"projects/{self.project}/workflow-output/local-mirror/assets/{fname}"
+        if not os.path.isfile(src):
+            print(f"    ! dam: mirror asset missing: {fname}", file=sys.stderr)
+            return None
+        import mimetypes
+        import urllib.request
+        data = open(src, "rb").read()
+        mime = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+        try:
+            r = self.m.call("media.upload.create",
+                            {"siteKey": self.site, "fileName": fname,
+                             "sizeBytes": len(data), "mimeType": mime})
+            h = self.m._headers()
+            h["Origin"] = self.m.host
+            h["Content-Type"] = mime
+            req = urllib.request.Request(r["uploadUrl"], data=data, method="PUT", headers=h)
+            urllib.request.urlopen(req, timeout=120).read()
+            fin = self.m.call("media.upload.finalize", {"token": r["token"]})
+            entry = {"path": fin["path"], "uuid": fin["identifier"]}
+            self.m.publish(entry["path"])  # weakref targets must resolve in LIVE
+        except Exception as e:
+            print(f"    ! dam upload {fname}: {str(e)[:160]}", file=sys.stderr)
+            return None
+        self._dam[fname] = entry
+        os.makedirs(os.path.dirname(self._dam_path), exist_ok=True)
+        json.dump(self._dam, open(self._dam_path, "w"), indent=1)
+        return entry
+
+    def resolve_link(self, href):
+        """P2.5-C3 link routing: external -> ('external', None); internal that
+        maps to a MIGRATED page -> ('internal', page_path); anything else ->
+        (None, None) — left verbatim via the linkOrig fallback, counted."""
+        h = (href or "").strip()
+        if h.startswith(("http://", "https://", "//", "mailto:", "tel:")):
+            return "external", None
+        if h.startswith("/"):
+            slug = h.split("?")[0].split("#")[0].strip("/").replace("/", "_")
+            if not slug:
+                slug = "home"
+            if slug in self.content.get("pages", {}):
+                return "internal", self._slug_to_jcr_path(slug)
+        return None, None
+
+    def wire_payload(self, path, payload):
+        """Post-create wiring (needs the node path): media weakrefs to the DAM
+        copies; the contributor link's mixin + target (rule 9: j:url/j:linknode
+        are mixin-injected — GraphQL addMixins, the proven flow)."""
+        for m in payload.get("media") or []:
+            dam = m.pop("_dam", None)
+            if not dam:
+                continue
+            try:
+                self.m.set_weakref(path, m["name"], dam["path"], locale=self.locale)
+                self.wire_stats["mediaWired"] += 1
+            except Exception as e:
+                self.wire_stats["mediaFailed"] += 1
+                print(f"    ! weakref {m['name']} on {path}: {str(e)[:120]}", file=sys.stderr)
+        lnk = payload.get("link")
+        if not lnk:
+            return
+        kind, target = lnk.pop("_kind", None), lnk.pop("_target", None)
+        try:
+            if kind == "external":
+                self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                           '{ addMixins(mixins: ["jmix:externalLink"]) } } }' % path)
+                self.m.update(path, {"j:url": lnk["href"][:1000]}, locale=self.locale)
+                self.wire_stats["linkExternal"] += 1
+            elif kind == "internal":
+                self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                           '{ addMixins(mixins: ["jmix:internalLink"]) } } }' % path)
+                self.m.set_weakref(path, "j:linknode", target, locale=self.locale)
+                self.wire_stats["linkInternal"] += 1
+            else:
+                self.wire_stats["linkUnresolved"] += 1
+        except Exception as e:
+            self.wire_stats["linkUnresolved"] += 1
+            print(f"    ! link wiring on {path}: {str(e)[:140]}", file=sys.stderr)
 
     def props_of(self, nodetype):
         if nodetype in self._props:
@@ -123,14 +215,20 @@ class Loader:
     def promoted_props(self, payload, pdef, nodetype):
         """P2.5 EXPLICIT contract for skeleton nodes (parent or item) — no
         introspection zip: `skeleton` (hidden prop, settable though absent from
-        content.type), title -> jcr:title (mix:title), body/bodyN -> richtext.
-        A lifted body value whose prop is missing from the deployed type is
-        LOST TEXT (it was lifted OUT of the skeleton) — recorded loudly; the
-        ground-truth gate would catch the pixel loss."""
+        content.type), title -> jcr:title (mix:title), body/bodyN -> richtext,
+        linkLabel, media hidden companions (imageNOrig / imageNOrigRef) and the
+        link's j:linkType + linkOrig (P2.5-C). A lifted value whose prop is
+        missing from the deployed type is LOST CONTENT (it was lifted OUT of
+        the skeleton) — recorded loudly; ground truth would catch pixel loss."""
         f = payload.get("fields", {})
         props = {"skeleton": (payload.get("skeleton") or "")[:200_000]}
         if f.get("title"):
             props["jcr:title"] = f["title"][:250]
+        if f.get("linkLabel"):
+            if "linkLabel" in pdef["names"]:
+                props["linkLabel"] = f["linkLabel"][:250]
+            else:
+                self.prop_misses.append((nodetype, "linkLabel"))
         for k, v in f.items():
             if not k.startswith("body") or not v:
                 continue
@@ -140,6 +238,30 @@ class Loader:
                 self.prop_misses.append((nodetype, k))
                 print(f"    !! {nodetype} lacks prop '{k}' — lifted text LOST",
                       file=sys.stderr)
+        # media units: Orig ALWAYS (the view's verbatim default); OrigRef +
+        # weakref only when the DAM copy exists (wire_payload sets the weakref)
+        for m in payload.get("media") or []:
+            nm = m["name"]
+            if nm not in pdef["names"]:
+                self.prop_misses.append((nodetype, nm))
+                print(f"    !! {nodetype} lacks prop '{nm}' — media unit would VANISH",
+                      file=sys.stderr)
+                continue
+            props[nm + "Orig"] = m["orig"][:200_000]
+            dam = self.upload_dam(m.get("file"))
+            if dam:
+                props[nm + "OrigRef"] = dam["uuid"]
+                m["_dam"] = dam
+        lnk = payload.get("link")
+        if lnk:
+            if "linkOrig" in pdef["names"] or "j:linkType" in pdef["names"]:
+                props["linkOrig"] = lnk["href"][:1000]
+                kind, target = self.resolve_link(lnk["href"])
+                if kind:
+                    props["j:linkType"] = kind
+                lnk["_kind"], lnk["_target"] = kind, target
+            else:
+                self.prop_misses.append((nodetype, "linkOrig"))
         return props
 
     # weakref property names that are image/asset references (not node refs like startNode, excludeNodes)
@@ -356,6 +478,8 @@ class Loader:
                 if path:
                     created_path[idx] = path
                     created += 1
+                    if inst.get("promoted") or inst.get("skeleton"):
+                        self.wire_payload(path, inst)  # media weakrefs + link mixins
                     self.m.publish(path)
                     published += 1
                     label = props.get("heading") or (list(props.values())[0] if props else nt)
@@ -381,6 +505,7 @@ class Loader:
                             cpath = rc.get("path") if isinstance(rc, dict) else None
                             if cpath:
                                 created += 1
+                                self.wire_payload(cpath, ch)
                                 self.m.publish(cpath)
                                 published += 1
                         except Exception as e:

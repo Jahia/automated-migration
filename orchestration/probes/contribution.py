@@ -62,6 +62,12 @@ def main():
         return 0
 
     dead, phantoms, shells = [], [], []
+    # G5 (phase C, frozen 2026-07-03): media units wired >= 90 %; external
+    # residue links wired >= 95 %; internal resolved/unresolved just REPORTED
+    g5 = {"mediaWired": 0, "mediaTotal": 0, "mediaNoFile": 0,
+          "linkTotal": 0, "linkExtWired": 0,
+          "linkIntResolved": 0, "linkIntUnresolved": 0,
+          "linkPayloads": 0, "linkPayloadsWired": 0}
     rows = []
     for slug, p in sorted(data.get("pages", {}).items()):
         lifted = visible = formtx = 0
@@ -71,7 +77,7 @@ def main():
             if inst.get("promoted") or inst.get("skeleton"):
                 # typed skeleton instance OR lifted anonymous raw block (P2.5)
                 payloads = [inst] + list(inst.get("children") or [])
-                # dead/phantom checks per skeleton
+                # dead/phantom checks per skeleton (text, media AND link markers)
                 for pl in payloads:
                     sk = pl.get("skeleton") or ""
                     marks = set(MARK_RE.findall(sk))
@@ -80,11 +86,44 @@ def main():
                         dead.append((slug, inst["type"], f))
                     for mkr in marks - flds:
                         phantoms.append((slug, inst["type"], mkr))
-                if inst.get("promoted") and not any(pl.get("fields") for pl in payloads):
+                    med_names = {m["name"] for m in (pl.get("media") or [])}
+                    med_marks = set(re.findall(r"\{\{media:([^}]+)\}\}", sk))
+                    for mk in med_marks - med_names:
+                        phantoms.append((slug, inst["type"], f"media:{mk}"))
+                    for mk in med_names - med_marks:
+                        dead.append((slug, inst["type"], f"media:{mk}"))
+                    if "{{link:href}}" in sk and not pl.get("link"):
+                        phantoms.append((slug, inst["type"], "link:href"))
+                    # G5 accounting
+                    g5["mediaWired"] += len(med_names)
+                    g5["mediaTotal"] += max(pl.get("mediaTotal", 0), len(med_names))
+                    for m in pl.get("media") or []:
+                        if not os.path.isfile(f"projects/{a.project}/workflow-output/"
+                                              f"local-mirror/assets/{m.get('file', '')}"):
+                            g5["mediaNoFile"] += 1
+                    lnk = pl.get("link")
+                    tot = max(pl.get("linkTotal", 0), 1 if lnk else 0)
+                    g5["linkTotal"] += tot
+                    if tot:
+                        g5["linkPayloads"] += 1
+                    if lnk:
+                        g5["linkPayloadsWired"] += 1
+                    if lnk:
+                        h = lnk.get("href", "")
+                        if h.startswith(("http://", "https://", "//", "mailto:", "tel:")):
+                            g5["linkExtWired"] += 1
+                        else:
+                            slugp = h.split("?")[0].split("#")[0].strip("/").replace("/", "_") or "home"
+                            g5["linkIntResolved" if slugp in data.get("pages", {})
+                               else "linkIntUnresolved"] += 1
+                if inst.get("promoted") and not any(
+                        pl.get("fields") or pl.get("media") or pl.get("link")
+                        for pl in payloads):
                     shells.append((slug, inst["type"]))
                 recomposed = SE.recompose_group(
                     inst.get("skeleton") or "", inst.get("fields") or {},
-                    inst.get("children") or [])
+                    inst.get("children") or [],
+                    media=inst.get("media"), link=inst.get("link"))
                 visible += len(text_of(recomposed))
                 formtx += len(form_text_of(recomposed))
                 for pl in payloads:
@@ -117,7 +156,21 @@ def main():
     ok = (mn >= a.min and avg >= a.avg
           and not dead and not phantoms and not shells)
     print(("PASS" if ok else "FAIL") + ": G1 contribution gate")
-    return 0 if ok else 1
+
+    # G5 media/link wiring (phase C)
+    mt = g5["mediaTotal"]
+    media_pct = 100.0 * g5["mediaWired"] / mt if mt else 100.0
+    lp = g5["linkPayloads"]
+    link_pct = 100.0 * g5["linkPayloadsWired"] / lp if lp else 100.0
+    print(f"\nG5 media: {g5['mediaWired']}/{mt} units wired ({media_pct:.1f}%, floor 90) "
+          f"— missing mirror files: {g5['mediaNoFile']}")
+    print(f"G5 links: {g5['linkPayloadsWired']}/{lp} link-bearing payloads wired "
+          f"({link_pct:.1f}%, floor 95) — external {g5['linkExtWired']}, internal "
+          f"resolved {g5['linkIntResolved']}, unresolved (verbatim fallback) "
+          f"{g5['linkIntUnresolved']}; residue anchors total {g5['linkTotal']}")
+    ok5 = media_pct >= 90.0 and link_pct >= 95.0
+    print(("PASS" if ok5 else "FAIL") + ": G5 media/link wiring gate")
+    return 0 if (ok and ok5) else 1
 
 
 if __name__ == "__main__":

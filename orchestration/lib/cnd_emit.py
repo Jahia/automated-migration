@@ -120,6 +120,21 @@ def _body_lines(n_runs):
     return out
 
 
+def _media_lines(n_units):
+    """image..imageN weakrefs + hidden companions (P2.5-C2): imageNOrig holds
+    the unit's exact source markup (byte-exact default render), imageNOrigRef
+    the UUID of the DAM copy of the original file — the view renders the
+    original verbatim while the weakref still points at it, and the chosen
+    image once an editor changes it."""
+    out = []
+    for i in range(n_units):
+        nm = "image" if i == 0 else f"image{i + 1}"
+        out.append(f"  - {nm} (weakreference, picker[type='image']) < jmix:image")
+        out.append(f"  - {nm}Orig (string, textarea) hidden")
+        out.append(f"  - {nm}OrigRef (string) hidden")
+    return out
+
+
 def type_block(comp, ns, mixns, stats=None):
     """Emit the CND [ns:type] block for a component (and return child block text).
 
@@ -142,6 +157,10 @@ def type_block(comp, ns, mixns, stats=None):
     lines = [f"[{node}] > {', '.join(supertypes)}"]
     if wired_only:
         lines.extend(_body_lines(st["runs"]))
+        lines.extend(_media_lines(st.get("media", 0)))
+        if st.get("link"):
+            lines.extend(link_lines())
+            lines.append("  - linkOrig (string) hidden")
     else:
         for f in _own_fields(fields):
             lines.append(field_line(f))
@@ -170,6 +189,10 @@ def type_block(comp, ns, mixns, stats=None):
                                      mixns)
                 clines = [f"[{child_node}] > {', '.join(csuper)}"]
                 clines.extend(_body_lines(st["childRuns"]))
+                clines.extend(_media_lines(st.get("childMedia", 0)))
+                if st.get("childLink"):
+                    clines.extend(link_lines())
+                    clines.append("  - linkOrig (string) hidden")
                 clines.append("  - skeleton (string, textarea) hidden")
             else:
                 cfields = child.get("fields", []) or []
@@ -203,19 +226,25 @@ def run_stats_from_content_load(path, manifest):
             if not nt:
                 continue
             e = st.setdefault(nt, {"runs": 0, "childRuns": 0,
-                                   "titles": False, "childTitles": False})
+                                   "titles": False, "childTitles": False,
+                                   "media": 0, "childMedia": 0,
+                                   "link": False, "childLink": False})
             e["runs"] = max(e["runs"], sum(1 for k in inst.get("fields", {})
                                            if k.startswith("body")))
             e["titles"] |= "title" in inst.get("fields", {})
+            e["media"] = max(e["media"], len(inst.get("media") or []))
+            e["link"] |= bool(inst.get("link"))
             for ch in inst.get("children") or []:
                 e["childRuns"] = max(e["childRuns"],
                                      sum(1 for k in ch.get("fields", {})
                                          if k.startswith("body")))
                 e["childTitles"] |= "title" in ch.get("fields", {})
+                e["childMedia"] = max(e["childMedia"], len(ch.get("media") or []))
+                e["childLink"] |= bool(ch.get("link"))
     return st
 
 
-def query_and_grid_types(ns, mixns, raw_runs=0):
+def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
     """Every module ships a JCRQuery + GridRow (migration.md rule 12 / CLAUDE.md rule 16):
     the editor's primary tools for building listing/grid pages without a developer.
     JCRQuery is `jmix:list` ONLY — the deployed reference modules deliberately omit
@@ -224,7 +253,10 @@ def query_and_grid_types(ns, mixns, raw_runs=0):
 
     raw_runs (P2.5): demoted anonymous blocks lift their text runs too — rawHtml
     then also carries a hidden skeleton + body..bodyN richtext (same mechanism,
-    honest name; no mix:title — headings stay inside the richtext runs)."""
+    honest name; no mix:title — headings stay inside the richtext runs).
+    raw_stats (P2.5-C): media weakrefs + contributor link on lifted raw blocks."""
+    rs = raw_stats or {}
+    raw_runs = max(raw_runs, rs.get("runs", 0))
     raw_lines = [
         "// passthrough (P1.2): verbatim source markup for regions no semantic",
         "// component covers — the nothing-is-dropped half of the fidelity invariant.",
@@ -233,7 +265,11 @@ def query_and_grid_types(ns, mixns, raw_runs=0):
         "  - html (string, textarea)",
     ]
     raw_lines.extend(_body_lines(raw_runs))
-    if raw_runs:
+    raw_lines.extend(_media_lines(rs.get("media", 0)))
+    if rs.get("link"):
+        raw_lines.extend(link_lines())
+        raw_lines.append("  - linkOrig (string) hidden")
+    if raw_runs or rs.get("media") or rs.get("link"):
         raw_lines.append("  - skeleton (string, textarea) hidden")
     return [
         f"// listing + grid tools (editor-facing, every module ships these)",
@@ -299,8 +335,8 @@ def main():
         "",
     ]
     body, children, view_plans = [], [], []
-    raw_runs = (stats or {}).get(f"{ns}:rawHtml", {}).get("runs", 0)
-    body.extend(query_and_grid_types(ns, mixns, raw_runs=raw_runs))
+    raw_stats = (stats or {}).get(f"{ns}:rawHtml", {})
+    body.extend(query_and_grid_types(ns, mixns, raw_stats=raw_stats))
     view_plans.append({"component": "JCR Query", "nodeType": f"{ns}:jcrQuery",
                        "views": ["default.server.tsx"]})
     view_plans.append({"component": "Grid Row", "nodeType": f"{ns}:gridRow",

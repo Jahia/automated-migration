@@ -11,7 +11,66 @@ QUALITY-PLAN §7).
 | G3 fidelity | **PASS** — ground truth 18/18 pages = 100 % after G2 mutations (careers 99.93 → 100) |
 | G4 editorial | **PASS** — careers = acq:contentGrid + 5 × acq:contentGridItem; card heading+copy editable as item body richtext (span-wrapped headings stay in richtext, strict jcr:title lift = pure-text headings only) |
 
-Phase C (images → DAM weakref, links → j:linkType/addMixins) remains open — see §4C.
+**Phase C COMPLETE 2026-07-03** — G5a media 97.1 % (floor 90), G5b links 100 % (floor 95),
+G2+ 23/23 round-trips (incl. 4 media swaps + j:url sentinel), G3 18/18 ≥99 % with wiring
+live, G1 zeros hold. 162 DAM files, 201/207 media units wired, 60/60 link payloads wired
+(5 external, 3 internal resolved, 52 honest linkOrig fallbacks). See §8 + QUALITY-PLAN §7.
+
+---
+
+## 8. Phase C design (REGISTERED 2026-07-03, before implementation/measurement)
+
+Measured landscape on acquia (post-P2.5 skeletons, outside body richtext):
+203 media units (76 standalone `<img>`, 127 `<picture>`, 0 bare-srcset), 119 residue
+links (95 internal / 24 external). Card headings wrapped in inline spans were swallowed
+by body runs — C1 fixes the lift, not the residue.
+
+### C1 — Title lift generalization
+`lift_title` also accepts a heading whose subtree contains EXACTLY ONE non-whitespace
+text node (span/strong wrappers stay in the skeleton; the marker replaces the text node).
+Round-trip rule unchanged (minimal-escape equality). Card titles then land in jcr:title
+and LEAVE the body richtext.
+
+### C2 — Media contract (fidelity-safe by construction)
+- Unit = a whole `<picture>` element or a standalone `<img>` in skeleton residue.
+- Per payload, up to **6** units wired (`image`..`image6` — weakreference,
+  picker[type='image'], < jmix:image); the rest stay verbatim and are COUNTED.
+- Per unit, two hidden companions: `imageNOrig` (the unit's exact original markup) and
+  `imageNOrigRef` (UUID of the DAM copy of the original primary file).
+- The unit's primary file (img@src) is uploaded ONCE per unique asset to
+  `/sites/<site>/files` via `media.upload.create/PUT/finalize` (dedupe map committed to
+  `orchestration/images/<project>.dam.json`), published, and the weakref defaults to it.
+- View render: weakref UUID == origRef -> splice the ORIGINAL markup verbatim
+  (default state stays byte-exact — G3 protected by construction). UUID differs
+  (editor picked another image) -> original markup with img@src swapped to the chosen
+  node URL, `<source>` elements and srcset dropped (the chosen image must win).
+  Responsive variants are lost ON EDIT ONLY — accepted editorial trade, recorded.
+- Images inside body richtext stay richtext-managed (already editable) — not wired.
+
+### C3 — Link contract
+- Unit = residue `<a href>` (href not `#...`); **the FIRST unit per payload** is wired
+  (Jahia's j:linkType/j:url/j:linknode are node-level singletons); the rest stay
+  verbatim and are counted.
+- Markers: href value -> `{{link:href}}`; anchor label -> `{{f:linkLabel}}` only when
+  the anchor has exactly one non-ws text node.
+- CND: `j:linkType (string, choicelist[linkTypeInitializer])` + `linkLabel` per rule
+  14/9 — j:url/j:linknode NEVER declared (mixin-injected; loader does GraphQL addMixins,
+  the proven flow).
+- Loader: external href -> jmix:externalLink + j:url = original href (default render
+  byte-exact). Internal href -> resolve against the migrated page set; resolvable ->
+  jmix:internalLink + j:linknode (default render = Jahia page URL — byte-different,
+  PIXEL-identical; the correct target on the migrated site). Unresolvable internal
+  (page not migrated) -> NOT wired, verbatim, counted.
+- View: `{{link:href}}` <- j:url or linknode URL; label substitution as a text field.
+
+### Pre-registered phase-C gates (frozen now)
+| Gate | Threshold |
+|---|---|
+| G5a media | ≥ 90 % of media units wired (unwired = over-cap or malformed, listed by the probe) |
+| G5b links | ≥ 95 % of payloads holding ≥1 residue link have their PRIMARY link wired (j:linkType is a node-level singleton — C3; secondary anchors stay verbatim and are counted). Internal: wired when the target page is migrated; probe prints external/resolved/unresolved. *(Amended from "95 % of external links" before any measurement — the original wording contradicted C3's first-unit-per-payload design.)* |
+| G2+ | round-trip extended: image weakref swap changes the live `<img>` src; j:url sentinel appears in live href; both restore |
+| G3 | unchanged — ground truth 18/18 ≥ 99 % with DEFAULT state (all origRef equalities hold) |
+| G1 | unchanged — text coverage floors 60/85, zeros hold |
 Trigger: editorial review of the deployed acquia site (screenshots: careers Content Grid,
 featureBlock-careers-9, home "Acquia Source" hero) — the migration is NOT usable by CMS
 contributors in its current state.

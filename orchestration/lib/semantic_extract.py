@@ -536,29 +536,97 @@ def ban_subtree(banned_ids, el):
 
 
 def lift_title(scope, banned_ids):
-    """First pure-text heading whose content round-trips exactly (modulo
-    lead/trail whitespace, which stays in the skeleton). Marks it {{f:title}}
-    and returns the clean value — or None (heading with markup / entities that
-    don't minimal-escape back stay inline; honesty over coverage)."""
+    """First heading whose subtree carries EXACTLY ONE non-whitespace text node
+    (pure-text headings AND span/strong-wrapped ones — the inline wrappers stay
+    in the skeleton, the marker replaces the text node; P2.5-C1). Returns the
+    clean value or None. The byte-identity self-check remains the safety net."""
     from bs4 import NavigableString
-    import html as _h
     for d in scope.find_all(sorted(HEADING_TAGS)):
-        if id(d) in banned_ids or d.find(True) is not None:
+        if id(d) in banned_ids:
             continue
-        raw = d.decode_contents()
+        texts = [t for t in d.find_all(string=True) if str(t).strip()]
+        if len(texts) != 1:
+            continue
+        raw = str(texts[0])
         core = raw.strip()
-        if len(core) < 2:
-            continue
-        value = _h.unescape(core)
-        if _esc_text(value) != core:
+        if len(core) < 2 or "{{" in core:
             continue
         lead = raw[:len(raw) - len(raw.lstrip())]
         trail = raw[len(raw.rstrip()):]
-        d.clear()
-        d.append(NavigableString(lead + FIELD_MARK % "title" + trail))
+        texts[0].replace_with(NavigableString(lead + FIELD_MARK % "title" + trail))
         ban_subtree(banned_ids, d)  # marked — never part of a body run
-        return value
+        return core
     return None
+
+
+def _esc_attr(v):
+    """bs4-minimal attribute escaping (&, <, >, \") — the recomposition rule
+    for values spliced into attribute positions ({{link:href}})."""
+    return (v.replace("&", "&amp;").replace("<", "&lt;")
+             .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def lift_media(scope, banned_ids, cap=6):
+    """P2.5-C2: media units in the skeleton residue (whole <picture> elements
+    and standalone <img>) -> {{media:imageN}} markers. Returns (media, total):
+    media = [{name, orig, src, alt}] for the first `cap` units (orig = exact
+    original markup — the view's byte-exact default render); total = all units
+    seen (the probe reports over-cap leftovers, never silently)."""
+    from bs4 import NavigableString
+    units = []
+    for el in scope.find_all(["picture", "img"]):
+        if id(el) in banned_ids:
+            continue
+        if el.name == "img" and any(isinstance(a, Tag) and a.name == "picture"
+                                    for a in el.parents):
+            continue
+        img = el if el.name == "img" else el.find("img")
+        src = (img.get("src") if img else "") or ""
+        if not src or src.startswith("data:") or "{{" in src:
+            continue
+        units.append((el, img, src))
+    media = []
+    for el, img, src in units[:cap]:
+        name = "image" if not media else f"image{len(media) + 1}"
+        media.append({"name": name, "orig": str(el), "src": src,
+                      "alt": (img.get("alt") if img else "") or ""})
+        ban_subtree(banned_ids, el)
+        el.replace_with(NavigableString("{{media:%s}}" % name))
+    return media, len(units)
+
+
+def lift_link(scope, banned_ids, fields):
+    """P2.5-C3: the FIRST residue <a href> becomes the payload's contributor
+    link (j:linkType is a node-level singleton). href value -> {{link:href}};
+    a single-text-node label -> {{f:linkLabel}} in `fields`. Returns
+    {href, label?} or None. Remaining anchors stay verbatim (counted)."""
+    from bs4 import NavigableString
+    total = 0
+    link = None
+    for a in scope.find_all("a", href=True):
+        if id(a) in banned_ids:
+            continue
+        href = a["href"]
+        if not href or href.startswith(("#", "javascript:")) or "{{" in href:
+            continue
+        total += 1
+        if link is not None:
+            continue
+        link = {"href": href}
+        texts = [t for t in a.find_all(string=True) if str(t).strip()]
+        if len(texts) == 1:
+            raw = str(texts[0])
+            core = raw.strip()
+            if len(core) >= 2 and "{{" not in core:
+                lead = raw[:len(raw) - len(raw.lstrip())]
+                trail = raw[len(raw.rstrip()):]
+                texts[0].replace_with(NavigableString(
+                    lead + FIELD_MARK % "linkLabel" + trail))
+                fields["linkLabel"] = core
+                link["label"] = core
+        a["href"] = "{{link:href}}"
+        ban_subtree(banned_ids, a)
+    return link, total
 
 
 def _run_eligible(el, banned_ids):
@@ -668,45 +736,61 @@ def decompose_group(group, allow_items=True, run_cap=18, min_chars=8,
     original = str(group)
     items = (find_repeated_items(group) or []) if allow_items else []
     children = []
-    for it in items:
+
+    def lift_scope(scope, banned, titles):
         f = {}
-        item_banned = set()
-        t = lift_title(it, item_banned) if lift_titles else None
+        t = lift_title(scope, banned) if titles else None
         if t:
             f["title"] = t
-        f.update(lift_bodies(it, item_banned, cap=run_cap, min_chars=min_chars))
-        children.append({"el": it, "fields": f})
+        f.update(lift_bodies(scope, banned, cap=run_cap, min_chars=min_chars))
+        media, media_total = lift_media(scope, banned)
+        link, link_total = lift_link(scope, banned, f)
+        return {"fields": f, "media": media, "mediaTotal": media_total,
+                "link": link, "linkTotal": link_total}
+
+    for it in items:
+        pl = lift_scope(it, set(), lift_titles)
+        pl["el"] = it
+        children.append(pl)
     banned_ids = set()
     for it in items:
         ban_subtree(banned_ids, it)
-    fields = {}
-    t = lift_title(group, banned_ids) if lift_titles else None
-    if t:
-        fields["title"] = t
-    fields.update(lift_bodies(group, banned_ids, cap=run_cap, min_chars=min_chars))
+    top = lift_scope(group, banned_ids, lift_titles)
     for i, ch in enumerate(children):
         ch["skeleton"] = str(ch["el"])
         ch["el"].replace_with(NavigableString(CHILD_MARK % i))
         del ch["el"]
     skeleton = str(group)
-    ok = recompose_group(skeleton, fields, children) == original
-    return {"ok": ok, "original": original, "skeleton": skeleton,
-            "fields": fields, "children": children}
+    out = {"ok": None, "original": original, "skeleton": skeleton,
+           "fields": top["fields"], "media": top["media"],
+           "mediaTotal": top["mediaTotal"], "link": top["link"],
+           "linkTotal": top["linkTotal"], "children": children}
+    out["ok"] = recompose_group(skeleton, top["fields"], children,
+                                media=top["media"], link=top["link"]) == original
+    return out
 
 
-def recompose_group(skeleton, fields, children):
-    """Reference recomposition (the TS SkeletonView implements the same rules):
-    child markers -> child skeleton with its fields substituted; body* values
-    splice RAW (they are richtext HTML), everything else minimal-escaped."""
-    def subst(html, flds):
+def recompose_group(skeleton, fields, children, media=None, link=None):
+    """Reference recomposition (the TS skeleton renderer implements the same
+    rules): child markers -> child skeleton fully substituted; body* values
+    splice RAW (richtext HTML); media markers -> the unit's exact original
+    markup (the byte-exact DEFAULT state); {{link:href}} -> attribute-escaped
+    original href; every other field minimal-escaped."""
+    def subst(html, flds, med, lnk):
+        for m in med or []:
+            html = html.replace("{{media:%s}}" % m["name"], m["orig"])
+        if lnk:
+            html = html.replace("{{link:href}}", _esc_attr(lnk["href"]))
         for k, v in flds.items():
             html = html.replace(FIELD_MARK % k,
                                 v if k.startswith("body") else _esc_text(v))
         return html
     out = skeleton
     for i, ch in enumerate(children):
-        out = out.replace(CHILD_MARK % i, subst(ch["skeleton"], ch["fields"]))
-    return subst(out, fields)
+        out = out.replace(CHILD_MARK % i,
+                          subst(ch["skeleton"], ch.get("fields") or {},
+                                ch.get("media"), ch.get("link")))
+    return subst(out, fields, media, link)
 
 
 # ── Main-region partition (passthrough layer, QUALITY-PLAN P1.2) ──
