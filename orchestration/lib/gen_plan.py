@@ -141,10 +141,14 @@ def build_plan(p):
         # step_segment's Run: is a trivial echo — the REAL work is the engine-
         # enforced PROBE (avoids the 600s opencode completion deadline;
         # segment_probe is incremental so retries never re-bill vision).
+        # max_attempts 2 (not 3): the N=3 consensus already absorbs vision
+        # nondeterminism, so a red verdict is signal, not noise — one auto-retry
+        # (continuing incrementally where the first left off), then the decision
+        # ladder takes over instead of re-billing another full vision round.
         *([{**step("step_segment", "Vision segmentation (protocol v2: consensus + per-cluster)", "build",
                    ["Run: echo segmentation is executed by the engine probe",
                     SEG_PROBE],
-                   deps=["step_semantic"]),
+                   deps=["step_semantic"], max_attempts=2),
             "strategies": seg_strategies},
            step("step_group", "Vision -> manifest + contribution dial", "build",
                 [f"Run: python3 orchestration/lib/segment2manifest.py {P} --ns {NS}",

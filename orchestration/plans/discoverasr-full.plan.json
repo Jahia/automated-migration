@@ -1,6 +1,6 @@
 {
   "goal": "Migrate https://www.discoverasr.com/en to a Jahia JS module (project: discoverasr, site: discoverasr, ns: asr) — v2 full loop, fidelity >=99%/page vs local mirror",
-  "repo_dir": ".",
+  "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
   "model": "opencode/deepseek-v4-flash",
   "epics": [
     {
@@ -19,7 +19,9 @@
               "task_type": "verify",
               "agent": "code",
               "depends_on": [],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/connect.sh projects/discoverasr"
               ],
@@ -33,7 +35,9 @@
               "depends_on": [
                 "step_connect"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/crawl-site.py projects/discoverasr https://www.discoverasr.com/en --max-pages 20 --depth 2 --rate-delay 2 --max-asset-size 1",
                 "PROBE: test -s projects/discoverasr/workflow-output/page-inventory.json"
@@ -48,7 +52,9 @@
               "depends_on": [
                 "step_crawl"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/localize_site.py projects/discoverasr --max-asset-size 15",
                 "PROBE: test -s projects/discoverasr/workflow-output/local-mirror/mirror.json",
@@ -64,8 +70,11 @@
               "depends_on": [
                 "step_localize"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
+                "Run: python3 orchestration/lib/scope_apply.py projects/discoverasr",
                 "Run: python3 orchestration/lib/semantic_extract.py projects/discoverasr",
                 "PROBE: test -s projects/discoverasr/workflow-output/semantic-candidates.json",
                 "PROBE: test -s projects/discoverasr/workflow-output/semantic-templates.json"
@@ -74,18 +83,102 @@
             },
             {
               "id": "step_segment",
-              "title": "Vision segmentation (gated + stability)",
+              "title": "Vision segmentation (protocol v2: consensus + per-cluster)",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
                 "step_semantic"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
-                "Run: node orchestration/lib/segment_probe.mjs projects/discoverasr",
-                "PROBE: ls projects/discoverasr/workflow-output/segment/*.segmentation.json"
+                "Run: echo segmentation is executed by the engine probe",
+                "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --per-cluster 3"
               ],
-              "max_attempts": 3
+              "max_attempts": 2,
+              "strategies": [
+                {
+                  "id": "claude_adjudicate",
+                  "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
+                  "when": "on_retries_exhausted",
+                  "order": 1,
+                  "arm_swap": false,
+                  "halt": false,
+                  "patches": [
+                    {
+                      "step_id": "step_segment",
+                      "inputs": {
+                        "project": "projects/discoverasr"
+                      },
+                      "acceptance_criteria": [
+                        "Run: node orchestration/lib/adjudicate_ingest.mjs projects/discoverasr",
+                        "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --per-cluster 3"
+                      ]
+                    }
+                  ],
+                  "skip": [],
+                  "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/discoverasr/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe — hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
+                },
+                {
+                  "id": "ab_test",
+                  "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
+                  "when": "on_retries_exhausted",
+                  "order": 2,
+                  "arm_swap": false,
+                  "halt": false,
+                  "patches": [
+                    {
+                      "step_id": "step_segment",
+                      "inputs": {
+                        "project": "projects/discoverasr"
+                      },
+                      "acceptance_criteria": [
+                        "Run: echo ab evidence",
+                        "PROBE[2700]: bash orchestration/lib/ab_segment.sh projects/discoverasr",
+                        "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --per-cluster 3"
+                      ]
+                    }
+                  ],
+                  "skip": [],
+                  "notes": "Information strategy: runs the heuristic arm into projects/discoverasr/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/discoverasr/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red — the NEXT decision has the A/B report."
+                },
+                {
+                  "id": "heuristic_arm",
+                  "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
+                  "when": "on_retries_exhausted",
+                  "order": 3,
+                  "arm_swap": true,
+                  "halt": false,
+                  "patches": [
+                    {
+                      "step_id": "step_group",
+                      "inputs": {
+                        "project": "projects/discoverasr"
+                      },
+                      "acceptance_criteria": [
+                        "Run: python3 orchestration/lib/group_llm.py projects/discoverasr --model deepseek-v4-flash --ns asr --out projects/discoverasr/workflow-output/grouping.json",
+                        "PROBE: python3 orchestration/lib/assemble_manifest.py projects/discoverasr/workflow-output/semantic-candidates.json --group projects/discoverasr/workflow-output/grouping.json --ns asr --out projects/discoverasr/workflow-output/component-manifest.json"
+                      ]
+                    }
+                  ],
+                  "skip": [
+                    "step_segment"
+                  ],
+                  "notes": "Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-PROBE lint): step_segment is skipped and step_group becomes the exact criteria gen_plan emits for --segmentation heuristic."
+                },
+                {
+                  "id": "manual_review",
+                  "title": "Manual review (Julian): halt with the segmentation bundle",
+                  "when": "on_retries_exhausted",
+                  "order": 4,
+                  "arm_swap": false,
+                  "halt": true,
+                  "patches": [],
+                  "skip": [],
+                  "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only — recorded as a waiver."
+                }
+              ]
             },
             {
               "id": "step_group",
@@ -95,7 +188,9 @@
               "depends_on": [
                 "step_segment"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/segment2manifest.py discoverasr --ns asr",
                 "Run: python3 orchestration/lib/make_overrides.py discoverasr --module discoverasr",
@@ -105,14 +200,35 @@
               "max_attempts": 3
             },
             {
+              "id": "step_model_review",
+              "title": "Model review (scheduled decision point)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_group"
+              ],
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
+              "acceptance_criteria": [
+                "Review: projects/discoverasr/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and projects/discoverasr/workflow-output/segment/*.segmap.html overlays.",
+                "Decide: POST /runs/{run_id}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to projects/discoverasr/workflow-output/scope-rules.json + action=apply_and_rerun.",
+                "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
+              ],
+              "max_attempts": 3,
+              "review": true
+            },
+            {
               "id": "step_content_extract",
               "title": "Content-load payload + partition/contribution gates",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_group"
+                "step_model_review"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/extract_content.py discoverasr",
                 "PROBE: python3 orchestration/probes/partition.py discoverasr",
@@ -128,7 +244,9 @@
               "depends_on": [
                 "step_content_extract"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/cnd_emit.py projects/discoverasr/workflow-output/component-manifest.json --ns asr --mixns asrmix --project discoverasr --out-cnd projects/discoverasr/workflow-output/definitions.cnd --out-views projects/discoverasr/workflow-output/views.json --content-load orchestration/content/discoverasr.content-load.json",
                 "PROBE: test -s projects/discoverasr/workflow-output/definitions.cnd",
@@ -145,7 +263,9 @@
               "depends_on": [
                 "step_cnd"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE[900]: node orchestration/lib/reconstruct_probe.mjs projects/discoverasr 10 95",
                 "Gate: present worst pages + semantic share, return status halt."
@@ -174,7 +294,9 @@
               "depends_on": [
                 "step_fidelity_gate"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/namespace-check.sh asr 'https://jahia.com/discoverasr/nt/1.0'"
               ],
@@ -188,7 +310,9 @@
               "depends_on": [
                 "step_namespace_check"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: bash orchestration/lib/scaffold_module.sh discoverasr discoverasr",
                 "PROBE: test -f projects/discoverasr/package.json"
@@ -206,7 +330,9 @@
               "depends_on": [
                 "step_scaffold"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/import_assets.py discoverasr",
                 "PROBE: test -s projects/discoverasr/src/templates/css-manifest.json",
@@ -222,7 +348,9 @@
               "depends_on": [
                 "step_scaffold"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/merge_cnd.py discoverasr --ns asr --mixns asrmix",
                 "PROBE: bash orchestration/probes/cnd.sh projects/discoverasr asr",
@@ -239,7 +367,9 @@
                 "step_assets",
                 "step_cnd_merge"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/install_shell_templates.py discoverasr --ns asr --manifest projects/discoverasr/workflow-output/component-manifest.json",
                 "PROBE: grep -q 'rawHtml' projects/discoverasr/src/components/RawHtml/default.server.tsx"
@@ -254,7 +384,9 @@
               "depends_on": [
                 "step_shell_templates"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE[900]: bash orchestration/probes/deploy.sh projects/discoverasr",
                 "PROBE: bash orchestration/probes/namespace-check.sh asr 'https://jahia.com/discoverasr/nt/1.0'"
@@ -283,10 +415,12 @@
               "depends_on": [
                 "step_deploy"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
-                "Run: bash orchestration/lib/create_site.sh discoverasr \"Discover ASR (migrated)\" discoverasr en,fr",
-                "PROBE: bash orchestration/lib/create_site.sh discoverasr \"Discover ASR (migrated)\" discoverasr en,fr"
+                "Run: bash orchestration/lib/create_site.sh discoverasr \"discoverasr (migrated)\" discoverasr en,fr",
+                "PROBE: bash orchestration/lib/create_site.sh discoverasr \"discoverasr (migrated)\" discoverasr en,fr"
               ],
               "max_attempts": 3
             },
@@ -298,7 +432,9 @@
               "depends_on": [
                 "step_create_site"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/mcp.sh projects/discoverasr"
               ],
@@ -312,7 +448,9 @@
               "depends_on": [
                 "step_mcp"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/create_pages.py discoverasr discoverasr --template basic --locale en",
                 "PROBE: python3 orchestration/lib/mcp_client.py discoverasr call content.get '{\"path\":\"/sites/discoverasr/home\",\"locale\":\"en\"}'"
@@ -327,7 +465,9 @@
               "depends_on": [
                 "step_pages"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/load_content.py discoverasr discoverasr --clean --locale en",
                 "PROBE: python3 orchestration/probes/partition.py discoverasr",
@@ -343,7 +483,9 @@
               "depends_on": [
                 "step_content_load"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/publish-parity.sh projects/discoverasr discoverasr en,fr"
               ],
@@ -357,7 +499,9 @@
               "depends_on": [
                 "step_publish_parity"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE: bash orchestration/probes/edit-frame.sh projects/discoverasr discoverasr en"
               ],
@@ -371,7 +515,9 @@
               "depends_on": [
                 "step_edit_frame"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE[900]: python3 orchestration/probes/editor-surface.py discoverasr discoverasr"
               ],
@@ -385,11 +531,32 @@
               "depends_on": [
                 "step_editor_surface"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE[900]: python3 orchestration/probes/roundtrip.py discoverasr discoverasr"
               ],
               "max_attempts": 3
+            },
+            {
+              "id": "step_exceptions_review",
+              "title": "Batch exceptions review (scheduled decision point)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_roundtrip"
+              ],
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
+              "acceptance_criteria": [
+                "Review: per-page probe results (projects/discoverasr/workflow-output/contribution + partition + publish-parity + roundtrip outputs) and the exceptions report — pages that did not fit the frozen profile.",
+                "Decide: POST /runs/{run_id}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into projects/discoverasr/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
+                "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
+              ],
+              "max_attempts": 3,
+              "review": true
             }
           ]
         }
@@ -411,9 +578,11 @@
               "task_type": "verify",
               "agent": "code",
               "depends_on": [
-                "step_roundtrip"
+                "step_exceptions_review"
               ],
-              "inputs": {},
+              "inputs": {
+                "project": "projects/discoverasr"
+              },
               "acceptance_criteria": [
                 "PROBE[900]: bash orchestration/probes/groundtruth.sh discoverasr discoverasr 99",
                 "Gate: present groundtruth/review.html per-page fidelity, return status halt."
