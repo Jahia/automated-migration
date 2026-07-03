@@ -15,19 +15,21 @@ from ..opencode_client import OpenCodeClient
 from ..opencode_events import OpenCodeEventListener
 from ..orchestrator import (
     abort_run,
+    approve_gate,
     delete_run,
     get_run,
     jump_to_step,
     pause_run,
     prune_runs,
     register_run,
+    reject_gate,
     restart_run,
     resume_run,
     start_run,
     try_resume_run,
 )
 from ..persistence import list_runs, load_run, save_event, save_run
-from ..state import build_run_state
+from ..state import PlanLintError, build_run_state
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +52,10 @@ class JumpRequest(BaseModel):
 async def create_run(plan: PlanInput, request: Request):
     github: GitHubClient = request.app.state.github_client
 
-    run = build_run_state(plan)
+    try:
+        run = build_run_state(plan)
+    except PlanLintError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     run.status = RunStatus.created
 
     for epic_input, epic_state in zip(plan.epics, run.epics):
@@ -129,8 +134,12 @@ async def resume_run_endpoint(run_id: str, request: Request):
 
 
 @router.post("/runs/{run_id}/jump")
-async def jump_endpoint(run_id: str, req: JumpRequest):
-    result = await jump_to_step(run_id, req.step_id, req.epic_id, req.reset_dependents)
+async def jump_endpoint(run_id: str, req: JumpRequest, request: Request):
+    result = await jump_to_step(
+        run_id, req.step_id, req.epic_id, req.reset_dependents,
+        client=request.app.state.opencode_client,
+        event_listener=request.app.state.event_listener,
+    )
     return result
 
 
@@ -368,7 +377,10 @@ def _build_migration_plan(inp: MigrationInput) -> PlanInput:
 async def create_migration(inp: MigrationInput):
     """Create a run from the fixed deterministic analyze plan. No GitHub issues."""
     plan = _build_migration_plan(inp)
-    run = build_run_state(plan)
+    try:
+        run = build_run_state(plan)
+    except PlanLintError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     run.status = RunStatus.created
     run.autonomy = inp.autonomy
     register_run(run)
@@ -419,8 +431,10 @@ class GateDecision(BaseModel):
 
 @router.post("/runs/{run_id}/gate")
 async def run_gate(run_id: str, req: GateDecision, request: Request):
-    """Typed, audited gate decision. approve → resume (engine forces the halted step
-    done); reject → pause + reason; rerun → re-run the fidelity probe on a sample."""
+    """Typed, audited gate decision — the ONLY way to decide a halted gate.
+    approve → the halted step becomes done and the run resumes; reject → the step
+    becomes 'rejected' (persisted; the run stays paused until jump/rollback);
+    rerun → re-run the fidelity probe on a sample."""
     run = await _resolve_run(run_id)
     dec = req.decision.lower().strip()
     await save_event(run_id, "gate_decision", {"decision": dec, "reason": req.reason, "pages": req.pages})
@@ -428,11 +442,15 @@ async def run_gate(run_id: str, req: GateDecision, request: Request):
     if dec == "approve":
         client: OpenCodeClient = request.app.state.opencode_client
         event_listener: OpenCodeEventListener = request.app.state.event_listener
-        ok = await try_resume_run(run_id, client, event_listener)
-        return {"status": "approved" if ok else "error", "decision": dec}
+        result = await approve_gate(run_id, client, event_listener)
+        if result.get("error"):
+            return {"status": "error", "decision": dec, "detail": result["error"]}
+        return {"status": "approved", "decision": dec, "step_id": result["step_id"]}
     if dec == "reject":
-        await pause_run(run_id)
-        return {"status": "rejected", "decision": dec, "reason": req.reason}
+        result = await reject_gate(run_id, req.reason)
+        if result.get("error"):
+            return {"status": "error", "decision": dec, "detail": result["error"]}
+        return {"status": "rejected", "decision": dec, "reason": req.reason, "step_id": result["step_id"]}
     if dec == "rerun":
         proj = project_path(run)
         if not proj:
@@ -451,11 +469,15 @@ class Rollback(BaseModel):
 
 
 @router.post("/runs/{run_id}/rollback")
-async def run_rollback(run_id: str, req: Rollback):
+async def run_rollback(run_id: str, req: Rollback, request: Request):
     """Roll the run back to an earlier step (re-runs it, resets dependents). Audited."""
     run = await _resolve_run(run_id)
     await save_event(run_id, "rollback", {"to_step": req.to_step, "reason": req.reason})
-    result = await jump_to_step(run_id, req.to_step, None, True)
+    result = await jump_to_step(
+        run_id, req.to_step, None, True,
+        client=request.app.state.opencode_client,
+        event_listener=request.app.state.event_listener,
+    )
     if isinstance(result, dict) and result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
     return {"status": "rolled_back", "to_step": req.to_step, "result": result}

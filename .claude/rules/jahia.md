@@ -10,7 +10,7 @@ description: Core Jahia JS module development rules. Apply on all JS/React templ
 3. **Never hardcode URLs** — all navigable links must come from contributed content (`j:linkType`, `buildNodeUrl`).
 4. **Always verify before creating** — check that content types are deployed and site keys are correct before GraphQL mutations.
 5. **All props are optional at runtime** — even mandatory CND fields. Always guard against `undefined`.
-6. **Always include `-H "Origin: http://localhost:8080"` in every GraphQL curl** — omitting it returns `Permission denied`.
+6. **Always include `-H "Origin: $JAHIA_URL"` in every GraphQL curl** — the Origin must match `$JAHIA_URL` (port-sensitive: a mismatched port is a hard, empty-body 403; omitting it returns `Permission denied`). Example: `curl -u "$JAHIA_USER:$JAHIA_PASS" -H "Origin: $JAHIA_URL" -H 'Content-Type: application/json' -X POST "$JAHIA_URL/modules/graphql" -d '{"query":"..."}'`.
 7. **Accessibility is mandatory** — every component must pass WCAG 2.1 AA. Run `/jahia-dev-accessibility` after building.
 8. **Never declare `jcr:title` in CND** — use `mix:title` as a supertype.
 9. **`weakreference` without `picker` type = full JCR node browser** — add `picker[type='page']` only to restrict to pages.

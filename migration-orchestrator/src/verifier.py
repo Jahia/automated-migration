@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 
+from .config import settings
 from .models import AgentResult, StepState, VerificationResult
 from .opencode_client import OpenCodeClient
 
@@ -38,17 +40,54 @@ def parse_agent_result(text: str, step: StepState) -> AgentResult | None:
 
 PROBE_TIMEOUT_S = 600  # a probe may drive a real browser (playwright) — cap, don't hang
 
+PROBE_RE = re.compile(r"\s*PROBE(?:\[(\d+)\])?:\s*(.+)", re.DOTALL)
 
-def probe_commands(step: StepState) -> list[str]:
+
+def default_probe_timeout() -> float:
+    """Default per-probe timeout: ORCHESTRATOR_PROBE_TIMEOUT (seconds) from the
+    environment, falling back to PROBE_TIMEOUT_S."""
+    try:
+        return float(os.environ["ORCHESTRATOR_PROBE_TIMEOUT"])
+    except (KeyError, ValueError):
+        return float(PROBE_TIMEOUT_S)
+
+
+def probe_env(repo_dir: str) -> dict[str, str]:
+    """Environment for probe subprocesses: the orchestrator's own environment
+    plus the repo's .env.local (KEY=VALUE lines; comments and blanks ignored;
+    path overridable via ORCHESTRATOR_ENV_FILE). Probes and plans reference
+    $JAHIA_URL / $JAHIA_USER / $JAHIA_PASS — literal credentials must never
+    appear in prompts, state_json, or the audit log."""
+    env = dict(os.environ)
+    path = settings.env_file
+    if not os.path.isabs(path):
+        path = os.path.join(repo_dir, path)
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                env[key.strip()] = value.strip()
+    except OSError:
+        pass
+    return env
+
+
+def probe_commands(step: StepState) -> list[tuple[str, float]]:
     """The deterministic gate: every `PROBE: <cmd>` in the step's acceptance
-    criteria. Extracted and executed by the ENGINE, never trusted to the agent's
-    self-report — an LLM that skips or excuses a failing probe must not be able
-    to advance the run."""
-    cmds: list[str] = []
+    criteria, returned as (command, timeout_seconds). `PROBE[NNN]: <cmd>` sets a
+    per-probe timeout override (e.g. a cold `yarn install && yarn build` that
+    outlasts the default); plain `PROBE:` gets default_probe_timeout(). Extracted
+    and executed by the ENGINE, never trusted to the agent's self-report — an LLM
+    that skips or excuses a failing probe must not be able to advance the run."""
+    cmds: list[tuple[str, float]] = []
     for crit in step.acceptance_criteria or []:
-        m = re.match(r"\s*PROBE:\s*(.+)", crit, re.DOTALL)
+        m = PROBE_RE.match(crit)
         if m:
-            cmds.append(" ".join(m.group(1).split()))
+            timeout_s = float(m.group(1)) if m.group(1) else default_probe_timeout()
+            cmds.append((" ".join(m.group(2).split()), timeout_s))
     return cmds
 
 
@@ -77,23 +116,30 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
         checks.append("files_claimed")
 
     # Engine-enforced probes first (the real gate), then any agent-declared
-    # commands not already covered. dict.fromkeys dedups while keeping order.
-    to_run = list(dict.fromkeys(probe_commands(step) + list(result.commands_requested)))
-    for cmd in to_run:
+    # commands not already covered (those get the default timeout). setdefault
+    # dedups while keeping order and preserving a probe's timeout override.
+    to_run: dict[str, float] = {}
+    for cmd, timeout_s in probe_commands(step):
+        to_run.setdefault(cmd, timeout_s)
+    for cmd in result.commands_requested:
+        to_run.setdefault(cmd, default_probe_timeout())
+    env = probe_env(repo_dir)
+    for cmd, timeout_s in to_run.items():
         cmd_start = time.time() * 1000
         try:
             proc = await asyncio.create_subprocess_shell(
                 cmd,
                 cwd=repo_dir,
+                env=env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=PROBE_TIMEOUT_S)
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.communicate()
-                errors.append(f"Command timed out after {PROBE_TIMEOUT_S}s: {cmd[:80]}")
+                errors.append(f"Command timed out after {int(timeout_s)}s: {cmd[:80]}")
                 continue
             cmd_duration = time.time() * 1000 - cmd_start
             stdout_text = stdout.decode("utf-8", errors="replace")[:2000]

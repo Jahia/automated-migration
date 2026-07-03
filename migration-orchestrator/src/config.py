@@ -12,6 +12,8 @@ class Settings(BaseSettings):
 
     db_path: str = "orchestrator.db"
 
+    env_file: str = ".env.local"
+
     github_token: str | None = None
     github_repo: str | None = None
 

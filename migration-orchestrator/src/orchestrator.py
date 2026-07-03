@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 
 from .audit import get_audit_logger
@@ -27,14 +28,19 @@ from .prompt_builder import build_review_epic_prompt, build_step_prompt
 from .question_detector import detect_question
 from .rectification_detector import parse_epic_review_result
 from .state import (
+    approve_gate_step,
     build_step_state,
     build_story_state,
     check_transition,
     find_all_dependents,
+    find_halted_step,
+    gate_blocked_step,
     get_epic_by_id,
     get_resume_event,
     get_step_by_id,
     get_story_by_id,
+    normalize_for_resume,
+    reject_gate_step,
     reset_steps_from,
     select_next_ready_step,
     select_next_ready_story,
@@ -270,16 +276,27 @@ async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState
             await notify_sse(run, "run_paused", {"reason": "halt", "step_id": step.id, "summary": step.agent_result.summary if step.agent_result else ""})
             resume = get_resume_event(run.run_id)
             resume.clear()
-            await resume.wait()
+            # A halted gate is decided ONLY by the typed gate endpoint (approve →
+            # done, reject → rejected) or redone via jump. A plain resume never
+            # approves it: the loop stays parked here until the step leaves
+            # halted/rejected. A rejected gate behaves like failed-with-no-retries:
+            # the run stays paused until the operator jumps/rolls back to redo it.
+            while True:
+                await resume.wait()
+                if run.status == RunStatus.aborted:
+                    return
+                if step.status == StepStatus.halted:
+                    log.warning(f"Step {step.id}: still halted — resume does not approve a gate; POST /runs/{run.run_id}/gate {{approve|reject}} or jump.")
+                    run.status = RunStatus.paused
+                    resume.clear()
+                    continue
+                if step.status == StepStatus.rejected:
+                    log.warning(f"Step {step.id}: gate rejected — run stays paused until the operator jumps/rolls back to redo it.")
+                    run.status = RunStatus.paused
+                    resume.clear()
+                    continue
+                break
             run.status = RunStatus.running
-            # Resuming from a halt is the operator's approval of the gate: mark the
-            # step done so its dependents unblock. Without this the step stays
-            # 'halted', select_next_ready_step finds nothing, and the story fails.
-            # (To redo a halted step instead of approving it, use jump, which resets it.)
-            if step.status == StepStatus.halted:
-                step.status = StepStatus.done
-                await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-                await notify_sse(run, "step_completed", {"result": step.agent_result.model_dump() if step.agent_result else {}}, step_id=step.id, story_id=story.id, epic_id=epic.id)
             continue
         elif step.status == StepStatus.failed:
             if step.attempt < step.max_attempts:
@@ -444,6 +461,10 @@ def _infer_gate_type(step: StepState) -> str | None:
     Matched on step id + title ONLY — acceptance criteria embed project paths
     ("projects/contentful/…"), which poison broad substring matches."""
     idt = f"{step.id or ''} {step.title or ''}".lower()
+    if "deploy" in idt:
+        return "deploy"
+    if re.search(r"ground.?truth|live.?fidelity", idt):
+        return "groundtruth"
     if "reconstruct" in idt or "fidelity" in idt:
         return "fidelity"
     if "localize" in idt or "mirror" in idt:
@@ -798,6 +819,10 @@ async def resume_run(run_id: str) -> bool:
     run = get_run(run_id)
     if not run or run.status != RunStatus.paused:
         return False
+    blocked = gate_blocked_step(run)
+    if blocked:
+        log.warning(f"Run {run_id}: step {blocked.id} is {blocked.status.value} — resume never decides a gate; approve/reject via POST /runs/{run_id}/gate, or jump/rollback to redo the step.")
+        return False
     run.status = RunStatus.running
     resume = get_resume_event(run_id)
     resume.set()
@@ -813,42 +838,89 @@ async def try_resume_run(run_id: str, client: OpenCodeClient, event_listener: Op
     # step without redoing completed work or re-prompting passed gates.
     if not run or run.status not in (RunStatus.paused, RunStatus.failed):
         return False
+    blocked = gate_blocked_step(run)
+    if blocked:
+        # A halted gate awaits approve/reject; a rejected gate awaits jump/rollback.
+        # Either way, a plain resume must never decide it (the run stays paused).
+        log.warning(f"Run {run_id}: step {blocked.id} is {blocked.status.value} — resume never decides a gate; approve/reject via POST /runs/{run_id}/gate, or jump/rollback to redo the step.")
+        return False
     run.status = RunStatus.running
     if run_id in _active_tasks and not _active_tasks[run_id].done():
         resume = get_resume_event(run_id)
         resume.set()
     else:
-        # Fresh loop (engine restarted / loop gone): the in-flight resume & halt
-        # handling can't fire, so normalize state here or the loop dies instantly —
-        #  - halted step: resuming IS the operator's gate approval → done;
-        #  - orphaned running/verifying step (loop died mid-step): re-run it;
-        #  - failed step: give it fresh attempts;
-        #  - failed story/epic with runnable work left: back to pending so
-        #    select_next_ready_* re-enters instead of re-failing immediately.
-        for epic in run.epics:
-            for story in epic.stories:
-                for step in story.steps:
-                    if step.status == StepStatus.halted:
-                        step.status = StepStatus.done
-                    elif step.status in (StepStatus.running, StepStatus.verifying, StepStatus.ready, StepStatus.failed):
-                        # back to *pending*: despite its name, select_next_ready_step
-                        # only picks pending steps ('ready' is jump's forced state)
-                        step.status = StepStatus.pending
-                        step.attempt = 0
-                if story.status == StoryStatus.failed and any(
-                        s.status == StepStatus.pending for s in story.steps):
-                    story.status = StoryStatus.pending
-            if epic.status == EpicStatus.failed and any(
-                    st.status != StoryStatus.approved for st in epic.stories):
-                epic.status = EpicStatus.pending
+        # Fresh loop (engine restarted / loop gone): the in-flight resume handling
+        # can't fire, so normalize orphaned/failed state or the loop dies instantly.
+        # See normalize_for_resume — halted/rejected gates are refused above.
+        normalize_for_resume(run)
         task = asyncio.create_task(_run_loop(run, client, event_listener))
         _active_tasks[run_id] = task
     await notify_sse(run, "run_resumed", {})
     return True
 
 
-async def jump_to_step(run_id: str, step_id: str, epic_id: str | None = None, reset_dependents: bool = True) -> dict:
+async def _resolve_registered_run(run_id: str) -> RunState | None:
     run = get_run(run_id)
+    if not run:
+        run = await load_run(run_id)
+        if run:
+            register_run(run)
+    return run
+
+
+async def approve_gate(run_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> dict:
+    """The ONLY path that turns a halted gate into done: mark the step approved,
+    persist, then resume the run (in-flight loop or a fresh one)."""
+    run = await _resolve_registered_run(run_id)
+    if not run:
+        return {"error": "run not found"}
+    epic, story, step = find_halted_step(run)
+    if not step:
+        return {"error": "no halted gate step"}
+    approve_gate_step(step)
+    run.updated_at = time.time() * 1000
+    await save_run(run)
+    await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "gate_decision": "approve"}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    await notify_sse(run, "step_completed", {"result": step.agent_result.model_dump() if step.agent_result else {}}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    if run_id in _active_tasks and not _active_tasks[run_id].done():
+        run.status = RunStatus.running
+        get_resume_event(run_id).set()
+        await notify_sse(run, "run_resumed", {})
+    else:
+        await try_resume_run(run_id, client, event_listener)
+    return {"status": "approved", "step_id": step.id}
+
+
+async def reject_gate(run_id: str, reason: str = "") -> dict:
+    """Persistent gate rejection: the halted step becomes 'rejected' (saved), and
+    the run stays paused — like a failed step with no retries left — until the
+    operator jumps/rolls back to redo it. Resume never overrides this."""
+    run = await _resolve_registered_run(run_id)
+    if not run:
+        return {"error": "run not found"}
+    epic, story, step = find_halted_step(run)
+    if not step:
+        return {"error": "no halted gate step"}
+    reject_gate_step(step)
+    run.status = RunStatus.paused
+    run.updated_at = time.time() * 1000
+    await save_run(run)
+    await notify_sse(run, "step_status", {"status": "rejected", "task_type": step.task_type, "gate_type": step.gate_type, "reason": reason}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    return {"status": "rejected", "step_id": step.id, "reason": reason}
+
+
+async def jump_to_step(
+    run_id: str,
+    step_id: str,
+    epic_id: str | None = None,
+    reset_dependents: bool = True,
+    client: OpenCodeClient | None = None,
+    event_listener: OpenCodeEventListener | None = None,
+) -> dict:
+    """Force the run to redo a step (the ONLY documented redo path for a
+    rejected gate). Works with an in-flight loop (wakes it) or after an engine
+    restart (spawns a fresh loop, like try_resume_run)."""
+    run = await _resolve_registered_run(run_id)
     if not run:
         return {"error": "run not found"}
 
@@ -896,11 +968,25 @@ async def jump_to_step(run_id: str, step_id: str, epic_id: str | None = None, re
     run.current_story_id = target_story.id
     run.current_step_id = step_id
 
-    resume = get_resume_event(run_id)
-    if run.status == RunStatus.paused:
+    if run_id in _active_tasks and not _active_tasks[run_id].done():
+        # In-flight loop (possibly parked on a halted/rejected gate): the target
+        # step just left halted/rejected, so waking the loop lets it proceed.
+        if run.status == RunStatus.paused:
+            run.status = RunStatus.running
+        get_resume_event(run_id).set()
+    else:
+        # Engine restarted / loop gone: forced_next_step alone leaves a zombie
+        # run (nothing consumes it, and a later resume is refused while the run
+        # claims running). Spawn a fresh loop like try_resume_run does. The
+        # normalization turns the target's 'ready' into 'pending' — harmless,
+        # forced_next_step routes to it regardless of status.
         run.status = RunStatus.running
-        resume.set()
+        normalize_for_resume(run)
+        task = asyncio.create_task(_run_loop(run, client, event_listener))
+        _active_tasks[run_id] = task
 
+    run.updated_at = time.time() * 1000
+    await save_run(run)
     await notify_sse(run, "step_jumped", {"step_id": step_id, "reset_steps": reset_ids}, step_id=step_id, story_id=target_story.id, epic_id=target_epic.id)
     return {"status": "jump_scheduled", "step_id": step_id, "reset_steps": reset_ids}
 

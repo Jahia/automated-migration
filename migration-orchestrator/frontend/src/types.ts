@@ -1,4 +1,4 @@
-export type StepStatus = 'pending' | 'ready' | 'running' | 'verifying' | 'done' | 'failed' | 'blocked' | 'waiting_human' | 'halted'
+export type StepStatus = 'pending' | 'ready' | 'running' | 'verifying' | 'done' | 'failed' | 'blocked' | 'waiting_human' | 'halted' | 'rejected'
 
 export type StoryStatus = 'pending' | 'running' | 'approved' | 'failed'
 

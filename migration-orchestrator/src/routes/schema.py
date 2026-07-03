@@ -93,7 +93,7 @@ SCHEMA = {
             "run": ["running", "paused", "completed", "failed", "aborted"],
             "epic": ["pending", "running", "reviewing", "waiting_approval", "approved", "failed"],
             "story": ["pending", "running", "approved", "failed"],
-            "step": ["pending", "ready", "running", "verifying", "done", "failed", "blocked", "waiting_human"],
+            "step": ["pending", "ready", "running", "verifying", "done", "failed", "blocked", "waiting_human", "halted", "rejected"],
         },
     },
     "events": {

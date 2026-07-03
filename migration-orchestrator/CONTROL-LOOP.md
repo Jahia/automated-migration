@@ -23,8 +23,18 @@ Same-origin base = the engine (default `http://localhost:8001`).
 | `GET` | `/runs/{id}/artifacts/{path}` | raw artifact (e.g. `reconstruct/reconstruct.json`, `component-manifest.json`) |
 | `POST` | `/runs/{id}/pause` · `/resume` · `/abort` | lifecycle |
 
-`gate approve` = `resume` (the engine forces the halted step to done); the typed
-endpoint additionally records the decision + reason to the event log for audit.
+**Gate decisions are explicit and typed — a plain `resume` never decides a gate.**
+
+- `gate {approve}` — the ONLY path that turns a halted step into `done` (then the
+  run resumes). Recorded with its reason in the event log for audit.
+- `gate {reject}` — the halted step becomes **`rejected`**, a persistent step state
+  (survives engine restarts). The run stays paused: a rejected step behaves like a
+  failed step with no retries left, until the operator uses `jump`/`rollback` to
+  redo it (jump to the rejected step resets it to re-run).
+- `POST /runs/{id}/resume` with a `halted` or `rejected` step present is refused:
+  the run stays paused and the engine logs which step blocks it and what to do
+  (approve/reject via the gate endpoint, or jump/rollback). Resuming is never a
+  silent approval.
 
 ### `GET /runs/{id}/status` (the poll target)
 
@@ -34,7 +44,7 @@ endpoint additionally records the decision + reason to the event log for audit.
   "autonomy": "assisted",
   "phase": {"key": "fidelity", "title": "Fidelity gate"},
   "current_step": {"id": "step_reconstruct_gate", "status": "halted", "attempt": 0},
-  "gate": {"active": true, "type": "fidelity", "step_id": "…", "summary": "…"} | null,
+  "gate": {"active": true, "type": "fidelity", "step_id": "…", "status": "halted|waiting_human|rejected", "summary": "…"} | null,
   "quality": {
     "verdict": "green|amber|red|unknown",
     "gate": "fidelity",
@@ -49,7 +59,9 @@ endpoint additionally records the decision + reason to the event log for audit.
 ```
 
 `next_actions` is the engine's hint for what is currently legal — always prefer it
-over guessing from `status`.
+over guessing from `status`. A **rejected** gate is still surfaced as the blocking
+gate (`gate.status: "rejected"`) with `next_actions: ["rollback", "jump", "restart"]` —
+it cannot be approved anymore; jump/rollback to the step redoes it.
 
 ---
 
@@ -116,19 +128,31 @@ Rules of thumb for an assisted agent:
 ## Engine integrity + recovery semantics (learned 2026-07-02, 3-site batch)
 
 - **PROBEs are engine-enforced.** `verifier.py` extracts every `PROBE:` line from the
-  step's acceptance criteria and executes them itself (600s timeout each) — the agent's
-  self-report can neither skip nor excuse a failing probe. Before this, enforcement
-  depended on the agent *choosing* to declare the probe in `commands_requested`
-  (observed: one DeepSeek agent halted honestly on a red gate, another sailed past it).
-- **`resume` vs `jump` vs `restart`** — three different recovery tools:
-  - `POST /runs/{id}/resume` — resumes paused AND recovers failed runs. On a fresh
-    loop (engine restarted since), it normalizes state first: halted step → done
-    (resume = the operator's gate approval), orphaned running/verifying/failed steps →
-    **pending** (not `ready`: despite its name, `select_next_ready_step` only picks
-    *pending* steps — `ready` is jump's forced state), failed story/epic with runnable
-    steps → pending. Without this, resuming a failed run re-fails in ~20 ms.
+  step's acceptance criteria and executes them itself — the agent's self-report can
+  neither skip nor excuse a failing probe. Before this, enforcement depended on the
+  agent *choosing* to declare the probe in `commands_requested` (observed: one
+  DeepSeek agent halted honestly on a red gate, another sailed past it).
+- **Probe timeouts.** Default per-probe timeout comes from `ORCHESTRATOR_PROBE_TIMEOUT`
+  (seconds, fallback 600). `PROBE[NNN]: <cmd>` overrides it per probe — use it for
+  probes that legitimately outlast the default (a cold `yarn install && yarn build`).
+  Agent-declared `commands_requested` always get the default.
+- **Plan lint at creation.** `POST /runs` and `POST /migrations` reject (HTTP 400) any
+  plan whose steps match `/(deploy|content|publish|scaffold)/i` on id or title without
+  at least one `PROBE:` line in `acceptance_criteria` — the error lists the offending
+  steps. Any other step with zero PROBEs is only logged as a warning (it auto-passes
+  on the agent's self-report).
+- **`gate` vs `resume` vs `jump` vs `restart`** — four different tools:
+  - `POST /runs/{id}/gate {approve|reject}` — decides a halted gate (see above).
+    Approve is the only halted→done path; reject persists a `rejected` step state.
+  - `POST /runs/{id}/resume` — resumes paused AND recovers failed runs, but is
+    REFUSED while a step is halted or rejected (clear log line; run stays paused).
+    On a fresh loop (engine restarted since), it normalizes state first: orphaned
+    running/verifying/failed steps → **pending** (not `ready`: despite its name,
+    `select_next_ready_step` only picks *pending* steps — `ready` is jump's forced
+    state), failed story/epic with runnable steps → pending. Halted/rejected steps
+    are never normalized. Without this, resuming a failed run re-fails in ~20 ms.
   - `POST /runs/{id}/jump {step_id}` — reset a specific step + dependents and force it
-    next. Use to REDO a halted gate instead of approving it.
+    next. Use to REDO a halted gate instead of approving it, and to redo a rejected one.
   - `POST /runs/{id}/restart` — full reset (all steps pending), full re-run. Cheap when
     the crawl cache + mirror already exist (cache-first).
 - **A run-level `failed` with parallel branches is not what it looks like:** independent
@@ -138,6 +162,8 @@ Rules of thumb for an assisted agent:
 - **`gate_type` inference matches step id+title ONLY** — acceptance criteria embed
   project paths, and a project named `contentful` turned every halted gate into a
   "content" panel (substring poisoning). Keep broad keywords away from criteria text.
+  Known gate types: `deploy` (deploy/build_deploy), `groundtruth` (ground-truth /
+  live-fidelity), `fidelity`, `mirror`, `model`, `golive`, `content`, `scope`.
 - **Persisted "running" is a lie after an engine restart** — `load_run` and the runs
   list normalize it to `paused` (no loop exists). In-memory status wins when a loop is
   registered.

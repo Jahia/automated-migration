@@ -12,6 +12,10 @@ Conductor (which depended on the LLM choosing to respect it).
 > [`README.md`](../migration-orchestrator/README.md). **The engine listens on
 > port 8001** (matches `run.sh`'s `ORCH_URL`).
 
+> **Quality & reliability plan:** the roadmap, phases and **pre-registered
+> thresholds** governing the v2 pipeline live in
+> [`QUALITY-PLAN.md`](QUALITY-PLAN.md).
+
 ## Why this exists
 
 The loop's verifier runs whatever shell commands a step's agent returns in
@@ -21,7 +25,7 @@ line in its `acceptance_criteria`, the agent is required (by `AGENTS.md`) to
 echo that probe back, and the harness runs it. Completion is proven by a
 command, not asserted by the model. That is the hardening.
 
-> **Deterministic analyze pipeline (v2) — start here:** the reworked component &
+> **Verifiable analyze pipeline (v2) — start here:** the reworked component &
 > template identification (deterministic extraction → one bounded DeepSeek grouping
 > step → deterministic assemble + gates → **reconstruction fidelity gate**) is
 > documented in **[`ANALYZE-PIPELINE.md`](ANALYZE-PIPELINE.md)**. New tools in `lib/`:

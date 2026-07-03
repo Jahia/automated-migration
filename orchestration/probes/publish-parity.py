@@ -16,8 +16,10 @@ Exit 0 = clean, 1 = dangling references / missing translations found.
 """
 import base64, json, os, sys, urllib.request
 
-HOST = os.environ.get("JAHIA_HOST", "http://localhost:8080").rstrip("/")
+HOST = os.environ.get("JAHIA_URL", os.environ.get("JAHIA_HOST", "http://localhost:8080")).rstrip("/")
 USER = os.environ.get("JAHIA_USER", "root:root")
+if ":" not in USER:
+    USER = f"{USER}:{os.environ.get('JAHIA_PASS', 'root')}"
 SITE = sys.argv[1] if len(sys.argv) > 1 else sys.exit("usage: publish-parity.py <siteKey> [langs csv]")
 LANGS = (sys.argv[2].split(",") if len(sys.argv) > 2 else ["en"])
 GQL = f"{HOST}/modules/graphql"

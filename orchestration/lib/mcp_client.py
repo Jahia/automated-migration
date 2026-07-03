@@ -19,14 +19,19 @@ class MCP:
 
     @staticmethod
     def _env(project):
-        u, h, tok = "root:root", "http://localhost:8080", ""
-        envp = f"projects/{project}/.env"
-        if os.path.exists(envp):
+        u, h, pw, tok = "root:root", "http://localhost:8080", "", ""
+        root_env = os.path.join(os.path.dirname(__file__), "..", "..", ".env.local")
+        for envp in (root_env, f"projects/{project}/.env"):
+            if not os.path.exists(envp):
+                continue
             for line in open(envp):
                 line = line.strip()
                 if line.startswith("JAHIA_USER="): u = line.split("=", 1)[1]
-                elif line.startswith("JAHIA_HOST="): h = line.split("=", 1)[1]
+                elif line.startswith("JAHIA_PASS="): pw = line.split("=", 1)[1]
+                elif line.startswith(("JAHIA_URL=", "JAHIA_HOST=")): h = line.split("=", 1)[1]
                 elif line.startswith("JAHIA_MCP_TOKEN="): tok = line.split("=", 1)[1]
+        if ":" not in u:
+            u = f"{u}:{pw or 'root'}"
         return u, h.rstrip("/"), tok
 
     def _headers(self):

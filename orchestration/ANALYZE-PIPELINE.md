@@ -1,10 +1,17 @@
-# Deterministic analyze pipeline (v2) — component & template identification
+# Verifiable analyze pipeline (v2) — component & template identification
 
 Canonical reference for the reworked **analyze phase**: turn a source website into a
-Jahia component + template model that is **deterministic, agnostic, right-grained,
-and fidelity-verified before templatization**. Supersedes the block-explosion of
+Jahia component + template model that is **verifiable, agnostic, right-grained,
+and fidelity-verified before templatization**. "Verifiable", not "deterministic":
+the LLM steps (DeepSeek grouping, and the prototype OVH vision segmentation)
+produce free output that must pass deterministic gates before anything downstream
+consumes it; the deterministic layers (extraction, assemble, cnd_emit, probes,
+mirror) remain deterministic. Supersedes the block-explosion of
 `extract-blocks.py` (256 raw blocks / 10 pages) and the orphaned `hybrid-identify.py`
 (clustered by structure, found 0 cross-cutting).
+
+> **Quality & reliability roadmap:** phases, pre-registered thresholds, and the
+> ground-truth gate plan live in [`QUALITY-PLAN.md`](QUALITY-PLAN.md).
 
 > **North star:** reconstruct sample pages from ONLY the extracted elements and prove
 > they render identically to the source — *before* adding Jahia's complexity. If the

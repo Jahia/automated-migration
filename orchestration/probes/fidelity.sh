@@ -40,6 +40,7 @@ source "$HERE/_lib.sh"
 ref="${1:?reference url or .mhtml/.html file required}"
 url="${2:?live page URL required}"
 min_pct="${3:-85}"
+load_env ""
 
 # Reference as a URL → fetch it ourselves (the default). Only fall back to a
 # saved file when fetching can't return the real page.
@@ -60,7 +61,7 @@ esac
 # Fetch the live render (try guest, then root creds in case the page needs auth)
 live_html="$(curl -s "$url")"
 if ! printf '%s' "$live_html" | grep -qi "<main\|<body"; then
-  live_html="$(curl -s -u "${JAHIA_USER:-root:root}" "$url")"
+  live_html="$(curl -s -u "$JAHIA_USER" "$url")"
 fi
 printf '%s' "$live_html" > /tmp/fidelity-live.html
 

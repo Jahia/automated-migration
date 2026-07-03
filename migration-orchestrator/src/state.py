@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import re
 import time
 
 from .models import (
@@ -19,6 +21,46 @@ from .models import (
     StoryStatus,
     TraceEvent,
 )
+from .verifier import PROBE_RE
+
+log = logging.getLogger(__name__)
+
+# Steps whose id/title matches this MUST carry >=1 engine-enforced PROBE — a
+# deploy/content/publish/scaffold step that auto-passes on the agent's
+# self-report is exactly the gate-integrity hole P0.3 closes.
+GATED_STEP_RE = re.compile(r"deploy|content|publish|scaffold", re.IGNORECASE)
+
+
+class PlanLintError(ValueError):
+    pass
+
+
+def _has_probe(step_input: StepInput) -> bool:
+    return any(PROBE_RE.match(c) for c in step_input.acceptance_criteria or [])
+
+
+def lint_plan(plan: PlanInput) -> None:
+    """Plan-load gate: deploy/content/publish/scaffold steps without a PROBE
+    fail creation; any other PROBE-less step is only warned (it will auto-pass
+    on the agent's self-report)."""
+    offenders: list[str] = []
+    unprobed: list[str] = []
+    for epic in plan.epics:
+        for story in epic.stories:
+            for step in story.steps:
+                if _has_probe(step):
+                    continue
+                if GATED_STEP_RE.search(step.id) or GATED_STEP_RE.search(step.title):
+                    offenders.append(f"{epic.id}/{story.id}/{step.id} ({step.title})")
+                else:
+                    unprobed.append(step.id)
+    if offenders:
+        raise PlanLintError(
+            "plan lint: deploy/content/publish/scaffold steps must carry at least one "
+            "'PROBE:' line in acceptance_criteria — offending steps: " + "; ".join(offenders)
+        )
+    if unprobed:
+        log.warning(f"plan lint: steps with zero PROBE lines (verified only by agent self-report): {', '.join(unprobed)}")
 
 
 def build_step_state(step_input: StepInput, story_id: str) -> StepState:
@@ -61,6 +103,7 @@ def build_epic_state(epic_input: EpicInput) -> EpicState:
 
 
 def build_run_state(plan: PlanInput) -> RunState:
+    lint_plan(plan)
     now = time.time() * 1000
     return RunState(
         run_id=f"run_{int(now)}",
@@ -159,6 +202,75 @@ def reset_steps_from(story: StoryState, from_step_id: str) -> list[str]:
             step.attempt = 0
             reset_ids.append(step.id)
     return reset_ids
+
+
+# ── Gate decisions (halted → done|rejected) ───────────────────────────
+# A halted step is a human gate. It is decided ONLY by the typed gate endpoint
+# (approve/reject) or redone via jump — a plain resume never decides it.
+
+
+def find_halted_step(run: RunState) -> tuple[EpicState, StoryState, StepState] | tuple[None, None, None]:
+    for epic in run.epics:
+        for story in epic.stories:
+            for step in story.steps:
+                if step.status == StepStatus.halted:
+                    return epic, story, step
+    return None, None, None
+
+
+def gate_blocked_step(run: RunState) -> StepState | None:
+    """The step (if any) that blocks a plain resume: a halted gate awaiting an
+    approve/reject decision, or a rejected gate awaiting jump/rollback."""
+    for epic in run.epics:
+        for story in epic.stories:
+            for step in story.steps:
+                if step.status in (StepStatus.halted, StepStatus.rejected):
+                    return step
+    return None
+
+
+def approve_gate_step(step: StepState) -> bool:
+    if step.status != StepStatus.halted:
+        return False
+    step.status = StepStatus.done
+    return True
+
+
+def reject_gate_step(step: StepState) -> bool:
+    if step.status != StepStatus.halted:
+        return False
+    step.status = StepStatus.rejected
+    return True
+
+
+def normalize_for_resume(run: RunState) -> None:
+    """Fresh-loop recovery (engine restarted / loop gone): the in-flight resume
+    handling can't fire, so normalize state or the loop dies instantly —
+      - orphaned running/verifying step (loop died mid-step): re-run it;
+      - failed step: give it fresh attempts;
+      - failed story/epic with runnable work left: back to pending so
+        select_next_ready_* re-enters instead of re-failing immediately.
+    Halted and rejected steps are left UNTOUCHED — resume never decides a gate
+    (gate_blocked_step refuses the resume outright while one exists)."""
+    for epic in run.epics:
+        for story in epic.stories:
+            for step in story.steps:
+                if step.status in (StepStatus.running, StepStatus.verifying, StepStatus.ready, StepStatus.failed):
+                    # back to *pending*: despite its name, select_next_ready_step
+                    # only picks pending steps ('ready' is jump's forced state)
+                    step.status = StepStatus.pending
+                    step.attempt = 0
+            if story.status == StoryStatus.running:
+                # persisted mid-story (halt/crash): the old loop is gone and
+                # select_next_ready_story only picks pending — left as running,
+                # the fresh loop finds no story, fails the epic, fails the run
+                story.status = StoryStatus.pending
+            elif story.status == StoryStatus.failed and any(
+                    s.status == StepStatus.pending for s in story.steps):
+                story.status = StoryStatus.pending
+        if epic.status in (EpicStatus.running, EpicStatus.failed) and any(
+                st.status != StoryStatus.approved for st in epic.stories):
+            epic.status = EpicStatus.pending
 
 
 def find_all_dependents(story: StoryState, step_id: str) -> set[str]:

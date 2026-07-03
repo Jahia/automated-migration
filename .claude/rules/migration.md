@@ -27,7 +27,7 @@ description: Non-negotiable rules for Jahia website migration projects. Always a
 
 8. **Every contributor-facing link uses `linkTypeInitializer`** — `j:linkType (string, choicelist[linkTypeInitializer])` in the CND. Never store a URL in a plain `string` field.
 
-9. **`j:url` and `j:linknode` must be declared explicitly** in the module's `linkTo` mixin — `linkTypeInitializer` is UI-only (shows/hides fields in editor). If omitted, mutations throw `ConstraintViolationException`.
+9. **`j:linkType (string, choicelist[linkTypeInitializer])` is declared INLINE on the type; `j:url`/`j:linknode` are NEVER declared in a CND** — Jahia's `jmix:externalLink`/`jmix:internalLink` inject them at runtime. Verified against the 3 deployed reference modules (supercar/sial/lesalondelaphoto `settings/definitions.cnd`; `cnd_emit.py` encodes the pattern); confirming mutation scheduled at first v2 deploy (QUALITY-PLAN P1).
 
 ## Tags and Categories
 

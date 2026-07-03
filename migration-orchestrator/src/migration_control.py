@@ -36,7 +36,9 @@ PHASES: list[tuple[str, str, list[str]]] = [
     ("golive", "Go-live · visual diff", ["visual", "vanity", "golive", "review", "accessibility"]),
 ]
 
-_GATE_STATUSES = {"halted", "waiting_human"}
+# 'rejected' is a blocking gate too: the run stays paused until the operator
+# redoes the step (jump/rollback) — hiding it gives the LLM pilot a dead end.
+_GATE_STATUSES = {"halted", "waiting_human", "rejected"}
 
 
 def all_steps(run: RunState) -> list[StepState]:
@@ -201,7 +203,10 @@ def compact_status(run: RunState, wo: Path | None) -> dict:
     done = [s for s in steps if s.status.value == "done"]
     q = quality_verdict(run, gate.gate_type if gate else None, wo)
 
-    if gate:
+    if gate and gate.status.value == "rejected":
+        # a rejected gate cannot be approved anymore — only redone or restarted
+        actions = ["rollback", "jump", "restart"]
+    elif gate:
         actions = ["approve", "reject", "rollback"] + (["rerun"] if gate.gate_type == "fidelity" else [])
     elif run.status.value == "failed":
         actions = ["rollback", "restart"]
@@ -221,6 +226,7 @@ def compact_status(run: RunState, wo: Path | None) -> dict:
         "current_step": ({"id": cur.id, "title": cur.title, "status": cur.status.value,
                           "attempt": cur.attempt} if cur else None),
         "gate": ({"active": True, "type": gate.gate_type, "step_id": gate.id,
+                  "status": gate.status.value,
                   "summary": (gate.agent_result.summary if gate.agent_result else "")} if gate else None),
         "quality": q,
         "progress": {"steps_done": len(done), "steps_total": len(steps),

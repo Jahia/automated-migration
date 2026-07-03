@@ -19,6 +19,7 @@ class StepStatus(str, Enum):
     blocked = "blocked"
     waiting_human = "waiting_human"
     halted = "halted"
+    rejected = "rejected"
 
 
 class StoryStatus(str, Enum):

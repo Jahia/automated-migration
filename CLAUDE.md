@@ -66,7 +66,7 @@ Never use React 18 APIs. Never target OSGi/Java bundles here — this harness is
 
 1. **Never escalate to a system JCR session** for content the calling user authored.
 2. **Always publish after JCR mutations.** Writes go to `default`; live visitors see `live`.
-3. **Always include `-H "Origin: http://localhost:8080"`** in GraphQL curl requests.
+3. **Always include `-H "Origin: $JAHIA_URL"`** in GraphQL curl requests — the Origin must match `$JAHIA_URL` exactly (it is port-sensitive).
 4. **All modules ship EN and FR at minimum.** See `.agents/context/jahia-i18n-patterns.md`.
 
 ### JS template sets
@@ -134,12 +134,14 @@ ns_hero.j:linkType.ui.tooltip=Link for the primary CTA button. Choose internal p
 
 ## Tooling URLs (local dev)
 
+URLs and credentials come from the repo-root `.env.local` (gitignored — copy `.env.example` and adjust). On THIS machine Jahia runs on **http://localhost:8081** with `root` / see `.env.local` (`docker/docker-compose.yml` maps `8081:8080`); port 8080 may be a different, unrelated service — a `{"detail":"Not Found"}` answer there is NOT a Jahia auth problem. Always `source .env.local` and use the variables:
+
 | Tool | URL |
 |---|---|
-| Jahia UI | http://localhost:8080 - credentials: `root` / `root` |
-| GraphQL playground | http://localhost:8080/modules/graphql |
-| JCR browser | http://localhost:8080/modules/tools/jcrBrowser.jsp |
-| Installed definitions | http://localhost:8080/modules/tools/definitionsBrowser.jsp |
+| Jahia UI | `$JAHIA_URL` - credentials: `$JAHIA_USER` / `$JAHIA_PASS` |
+| GraphQL playground | `$JAHIA_URL/modules/graphql` |
+| JCR browser | `$JAHIA_URL/modules/tools/jcrBrowser.jsp` |
+| Installed definitions | `$JAHIA_URL/modules/tools/definitionsBrowser.jsp` |
 
 ---
 

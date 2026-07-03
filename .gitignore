@@ -3,6 +3,8 @@
 **/.mcp.json
 .env
 **/.env
+.env.local
+**/.env.local
 
 # Reference scraping: raw cached pages/assets (durable per-run cache, not source).
 # Distilled blueprints under .reference/<section>/*.md ARE committed.
