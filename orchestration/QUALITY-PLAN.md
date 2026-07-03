@@ -270,7 +270,17 @@ Crawler JS-render only if the holdout demands it.
   - Fidelity-shell template set extracted as AGNOSTIC (`orchestration/templates/fidelity-shell/`
     + `install_shell_templates.py`, only $NS substituted) — Julian's agnosticism constraint;
     plan regenerated as a fully deterministic fidelity-first profile (21 steps, 28 probes,
-    engine-lint PASS). Single-run certification via `run_local.py` in progress; result appended
-    below. Known follow-ups: content-fidelity.py's nav/footer shell check predates the
-    shell-node architecture (needs a variant); `assets.sh`/`components-all.sh` idem;
+    engine-lint PASS). Known follow-ups: content-fidelity.py's nav/footer shell check predates
+    the shell-node architecture (needs a variant); `assets.sh`/`components-all.sh` idem;
     P2 promotion will re-introduce semantic views + those probes.
+- 2026-07-03 — **SINGLE-RUN CERTIFICATION PASS — P1 COMPLETE.**
+  `python3 orchestration/run_local.py orchestration/plans/acquia-drupal-full.plan.json`:
+  all 21 steps DONE in one deterministic run (crawl→mirror gate→semantic→LLM grouping [naming
+  gate GOOD this run — no editor-hostile names]→CND→content extract+partition gate→fidelity
+  gate→namespace gate→scaffold→assets→CND merge→fidelity-shell templates→deploy gate→site→
+  pages→content load→publish-parity→edit-frame→GROUND TRUTH). Zero manual actions.
+  **P1 DoD met**: 18 pages contributed + published on :8081, editable in Page Builder, ground
+  truth 18/18 ≥99 % (all 100 %, 1 documented mask), publish-parity + edit-frame green,
+  semantic share measured (loaded: 0 % — fidelity-first; capability: 94–99 %), j:linkType
+  mutation recorded. → P2 (task #5): raise the LOADED semantic share ≥60 % by promoting roles
+  (vision segmentation), fidelity staying ≥99 %.
