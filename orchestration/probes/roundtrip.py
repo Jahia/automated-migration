@@ -27,10 +27,13 @@ from load_content import Loader  # noqa: E402
 SENTINEL = "QA-ROUNDTRIP-SENTINEL"
 
 
+_MCP = {"m": None}  # set in main() — creds come from mcp_client's .env.local
+# parsing (`source` does NOT export vars; os.environ is empty in python)
+
+
 def flush_caches():
-    host = (os.environ.get("JAHIA_URL") or "http://localhost:8081").rstrip("/")
-    user = os.environ.get("JAHIA_USER", "root")
-    pw = os.environ.get("JAHIA_PASS", "")
+    m = _MCP["m"]
+    host = m.host
     req = urllib.request.Request(
         f"{host}/modules/tools/cache.jsp",
         data=b"action=flushOutputCaches", method="POST",
@@ -38,7 +41,7 @@ def flush_caches():
                  "Content-Type": "application/x-www-form-urlencoded"})
     import base64
     req.add_header("Authorization", "Basic " +
-                   base64.b64encode(f"{user}:{pw}".encode()).decode())
+                   base64.b64encode(m.user.encode()).decode())
     try:
         urllib.request.urlopen(req, timeout=30).read()
     except Exception as e:
@@ -46,7 +49,7 @@ def flush_caches():
 
 
 def fetch_live(page_base):
-    host = (os.environ.get("JAHIA_URL") or "http://localhost:8081").rstrip("/")
+    host = _MCP["m"].host
     url = f"{host}{page_base}.html"
     try:
         return urllib.request.urlopen(url, timeout=45).read().decode("utf-8", "replace")
@@ -64,6 +67,7 @@ def main():
     a = ap.parse_args()
 
     ld = Loader(a.project, a.site)
+    _MCP["m"] = ld.m
     pages = sorted(ld.content.get("pages", {}).keys())
     sample_pages = pages[::3][:a.pages] or pages[:a.pages]
 

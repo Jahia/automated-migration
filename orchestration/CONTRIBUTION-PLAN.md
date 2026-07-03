@@ -216,3 +216,27 @@ richtext/weakref props, addMixins for links), `orchestration/lib/segment2manifes
 (item-scope child fields), `orchestration/templates/fidelity-shell/SkeletonView.tsx.template`
 (+ child rendering), new `orchestration/lib/dam_import.py`, new probes (D),
 `orchestration/lib/gen_plan.py`, QUALITY-PLAN §7 log entries at every milestone.
+
+---
+
+## 9. G6 — the EDITOR-SURFACE gate (registered 2026-07-03, after Julian's 3rd review)
+
+**The meta-lesson (why three review rounds were needed):** every gate so far judged the
+JCR state and the LIVE pixels. Neither judges what an editor actually experiences. All
+three review findings lived in that blind spot: dead props (P2.5), unjustified empty
+fields (P2.5-D), unreachable item forms (this round — the forms were CORRECT and rw, but
+the cards had no edit frame in Page Builder: string-composed markup is invisible to the
+editorial flow). The editor surface is deterministic and queryable; it gets its own gate.
+
+| Half | Instrument | Assertion |
+|---|---|---|
+| G6a form | GraphQL `forms.editForm` (Content Editor's own form source) | every wired prop of every sampled payload surfaces as a read-write field in an activated fieldSet |
+| G6b reachability | Playwright on the Page Builder editframe | every item child node has a `[path]` edit-frame marker — a form nobody can click through to is not editable |
+
+Fix shipped with the gate: skeleton views render item children through Jahia's
+pipeline (`<Render node/>`) in EDIT/PREVIEW (per-item frames, clickable cards), while
+LIVE keeps the byte-exact string composition (G3 unchanged, re-verified 18/18).
+Probe hygiene rule learned live: a probe MUST distinguish "instrument could not
+observe" (editframe not loaded, blank login) from "defect observed" — the first G6
+run conflated them (`source .env.local` does not EXPORT vars; python children saw
+empty credentials; .sh probes worked via load_env's export).

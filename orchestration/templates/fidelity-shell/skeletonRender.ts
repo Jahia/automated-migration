@@ -130,6 +130,141 @@ const substitute = (p: Payload): string => {
   return html;
 };
 
+/** Ordered, editorial child nodes (translations/acl filtered). */
+export function childNodesOf(node: JCRNode): JCRNode[] {
+  const out: JCRNode[] = [];
+  try {
+    const it = node.getNodes();
+    while (it.hasNext()) {
+      const child = it.nextNode();
+      if (!String(child.getName()).startsWith("j:")) out.push(child);
+    }
+  } catch {
+    /* no readable children */
+  }
+  return out;
+}
+
+/** Substitute a payload's field/media/link markers (children NOT composed —
+ * the edit-mode path renders them through Jahia's pipeline instead). */
+export function substitutePayload(p: Payload): string {
+  return substitute(p);
+}
+
+// ── Edit-mode support: split a fragment into TOP-LEVEL chunks ──
+// Page Builder needs a real edit frame per item node, which only Jahia's
+// render pipeline provides — so in edit mode the parent view interleaves
+// balanced HTML chunks with <Render node={item}/> elements. Chunks are
+// balanced BY CONSTRUCTION: markers replaced complete child elements, so at
+// the marker-bearing level every sibling is a complete subtree.
+const VOID_TAGS = new Set(["area", "base", "br", "col", "embed", "hr", "img",
+                           "input", "link", "meta", "param", "source", "track", "wbr"]);
+const RAWTEXT_TAGS = new Set(["script", "style", "textarea", "title"]);
+
+export type Chunk = { kind: "html"; html: string } | { kind: "child"; idx: number };
+
+/** End index (exclusive) of the complete element starting at `pos`, or -1. */
+const scanElement = (s: string, pos: number): number => {
+  const stack: string[] = [];
+  let i = pos;
+  while (i < s.length) {
+    const lt = s.indexOf("<", i);
+    if (lt === -1) return stack.length ? -1 : i;
+    if (s.startsWith("<!--", lt)) {
+      const end = s.indexOf("-->", lt);
+      i = end === -1 ? s.length : end + 3;
+      if (!stack.length && i > pos) return i;
+      continue;
+    }
+    const m = /^<(\/)?([a-zA-Z][\w-]*)/.exec(s.slice(lt));
+    if (!m) {
+      i = lt + 1;
+      continue;
+    }
+    // scan to the tag's real '>' honoring quoted attribute values
+    let j = lt + m[0].length;
+    let quote: string | null = null;
+    for (; j < s.length; j++) {
+      const ch = s[j];
+      if (quote) {
+        if (ch === quote) quote = null;
+      } else if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === ">") break;
+    }
+    if (j >= s.length) return -1;
+    const tag = m[2].toLowerCase();
+    const selfClosed = s[j - 1] === "/";
+    if (m[1]) {
+      // closing tag — tolerant pop
+      while (stack.length && stack[stack.length - 1] !== tag) stack.pop();
+      stack.pop();
+    } else if (!selfClosed && !VOID_TAGS.has(tag)) {
+      if (RAWTEXT_TAGS.has(tag)) {
+        const close = s.toLowerCase().indexOf(`</${tag}`, j + 1);
+        if (close === -1) return -1;
+        const gt = s.indexOf(">", close);
+        i = gt === -1 ? s.length : gt + 1;
+        if (!stack.length) return i;
+        continue;
+      }
+      stack.push(tag);
+    }
+    i = j + 1;
+    if (!stack.length) return i;
+  }
+  return stack.length ? -1 : i;
+};
+
+/** Fragment -> top-level chunks: complete elements/text merged into html
+ * chunks; {{child:N}} markers become child chunks; an element whose subtree
+ * CONTAINS markers stays its own chunk (the caller recurses into it). */
+export function chunkTopLevel(html: string): Chunk[] {
+  const chunks: Chunk[] = [];
+  let buf = "";
+  const flushBuf = () => {
+    if (buf) {
+      chunks.push({ kind: "html", html: buf });
+      buf = "";
+    }
+  };
+  const text = (t: string) => {
+    const re = /\{\{child:(\d+)\}\}/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(t))) {
+      buf += t.slice(last, m.index);
+      flushBuf();
+      chunks.push({ kind: "child", idx: Number(m[1]) });
+      last = m.index + m[0].length;
+    }
+    buf += t.slice(last);
+  };
+  let i = 0;
+  while (i < html.length) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      text(html.slice(i));
+      break;
+    }
+    if (lt > i) text(html.slice(i, lt));
+    const end = scanElement(html, lt);
+    if (end === -1) {
+      buf += html.slice(lt);
+      break;
+    }
+    const el = html.slice(lt, end);
+    if (el.includes("{{child:")) {
+      flushBuf();
+      chunks.push({ kind: "html", html: el }); // caller recurses into this one
+    } else {
+      buf += el;
+    }
+    i = end;
+  }
+  flushBuf();
+  return chunks;
+}
+
 /** Full composition: substitute this node's markers, then splice item children
  * into {{child:N}} slots in document order. Items added beyond the original
  * count render after the last slot; deleted items drop out. Leftover markers

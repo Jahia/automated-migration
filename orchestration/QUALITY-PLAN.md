@@ -424,3 +424,20 @@ Crawler JS-render only if the holdout demands it.
   - **Re-certified: GT 18/18 ≥99 %, round-trip 23/23 (text+media+link on mixin props),
     publish-parity + edit-frame PASS, G1/G5 floors hold** (probe unchanged — dead-prop
     semantics are per-node by construction now).
+
+- **2026-07-03 — P2.5-E: G6 editor-surface gate + Page Builder item frames (Julian's 3rd
+  review: "je ne peux toujours pas éditer ce bloc").** Root cause was NOT the data — the
+  forms API showed item-1 with jcr:title/body/image all read-write — but REACHABILITY:
+  string-composed items have no edit frame, so the correct form was unreachable through
+  the editorial flow. Fix: skeleton views now render item children through the pipeline
+  (`<Render node/>`) in EDIT/PREVIEW mode (chunkTopLevel splits the substituted skeleton
+  into balanced chunks interleaved with per-item renders; extras beyond the original
+  markers render after the last slot), LIVE keeps byte-exact string composition.
+  **New permanent gate G6 (CONTRIBUTION-PLAN §9):** G6a = every wired prop is a rw field
+  in `forms.editForm`; G6b = every item node has a `[path]` frame in the Page Builder
+  editframe (Playwright). **G6 PASS: 37 forms + 28 item frames, 0 failures; G3 re-run
+  18/18 ≥99 %.** Meta-lesson recorded: JCR + pixels never judge the EDITOR EXPERIENCE —
+  that blind spot produced all three review rounds; it is now gated. Probe-hygiene rule:
+  distinguish "instrument could not observe" from "defect" (blank-login editframe read as
+  12 missing items; `source .env.local` does not export — python probes now take creds
+  from mcp_client's own .env parsing).

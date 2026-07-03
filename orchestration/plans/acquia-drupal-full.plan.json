@@ -347,12 +347,26 @@
               "max_attempts": 3
             },
             {
+              "id": "step_editor_surface",
+              "title": "G6 editor surface (forms + item frames)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_edit_frame"
+              ],
+              "inputs": {},
+              "acceptance_criteria": [
+                "PROBE[900]: python3 orchestration/probes/editor-surface.py acquia-drupal acquia"
+              ],
+              "max_attempts": 3
+            },
+            {
               "id": "step_roundtrip",
               "title": "G2 contribution round-trip (sentinel edits)",
               "task_type": "verify",
               "agent": "code",
               "depends_on": [
-                "step_edit_frame"
+                "step_editor_surface"
               ],
               "inputs": {},
               "acceptance_criteria": [

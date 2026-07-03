@@ -137,12 +137,18 @@ def build_plan(p):
         step("step_edit_frame", "Pages editable in jContent", "verify",
              [f"PROBE: bash orchestration/probes/edit-frame.sh {PP} {SITE} en"],
              deps=["step_publish_parity"]),
+        # G6 (P2.5-E): the EDITOR-SURFACE gate — every wired prop is a rw field
+        # in forms.editForm AND every item node has an edit frame in Page
+        # Builder. JCR + pixels never judge the editor experience; this does.
+        step("step_editor_surface", "G6 editor surface (forms + item frames)", "verify",
+             [f"PROBE[900]: python3 orchestration/probes/editor-surface.py {P} {SITE}"],
+             deps=["step_edit_frame"]),
         # G2 (P2.5): sentinel edits must reach the live render, then restore —
         # runs BEFORE the ground-truth gate so the final GT measures the
         # restored state (roundtrip always restores, pass or fail)
         step("step_roundtrip", "G2 contribution round-trip (sentinel edits)", "verify",
              [f"PROBE[900]: python3 orchestration/probes/roundtrip.py {P} {SITE}"],
-             deps=["step_edit_frame"]),
+             deps=["step_editor_surface"]),
     ]
 
     groundtruth = [

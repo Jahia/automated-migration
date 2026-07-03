@@ -1,15 +1,25 @@
-import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
-import { createElement } from "react";
+import { jahiaComponent, useServerContext, Render } from "@jahia/javascript-modules-library";
+import { createElement, type ReactNode } from "react";
 import { splitRoot, rootProps } from "$RELROOT/rawRoot.js";
-import { composeNode } from "$RELROOT/skeletonRender.js";
+import {
+  composeNode,
+  nodePayload,
+  substitutePayload,
+  childNodesOf,
+  chunkTopLevel,
+} from "$RELROOT/skeletonRender.js";
 
 /**
- * Skeleton view for $NODETYPE (generated — QUALITY-PLAN P2.5/C).
- * The node's `skeleton` property is its OWN captured markup; composeNode
- * substitutes lifted field values (title, body runs, linkLabel), media units
- * (verbatim by default, chosen image when edited), the contributor link and
- * the item child nodes — pixel-identical to the source when unedited, every
- * edit reflows into the exact same markup. See skeletonRender.ts.
+ * Skeleton view for $NODETYPE (generated — QUALITY-PLAN P2.5/C/E).
+ *
+ * LIVE: composeNode() — string composition, byte-identical to the captured
+ * source when unedited (the ground-truth invariant).
+ *
+ * EDIT/PREVIEW with item children: the items are rendered through Jahia's
+ * pipeline (<Render node/>) so each card gets its own EDIT FRAME in Page
+ * Builder — a correct Content Editor form that cannot be reached by clicking
+ * is not editable in any practical sense (G6, observed live). Edit-mode DOM
+ * wraps chunks in display:contents divs; pixel-exactness is a LIVE contract.
  */
 jahiaComponent(
   {
@@ -19,8 +29,62 @@ jahiaComponent(
     displayName: "$DISPLAYNAME",
   },
   () => {
-    const { currentNode } = useServerContext();
-    const html = composeNode(currentNode as never);
+    const { currentNode, renderContext } = useServerContext();
+    const node = currentNode as never;
+    let editMode = false;
+    try {
+      editMode = (renderContext as { isEditMode: () => boolean }).isEditMode();
+    } catch {
+      editMode = false;
+    }
+
+    if (editMode) {
+      const p = nodePayload(node);
+      const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+      if (html.includes("{{child:")) {
+        const kids = childNodesOf(node);
+        let maxIdx = -1;
+        for (const m of html.matchAll(/\{\{child:(\d+)\}\}/g)) {
+          maxIdx = Math.max(maxIdx, Number(m[1]));
+        }
+        const extras = kids.slice(maxIdx + 1);
+        const compose = (fragment: string): ReactNode[] =>
+          chunkTopLevel(fragment).map((c, i) => {
+            if (c.kind === "child") {
+              const kid = kids[c.idx];
+              return createElement(
+                "div",
+                { key: `c${i}`, style: { display: "contents" } },
+                kid ? createElement(Render as never, { node: kid }) : null,
+                c.idx === maxIdx
+                  ? extras.map((x, k) =>
+                      createElement(Render as never, { key: `x${k}`, node: x }))
+                  : null,
+              );
+            }
+            if (c.html.includes("{{child:")) {
+              const root = splitRoot(c.html);
+              if (root) {
+                return createElement(
+                  root.tag,
+                  { ...rootProps(root.attrs), key: `e${i}` },
+                  compose(root.inner),
+                );
+              }
+            }
+            return createElement("div", {
+              key: `h${i}`,
+              style: { display: "contents" },
+              dangerouslySetInnerHTML: { __html: c.html },
+            });
+          });
+        return createElement("div", { style: { display: "contents" } }, compose(html));
+      }
+      // no items: fall through to the exact composition (still selectable —
+      // the node itself is rendered through the pipeline by its Area)
+    }
+
+    const html = composeNode(node);
     // render the fragment's REAL root element — child/sibling CSS selectors
     // (section spacing rules) must keep matching (display:contents does not
     // participate in selector matching)
@@ -31,9 +95,9 @@ jahiaComponent(
         dangerouslySetInnerHTML: { __html: root.inner },
       });
     }
-    return (
-      // eslint-disable-next-line react/no-danger -- skeleton substitution is the mechanism
-      <div style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: html }} />
-    );
+    return createElement("div", {
+      style: { display: "contents" },
+      dangerouslySetInnerHTML: { __html: html },
+    });
   },
 );
