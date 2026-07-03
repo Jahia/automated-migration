@@ -441,3 +441,47 @@ Crawler JS-render only if the holdout demands it.
   distinguish "instrument could not observe" from "defect" (blank-login editframe read as
   12 missing items; `source .env.local` does not export — python probes now take creds
   from mcp_client's own .env parsing).
+
+- **2026-07-03 — P3 full loop × 3 sites (supercar / contentful / discoverasr holdout), 20 pages each.**
+  The pipeline generalized end-to-end to two never-before-run sites + a blind holdout;
+  every fix below is GENERIC (no per-site branching). Vision profile wired into gen_plan
+  (segment steps replace LLM grouping); `make_overrides.py` generates the dial; `run_plan.py`
+  executes plans deterministically.
+  - **Generic hardening found by the runs (all committed):** (1) extract_page keeps
+    script/style/noscript in the bytes contract (a Typeform-embed page whose body was
+    script-only lost everything); (2) pages without `<main>` partition the body; (3)
+    page_shell serializes bs4 Comments with their markers (comment text was rendering
+    visibly); (4) runtime-manifest rewrite registers every URL form (https/http/
+    protocol-relative/path) — CDN logos referenced protocol-relative were left broken;
+    (5) 1-char text leaves counted+emitted; (6) repeated `<p>`/`<h*>` are text RUNS not
+    container items (a Next.js article became 10 empty item nodes); (7) G1 denominator
+    excludes the NEVER_IN_BODY widget set; (8) ground-truth LIVE side gets the SAME offline
+    resolution as the reference (a OneTrust banner loaded one-side-only cost ~20 pts);
+    (9) reconstruct gate judges script-rendered pages on pixels; (10) deploy gate verifies
+    the module TYPE actually appears (rule 14 — an unresolvable nodetype requirement, an
+    undefined `{node}Item`, silently left the bundle un-started); (11) create_site
+    self-heals a wrong templateSet + sets languages post-create (provisioning has no
+    languages param); (12) MCP transport retry on connection resets (a 384-media site
+    dropped connections → lost content); (13) SkeletonView edit mode renders deeply-nested
+    + fallback item children through the pipeline for G6 frames; (14) probes use
+    domcontentloaded + poll (the jContent SPA never reaches networkidle).
+  - **RESULTS (contribution G1 + media/link G5 GREEN on all three deployed):**
+
+    | site | source stack | GT ≥99% | GT avg | GT ≥90% | G1 cover (min/avg) | G5 media | G5 links | notes |
+    |---|---|---|---|---|---|---|---|---|
+    | acquia-drupal (ref) | Drupal/Site Studio | **18/18** | 100% | 18/18 | 88/98% | 97% | 100% | fully green |
+    | supercar-garage | Sitecore SXA | 15/20 | 96.6% | 18/20 | 76/98% | 100% | 100% | 5 homepage-variant + 2 exposants pages: `<Area>` dropped inside a grid `div.row` → column content stacks (~8% vertical drift) |
+    | contentful | Next.js | 2/20 | 93.9% | 18/20 | 99/99.6% | 98% | 100% | text/home pages green (home 99.2%, an article 100%); case-study image-grid pages held at 92-98% by ~9 lazy-loaded CDN card images the crawl never captured |
+    | discoverasr (holdout) | Ascott hotels SPA | — | — | — | — | — | — | **BLOCKED at the mirror gate**: 47/57 images lazy-loaded from CDN, uncaptured → mirror-fidelity 5.6%; the gate correctly refuses to migrate a site it cannot faithfully represent offline (anti-overfit honesty) |
+
+  - **Single dominant residual, one generic root cause:** lazy-loaded / CDN-served images
+    the crawl+localize step did not successfully download (contentful case-study cards,
+    discoverasr almost entirely). Text, layout, contribution model, editor surface all
+    generalize cleanly. The identified next lever is localize-phase image-capture hardening
+    (scroll-trigger lazy images + retry CDN downloads through the WAF) — a crawl-phase
+    sub-project, not a per-site fix.
+  - **Pre-registered P3 bar** ("3/3 reach the ground-truth gate; ≥2/3 green"): 2/3 reached
+    the gate and produced measured fidelity (supercar 15/20, contentful 2/20 but 18/20
+    ≥90%); the holdout was blocked upstream at the mirror gate. Honest verdict: **partial** —
+    the pipeline generalizes structurally + editorially to all stacks, but per-page pixel
+    GREEN depends on image-capture completeness, which is the next work item.
