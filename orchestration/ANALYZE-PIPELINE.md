@@ -172,10 +172,10 @@ What each source platform does to the pipeline — read this before running a ne
 |---|---|---|---|---|---|---|
 | acquia (ref) | Drupal | 18/18 | 100% | 88/98% | 97% / 100% | — fully green |
 | supercar | SXA | 15/20 | 96.6% | 76/98% | 100% / 100% | homepage-variant ~8% drift: `<Area>` dropped inside a grid `div.row` → columns stack (see §6 open item) |
-| contentful | Next.js | see reload | 93.9%→ | 99/99.6% | 98% / 100% | case-study card images were lazy `data-src` (now materialised by the localize fix) |
+| contentful | Next.js | 2/20 | 94.1% | 99/99.6% | 98% / 100% | 18/20 ≥90%, text pages green; case-study image-grid pages held ~77-96% by **next/image srcset-variant selection** — the live Jahia render and the mirror reference pick DIFFERENT responsive crops of the SAME (correctly localized) image → pixel diff. Images present + editable; residual is variant selection, not capture. |
 | discoverasr | AEM SPA | — | — | — | — | mirror gate blocks (client-rendered main) |
 
-The single dominant fidelity residual across all three was **one generic root cause: images the crawl didn't materialise** (lazy `data-src` / all-URL-form CDN refs) — fixed in `localize_site.py` + `extract_content.py`. Text, layout, contribution model, and editor surface generalise cleanly to every stack.
+Two distinct image residuals, both now understood: (1) **lazy `data-src` / all-URL-form CDN refs the crawl didn't materialise** — a real capture gap, FIXED in `localize_site.py` + `extract_content.py` (discoverasr 10→52 images). (2) **next/image srcset-variant selection** — the image IS captured and correct, but the live Jahia render and the mirror reference pick different responsive crops → pixel diff (contentful case-study grids); this is NOT a capture gap and needs viewport/DPR alignment between the two renders, or pinning a single `<img src>` variant. Text, layout, contribution model, and editor surface generalise cleanly to every stack.
 
 ## 6. Known open item — grid-row Area altitude
 
