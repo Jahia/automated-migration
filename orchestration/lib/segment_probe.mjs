@@ -28,9 +28,12 @@
 // default 3) gated segmentations UPFRONT per page; page agreement = MEAN pairwise
 // Jaccard of the component root-sets; the emitted run is the MEDOID (max summed
 // Jaccard vs the others); page PASS iff agreement >= 0.8 AND coverage >= 50 (both
-// FROZEN constants — never flags). Pages are sampled per cluster (--per-cluster k
-// = each cluster's first k pages); cluster PASS = strict majority of its sampled
-// pages; gate GREEN iff every cluster passes. segment-check.json switches to the
+// FROZEN constants — never flags). Pages are sampled per cluster (--per-cluster k),
+// DIVERSITY-AWARE (FIX A): k pages SPREAD evenly across each cluster's page list
+// (not the first k near-identical siblings), and a mega-cluster holding >= 70% of
+// all inventory pages gets an effective k = k+2 (both frozen). cluster PASS =
+// strict majority of its sampled pages; gate GREEN iff every cluster passes.
+// segment-check.json switches to the
 // v2 cluster shape and already-passing pages (protocol v2 or adjudicated) are
 // skipped unless --force. WITHOUT --consensus, behavior is exactly v1 above.
 //
@@ -42,7 +45,7 @@ import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
 import { ovhVision, downscalePng, extractJson, OVH_VISION_MODEL } from './ovh_vision.mjs';
-import { STABILITY_BAR, MIN_COVERAGE_BAR, meanPairwiseJaccard, medoidIndex, consensusRootIds, pagePassV2, clusterPassV2 } from './segment_consensus.mjs';
+import { STABILITY_BAR, MIN_COVERAGE_BAR, meanPairwiseJaccard, medoidIndex, consensusRootIds, pagePassV2, clusterPassV2, spreadIndexes, effectivePerCluster } from './segment_consensus.mjs';
 
 const argv = process.argv.slice(2);
 const flags = {}; const pos = [];
@@ -61,16 +64,25 @@ fs.mkdirSync(outDir, { recursive: true });
 const inv = JSON.parse(fs.readFileSync(`${proj}/workflow-output/page-inventory.json`, 'utf8'));
 // default page set (P2.2 multi-page): one representative per TEMPLATE CLUSTER
 // (semantic-templates.json) — segmentation is per-cluster, not per-page.
-// --per-cluster k (B1) widens the sample to each cluster's first k pages.
+// --per-cluster k (B1) widens the sample to each cluster's pages. The sample is
+// DIVERSITY-AWARE (FIX A): pages are SPREAD evenly across the cluster's list
+// (spreadIndexes) rather than taken as the first k near-identical siblings, and
+// a degenerate MEGA-CLUSTER (a single cluster holding >= 70% of all inventory
+// pages, as SPA pages with empty archetype features collapse into) gets an
+// effective k of k+2 (effectivePerCluster) so unrelated templates are covered
+// instead of falling to passthrough (which pushed the G1 gate RED).
 let defaultPages = inv.pages.slice(0, 1).map(p => p.slug);
 const clusterOf = {};   // slug -> clusterId, for the v2 per-cluster gate
 try {
   const tpl = JSON.parse(fs.readFileSync(`${proj}/workflow-output/semantic-templates.json`, 'utf8'));
   const perCluster = Math.max(1, Number(flags['per-cluster']) || 1);
+  const totalPages = (tpl.clusters || []).reduce((s, c) => s + (c.pages || []).filter(Boolean).length, 0);
   const reps = [];
   for (const c of (tpl.clusters || [])) {
-    for (const slug of (c.pages || [])) if (slug) clusterOf[slug] = c.clusterId || 'unclustered';
-    for (const slug of (c.pages || []).slice(0, perCluster)) if (slug) reps.push(slug);
+    const pages = (c.pages || []).filter(Boolean);
+    for (const slug of pages) clusterOf[slug] = c.clusterId || 'unclustered';
+    const k = effectivePerCluster(perCluster, pages.length, totalPages);
+    for (const i of spreadIndexes(pages.length, k)) reps.push(pages[i]);
   }
   if (reps.length) defaultPages = reps;
 } catch { /* keep single-page fallback */ }

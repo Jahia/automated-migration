@@ -486,7 +486,11 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
             await notify_sse(run, "step_completed", {"result": agent_result.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
         elif agent_result.status == "halt":
             step.status = StepStatus.halted
-            step.gate_type = _infer_gate_type(step)
+            # Every halted step MUST carry a gate_type or it is invisible to the
+            # control surface (active_gate filters on a truthy gate_type, and the
+            # assistant's monitor watches gate.active). Fall back to "unknown"
+            # when inference misses so the step still surfaces as a decidable gate.
+            step.gate_type = _infer_gate_type(step) or "unknown"
             step.completed_at = time.time() * 1000
             step.duration_ms = step.completed_at - step.started_at
             audit.step_halted(epic.id, story.id, step.id, agent_result.summary)
@@ -539,7 +543,9 @@ def _infer_gate_type(step: StepState) -> str | None:
         return "golive"
     if "content" in idt and "extract" not in idt:
         return "content"
-    if "scope" in idt or "analyze" in idt or "crawl" in idt:
+    # Analyze/extract phase (e.g. step_content_extract, step_extract): NOT the
+    # content-load gate (guarded above) — these belong to the scope/analyze panel.
+    if "scope" in idt or "analyze" in idt or "crawl" in idt or "extract" in idt:
         return "scope"
     return None
 

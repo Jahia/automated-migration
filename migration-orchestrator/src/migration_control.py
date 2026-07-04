@@ -54,7 +54,12 @@ def phase_of(step_id: str) -> dict:
 
 
 def active_gate(steps: list[StepState]) -> StepState | None:
-    return next((s for s in steps if s.status.value in _GATE_STATUSES and s.gate_type), None)
+    """The blocking gate step, if any. A halted/waiting_human/rejected step ALWAYS
+    blocks the run and must surface here regardless of gate_type: an untyped halt
+    (inference missed, or a run persisted before gate_type was always set) used to
+    be invisible (gate:None, next_actions:[]) so the assistant's gate.active monitor
+    never fired. compact_status projects the type as `gate_type or "unknown"`."""
+    return next((s for s in steps if s.status.value in _GATE_STATUSES), None)
 
 
 def pending_decision(steps: list[StepState]) -> StepState | None:
@@ -249,7 +254,7 @@ def compact_status(run: RunState, wo: Path | None) -> dict:
         "phase": phase_of(cur.id) if cur else {"key": "?", "title": "?"},
         "current_step": ({"id": cur.id, "title": cur.title, "status": cur.status.value,
                           "attempt": cur.attempt} if cur else None),
-        "gate": ({"active": True, "type": gate.gate_type, "step_id": gate.id,
+        "gate": ({"active": True, "type": gate.gate_type or "unknown", "step_id": gate.id,
                   "status": gate.status.value,
                   "summary": (gate.agent_result.summary if gate.agent_result else "")} if gate
                  else ({"active": True, "type": "decision", "step_id": decision.id,

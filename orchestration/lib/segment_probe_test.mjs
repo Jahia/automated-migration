@@ -4,8 +4,9 @@
 import assert from 'assert';
 import {
   STABILITY_BAR, MIN_COVERAGE_BAR,
+  MEGA_CLUSTER_SHARE, MEGA_CLUSTER_BOOST,
   jaccard, meanPairwiseJaccard, medoidIndex, consensusRootIds,
-  pagePassV2, clusterPassV2,
+  pagePassV2, clusterPassV2, spreadIndexes, effectivePerCluster,
 } from './segment_consensus.mjs';
 
 let n = 0;
@@ -80,5 +81,62 @@ t('cluster k=2: 2/2 passes', () => assert.strictEqual(clusterPassV2([P(true), P(
 t('cluster k=1: 1/1 passes', () => assert.strictEqual(clusterPassV2([P(true)]), true));
 t('cluster k=1: 0/1 fails', () => assert.strictEqual(clusterPassV2([P(false)]), false));
 t('cluster empty fails', () => assert.strictEqual(clusterPassV2([]), false));
+
+// ── FIX A: diversity-aware per-cluster sampling ──
+
+// frozen constants
+t('mega-cluster frozen constants', () => {
+  assert.strictEqual(MEGA_CLUSTER_SHARE, 0.70);
+  assert.strictEqual(MEGA_CLUSTER_BOOST, 2);
+});
+
+// spreadIndexes — the spread-index math
+t('spread k=1 -> first page (v1-compat)', () => assert.deepStrictEqual(spreadIndexes(20, 1), [0]));
+t('spread k=3 over 20 -> endpoints + middle', () => assert.deepStrictEqual(spreadIndexes(20, 3), [0, 10, 19]));
+t('spread k=5 over 20 -> evenly spaced', () => assert.deepStrictEqual(spreadIndexes(20, 5), [0, 5, 10, 14, 19]));
+t('spread always includes first and last', () => {
+  const ix = spreadIndexes(13, 4);
+  assert.strictEqual(ix[0], 0);
+  assert.strictEqual(ix[ix.length - 1], 12);
+});
+t('spread dedupes when k close to n', () => {
+  // round(i*(3)/3) for i in 0..3 -> 0,1,2,3 (no dup here); k>n handled below
+  assert.deepStrictEqual(spreadIndexes(4, 4), [0, 1, 2, 3]);
+});
+t('spread k>=n -> every index', () => assert.deepStrictEqual(spreadIndexes(3, 5), [0, 1, 2]));
+t('spread k=2 -> first and last only', () => assert.deepStrictEqual(spreadIndexes(20, 2), [0, 19]));
+t('spread ascending, unique', () => {
+  const ix = spreadIndexes(50, 7);
+  for (let i = 1; i < ix.length; i++) assert.ok(ix[i] > ix[i - 1]);
+});
+t('spread empty / non-positive', () => {
+  assert.deepStrictEqual(spreadIndexes(0, 3), []);
+  assert.deepStrictEqual(spreadIndexes(5, 0), []);
+});
+t('spread n=1 -> [0] for any k', () => {
+  assert.deepStrictEqual(spreadIndexes(1, 1), [0]);
+  assert.deepStrictEqual(spreadIndexes(1, 5), [0]);
+});
+
+// effectivePerCluster — the mega-cluster boost
+t('boost: mega-cluster (>=70% of pages) gets k+2', () => {
+  // discoverasr live: 1 cluster with 20 of 20 pages, base k=1 -> 3
+  assert.strictEqual(effectivePerCluster(1, 20, 20), 3);
+});
+t('boost: exactly 70% share triggers boost (>=)', () => {
+  assert.strictEqual(effectivePerCluster(2, 7, 10), 4);
+});
+t('no boost: below 70% share', () => {
+  assert.strictEqual(effectivePerCluster(2, 6, 10), 2);   // 60% < 70%
+});
+t('no boost: small cluster keeps base k', () => {
+  assert.strictEqual(effectivePerCluster(1, 3, 20), 1);   // 15% share
+});
+t('boost: k floored at 1 then boosted', () => {
+  assert.strictEqual(effectivePerCluster(0, 20, 20), 3);  // max(1,0)+2
+});
+t('boost: totalPages 0 never boosts', () => {
+  assert.strictEqual(effectivePerCluster(1, 0, 0), 1);
+});
 
 console.log(`\nALL ${n} TESTS PASSED`);

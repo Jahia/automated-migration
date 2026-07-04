@@ -11,7 +11,8 @@ import asyncio
 import pytest
 
 from src import orchestrator, persistence
-from src.migration_control import compact_status
+from src.migration_control import active_gate, compact_status
+from src.orchestrator import _infer_gate_type
 from src.models import (
     EpicInput,
     EpicStatus,
@@ -258,6 +259,61 @@ def test_compact_status_surfaces_rejected_gate():
     assert status["gate"]["step_id"] == gate.id
     assert status["gate"]["status"] == "rejected"
     assert status["next_actions"] == ["rollback", "jump", "restart"]
+
+
+# ── (c5) FIX B: a halted step with UNKNOWN/None gate_type is still visible ──
+# Observed live: step_content_extract halted with gate_type None -> compact_status
+# showed gate:None and next_actions:[] so the assistant's gate.active monitor
+# never fired. Every halted step must surface as a decidable gate.
+
+
+def test_infer_gate_type_content_extract_is_not_none():
+    # 'step_content_extract' contains both 'content' and 'extract': the content
+    # branch is guarded off (it's the analyze/extract phase, not the content gate),
+    # so it must route to 'scope', never fall through to None.
+    step = StepState(id="step_content_extract", story_id="s1", title="Extract content candidates")
+    assert _infer_gate_type(step) == "scope"
+
+
+def test_infer_gate_type_unknown_step_returns_none():
+    # An id/title matching no phase still returns None from inference — the halt
+    # path is what applies the "unknown" fallback (see below).
+    step = StepState(id="step_frobnicate", story_id="s1", title="Do a thing")
+    assert _infer_gate_type(step) is None
+
+
+def test_halt_path_gate_type_fallback_is_unknown():
+    # Mirrors the orchestrator halt branch: `_infer_gate_type(step) or "unknown"`.
+    # An unknown step yields "unknown" (never None) so it is a decidable gate.
+    step = StepState(id="step_frobnicate", story_id="s1", title="Do a thing")
+    assert (_infer_gate_type(step) or "unknown") == "unknown"
+
+
+def test_active_gate_surfaces_halted_step_without_gate_type():
+    run, gate = _run_with_halted_gate("run_test_active_gate_untyped")
+    gate.gate_type = None  # inference missed / pre-fix persisted run
+    assert active_gate(run.epics[0].stories[0].steps) is gate
+
+
+def test_compact_status_surfaces_halted_step_with_none_gate_type():
+    run, gate = _run_with_halted_gate("run_test_compact_untyped")
+    gate.gate_type = None
+    status = compact_status(run, None)
+    assert status["gate"] is not None
+    assert status["gate"]["active"] is True
+    assert status["gate"]["type"] == "unknown"
+    assert status["gate"]["step_id"] == gate.id
+    assert status["gate"]["status"] == "halted"
+    assert status["next_actions"] == ["approve", "reject", "rollback"]
+
+
+def test_compact_status_halted_with_type_keeps_gate_actions():
+    run, gate = _run_with_halted_gate("run_test_compact_typed")
+    gate.gate_type = "scope"  # e.g. a content_extract halt after the inference fix
+    status = compact_status(run, None)
+    assert status["gate"]["type"] == "scope"
+    assert status["gate"]["status"] == "halted"
+    assert status["next_actions"] == ["approve", "reject", "rollback"]
 
 
 # ── (d) plan lint: deploy/content/publish/scaffold need a PROBE ───────
