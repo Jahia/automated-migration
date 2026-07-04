@@ -118,7 +118,23 @@ fixes the height AND enables a shift-tolerant fidelity check.)
 - **P6.4** — Iterate library coverage until skeleton-fallback < threshold on the reference
   sites; the composability gate becomes hard like G1/G6.
 
-## 6. Step 1 (in progress)
+## 5b. Locked decisions (Julian, 2026-07-04)
+
+- **Altitude = FIDELITY-FIRST.** Promote a DOM subtree to a typed composable component ONLY
+  when the composed render is pixel-verified against the source mirror; otherwise `rawHtml`
+  fallback + log the library gap. Fidelity never regresses; composability rises with library
+  coverage.
+- **K = 8** (max lifted fields per type before mandatory decomposition). discoverasr's worst
+  is 35/34; a rich card (heading+body+image+cta+badge = 5) stays under 8. Calibrate against
+  acquia/supercar's richest legit cards before flipping composability.py to a HARD gate.
+- **In-stack reference: `lesalondelaphoto` already ships the target model** (`gridRow` +
+  `<Area allowedNodeTypes={OPEN_PALETTE}>`). P6.1 builds the base library by generalizing
+  THAT working pattern, not by inventing from jahiacom-v3 (whose sections are partly
+  God-objects — do not inherit `icon1..14`/`title1..16` or plain-string bodies).
+- Baseline composable ratio: discoverasr 0.0% · contentful 31.2% · supercar 53.4% ·
+  acquia 57.0% (from `composability.py`).
+
+## 6. Step 1 (done — commits 1639976 / b8d6808 / d6a33b9)
 
 1. Distill jahiacom-v3 end-to-end (CND + views + templates + area/allowedTypes/child-render
    declarations) into a **base-library spec**.
