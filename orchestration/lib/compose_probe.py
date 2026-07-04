@@ -62,12 +62,37 @@ Outputs (under <PP>/workflow-output/compose/):
   compose-review.html    self-contained side-by-side (mirror | composed) with
                          synchronized scrolling + per-page verdict banner.
 
-Exit 0 iff gatePass (every composable page byte-exact). Exit 1 on any red.
-Exit 2 on usage / no composable pages.
+The DRILL-DOWN COMPONENT MAP (--map, or automatically after a GREEN gate):
+  <slug>.map.html        the byte-exact composed page with each instance's ROOT
+                         element tagged data-viz-path / data-viz-type /
+                         data-viz-depth / data-viz-fields, at EVERY nesting level
+                         (container children, and their {{child:N}} items
+                         recursively). It is a STRICT SUPERSET of the gate bytes:
+                         stripping the annotation reproduces compose_body(page)
+                         byte-for-byte — re-asserted per page at build time
+                         (assert_gate_unchanged). The gate composition and its
+                         byte-verdict are bit-for-bit UNCHANGED by --map. Edge:
+                         when a substituted skeleton does not begin with an element
+                         (a bare comment / empty chrome), the MAP ONLY wraps it in
+                         <div style="display:contents" …> so the region stays
+                         queryable while rendering pixel-identically (the wrapper
+                         generates no box; the gate path never sees it).
+  component-map.html     self-contained, zero-external-request viewer: page
+                         selector; iframes <slug>.map.html (same-origin file
+                         access, like compose-review); overlay boxes from
+                         getBoundingClientRect of [data-viz-path]; colour per type
+                         + legend; drill-down (depth-1 overview → click a region to
+                         reveal its direct children, ancestors dimmed; breadcrumb
+                         to climb back); a depth slider "tout montrer" mode with
+                         nested borders; hover tooltip (path / type / field counts).
 
-Usage: compose_probe.py <projects/name> [--pages slug,slug]
+Exit 0 iff gatePass (every composable page byte-exact). Exit 1 on any red.
+Exit 2 on usage / no composable pages. The map build NEVER changes the exit code.
+
+Usage: compose_probe.py <projects/name> [--pages slug,slug] [--map] [--no-map]
   <projects/name> is the project PATH (matches the plan's project_path); the
-  bare project name is also accepted.
+  bare project name is also accepted. --map forces the component-map build;
+  --no-map suppresses the automatic post-GREEN build.
 """
 import argparse
 import html as _html
@@ -177,6 +202,172 @@ def compose_body(page):
     )
 
 
+# ── MAP variant: byte-exact composition + per-instance annotation ──────────
+#
+# The map artifact (<slug>.map.html) is the gate composition with each instance's
+# ROOT element tagged `data-viz-*` so a viewer can draw a box per component at
+# every nesting level. It MUST be a strict superset of the gate bytes: strip every
+# data-viz-* attribute (and the map-only display:contents wrappers) from the map
+# and you get back the gate body verbatim. That invariant is asserted at build
+# time (assert_gate_unchanged) so the drill-down can NEVER regress the gate.
+#
+# How annotation preserves rendering:
+#   * The annotation is injected into each instance's skeleton root element BEFORE
+#     substitution, by the SAME substitute/compose_instance/compose_body traversal
+#     the gate uses — so children spliced into {{child:N}} slots carry their own
+#     annotation at their own nesting depth, and the document order is identical.
+#   * data-viz-* attributes are inert (custom attributes never affect layout), so
+#     the annotated page renders pixel-identically to the gate composition.
+#   * display:contents edge — when an instance's substituted skeleton does NOT
+#     begin with an element (a bare comment like <!-- Footer -->, or empty chrome),
+#     there is no opening tag to hang the attributes on. The map (and ONLY the map)
+#     wraps that fragment in <div style="display:contents" data-viz-*>…</div>.
+#     display:contents makes the wrapper generate no box of its own (children boxes
+#     stand in), so rendering is unchanged; the wrapper merely gives the region a
+#     queryable node. A comment-only / empty fragment yields a zero-size rect and
+#     the viewer simply draws no box for it (correct — there is nothing to show).
+
+_VIZ_ATTR_RE = re.compile(r'\s+data-viz-(?:path|type|depth|fields)="[^"]*"')
+_VIZ_WRAP_OPEN_RE = re.compile(
+    r'<div style="display:contents" data-viz-path="[^"]*" data-viz-type="[^"]*"'
+    r' data-viz-depth="\d+" data-viz-fields="[^"]*">')
+_VIZ_WRAP_CLOSE = "</div><!--/viz-->"
+# opening tag: <tag ...attrs...> or <tag ...attrs.../> — captures name + the run
+# up to the closing '>' (never matches comments/doctype/closing tags).
+_OPEN_TAG_RE = re.compile(r'<([a-zA-Z][a-zA-Z0-9:-]*)((?:[^>]*?))(/?)>')
+
+
+def _field_counts(inst):
+    """Editor-surface counts for the annotation: f = liftable text/richtext fields
+    (excludes the rawHtml passthrough `html` field), media units, links, child
+    slots. This is what an editor actually contributes on the node, not a raw
+    marker count (markers that never resolve are not editable fields)."""
+    fields = inst.get("fields") or {}
+    nf = sum(1 for k, v in fields.items()
+             if k != "html" and isinstance(v, str) and v)
+    nm = len(inst.get("media") or [])
+    nl = 1 if inst.get("link") else 0
+    return nf, nm, nl
+
+
+def _annotate_root(html, path, ntype, depth, fields_str):
+    """Inject data-viz-* onto the substituted skeleton's ROOT element. If the
+    fragment does not start with an element (comment/text/empty lead), wrap it in
+    a map-only <div style="display:contents"> so the region is still queryable.
+    The attributes are appended to the opening tag verbatim (they round-trip out
+    via _VIZ_ATTR_RE)."""
+    attrs = (' data-viz-path="%s" data-viz-type="%s" data-viz-depth="%d"'
+             ' data-viz-fields="%s"'
+             % (_esc_attr(path), _esc_attr(ntype), depth, _esc_attr(fields_str)))
+    lead = html.lstrip()
+    if lead and _OPEN_TAG_RE.match(lead):
+        # inject just before the '>' (or '/>') of the FIRST opening tag, keeping
+        # any leading whitespace of the fragment intact (byte-round-trip).
+        pre_len = len(html) - len(lead)
+        m = _OPEN_TAG_RE.match(lead)
+        end = m.end()               # index of char after '>' within `lead`
+        # position of the closing '>' or '/>' start
+        insert_at = pre_len + m.start(3) if m.group(3) else pre_len + end - 1
+        return html[:insert_at] + attrs + html[insert_at:]
+    # no leading element -> map-only display:contents wrapper
+    return ('<div style="display:contents"%s>%s%s'
+            % (attrs, html, _VIZ_WRAP_CLOSE))
+
+
+def substitute_map(inst, path, depth):
+    """substitute() with the root element annotated for the map artifact. The
+    substitution is byte-identical to substitute(); only the root tag differs."""
+    html = substitute(inst)
+    nf, nm, nl = _field_counts(inst)
+    child_slots = 0
+    sk = inst.get("skeleton")
+    if sk:
+        child_slots = len(set(_CHILD_RE.findall(sk)))
+    fields_str = "f%d media%d link%d child%d" % (nf, nm, nl, child_slots)
+    return _annotate_root(html, path, inst.get("type") or "rawHtml", depth,
+                          fields_str)
+
+
+def compose_instance_map(idx, instances, children_of, path, depth):
+    """compose_instance() for the map: the node's own root is annotated, and each
+    {{child:N}} slot is spliced with the child's OWN annotated+composed fragment,
+    so every nesting level carries data-viz-* at its true depth. Child paths chain
+    the parent path (path/N). Byte-identical to compose_instance() once the
+    data-viz-* attrs and display:contents wrappers are stripped."""
+    inst = instances[idx]
+    html = substitute_map(inst, path, depth)
+    if "{{child:" in html:
+        kids = [c for c in children_of.get(idx, [])
+                if instances[c].get("skeleton")]
+        # a child slot renders the child's FULL composed subtree (recursive), so
+        # grandchildren nest correctly at depth+2, depth+3, … (matches the gate's
+        # substitute-per-child expansion; recursion adds depth the gate never
+        # reached but never changes bytes because deeper skeletons carry no
+        # {{child}} on the reference sites).
+        rendered = [
+            compose_instance_map(c, instances, children_of,
+                                 "%s/%d" % (path, n), depth + 1)
+            for n, c in enumerate(kids)
+        ]
+        max_idx = -1
+        for m in _CHILD_RE.finditer(html):
+            max_idx = max(max_idx, int(m.group(1)))
+        extras = "".join(rendered[max_idx + 1:])
+
+        def repl(m):
+            i = int(m.group(1))
+            base = rendered[i] if i < len(rendered) else ""
+            return base + (extras if i == max_idx else "")
+
+        html = _CHILD_RE.sub(repl, html)
+    return _MARKER_RE.sub("", html)
+
+
+def compose_body_map(page):
+    """compose_body() for the map: every top-level (depth-1) instance annotated
+    and composed with recursive child annotation. Returns None when not composable
+    (same contract as compose_body)."""
+    instances = page.get("instances")
+    if instances is None:
+        return None
+    children_of = {}
+    for idx, inst in enumerate(instances):
+        par = inst.get("parent")
+        if par is not None:
+            children_of.setdefault(par, []).append(idx)
+    tops = [idx for idx, inst in enumerate(instances)
+            if inst.get("parent") is None]
+    return "".join(
+        compose_instance_map(idx, instances, children_of, str(n), 1)
+        for n, idx in enumerate(tops)
+    )
+
+
+def strip_viz(html):
+    """Round-trip the map body BACK to the gate body: remove every data-viz-*
+    attribute and unwrap the map-only display:contents wrappers. This MUST equal
+    compose_body(page) byte-for-byte (asserted in assert_gate_unchanged)."""
+    html = _VIZ_WRAP_OPEN_RE.sub("", html)
+    html = html.replace(_VIZ_WRAP_CLOSE, "")
+    html = _VIZ_ATTR_RE.sub("", html)
+    return html
+
+
+def assert_gate_unchanged(page, map_body):
+    """Regression assertion: stripping the annotation from the map body reproduces
+    the gate composition EXACTLY. If this ever fails, the map build has diverged
+    from the byte-exact gate path — raise loudly rather than emit a map that lies
+    about the composition the gate certified."""
+    gate = compose_body(page)
+    if gate is None:
+        return
+    if strip_viz(map_body) != gate:
+        raise AssertionError(
+            "map annotation regressed the gate composition: strip_viz(map) != "
+            "compose_body(page) — the drill-down map must be a strict superset of "
+            "the certified gate bytes")
+
+
 def page_composable_reason(page):
     """Is this page WHOLE-BODY byte-composable from what the content-load stores?
 
@@ -278,11 +469,11 @@ def _offline_refs(html, asset_base):
     return html
 
 
-def write_composed_page(out_dir, slug, mirror_txt, composed_body, asset_base):
-    """Full composed page = the mirror's <!doctype>/<html>/<head> (verbatim) +
-    <body {mirror bodyAttrs}> composed_body </body>. Assets pointed offline. This
-    is what the reviewer compares against the mirror in the side-by-side — same
-    head/CSS, only the body swapped for our composition."""
+def _shell_around_body(mirror_txt, body_inner, asset_base):
+    """Wrap a body inner-HTML in the mirror's own <!doctype>/<html>/<head> + the
+    mirror's <body …> attrs, with asset refs pointed offline. Shared by the
+    composed page and the annotated map page so both render with the same head/CSS
+    and differ only in the body inner-HTML."""
     soup = BeautifulSoup(mirror_txt, "lxml")
     body = soup.find("body")
     body_open = "<body>"
@@ -293,15 +484,31 @@ def write_composed_page(out_dir, slug, mirror_txt, composed_body, asset_base):
             attrs.append('%s="%s"' % (k, v))
         body_open = "<body" + ("".join(" " + a for a in attrs)) + ">"
     # everything up to and including <body ...> from the mirror (doctype+head)
-    head_html = ""
     m = re.search(r"<body\b[^>]*>", mirror_txt, re.I)
-    if m:
-        head_html = mirror_txt[:m.start()]
-    else:
-        head_html = "<!doctype html><html><head><meta charset=\"utf-8\"></head>"
-    page = head_html + body_open + composed_body + "</body></html>"
-    page = _offline_refs(page, asset_base)
+    head_html = mirror_txt[:m.start()] if m else \
+        "<!doctype html><html><head><meta charset=\"utf-8\"></head>"
+    page = head_html + body_open + body_inner + "</body></html>"
+    return _offline_refs(page, asset_base)
+
+
+def write_composed_page(out_dir, slug, mirror_txt, composed_body, asset_base):
+    """Full composed page = the mirror's <!doctype>/<html>/<head> (verbatim) +
+    <body {mirror bodyAttrs}> composed_body </body>. Assets pointed offline. This
+    is what the reviewer compares against the mirror in the side-by-side — same
+    head/CSS, only the body swapped for our composition."""
+    page = _shell_around_body(mirror_txt, composed_body, asset_base)
     with open(os.path.join(out_dir, f"{slug}.composed.html"), "w",
+              encoding="utf-8") as f:
+        f.write(page)
+
+
+def write_map_page(out_dir, slug, mirror_txt, map_body, asset_base):
+    """Full annotated page = the composed page with every instance's root element
+    tagged data-viz-*. Same head/CSS/assets as <slug>.composed.html — only the
+    body carries the annotation. Consumed by component-map.html (loaded in an
+    iframe, same-origin file access, no external requests)."""
+    page = _shell_around_body(mirror_txt, map_body, asset_base)
+    with open(os.path.join(out_dir, f"{slug}.map.html"), "w",
               encoding="utf-8") as f:
         f.write(page)
 
@@ -415,6 +622,309 @@ def review_html(project, results):
     )
 
 
+# ── drill-down component map viewer (self-contained, zero external requests) ──
+
+def component_map_html(project, map_results):
+    """Emit the self-contained drill-down viewer (component-map.html). No external
+    requests: it iframes <slug>.map.html (same dir, same-origin file access like
+    compose-review) and draws overlay boxes from getBoundingClientRect of the
+    [data-viz-path] elements inside. Colour per data-viz-type + legend; drill-down
+    starts at depth 1, click reveals a region's DIRECT children (ancestors dimmed),
+    breadcrumb climbs back; a depth slider is the alternative "tout montrer" mode
+    (nested borders); hover tooltip shows path / type / field counts.
+
+    map_results: [{slug, hasMap}] — only slugs that produced a .map.html are
+    offered in the selector."""
+    mapped = [r for r in map_results if r.get("hasMap")]
+    options = "".join(
+        '<option value="%s">%s</option>' % (_esc(r["slug"]), _esc(r["slug"]))
+        for r in mapped)
+    first_slug = _esc(mapped[0]["slug"]) if mapped else ""
+    # Two-part template: %-format the small header bits, then .replace the JS body
+    # (which is full of braces/percent signs) via a marker so no escaping fights.
+    head = """<!doctype html><meta charset="utf-8">
+<title>Component map — __PROJECT__</title>
+<style>
+ :root{--bg:#0f1115;--panel:#171a21;--line:#2a2f3a;--fg:#e6e6e6;--mut:#9aa4b2}
+ *{box-sizing:border-box}
+ body{font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:var(--bg);color:var(--fg)}
+ header{padding:10px 18px;background:var(--panel);position:sticky;top:0;border-bottom:1px solid var(--line);z-index:20;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+ h1{font-size:16px;margin:0}
+ select,input[type=range]{background:#20242e;color:var(--fg);border:1px solid #333a47;border-radius:6px;padding:5px 9px;font-size:13px}
+ label{display:flex;gap:6px;align-items:center;color:#cfd6e2;font-size:13px}
+ button{background:#20242e;color:var(--fg);border:1px solid #333a47;border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer}
+ button:hover{background:#2a2f3a}
+ #crumbs{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--mut)}
+ #crumbs a{color:#7fb2ff;cursor:pointer;text-decoration:none}
+ #crumbs a:hover{text-decoration:underline}
+ #crumbs .sep{color:#4a515e}
+ #stage{position:relative;width:100%;height:calc(100vh - 92px);overflow:hidden;background:#fff}
+ #frame{width:100%;height:100%;border:0;background:#fff}
+ #overlay{position:absolute;inset:0;pointer-events:none}
+ .box{position:absolute;pointer-events:auto;cursor:pointer;box-sizing:border-box;transition:opacity .12s}
+ .box.dim{opacity:.12;pointer-events:none}
+ .box .tag{position:absolute;top:0;left:0;transform:translateY(-100%);font:11px/1.4 ui-monospace,Menlo,monospace;padding:1px 5px;white-space:nowrap;border-radius:3px 3px 0 0;color:#0b0d10;font-weight:600;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+ #legend{position:fixed;right:12px;bottom:12px;background:rgba(17,20,27,.94);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:12px;z-index:30;max-height:44vh;overflow:auto;max-width:260px}
+ #legend h4{margin:0 0 6px;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+ #legend .row{display:flex;gap:7px;align-items:center;margin:3px 0;color:#d6dbe4}
+ #legend .sw{width:13px;height:13px;border-radius:3px;flex:0 0 auto;border:1px solid rgba(255,255,255,.25)}
+ #tip{position:fixed;z-index:40;pointer-events:none;background:#0b0d10;border:1px solid #3a4150;border-radius:6px;padding:7px 9px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#e6e6e6;max-width:380px;display:none;box-shadow:0 6px 22px rgba(0,0,0,.5)}
+ #tip b{color:#ffd479}
+ #tip .t{color:var(--mut)}
+ #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mut);font-size:14px;background:rgba(15,17,21,.6)}
+ small.hint{color:var(--mut)}
+</style>
+<header>
+ <h1>Component map <span class="mut" style="color:var(--mut)">— __PROJECT__</span></h1>
+ <label>Page <select id="sel">__OPTIONS__</select></label>
+ <span id="crumbs"></span>
+ <span style="flex:1"></span>
+ <label title="tout montrer — nested borders up to this depth">depth
+   <input type="range" id="depth" min="1" max="1" value="1" step="1"><span id="depthval">1</span></label>
+ <button id="reset" title="back to depth-1 overview">reset</button>
+ <small class="hint" id="count"></small>
+</header>
+<div id="stage">
+ <iframe id="frame" src="__FIRST__.map.html"></iframe>
+ <div id="overlay"></div>
+ <div id="empty">no annotated regions on this page</div>
+</div>
+<div id="legend"><h4>component types</h4><div id="legrows"></div></div>
+<div id="tip"></div>
+<script>
+/*__JS__*/
+</script>"""
+    js = _COMPONENT_MAP_JS.replace("__FIRSTSLUG__", first_slug)
+    return (head
+            .replace("__PROJECT__", _esc(project))
+            .replace("__OPTIONS__", options)
+            .replace("__FIRST__", first_slug)
+            .replace("/*__JS__*/", js))
+
+
+# The viewer JS is kept in a raw string (braces/percent-free of Python formatting).
+# __FIRSTSLUG__ is substituted with the initial page slug.
+_COMPONENT_MAP_JS = r"""
+'use strict';
+var stage = document.getElementById('stage');
+var frame = document.getElementById('frame');
+var overlay = document.getElementById('overlay');
+var emptyEl = document.getElementById('empty');
+var sel = document.getElementById('sel');
+var crumbs = document.getElementById('crumbs');
+var depthSlider = document.getElementById('depth');
+var depthVal = document.getElementById('depthval');
+var tip = document.getElementById('tip');
+var legrows = document.getElementById('legrows');
+var countEl = document.getElementById('count');
+
+// stable, colour-blind-friendly palette; assigned per data-viz-type on first sight
+var PALETTE = ['#4e9bff','#ff8f4e','#39d98a','#c678dd','#ffd479','#5ad1e0',
+               '#ff6b9d','#a3d95a','#f2777a','#7f9cf5','#e0a458','#63c7b2'];
+var typeColor = {};
+var colorIdx = 0;
+function colorFor(t){
+  if(!typeColor[t]){ typeColor[t] = PALETTE[colorIdx % PALETTE.length]; colorIdx++; }
+  return typeColor[t];
+}
+
+var nodes = [];      // {el, path, type, depth, fields, parentPath}
+var byPath = {};     // path -> node
+var focusPath = null; // currently drilled-into path (null = depth-1 overview)
+var showAll = false;  // "tout montrer" (depth slider) mode
+
+function parseFields(s){
+  // "f2 media1 link0 child3" -> readable
+  return s || '';
+}
+
+function collect(){
+  nodes = []; byPath = {};
+  var doc = frame.contentDocument;
+  if(!doc) return;
+  var els = doc.querySelectorAll('[data-viz-path]');
+  els.forEach(function(el){
+    var n = {
+      el: el,
+      path: el.getAttribute('data-viz-path'),
+      type: el.getAttribute('data-viz-type') || 'rawHtml',
+      depth: parseInt(el.getAttribute('data-viz-depth') || '1', 10),
+      fields: el.getAttribute('data-viz-fields') || ''
+    };
+    // parent path = drop last "/N" segment (top-level has no slash)
+    var i = n.path.lastIndexOf('/');
+    n.parentPath = i >= 0 ? n.path.slice(0, i) : null;
+    nodes.push(n);
+    byPath[n.path] = n;
+  });
+  var maxDepth = nodes.reduce(function(m,n){ return Math.max(m, n.depth); }, 1);
+  depthSlider.max = String(Math.max(1, maxDepth));
+  buildLegend();
+}
+
+function buildLegend(){
+  var seen = {};
+  nodes.forEach(function(n){ seen[n.type] = (seen[n.type]||0) + 1; });
+  var types = Object.keys(seen).sort();
+  legrows.innerHTML = types.map(function(t){
+    return '<div class="row"><span class="sw" style="background:'+colorFor(t)+'"></span>'
+      + '<span>'+esc(t)+'</span> <span style="color:var(--mut)">('+seen[t]+')</span></div>';
+  }).join('') || '<div class="row" style="color:var(--mut)">none</div>';
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+// which nodes are VISIBLE as boxes right now
+function visibleNodes(){
+  if(showAll){
+    var d = parseInt(depthSlider.value, 10);
+    return nodes.filter(function(n){ return n.depth <= d; });
+  }
+  if(focusPath === null){
+    return nodes.filter(function(n){ return n.depth === 1; });
+  }
+  // drill-down: the focused node + its DIRECT children
+  var focus = byPath[focusPath];
+  var out = focus ? [focus] : [];
+  nodes.forEach(function(n){ if(n.parentPath === focusPath) out.push(n); });
+  return out;
+}
+
+function draw(){
+  overlay.innerHTML = '';
+  var doc = frame.contentDocument;
+  if(!doc){ return; }
+  var vis = visibleNodes();
+  var sr = stage.getBoundingClientRect();
+  var sx = frame.contentWindow.scrollX || 0;
+  var sy = frame.contentWindow.scrollY || 0;
+  var drawn = 0;
+  vis.forEach(function(n){
+    var r = n.el.getBoundingClientRect();
+    // display:contents wrappers / empty chrome -> zero box; skip (nothing to show)
+    if(r.width < 1 && r.height < 1) return;
+    var box = document.createElement('div');
+    box.className = 'box';
+    var col = colorFor(n.type);
+    box.style.left = (r.left + sx) + 'px';
+    box.style.top = (r.top + sy) + 'px';
+    box.style.width = r.width + 'px';
+    box.style.height = r.height + 'px';
+    // nested-border thickness by depth in "tout montrer"; single accent otherwise
+    var bw = showAll ? Math.max(1, 4 - (n.depth - 1)) : 2;
+    box.style.border = bw + 'px solid ' + col;
+    box.style.background = hexA(col, showAll ? 0.04 : 0.09);
+    // in drill-down, the focused node is the dim "container" frame (ancestor)
+    if(!showAll && focusPath !== null && n.path === focusPath){
+      box.classList.add('dim');
+    }
+    var hasKids = nodes.some(function(m){ return m.parentPath === n.path; });
+    var label = n.type + (hasKids ? ' ▸' : '');
+    box.innerHTML = '<span class="tag" style="background:'+col+'">'+esc(label)+'</span>';
+    box.dataset.path = n.path;
+    box.addEventListener('click', function(ev){ ev.stopPropagation(); onBoxClick(n); });
+    box.addEventListener('mousemove', function(ev){ showTip(ev, n); });
+    box.addEventListener('mouseleave', hideTip);
+    overlay.appendChild(box);
+    drawn++;
+  });
+  emptyEl.style.display = drawn === 0 ? 'flex' : 'none';
+  countEl.textContent = drawn + ' region' + (drawn===1?'':'s') + ' shown / ' + nodes.length + ' total';
+}
+
+function hexA(hex, a){
+  var m = /^#([0-9a-f]{6})$/i.exec(hex); if(!m) return hex;
+  var n = parseInt(m[1],16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+}
+
+function onBoxClick(n){
+  if(showAll) return;                     // slider mode is non-interactive drill
+  var hasKids = nodes.some(function(m){ return m.parentPath === n.path; });
+  if(hasKids){ focusPath = n.path; renderCrumbs(); draw(); scrollToNode(n); }
+}
+
+function scrollToNode(n){
+  try{
+    var r = n.el.getBoundingClientRect();
+    var sy = frame.contentWindow.scrollY || 0;
+    frame.contentWindow.scrollTo({top: Math.max(0, r.top + sy - 40), behavior:'smooth'});
+  }catch(_){}
+}
+
+function renderCrumbs(){
+  var parts = [];
+  parts.push('<a data-goto="__ROOT__">overview</a>');
+  if(focusPath !== null){
+    // build the chain root..focus
+    var chain = [];
+    var p = focusPath;
+    while(p){ chain.unshift(p); var i = p.lastIndexOf('/'); p = i>=0 ? p.slice(0,i) : null; }
+    chain.forEach(function(path){
+      var n = byPath[path];
+      var lbl = n ? n.type : path;
+      parts.push('<span class="sep">›</span>');
+      parts.push('<a data-goto="'+esc(path)+'">'+esc(lbl)+'</a>');
+    });
+  }
+  crumbs.innerHTML = parts.join(' ');
+  crumbs.querySelectorAll('a[data-goto]').forEach(function(a){
+    a.addEventListener('click', function(){
+      var g = a.getAttribute('data-goto');
+      focusPath = (g === '__ROOT__') ? null : g;
+      renderCrumbs(); draw();
+    });
+  });
+}
+
+function showTip(ev, n){
+  tip.style.display = 'block';
+  tip.innerHTML = '<div><b>'+esc(n.type)+'</b></div>'
+    + '<div class="t">path '+esc(n.path)+' &nbsp;depth '+n.depth+'</div>'
+    + '<div class="t">'+esc(parseFields(n.fields))+'</div>';
+  var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  var x = ev.clientX + pad, y = ev.clientY + pad;
+  if(x + w > window.innerWidth) x = ev.clientX - w - pad;
+  if(y + h > window.innerHeight) y = ev.clientY - h - pad;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip(){ tip.style.display = 'none'; }
+
+function refresh(){ collect(); focusPath = null; renderCrumbs(); draw(); }
+
+frame.addEventListener('load', refresh);
+// redraw on iframe scroll/resize so boxes track content
+window.addEventListener('resize', draw);
+function attachScroll(){
+  try{ frame.contentWindow.addEventListener('scroll', draw, {passive:true}); }catch(_){}
+}
+frame.addEventListener('load', attachScroll);
+
+sel.addEventListener('change', function(){
+  frame.src = sel.value + '.map.html';   // load triggers refresh()
+});
+depthSlider.addEventListener('input', function(){
+  showAll = true; depthVal.textContent = depthSlider.value;
+  focusPath = null; renderCrumbs(); draw();
+});
+document.getElementById('reset').addEventListener('click', function(){
+  showAll = false; depthSlider.value = '1'; depthVal.textContent = '1';
+  focusPath = null; renderCrumbs(); draw();
+});
+// click empty stage -> climb one level up
+stage.addEventListener('click', function(){
+  if(showAll || focusPath === null) return;
+  var i = focusPath.lastIndexOf('/');
+  focusPath = i >= 0 ? focusPath.slice(0, i) : null;
+  renderCrumbs(); draw();
+});
+
+// first load (iframe src set inline) may already be complete
+if(frame.contentDocument && frame.contentDocument.readyState === 'complete'){ refresh(); }
+"""
+
+
 # ── driver ──
 
 def _project_from_arg(arg):
@@ -433,6 +943,16 @@ def main():
     ap.add_argument("project", help="projects/<name> or <name>")
     ap.add_argument("--pages", default=None,
                     help="comma-separated slugs to judge (default: all)")
+    ap.add_argument("--map", action="store_true",
+                    help="also emit the DRILL-DOWN component map: per composable "
+                         "page a <slug>.map.html (byte-exact compose + data-viz-* "
+                         "annotation on every instance root at every nesting depth) "
+                         "and a self-contained component-map.html viewer. The map "
+                         "NEVER changes the gate verdict/exit code; it is also built "
+                         "automatically after a GREEN gate (cheap). Byte-identity of "
+                         "the gate is re-asserted per page (strip_viz(map)==gate).")
+    ap.add_argument("--no-map", dest="no_map", action="store_true",
+                    help="suppress the automatic post-GREEN map build")
     a = ap.parse_args()
     if BeautifulSoup is None:
         print("compose_probe: bs4/lxml required (pipeline dependency)", file=sys.stderr)
@@ -461,6 +981,8 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
 
     results = []
+    # composable pages retained for the map build (mirror head + composed body).
+    composed_ctx = {}
     for slug in pages:
         page = pages[slug]
         mirror_path = f"{mirror_dir}/{slug}.html"
@@ -503,6 +1025,7 @@ def main():
                 "mirror": mirror_body[max(0, i - 50):i + 50],
             }
         write_composed_page(out_dir, slug, mirror_txt, composed, asset_base)
+        composed_ctx[slug] = (page, mirror_txt)
         results.append(rec)
         mark = "OK  " if exact else "RED "
         line = f"  {mark}{slug:34s} composed={rec['composedBytes']:8d} mirror={rec['mirrorBytes']:8d}"
@@ -549,6 +1072,33 @@ def main():
     with open(os.path.join(out_dir, "compose-review.html"), "w",
               encoding="utf-8") as f:
         f.write(review_html(project, results))
+
+    # ── drill-down component map (never affects the gate verdict/exit code) ──
+    # Built when --map is passed OR automatically after a GREEN gate (cheap), unless
+    # --no-map. Per composable page: annotate the byte-exact composition, ASSERT the
+    # annotation strips back to the gate bytes, write <slug>.map.html; then emit the
+    # self-contained component-map.html viewer over the pages that produced a map.
+    build_map = a.map or (gate_pass and composable and not a.no_map)
+    if build_map:
+        map_results = []
+        map_errors = []
+        for slug, (page, mirror_txt) in composed_ctx.items():
+            try:
+                map_body = compose_body_map(page)
+                assert_gate_unchanged(page, map_body)   # regression guard
+                write_map_page(out_dir, slug, mirror_txt, map_body, asset_base)
+                map_results.append({"slug": slug, "hasMap": True})
+            except Exception as e:  # a map defect must not sink the gate
+                map_errors.append((slug, str(e)))
+                map_results.append({"slug": slug, "hasMap": False})
+        with open(os.path.join(out_dir, "component-map.html"), "w",
+                  encoding="utf-8") as f:
+            f.write(component_map_html(project, map_results))
+        n_maps = sum(1 for r in map_results if r["hasMap"])
+        print(f"  ▶ component map: {out_dir}/component-map.html  "
+              f"({n_maps}/{len(map_results)} pages annotated)")
+        for slug, err in map_errors:
+            print(f"    MAP WARN {slug}: {err}", file=sys.stderr)
 
     n_skip = len(results) - len(composable)
     print()
