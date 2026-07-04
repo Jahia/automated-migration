@@ -560,9 +560,10 @@ content — "on ne génère jamais de contenu", Julian 2026-07-04, fidelity doct
 - ❌ content translation — DEAD ON ARRIVAL (content generation). Multi-locale = crawl
   source locale variants (deterministic, future).
 - SEO meta — deterministic EXTRACTION from source `<head>` (no LLM needed; pipeline).
-- ✅ candidate 1: editor-UI field labels + `ui.tooltip` keys (EN/FR resource bundles) —
-  editor chrome, not visitor content; judged by i18n-check + G6. AWAITING Julian's
-  explicit OK on the content/chrome distinction.
+- ✅ candidate 1 — VALIDATED by Julian (2026-07-04): editor-UI field labels +
+  `ui.tooltip` keys (EN/FR resource bundles). The bright line: "displayed on the final
+  site = never generated; editor-facing labels = allowed to simplify contributors'
+  lives." Judged by i18n-check + G6.
 - ✅ candidate 2: component naming/merge proposals at the model gate + exceptions review
   (names the MODEL, not content; assistant arbitrates).
 - ✅ candidate 3: exceptions pre-triage in batch mode (pre-digested decision bundles).
