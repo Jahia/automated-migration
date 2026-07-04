@@ -49,6 +49,33 @@ def sha(s):
     return hashlib.sha1(s.encode("utf-8")).hexdigest()[:16]
 
 
+def normalize_url(url):
+    """Canonicalise an asset URL to the percent-encoded form a browser SENDS and
+    the crawler CACHED.
+
+    The rendered-DOM crawl (render_page.mjs → document.outerHTML) serializes URLs
+    with characters DECODED — a source `Brand%20logo.svg` comes back as
+    `Brand logo.svg` (literal space), and AEM `.transform/<rendition>` paths carry
+    spaces/parens verbatim. But (a) urllib puts a raw space straight into the HTTP
+    request line → the origin 400s, and (b) crawl-site.py cached the asset under
+    its ENCODED path (`%20` → sanitized `_20`), so a literal-space probe misses.
+    Percent-encoding the path (and query) with `quote(safe="/%")` is idempotent
+    (an already-encoded `%20` is preserved, a raw space becomes `%20`), so both
+    occurrence forms collapse to ONE canonical URL — the download works and the
+    cache probe matches. Fragments are dropped (never sent to the server)."""
+    if not url or url.startswith(("data:", "blob:")):
+        return url
+    try:
+        p = urllib.parse.urlsplit(url)
+    except Exception:
+        return url
+    if not p.scheme and not p.netloc and not p.path:
+        return url
+    path = urllib.parse.quote(p.path, safe="/%:@&=+$,;~()!*'")
+    query = urllib.parse.quote(p.query, safe="/%:@&=+$,;~()!*'?") if p.query else ""
+    return urllib.parse.urlunsplit((p.scheme, p.netloc, path, query, ""))
+
+
 def ext_of(url, kind=""):
     path = urllib.parse.urlparse(url).path
     m = re.search(r"(\.[A-Za-z0-9]{1,5})$", path)
@@ -60,31 +87,48 @@ def ext_of(url, kind=""):
 
 
 def local_name(url, kind=""):
-    return sha(url) + ext_of(url, kind)
+    # hash the NORMALIZED form so the same asset written raw-with-spaces,
+    # protocol-relative, or percent-encoded all collapse to ONE local file.
+    return sha(normalize_url(url)) + ext_of(normalize_url(url), kind)
+
+
+def _cache_rels(netloc, path):
+    """The relative cache keys crawl-site.py would derive from a (netloc, path):
+    it appends '.html' to an extension-less last segment, 'index.html' to a
+    trailing '/', else uses the path as-is."""
+    if path == "/" or not path:
+        return [f"{netloc}/index.html"]
+    base = netloc + path
+    last = path.rstrip("/").rsplit("/", 1)[-1]
+    if path.endswith("/"):
+        return [base + "index.html"]
+    if "." not in last:
+        return [base + ".html", base + ".bin", base]
+    return [base]
 
 
 def crawler_cache_candidates(proj, url):
-    """On-disk paths the crawler MAY have used for this URL. The crawler appends
-    '.html' to an extension-less last segment; we probe that + '.bin' + raw, under
-    both _assets and _crawl, so we reuse whatever was already downloaded."""
+    """On-disk paths the crawler MAY have used for this URL. crawl-site.py stores
+    an asset under `re.sub(r'[^A-Za-z0-9._/-]', '_', netloc+path)` of the URL AS
+    RESOLVED FROM RAW HTML — where a space is still `%20` (→ sanitized `_20`).
+    The rendered-DOM localize step sees the SAME asset with the space DECODED, so
+    we must probe BOTH the percent-encoded path (matches the crawler's `_20`) and
+    the raw/decoded path — under both _assets and _crawl."""
     p = urllib.parse.urlparse(url)
-    path = p.path or "/"
-    if path == "/":
-        rels = [f"{p.netloc}/index.html"]
-    else:
-        base = p.netloc + path
-        last = path.rstrip("/").rsplit("/", 1)[-1]
-        if path.endswith("/"):
-            rels = [base + "index.html"]
-        elif "." not in last:
-            rels = [base + ".html", base + ".bin", base]
-        else:
-            rels = [base]
+    raw_path = p.path or "/"
+    enc_path = urllib.parse.urlsplit(normalize_url(url)).path or "/"
+    rels = []
+    for path in dict.fromkeys((enc_path, raw_path)):   # encoded first, dedup, order-stable
+        rels.extend(_cache_rels(p.netloc, path))
     out = []
+    seen = set()
     for rel in rels:
         rel = re.sub(r"[^A-Za-z0-9._/-]", "_", rel)
         for sub in ("_assets", "_crawl"):
-            out.append(os.path.join(proj, ".reference", "cache", sub, rel))
+            cp = os.path.join(proj, ".reference", "cache", sub, rel)
+            if cp not in seen:
+                seen.add(cp)
+                out.append(cp)
     return out
 
 
@@ -122,22 +166,45 @@ class Localizer:
         self.mirror = os.path.join(proj, "workflow-output", "local-mirror")
         self.assets_dir = os.path.join(self.mirror, "assets")
         os.makedirs(self.assets_dir, exist_ok=True)
-        self.reg = {}          # abs_url -> {"name","ok","bytes","kind"}
+        self.reg = {}          # abs_url (raw, as seen in markup) -> {"name","ok","bytes","kind"}
         self.residue = []      # abs_urls that could not be localised
+        self.urlmap = {}       # every URL FORM of a localised asset -> local name (rule 31)
 
     # ── asset acquisition ──────────────────────────────────────────
     def _read_bytes(self, url):
-        """crawler-cache-first, then live (WAF-aware). Returns bytes or None."""
+        """crawler-cache-first, then live (WAF-aware). Returns bytes or None. The
+        probe uses `url` verbatim (crawler_cache_candidates covers raw+encoded);
+        the live fetch is always over the NORMALIZED URL (a raw space in the
+        request line is a hard 400)."""
         if not self.force:
             for cp in crawler_cache_candidates(self.proj, url):
                 if os.path.isfile(cp) and os.path.getsize(cp) > 0:
                     with open(cp, "rb") as f:
                         return f.read()
-        return http_get(url, self.max_size)
+        return http_get(normalize_url(url), self.max_size)
+
+    def _record_forms(self, abs_url, name):
+        """Register EVERY URL form of a localised asset → its local name, so a
+        downstream rewrite matches whatever the captured markup actually uses
+        (rule 31): raw, percent-encoded, protocol-relative, and root-relative."""
+        forms = {abs_url, normalize_url(abs_url)}
+        for u in list(forms):
+            try:
+                p = urllib.parse.urlsplit(u)
+            except Exception:
+                continue
+            if p.scheme in ("http", "https") and p.netloc:
+                forms.add("//" + p.netloc + p.path + (("?" + p.query) if p.query else ""))
+                forms.add(p.path + (("?" + p.query) if p.query else ""))
+        for f in forms:
+            if f:
+                self.urlmap.setdefault(f, name)
 
     def register(self, abs_url, kind=""):
         """Ensure the asset is downloaded + written to the mirror. Returns its local
-        name (for rewriting) or None if it could not be localised."""
+        name (for rewriting) or None if it could not be localised. `reg` is keyed by
+        the RAW url (the form that appears in the markup) so the residue ledger and
+        idempotence match the occurrence; the hash/fetch canonicalise internally."""
         if not abs_url or abs_url.startswith("data:") or abs_url.startswith("blob:"):
             return None
         if abs_url in self.reg:
@@ -147,6 +214,7 @@ class Localizer:
         is_css = ext_of(abs_url, kind) in CSS_EXTS or kind == "css"
         if os.path.isfile(dest) and not self.force and not is_css:
             self.reg[abs_url] = {"name": name, "ok": True, "bytes": os.path.getsize(dest), "kind": kind}
+            self._record_forms(abs_url, name)
             return name
         data = self._read_bytes(abs_url)
         if data is None:
@@ -158,6 +226,7 @@ class Localizer:
         with open(dest, "wb") as f:
             f.write(data)
         self.reg[abs_url] = {"name": name, "ok": True, "bytes": len(data), "kind": kind or ("css" if is_css else "")}
+        self._record_forms(abs_url, name)
         return name
 
     # ── CSS: recurse + rewrite url()/@import/@font-face ─────────────
@@ -344,10 +413,29 @@ def main():
         "pages": page_recs,
         "assets": {"total": len(loc.reg), "localized": len(ok_assets),
                    "bytes": total_bytes, "localizablePct": localizable},
+        # urlMap: every URL FORM of a localised asset -> its local mirror path
+        # (relative to local-mirror/, i.e. "assets/<sha1>.<ext>"). Keyed by the
+        # ORIGINAL forms as they appear in markup (raw-with-spaces, percent-
+        # encoded, protocol-relative, root-relative) so a downstream resolver can
+        # map an occurrence back to the localised file. (rule 31)
+        "urlMap": {k: "assets/" + n for k, n in sorted(loc.urlmap.items())},
         "residue": sorted(set(loc.residue)),
     }
     with open(os.path.join(loc.mirror, "mirror.json"), "w") as f:
         json.dump(mirror, f, indent=2, ensure_ascii=False)
+
+    # A completed (re-)localization makes any prior scope snapshot STALE:
+    # scope_apply.py only snapshots local-mirror -> local-mirror-prescope when the
+    # prescope dir is ABSENT, then rebuilds every page FROM it. Leaving an old
+    # prescope means the next scope pass rebuilds from pre-relocalize bytes. Remove
+    # it so scope_apply re-snapshots the fresh mirror and its byte-comparison
+    # auto-invalidates the segmentation artifacts of every changed page (that
+    # machinery lives in scope_apply and is tested there).
+    prescope = os.path.join(proj, "workflow-output", "local-mirror-prescope")
+    if os.path.isdir(prescope):
+        import shutil
+        shutil.rmtree(prescope, ignore_errors=True)
+        print(f"removed stale scope snapshot: {prescope}")
 
     print("=== LOCALIZE (self-contained local mirror) ===")
     print(f"pages: {len([p for p in page_recs if 'error' not in p])}/{len(page_recs)} | "

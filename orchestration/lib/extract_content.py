@@ -78,7 +78,83 @@ def captured_pages(proj):
     return out
 
 
+# source-URL -> localized mirror filename (basename under local-mirror/assets/,
+# which is where load_content.upload_dam and probes/contribution.py look). Built
+# by load_media_map() from the mirror's own already-localized <img>/<source>
+# refs plus any URL map the localizer emits (mirror.json / runtime-manifest.json).
+# ALL URL forms are registered (rule 31) so a media src in any form resolves.
+MEDIA_URL_MAP = {}
+
+
+def _register_url_forms(mapping, url, fname):
+    """Register a source URL in every form markup may reference it (absolute
+    https/http, protocol-relative //host, path-only /p) -> the mirror filename."""
+    if not url or not fname:
+        return
+    mapping.setdefault(url, fname)
+    if url.startswith(("http://", "https://")):
+        proto_rel = re.sub(r"^https?:", "", url)
+        mapping.setdefault(proto_rel, fname)
+        mapping.setdefault(("http:" if url.startswith("https:") else "https:") + proto_rel, fname)
+        path = re.sub(r"^https?://[^/]+", "", url)
+        if path and path != url:
+            mapping.setdefault(path, fname)
+
+
+def load_media_map(project):
+    """Populate MEDIA_URL_MAP: source-URL (any form) -> mirror asset FILENAME.
+    Keyed off whatever the localizer wrote, so media refs the crawl left as
+    absolute/space/rendition URLs still resolve to the hashed file on disk.
+    Only files that actually exist under local-mirror/assets/ are registered
+    (the loader/probe look there) — a runtime-assets-only mapping is skipped so
+    filename_for never returns a name the loader can't find."""
+    MEDIA_URL_MAP.clear()
+    mdir = f"projects/{project}/workflow-output/local-mirror"
+    assets_dir = f"{mdir}/assets"
+    have = set(os.listdir(assets_dir)) if os.path.isdir(assets_dir) else set()
+
+    def _reg_if_local(url, f):
+        # f may be "assets/<hash>.ext" or a bare "<hash>.ext"; only accept when
+        # the basename exists under assets/
+        base = os.path.basename(f or "")
+        if base in have:
+            _register_url_forms(MEDIA_URL_MAP, url, base)
+
+    # 1) mirror.json — a per-URL asset map if the localizer emits one (forward-
+    # compatible: today it carries counts; the localizer fix may add url->file).
+    try:
+        mj = json.load(open(f"{mdir}/mirror.json"))
+        amap = mj.get("assets")
+        if isinstance(amap, dict):
+            for k, v in amap.items():
+                f = v.get("file") if isinstance(v, dict) else (v if isinstance(v, str) else None)
+                if f:
+                    _reg_if_local(k, f)
+        for entry in (mj.get("urlMap") or mj.get("localizedMap") or {}).items() \
+                if isinstance(mj.get("urlMap") or mj.get("localizedMap"), dict) else []:
+            _reg_if_local(entry[0], entry[1])
+    except Exception:
+        pass
+    # 2) runtime-manifest.json — same shape as RUNTIME_URL_MAP; register only the
+    # entries whose file the localizer copied under assets/ (not runtime-assets/).
+    try:
+        rm = json.load(open(f"{mdir}/runtime-manifest.json"))
+        for k, v in (rm.get("assets") or {}).items():
+            f = (v or {}).get("file")
+            if f:
+                _reg_if_local(k, f)
+    except Exception:
+        pass
+
+
 def filename_for(url):
+    if not url:
+        return "image.img"
+    # consult the mirror's URL->localized-file mapping FIRST (rule 31) so a media
+    # ref the crawl left as an absolute/space/rendition URL still resolves to the
+    # hashed asset file the localizer wrote under assets/.
+    if url in MEDIA_URL_MAP:
+        return MEDIA_URL_MAP[url]
     name = os.path.basename(urllib.parse.urlparse(url).path) or "image"
     name = urllib.parse.unquote(name)
     return re.sub(r"[^A-Za-z0-9._-]", "-", name if IMG_EXT.search(name) else name + ".img")
@@ -765,6 +841,330 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
     return page
 
 
+def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
+    """VISION adapter (P4): the vision component model DRIVES extraction.
+
+    Instead of re-deriving component boundaries (semantic_page, which collapses on
+    a <main>-less SPA), each vision component's root element — resolved into THIS
+    page's local-mirror DOM (via vision_extract) — is fed into the EXISTING
+    decompose_group skeleton machinery, typed by the vision name via the manifest
+    instanceTypeMap. Regions NOT covered by any vision component load as verbatim
+    rawHtml (partition exactness). The whole body reconstructs BYTE-FOR-BYTE:
+    each promoted region self-checks (recompose == original) and falls back to
+    verbatim rawHtml on any mismatch (fidelity before contribution, rule 23).
+
+    Segmented page  -> the page's own vision boundaries (vision_extract.resolve_segmented).
+    Unsegmented     -> signature match against the segmented pages (match_unsegmented).
+    Both promote through the identical path and self-check; no match -> verbatim."""
+    import vision_extract as VE
+    from bs4 import BeautifulSoup, NavigableString, Tag
+    ov = overrides or {}
+    base = ov.get("assetBase") or ""
+    itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
+    container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
+                       if c.get("isContainer") and c.get("childType")}
+
+    def role_for(vision_name):
+        # vision name -> role key present in instanceTypeMap (norm_name, the
+        # cross-page id segment2manifest keys on). Falls back to the raw name.
+        key = re.sub(r"[^A-Za-z0-9]+", "-", (vision_name or "").strip().lower()).strip("-")
+        return key if key in itm else (vision_name or "component")
+
+    def type_allows_items(role):
+        return itm.get((role or "").lower()) in container_types
+
+    def conv_media(med):
+        return [{"name": m["name"], "orig": rewrite_asset_refs(m["orig"], base),
+                 "file": filename_for(m["src"]), "alt": m.get("alt", "")}
+                for m in (med or [])]
+
+    def payload_extras(d):
+        return {"media": conv_media(d.get("media")), "mediaTotal": d.get("mediaTotal", 0),
+                "link": d.get("link"), "linkTotal": d.get("linkTotal", 0)}
+
+    def rw_fields(flds):
+        return {k: (rewrite_asset_refs(v, base) if k.startswith("body") else v)
+                for k, v in flds.items()}
+
+    def raw_instance(html, area=None):
+        inst = {"type": "rawHtml", "parent": None, "passthrough": True,
+                "fields": {"html": rewrite_asset_refs(html, base)},
+                "images": [], "links": []}
+        if area:
+            inst["area"] = area
+        return inst
+
+    lift_stats = {"byteFail": 0, "emptyShell": 0}
+
+    import semantic_extract as SE
+
+    def raw_lifted_live(el):
+        """LIVE passthrough element -> ANONYMOUS editable block (same P2.5
+        mechanism as the semantic adapter's raw_lifted_instance). Operates on the
+        LIVE mirror element so decompose_group's byte self-check (recompose ==
+        str(el)) is honest — never a re-parsed string (fragment re-parse is not
+        byte-idempotent on this AEM markup, ~24-char drift observed). Returns the
+        lifted instance, or None when nothing was liftable / byte-check failed
+        (caller keeps the region verbatim)."""
+        if el is None:
+            return None
+        d = SE.decompose_group(el, allow_items=False, lift_titles=False)
+        if not d["ok"]:
+            lift_stats["byteFail"] += 1
+            return None
+        if not d["fields"] and not d.get("media") and not d.get("link"):
+            return None
+        return {"type": "rawHtml", "parent": None, "passthrough": True,
+                "fields": {k: rewrite_asset_refs(v, base) for k, v in d["fields"].items()},
+                "skeleton": rewrite_asset_refs(d["skeleton"], base),
+                "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                **payload_extras(d), "images": [], "links": []}
+
+    def promote_live(vision_name, el):
+        """Promote a LIVE vision component element into a typed skeleton instance
+        (same schema emit_promoted produces). decompose_group mutates and
+        self-checks against str(el) on the live tree — byte-safe. Returns
+        (instance, content-leaves). On byte-fail / empty-shell, returns a verbatim
+        raw_instance built from the element's ORIGINAL serialization."""
+        role = role_for(vision_name)
+        original = str(el)
+        d = SE.decompose_group(el, allow_items=type_allows_items(role))
+        if not d["ok"]:
+            lift_stats["byteFail"] += 1
+            return raw_instance(d["original"]), 0
+
+        def _has(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        if not _has(d) and not any(_has(ch) for ch in d["children"]):
+            lift_stats["emptyShell"] += 1
+            return raw_instance(d["original"]), 0
+        inst = {
+            "type": role, "parent": None, "promoted": True,
+            "fields": rw_fields(d["fields"]),
+            "skeleton": rewrite_asset_refs(d["skeleton"], base),
+            **payload_extras(d),
+            "children": [{"fields": rw_fields(ch["fields"]),
+                          "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                          **payload_extras(ch)} for ch in d["children"]],
+            "skeletonSubs": sorted(d["fields"]) + sorted(
+                k for ch in d["children"] for k in ch["fields"]),
+            "skeletonMissed": [], "images": [], "links": [],
+        }
+        # leaf count is taken BEFORE decompose mutates el; approximate via the
+        # recomposed original (text content is stable) — use the original element
+        # snapshot's leaf count instead (compute on a throwaway parse of original)
+        try:
+            snap = _reparse_root(original)
+            leaves = SE._count_leaves(snap) if snap is not None else 0
+        except Exception:
+            leaves = 0
+        return inst, leaves
+
+    # ── resolve vision component + chrome roots into THIS page's mirror DOM ──
+    mir = BeautifulSoup(txt, "lxml")
+    body = mir.find("body")
+    if body is None:
+        return semantic_page(txt, slug, overrides, manifest)  # nothing to partition
+    segmented = os.path.isfile(f"projects/{project}/workflow-output/segment/{slug}.segmentation.json") \
+        and os.path.isfile(f"projects/{project}/workflow-output/segment/{slug}.dom.html")
+    chrome_index = sig_index.get("_chrome") if isinstance(sig_index, dict) else None
+    if segmented:
+        vroots = VE.resolve_segmented(project, slug, mir)
+        chrome = VE.resolve_chrome(project, slug, mir)
+        match_mode = "own-segmentation"
+    else:
+        vroots = VE.match_unsegmented(
+            {k: v for k, v in sig_index.items() if k != "_chrome"}, mir)
+        chrome = VE.match_chrome_unsegmented(chrome_index or {}, mir)
+        match_mode = "signature"
+
+    # A chrome root must not overlap a content root — overlapping regions would
+    # corrupt the byte-exact split. Drop any chrome root that contains, or sits
+    # inside, a promoted content root (content wins; chrome is best-effort).
+    content_els = [e for _, e in vroots]
+    def _overlaps(e):
+        return any(ce in e.descendants or e in ce.parents for ce in content_els)
+    chrome = [(a, n, e) for (a, n, e) in chrome if not _overlaps(e)]
+
+    # roots keyed by identity, tagged with their kind.
+    root_kind = {}   # id(el) -> ("component", name) | ("chrome", area)
+    for name, el in vroots:
+        root_kind[id(el)] = ("component", name)
+    for area, name, el in chrome:
+        root_kind.setdefault(id(el), ("chrome", area))
+    root_ids = set(root_kind)
+
+    out = []
+    promoted_leaves = demoted_leaves = 0
+    n_chrome = 0
+
+    def _emit_root(el):
+        """Emit one resolved vision root as a self-contained BALANCED region
+        (mutates el's live subtree). Byte-safe: decompose self-checks on str(el)."""
+        nonlocal promoted_leaves, demoted_leaves, n_chrome
+        kind, payload = root_kind[id(el)]
+        if kind == "chrome":
+            out.append(raw_instance(str(el), area=payload))
+            n_chrome += 1
+            return
+        inst, lv = promote_live(payload, el)
+        out.append(inst)
+        if inst.get("promoted"):
+            promoted_leaves += lv
+        else:
+            demoted_leaves += lv
+
+    def _has_root_below(el):
+        return any(id(d) in root_ids for d in el.descendants)
+
+    def emit_container_live(el, inner_roots):
+        """A root-bearing WRAPPER that isn't itself a single vision root becomes an
+        anonymous ns:rawHtml CONTAINER skeleton with a {{child:N}} marker per vision
+        root, plus N SEPARATELY-TYPED child instances (parent -> the container's out
+        index). The wrapper's own markup + inter-root passthrough stays in the
+        container skeleton. On LIVE, composeNode splices each JCR child (by
+        getNodes() order == creation == document order) into its {{child:N}} slot;
+        in EDIT each child renders via <Render node> for its own edit frame
+        (skeletonRender.ts / rule 28). Each child keeps its VISION TYPE (heroBanner,
+        newsCarousel, …) — per-component typing preserved.
+
+        Balanced (the container is one complete element) and byte-exact
+        (decompose_group_with_items self-checks recompose == str(el)); on any
+        mismatch the whole wrapper loads verbatim (rule 23). Appends to `out`;
+        returns the container's content-leaf count."""
+        nonlocal promoted_leaves, demoted_leaves
+        # keep only mutually non-nested roots (a nested root's marker would be
+        # swallowed); VE.decompose_group_with_items also guards, mirror here for the
+        # child-instance list to stay 1:1 with the {{child:N}} markers.
+        inner = [r for r in inner_roots
+                 if not any(o is not r and o in r.parents for o in inner_roots)]
+        role_seq = []  # role per surviving root, in document order (== marker order)
+        for r in inner:
+            k = root_kind.get(id(r))
+            role_seq.append(role_for(k[1]) if k and k[0] == "component" else "rawHtml")
+        original = str(el)
+        snap = _reparse_root(original)
+        leaves = SE._count_leaves(snap) if snap is not None else 0
+        d = VE.decompose_group_with_items(el, inner, lift_titles=False)
+        if not d["ok"]:
+            lift_stats["byteFail"] += 1
+            out.append(raw_instance(d["original"]))
+            demoted_leaves += leaves
+            return
+        cont_idx = len(out)
+        out.append({
+            "type": "rawHtml", "parent": None, "promoted": True, "container": True,
+            "fields": {k: rewrite_asset_refs(v, base) for k, v in d["fields"].items()},
+            "skeleton": rewrite_asset_refs(d["skeleton"], base),
+            **payload_extras(d),
+            "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+            "images": [], "links": [],
+        })
+        # one child instance per {{child:N}} marker, in order. A child that lifted
+        # NOTHING (a script-driven widget: booking bar, chatbot — no contributor
+        # text/media/link) would be an empty typed shell (lies to the editor), so
+        # it loads as an honest rawHtml passthrough child carrying its verbatim
+        # markup — still spliced into its {{child:N}} slot, byte-identical.
+        def _has(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        for n, ch in enumerate(d["children"]):
+            role = role_seq[n] if n < len(role_seq) else "rawHtml"
+            if not _has(ch):
+                lift_stats["emptyShell"] += 1
+                # rawHtml passthrough child, but carry a marker-free `skeleton` so
+                # composeNode still splices it into {{child:N}} (it only splices
+                # children with a skeleton prop) — recompose of a marker-free
+                # skeleton == its verbatim markup, byte-identical on LIVE + EDIT.
+                out.append({
+                    "type": "rawHtml", "parent": cont_idx, "passthrough": True,
+                    "fields": {}, "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                    "skeletonSubs": [], "skeletonMissed": [],
+                    "media": [], "mediaTotal": 0, "link": None, "linkTotal": 0,
+                    "images": [], "links": [],
+                })
+                continue
+            out.append({
+                "type": role, "parent": cont_idx, "promoted": True,
+                "fields": rw_fields(ch["fields"]),
+                "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                **payload_extras(ch),
+                "skeletonSubs": sorted(ch["fields"]), "skeletonMissed": [],
+                "images": [], "links": [],
+            })
+        promoted_leaves += leaves
+
+    # ── byte-exact partition; every emitted region is a COMPLETE balanced element
+    # (the RawHtml renderer's splitRoot invariant — same as the semantic adapter's
+    # topLevels). Walk body's direct children in document order:
+    #   NOTE: chrome roots nested INSIDE the shared content wrapper (as on this AEM
+    #   SPA, where header/footer live within container-structure) become rawHtml
+    #   children of the container rather than area singletons — byte-faithful to the
+    #   source (they render inline where the source renders them). Chrome routed to
+    #   /home/<area> only when it is a top-level body sibling (the common case).
+    #   * a resolved vision/chrome root -> promote/chrome directly (typed)
+    #   * a wrapper bearing vision roots deeper -> ONE rawHtml container skeleton +
+    #     per-root TYPED child instances ({{child:N}}; balanced + byte-exact)
+    #   * a root-free wrapper -> lift text runs live | verbatim
+    #   * a text node (incl. whitespace) -> verbatim (bytes contract)
+    for child in list(body.children):
+        if not isinstance(child, Tag):
+            t = str(child)
+            if t:  # preserve ALL text incl. whitespace (bytes contract)
+                out.append(raw_instance(t))
+            continue
+        if id(child) in root_ids:
+            _emit_root(child)
+            continue
+        if _has_root_below(child):
+            inner = [d for d in child.descendants
+                     if isinstance(d, Tag) and id(d) in root_ids]
+            emit_container_live(child, inner)
+            continue
+        out.append(raw_lifted_live(child) or raw_instance(str(child)))
+
+    # empty-leaf accounting for the loader (containers keep, empty leaves flagged)
+    parents = {i["parent"] for i in out if i.get("parent") is not None}
+    for idx, i in enumerate(out):
+        i["empty"] = not (i["fields"] or i["images"] or i["links"]) and idx not in parents
+
+    shell = page_shell(txt, base) if ov.get("shell", True) else None
+
+    # accounting parity with semantic_page's partition summary (probe reads these)
+    total_leaves = _vision_body_leaves(txt)
+    n_promoted = sum(1 for i in out if i.get("promoted"))
+    summary = {
+        "adapterMode": "vision",
+        "matchMode": match_mode,
+        "visionComponents": len(vroots),
+        "chromeAreas": n_chrome,
+        "leavesTotal": total_leaves,
+        "semanticLeafShare": round(promoted_leaves / total_leaves, 3) if total_leaves else None,
+        "demotedLeaves": demoted_leaves,
+        "liftByteFail": lift_stats["byteFail"],
+        "liftEmptyShell": lift_stats["emptyShell"],
+        # vision children are SEPARATE parent-referenced instances (typed per
+        # component), not embedded — count them by parent linkage.
+        "childItems": sum(1 for i in out if i.get("parent") is not None),
+        "containerRegions": sum(1 for i in out if i.get("container")),
+        "componentRegions": n_promoted,
+        "passthroughRegions": sum(1 for i in out if i.get("passthrough") and not i.get("area")),
+    }
+    page = {"adapter": "semantic", "instances": out, "partition": summary}
+    if shell:
+        page["shell"] = shell
+    return page
+
+
+def _vision_body_leaves(txt):
+    """Content-leaf count of the whole body (accounting denominator for the vision
+    partition, which has no <main>). Uses semantic_extract._count_leaves."""
+    from bs4 import BeautifulSoup
+    import semantic_extract as SE
+    soup = BeautifulSoup(txt, "lxml")
+    body = soup.find("body")
+    return SE._count_leaves(body) if body is not None else 0
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: extract_content.py <project> [site_key] [--adapter semantic|sxa]")
@@ -780,6 +1180,7 @@ def main():
         sys.exit(f"extract_content: no captured pages under {proj}/.reference")
 
     load_runtime_map(project)
+    load_media_map(project)
     overrides = load_overrides(project)
     if overrides:
         print(f"extract_content: passthrough overrides active — demoteRoles="
@@ -789,8 +1190,49 @@ def main():
         manifest = json.load(open(f"projects/{project}/workflow-output/component-manifest.json"))
     except Exception:
         manifest = None
+
+    # Adapter selection is AUTOMATIC (P4), and SELF-SELECTING so committed baselines
+    # never move: the VISION adapter engages ONLY when (a) passing vision
+    # segmentations exist AND (b) the independent semantic walk COLLAPSES on this
+    # site — i.e. extract_page finds ~0 component regions across the sampled pages
+    # (the exact <main>-less-SPA failure the bridge exists for: discoverasr 0/1631).
+    # Sites where the semantic adapter already works (acquia/supercar/contentful,
+    # 8-13 component regions/page) keep the semantic path byte-identical — no flag,
+    # no per-site config. force_sxa (legacy) always wins.
+    use_vision = False
+    sig_index = {}
+    if not force_sxa and manifest:
+        try:
+            import vision_extract as VE
+            if VE.has_vision_segmentations(project):
+                sem_comp = 0
+                sampled = 0
+                for _slug, _path, _b in pages[:5]:
+                    try:
+                        _t = open(_path, encoding="utf-8", errors="ignore").read()
+                        _, _c, _part = __import__("semantic_extract").extract_page(_t, _slug)
+                        sem_comp += _part.get("componentRegions", 0)
+                        sampled += 1
+                    except Exception:
+                        continue
+                if sampled and sem_comp == 0:
+                    use_vision = True
+                    sig_index = VE.load_signature_index(project)
+                    sig_index["_chrome"] = VE.load_chrome_signatures(project)
+                    print(f"extract_content: semantic walk collapsed (0 component "
+                          f"regions / {sampled} pages) -> VISION adapter | "
+                          f"{len(sig_index) - 1} component + {len(sig_index['_chrome'])} "
+                          f"chrome signature(s) learned from segmented pages")
+                else:
+                    print(f"extract_content: semantic walk healthy ({sem_comp} "
+                          f"component regions / {sampled} pages) -> keeping semantic "
+                          f"adapter (vision segmentations present but not needed)")
+        except ImportError:
+            pass
+
     data = {"adapter": None, "pages": {}}
-    sxa_pages = sem_pages = 0
+    sxa_pages = sem_pages = vis_pages = 0
+    vis_match_log = []
     for slug, path, _ in pages:
         try:
             txt = open(path, encoding="utf-8", errors="ignore").read()
@@ -822,6 +1264,19 @@ def main():
                 i["empty"] = not (i["fields"] or i["images"] or i["links"]) and idx not in parents
             data["pages"][slug] = {"adapter": "sxa", "instances": p.instances}
             sxa_pages += 1
+        elif use_vision:
+            try:
+                pg = vision_page(project, txt, slug, sig_index, overrides, manifest)
+                data["pages"][slug] = pg
+                vis_pages += 1
+                part = pg.get("partition", {})
+                vis_match_log.append((slug, part.get("matchMode", "?"),
+                                      part.get("visionComponents", 0),
+                                      part.get("componentRegions", 0)))
+            except ImportError:
+                p = GenericContent()
+                p.feed(txt)
+                data["pages"][slug] = {"adapter": "generic", "blocks": p.blocks}
         else:
             try:
                 data["pages"][slug] = semantic_page(txt, slug, overrides, manifest)
@@ -832,8 +1287,10 @@ def main():
                 p = GenericContent()
                 p.feed(txt)
                 data["pages"][slug] = {"adapter": "generic", "blocks": p.blocks}
+    # vision pages emit adapter:"semantic" (the contribution gate targets it), so
+    # they count toward the semantic verdict.
     data["adapter"] = ("sxa" if sxa_pages > len(pages) / 2
-                       else "semantic" if sem_pages else "generic")
+                       else "semantic" if (sem_pages or vis_pages) else "generic")
 
     os.makedirs("orchestration/content", exist_ok=True)
     outp = f"orchestration/content/{project}.content-load.json"
@@ -842,11 +1299,17 @@ def main():
     tot_inst = sum(len(v.get("instances", [])) for v in data["pages"].values())
     tot_text = sum(sum(len(f) for i in v.get("instances", []) for f in i["fields"].values())
                    for v in data["pages"].values())
-    print(f"extract_content: adapter={data['adapter']} | {len(pages)} pages | "
-          f"{tot_inst} component instances | {tot_text} chars of real field text -> {outp}")
-    for slug, v in list(data["pages"].items())[:8]:
-        n = len(v.get("instances", v.get("blocks", [])))
-        print(f"  {slug:28s} {v['adapter']:8s} {n} {'blocks' if v['adapter'] == 'generic' else 'instances'}")
+    typed = sum(1 for v in data["pages"].values() for i in v.get("instances", []) if i.get("promoted"))
+    anon = sum(1 for v in data["pages"].values() for i in v.get("instances", []) if i.get("skeleton") and not i.get("promoted"))
+    raw = sum(1 for v in data["pages"].values() for i in v.get("instances", []) if i.get("passthrough"))
+    print(f"extract_content: adapter={data['adapter']} | {len(pages)} pages "
+          f"({vis_pages} vision, {sem_pages} semantic, {sxa_pages} sxa) | "
+          f"{tot_inst} instances | {tot_text} chars real field text -> {outp}")
+    print(f"  census: typed(promoted)={typed} anon-lifted-raw={anon} verbatim-raw={raw}")
+    if vis_match_log:
+        print("  vision per-page match counts (mode / vision-comps / promoted):")
+        for slug, mode, nc, np in vis_match_log:
+            print(f"    {slug:30s} {mode:16s} {nc:2d} -> {np:2d} promoted")
 
 
 if __name__ == "__main__":

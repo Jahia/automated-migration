@@ -137,6 +137,19 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 // Saving it would poison the manifest (fulfilled with status 200 on every later render).
 const NONHTML_KINDS = new Set(['script', 'stylesheet', 'font', 'image', 'media', 'imageset']);
 
+// Percent-encode unsafe chars (spaces, parens, non-ASCII) in a URL's path/query
+// so the live fetch's request line is valid — a raw space is a hard 400. Encoding
+// is idempotent (an already-encoded `%20` is preserved). The manifest KEY is left
+// untouched (it must stay byte-exact to what the page requests); only the outbound
+// fetch URL is canonicalised. Falls back to the raw string if URL parsing fails.
+export function normalizeFetchUrl(u) {
+  try {
+    const p = new URL(u);
+    p.pathname = p.pathname.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/');
+    return p.toString();
+  } catch { return u; }
+}
+
 // Fetch one runtime-discovered asset from the live origin into the mirror.
 // Returns 'saved' | 'residue' (404/oversize/network/soft-404 — recorded in the ledger).
 // expectKind = the requesting resourceType (from the blocked request), used to reject
@@ -145,7 +158,7 @@ export async function fetchRuntimeAsset(mirrorDir, manifest, key, absUrl, expect
   const cap = capBytes != null ? capBytes : (expectKind === 'media' ? 50 * 1024 * 1024 : 30 * 1024 * 1024);
   const toResidue = () => { if (!manifest.residue.includes(key)) manifest.residue.push(key); return 'residue'; };
   try {
-    const r = await fetch(absUrl, {
+    const r = await fetch(normalizeFetchUrl(absUrl), {
       redirect: 'follow',
       headers: { 'User-Agent': UA, 'Accept': '*/*' },
       signal: AbortSignal.timeout(30000),
