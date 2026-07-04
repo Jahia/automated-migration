@@ -121,6 +121,23 @@ class Loader:
         self.ledger = load_json(self._ledger_path, {})
         self.reconcile = {"ALIGNED": [], "REBUILD": []}  # EDIT-only verdicts
 
+    def _dam_resolves(self, path):
+        """True if a DAM path still exists in EDIT (guards a stale cache after a
+        site recreate). Cheap single-node query; failures read as 'gone'."""
+        if not path:
+            return False
+        if not hasattr(self, "_dam_resolve_cache"):
+            self._dam_resolve_cache = {}
+        if path in self._dam_resolve_cache:
+            return self._dam_resolve_cache[path]
+        try:
+            d = self.m.gql('{ jcr { nodeByPath(path: "%s") { uuid } } }' % path)
+            ok = bool((d.get("jcr") or {}).get("nodeByPath"))
+        except Exception:
+            ok = False
+        self._dam_resolve_cache[path] = ok
+        return ok
+
     def upload_dam(self, fname):
         """Mirror asset -> /sites/<site>/files via media.upload.create/PUT/
         finalize, deduped by file name (mirror names are content hashes).
@@ -132,7 +149,13 @@ class Loader:
         if not fname:
             return None
         if fname in self._dam:
-            return self._dam[fname] or None
+            cached = self._dam[fname] or None
+            # verify the cached path still resolves — after a site RECREATE the
+            # old /sites/<site>/files/* nodes are gone but the map persists, so a
+            # stale uuid would silently fail every weakref (observed live). Re-upload
+            # when the cached target no longer exists.
+            if cached and self._dam_resolves(cached.get("path")):
+                return cached
         src = f"projects/{self.project}/workflow-output/local-mirror/assets/{fname}"
         if not os.path.isfile(src):
             print(f"    ! dam: mirror asset missing: {fname}", file=sys.stderr)
@@ -309,6 +332,130 @@ class Loader:
             print(f"    !! payload wiring on {path}: {str(e)[:160]}", file=sys.stderr)
             return
         self.wire_payload(path, payload)
+
+    # ── P6.3 / P6.3-bis: library-native composable nodes (logoWall/carousel/tabs) ──
+    def library_container_props(self, inst):
+        """Create-props for a library CONTAINER (asr:logoWall / asr:carousel /
+        asr:tabs). It carries its verbatim `skeleton` (byte-exact {{child:N}} LIVE
+        splice) + the source wrapper classes so the view reproduces source layout;
+        heading is optional. All fidelity-safe hidden props."""
+        c = inst.get("container") or {}
+        props = {}
+        sk = inst.get("skeleton")
+        if sk:
+            props["skeleton"] = sk[:200_000]
+        # logoWall keeps its source container class (deployed schema)
+        if inst.get("type") == "logoWall":
+            props["logoContainerClass"] = (
+                (c.get("rootClass") or "") + " " + (c.get("repeaterClass") or "")
+            ).strip() or "logo-container wrap"
+        if c.get("heading"):
+            props["heading"] = c["heading"][:250]
+        return props
+
+    def create_library_atom(self, parent_path, inst, name):
+        """Create ONE library ATOM (asr:logo / asr:card slide / asr:tab pane),
+        library-native — fidelity-first (rule 26 verbatim-default):
+          - logo/card: image weakref -> DAM copy of the source first image; hidden
+            imgOrig/slideOrig verbatim markup + *OrigRef so an unedited node is
+            byte-exact; first link -> jmix:externalLink/internalLink + j:url/linknode.
+          - tab: jcr:title = the tab LABEL (mix:title), panelOrig verbatim markup.
+        Returns the created path or None."""
+        nt = inst["nodeType"]
+        variant = inst.get("variant", "brand")
+        orig = inst.get("imgOrig", "")
+        dam = self.upload_dam(inst.get("imageFile"))
+
+        create_props = {}
+        mixins, post = [], {}
+        # ── logo atom (asr:logo) — the P6.2 schema ──
+        if nt.endswith(":logo"):
+            create_props = {
+                "variant": variant,
+                "breakClass": inst.get("breakClass", ""),
+                "imgTitle": inst.get("imgTitle", ""),
+                "imgOrig": orig[:200_000],
+                "imageAltText": inst.get("imageAltText", ""),
+            }
+            if dam:
+                create_props["imgOrigRef"] = dam["uuid"]
+        # ── card slide atom (asr:card in SLIDE mode) — P6.3-bis ──
+        elif nt.endswith(":card"):
+            create_props = {
+                "slideOrig": orig[:200_000],
+                "slideClass": inst.get("elClass", ""),
+                "imageAltText": inst.get("imageAltText", ""),
+            }
+            if dam:
+                create_props["slideOrigRef"] = dam["uuid"]
+        # ── tab pane atom (asr:tab) — P6.3-bis ──
+        # asr:tab already extends mix:title as a SUPERTYPE (never add it as a mixin —
+        # that throws and aborts the whole props step). jcr:title (the tab label)
+        # is set directly at create time.
+        elif nt.endswith(":tab"):
+            create_props = {"panelOrig": orig[:200_000]}
+            if inst.get("atomTitle"):
+                create_props["jcr:title"] = inst["atomTitle"][:250]
+
+        try:
+            r = self.m.create(parent_path, nt, create_props, name=name, locale=self.locale)
+            path = r.get("path") if isinstance(r, dict) else None
+        except Exception as e:
+            print(f"    ! create {nt} {name}: {str(e)[:140]}", file=sys.stderr)
+            return None
+        if not path:
+            return None
+
+        if mixins or post:
+            try:
+                if mixins:
+                    ml = ", ".join(f'"{x}"' for x in dict.fromkeys(mixins))
+                    self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                               '{ addMixins(mixins: [%s]) } } }' % (path, ml))
+                if post:
+                    self.m.update(path, post, locale=self.locale)
+            except Exception as e:
+                print(f"    ! atom props on {path}: {str(e)[:120]}", file=sys.stderr)
+
+        # first link -> contributor link (rule 27). The link mixin + j:linkType make
+        # the link EDITABLE in Content Editor (its link-picker populates j:url/
+        # j:linknode through the choicelist flow — rule 9). The link TARGET
+        # (j:url/j:linknode) is NOT programmatically settable here: MCP content.update
+        # silently drops the protected j:-namespaced value and GraphQL mutateProperty
+        # raises ConstraintViolation for jmix:externalLink's j:url on this node type
+        # (verified live) — exactly rule 9's finding. FIDELITY-SAFE: the working
+        # source link is preserved VERBATIM in the atom's orig markup (imgOrig/
+        # slideOrig/panelOrig), rendered as-is (rule 26), so the LIVE link works for
+        # visitors and an editor rewires it via the CE picker.
+        href = (inst.get("href") or "").strip()
+        if href:
+            kind, target = self.resolve_link(href)
+            try:
+                if kind == "external":
+                    self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                               '{ addMixins(mixins: ["jmix:externalLink"]) } } }' % path)
+                    self.m.update(path, {"j:linkType": "external"}, locale=self.locale)
+                    self.wire_stats["linkExternal"] += 1
+                elif kind == "internal":
+                    self.m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                               '{ addMixins(mixins: ["jmix:internalLink"]) } } }' % path)
+                    self.m.update(path, {"j:linkType": "internal"}, locale=self.locale)
+                    self.wire_stats["linkInternal"] += 1
+                else:
+                    self.wire_stats["linkUnresolved"] += 1
+            except Exception as e:
+                self.wire_stats["linkUnresolved"] += 1
+                print(f"    ! link on {path}: {str(e)[:120]}", file=sys.stderr)
+
+        # image weakref -> DAM copy (verbatim-default: weakref == origRef => byte-exact)
+        if dam:
+            try:
+                self.m.set_weakref(path, "image", dam["path"], locale=self.locale)
+                self.wire_stats["mediaWired"] += 1
+            except Exception as e:
+                self.wire_stats["mediaFailed"] += 1
+                print(f"    ! weakref image on {path}: {str(e)[:120]}", file=sys.stderr)
+        return path
 
     # weakref property names that are image/asset references (not node refs like startNode, excludeNodes)
     IMAGE_WEAKREF_PROPS = {"image", "backgroundImage", "logo", "photo", "icon"}
@@ -562,11 +709,32 @@ class Loader:
         os.makedirs(os.path.dirname(self._ledger_path), exist_ok=True)
         json.dump(self.ledger, open(self._ledger_path, "w"), indent=1)
 
+    def _home_slug(self):
+        """The content-load slug that IS the site home page (its URL == the site
+        URL). discoverasr's crawl names the home page `en` (siteUrl .../en), not
+        `home`; that slug must map to /sites/<site>/home, not /home/en. Cached."""
+        if hasattr(self, "_home_slug_cache"):
+            return self._home_slug_cache
+        hs = None
+        try:
+            inv = load_json(f"projects/{self.project}/workflow-output/page-inventory.json", {})
+            site_url = (inv.get("siteUrl") or "").rstrip("/")
+            for p in inv.get("pages", []):
+                if (p.get("url") or "").rstrip("/") == site_url:
+                    hs = p.get("slug")
+                    break
+            if hs is None and inv.get("pages"):
+                hs = inv["pages"][0].get("slug")  # first crawled page = home
+        except Exception:
+            pass
+        self._home_slug_cache = hs
+        return hs
+
     def _slug_to_jcr_path(self, slug):
         """Map a flat content-load slug to the hierarchical JCR page path.
         Uses the sitemap (orchestration/sitemaps/<project>.txt) to resolve hierarchy.
         Falls back to /home/<slug> if not found."""
-        if slug == "home":
+        if slug == "home" or slug == self._home_slug():
             return f"/sites/{self.site}/home"
         # Build lookup from sitemap: leaf slug -> full relative path
         if not hasattr(self, "_slug_map"):
@@ -645,6 +813,52 @@ class Loader:
                 break
             if inst.get("area"):
                 continue  # area-flagged chrome — installed once via load_chrome()
+
+            # ── P6.3 / P6.3-bis: library-native composable nodes ──
+            # A libraryPlan is a real typed container (asr:logoWall/carousel/tabs);
+            # a libraryAtom is its typed child (asr:logo/card/tab). Both carry their
+            # nodeType directly (not via type_map) and the verbatim fidelity facts.
+            if inst.get("libraryPlan") or inst.get("libraryAtom"):
+                nt = inst["nodeType"]
+                parent = parent_for(idx, inst, nt)
+                if inst.get("libraryAtom"):
+                    # a library plan whose container failed won't be in created_path;
+                    # skip the orphan atom (never create under the area directly)
+                    if inst.get("parent") not in created_path:
+                        continue
+                    name = inst.get("slot") or f"item-{idx}"
+                    if dry:
+                        print(f"  [dry] {parent}/{name} <- {nt} (atom {inst.get('variant')})")
+                        created_path[idx] = f"{parent}/{name}"
+                        created += 1
+                        continue
+                    apath = self.create_library_atom(parent, inst, name)
+                    if apath:
+                        created_path[idx] = apath
+                        created += 1
+                        print(f"    + {apath}  (atom {inst.get('variant','')})")
+                    continue
+                # library container
+                cprops = self.library_container_props(inst)
+                name = f"{nt.split(':')[-1]}-{page}-{idx}"
+                if dry:
+                    print(f"  [dry] {parent}/{name} <- {nt} (library container) props={list(cprops)}")
+                    created_path[idx] = f"{parent}/{name}"
+                    created += 1
+                    continue
+                try:
+                    r = self.m.create(parent, nt, cprops, name=name, locale=self.locale)
+                    cpath = r.get("path") if isinstance(r, dict) else None
+                except Exception as e:
+                    print(f"  ! library container {name} ({nt}) failed: {str(e)[:140]}",
+                          file=sys.stderr)
+                    continue
+                if cpath:
+                    created_path[idx] = cpath
+                    created += 1
+                    print(f"  + {cpath}  ({nt})")
+                continue
+
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
                 continue  # unmapped helper

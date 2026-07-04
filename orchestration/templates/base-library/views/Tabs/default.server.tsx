@@ -7,13 +7,16 @@ import {
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { getProp } from "../lib.js";
+import { TabsIsland } from "./TabsIsland.client.js";
 import styles from "./tabs.module.css";
 
 /**
- * $NS:tabs — a tabbed container of $NS:tab panes (generalized from lsp:tabs /
- * the popularDestinationsTabs target). EDIT mode: stacked panes, each a clickable
- * edit frame (RenderChildren) so every tab is reachable in Page Builder (G6b).
- * LIVE mode: an ARIA tablist; the tab label comes from each pane's jcr:title.
+ * $NS:tabs — a tabbed container of $NS:tab panes (P6.3-bis: promoted from a JS tabs
+ * widget — ARIA tablist or AEM cmp-tabs). EDIT mode: stacked panes, each a
+ * clickable edit frame (RenderChildren) so every tab is reachable in Page Builder
+ * (G6b). LIVE mode: a CLIENT ISLAND (TabsIsland) re-hydrates click-to-show on the
+ * composable pane children; the tab label comes from each pane's jcr:title. The
+ * first pane is visible before hydration (progressive enhancement).
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:tabs", displayName: "Tabs" },
@@ -37,35 +40,16 @@ jahiaComponent(
     const panes = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
       n.isNodeType("$NS:tab"),
     );
+    const labels = panes.map(
+      (pane) => getProp(pane as JCRNodeWrapper, "jcr:title") || pane.getName(),
+    );
 
     return (
-      <div className={styles.root}>
-        {heading && <h2 className={styles.heading}>{heading}</h2>}
-        <div className={styles.nav} role="tablist">
-          {panes.map((pane, idx) => (
-            <button
-              key={pane.getIdentifier()}
-              className={`${styles.tab} ${idx === 0 ? styles.active : ""}`}
-              role="tab"
-              aria-selected={idx === 0}
-            >
-              <span>{getProp(pane as JCRNodeWrapper, "jcr:title") || pane.getName()}</span>
-            </button>
-          ))}
-        </div>
-        <div className={styles.panels}>
-          {panes.map((pane, idx) => (
-            <div
-              key={pane.getIdentifier()}
-              className={`${styles.panel} ${idx === 0 ? styles.active : ""}`}
-              role="tabpanel"
-              style={{ display: idx === 0 ? "block" : "none" }}
-            >
-              <Render node={pane as JCRNodeWrapper} />
-            </div>
-          ))}
-        </div>
-      </div>
+      <TabsIsland heading={heading} labels={labels}>
+        {panes.map((pane) => (
+          <Render key={pane.getIdentifier()} node={pane as JCRNodeWrapper} />
+        ))}
+      </TabsIsland>
     );
   },
 );

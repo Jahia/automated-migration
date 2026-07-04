@@ -125,13 +125,30 @@
 // card — the richest atom. Variants are STYLE-MIXIN choices (theme/cornerCut), NOT
 // hash-suffixed types (migration.md rule 21). Node-level lifted fields: title, body,
 // image, imageAltText, theme, cornerCut = 6 (< K=8). tag/button are CHILD nodes.
-[$NS:card] > jnt:content, mix:title, $NSMIX:component, $NSMIX:media, $NSMIX:cornerCut, $NSMIX:theme
+//
+// P6.3-bis carousel-slide fidelity skin (migration-only, rule 26 verbatim-default):
+// when a card is a promoted carousel SLIDE, hidden props carry the SOURCE markup so
+// an UNEDITED slide is byte-exact in EDIT/PREVIEW (LIVE stays byte-exact via the
+// container's {{child:N}} splice, so these only drive the edit-mode <Render>):
+//   slideOrig     the exact captured slide markup (rendered verbatim while the
+//                 picked image weakref still targets the DAM copy of the original)
+//   slideOrigRef  DAM uuid of the slide's original first image (verbatim contract)
+//   slideClass    the source slide element class (state tokens stripped)
+[$NS:card] > jnt:content, mix:title, $NSMIX:component, $NSMIX:media, $NSMIX:cta, $NSMIX:cornerCut, $NSMIX:theme
  - body (string, richtext) i18n
+ - slideOrig (string, textarea) hidden
+ - slideOrigRef (string) hidden
+ - slideClass (string) hidden
  + tag ($NS:tag)
  + button ($NS:button)
 
-// tab pane — a titled container of atoms (child of $NS:tabs)
+// tab pane — a titled container of atoms (child of $NS:tabs). Title via mix:title
+// (the tab LABEL). P6.3-bis tabs fidelity skin: a promoted tab pane carries its
+// source panel markup verbatim (panelOrig) so an unedited pane is byte-exact in
+// EDIT/PREVIEW (LIVE byte-exact via the container splice). panelOrig is hidden;
+// the open `+ *` palette lets an editor add composable atoms alongside it.
 [$NS:tab] > jnt:content, mix:title, $NSMIX:component
+ - panelOrig (string, textarea) hidden
  + * ($NSMIX:component)
 
 // ── CONTAINERS (composable — repeated typed children; LIBRARY-SPEC §1.4) ──
@@ -156,21 +173,28 @@
  - columns (string, choicelist[resourceBundle]) = '3' autocreated < '2', '3', '4'
  + * ($NS:card)
 
-// logoWall — wall of $NS:logo, with a fixed `master` slot (DECOMP-PROTOTYPE §4)
+// logoWall — wall of $NS:logo, with a fixed `master` slot (DECOMP-PROTOTYPE §4).
+// `skeleton` (hidden) = the verbatim source wrapper markup with {{child:N}} slots
+// so a library container nested under a rawHtml partition renders byte-exact on
+// LIVE via composeNode; EDIT renders the composable children through the view.
 [$NS:logoWall] > jnt:content, $NSMIX:section
  - heading (string) i18n
+ - skeleton (string, textarea) hidden
  + master ($NS:logo)
  + * ($NS:logo)
 
-// carousel — slides of any atom (news-carousel target)
+// carousel — slides of any atom (P6.3-bis: promoted from a JS slider, cloned-slide
+// deduped). skeleton = verbatim source markup (LIVE byte-exact splice, fidelity-first).
 [$NS:carousel] > jnt:content, $NSMIX:section
  - autoplay (boolean) = true autocreated
  - interval (long)
+ - skeleton (string, textarea) hidden
  + * ($NSMIX:component)
 
-// tabs — container of $NS:tab (popularDestinationsTabs target)
+// tabs — container of $NS:tab (P6.3-bis: promoted from a JS tabs widget).
 [$NS:tabs] > jnt:content, $NSMIX:section
  - heading (string) i18n
+ - skeleton (string, textarea) hidden
  + * ($NS:tab)
 
 // accordion — Q/A rows (jahiacom-v3 faqSection)
