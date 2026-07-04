@@ -400,8 +400,9 @@ class Loader:
         nodes, and the mark-for-deletion + publish flow proved unreliable for
         skeleton nodes (jmix:markedForDeletion survivors) with an ASYNC deletion
         publication that raced the reload's create ('already exists' collisions,
-        observed live P2.5). After clearing, the parent publication purges the
-        LIVE copies (rule 2: always publish after JCR mutations).
+        observed live P2.5). After clearing, an UNPUBLISH purges the LIVE
+        copies (a publish cannot be trusted to — see the purge block below);
+        the reload that follows republishes everything (rule 2).
         content.list PAGINATES (~20) — loop until empty or no progress."""
         n = 0
         for _round in range(12):
@@ -429,25 +430,27 @@ class Loader:
                 break
         if not n:
             return n
-        # VERIFIED LIVE purge (was: one publish wrapped in try/except: pass).
-        # Observed live (discoverasr, 12 of 20 pages): the single area publish
-        # SILENTLY ABORTED (a publication job racing/dropped under load) and the
-        # swallowed except hid it. LIVE kept the OLD nodes (old UUIDs); the
-        # reload created NEW EDIT nodes (new UUIDs); every per-node publish then
-        # conflicted IN SILENCE (same path, different identity) → edit+publish
-        # never reached LIVE → G2 roundtrip failed 3 gates later (925 EDIT-vs-
-        # LIVE UUID mismatches). Now we PUBLISH THEN POLL LIVE until the area
-        # has zero children (or is gone), retrying the publish, and FAIL LOUD if
+        # VERIFIED LIVE purge by UNPUBLISH (was v1: one publish in try/except
+        # pass — silent abort left 925 stale LIVE uuids, G2 red 3 gates later;
+        # was v2: verified publish+poll — STILL WRONG). Measured live on the
+        # divergent discoverasr areas: the EDIT-side publication metadata is
+        # CORRUPTED — aggregatedPublicationInfo claims PUBLISHED while LIVE is
+        # stale/absent — so publication.publish (even includeSubTree:true)
+        # NO-OPS in 1 ms: a SUCCESSFUL scheduler job that publishes NOTHING
+        # (durationMs:1, 18 005 jobs on the counter). Publishing harder can
+        # never purge. publication.unpublish ignores that state, removes the
+        # LIVE subtree instantly (<1 s measured) and RESETS the metadata so the
+        # reload's publishes actually run. We still POLL LIVE and FAIL LOUD if
         # the purge cannot be proven — a poisoned LIVE state must never be
         # silently carried forward.
         import time
-        for attempt in range(3):  # up to 3 publish+poll cycles
+        for attempt in range(3):  # up to 3 unpublish+poll cycles
             try:
-                self.m.publish(area_path)
+                self.m.unpublish(area_path)
             except Exception as e:
-                print(f"    ! clean publish {area_path} (attempt {attempt + 1}): "
+                print(f"    ! clean unpublish {area_path} (attempt {attempt + 1}): "
                       f"{str(e)[:140]}", file=sys.stderr)
-            deadline = time.time() + 120  # ~120s per cycle for the async job
+            deadline = time.time() + 120  # measured <1 s; generous under load
             live = self._live_child_count(area_path)
             while live not in (0, None) and time.time() < deadline:
                 time.sleep(3)
@@ -455,7 +458,7 @@ class Loader:
             if live in (0, None):
                 return n  # LIVE proven empty — purge landed
             print(f"    ! clean: {area_path} still has {live} LIVE child(ren) "
-                  f"after publish attempt {attempt + 1}/3 — re-publishing",
+                  f"after unpublish attempt {attempt + 1}/3 — re-unpublishing",
                   file=sys.stderr)
         # Exhausted retries with LIVE still populated: fail HARD rather than
         # leave a poisoned state that only surfaces at G2, three gates later.
@@ -463,7 +466,7 @@ class Loader:
         raise RuntimeError(
             f"clean_area: LIVE purge of {area_path} FAILED — "
             f"{survivors if survivors and survivors > 0 else 'unknown count of'} "
-            f"stale LIVE child(ren) survive after 3 verified publish attempts. "
+            f"stale LIVE child(ren) survive after 3 verified unpublish attempts. "
             f"Refusing to proceed (stale LIVE UUIDs would make every subsequent "
             f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
 
@@ -578,21 +581,54 @@ class Loader:
         return "ALIGNED", info
 
     def _publish_until_aligned(self, area_path):
-        """LIVE_DIVERGENT repair: publish the area then POLL LIVE until its
-        children match EDIT by (name, uuid) — the same publish-verify pattern
-        as the clean_area purge (a fire-and-forget publish is exactly what
-        poisoned discoverasr: the job aborted silently and 12 pages kept stale
-        LIVE uuids). Up to 3 publish+poll cycles (~120 s each), then fail LOUD
-        — a state we cannot prove repaired must never be carried forward."""
+        """LIVE_DIVERGENT repair — UNPUBLISH-FIRST, then publish, then poll.
+        Proven live on en_adoor-apartment (84/84 aligned, 0 mismatch). What the
+        failed variants measured on these areas:
+          * publish alone — parent, includeSubTree, or per-child — NO-OPS in
+            1 ms: the EDIT-side publication metadata is corrupted (aggregated
+            publication info claims PUBLISHED while LIVE is stale/absent), so
+            the SUCCESSFUL scheduler job publishes NOTHING (durationMs:1,
+            18 005 jobs on the counter). Publishing harder never repairs.
+          * publication.unpublish purges LIVE instantly (<1 s) and RESETS that
+            metadata; the publish that follows then REALLY runs
+            (publishedNodeCount:85, finished:true)...
+          * ...but LIVE propagation TRICKLES past the return: 1 child visible
+            at t+180 s, 84/84 aligned at t+200 s. Hence the ~300 s alignment
+            budget, and the poll only concludes on FULL (name,uuid) equality —
+            never on a first partial count.
+        Languages: the publish/unpublish defaults (fr+en) — the same set every
+        other loader publication uses, so both sides cover identical variants.
+        Up to 3 unpublish→publish→poll cycles, then fail LOUD — a state we
+        cannot prove repaired must never be carried forward."""
         import time
         edit = self._area_children(area_path, "EDIT") or {}
         for attempt in range(3):
+            # 1. unpublish: instant LIVE purge + publication-metadata reset
+            try:
+                self.m.unpublish(area_path)
+            except Exception as e:
+                print(f"    ! unpublish {area_path} (attempt {attempt + 1}): "
+                      f"{str(e)[:140]}", file=sys.stderr)
+            deadline = time.time() + 60  # measured <1 s; margin under load
+            live_n = self._live_child_count(area_path)
+            while live_n not in (0, None) and time.time() < deadline:
+                time.sleep(2)
+                live_n = self._live_child_count(area_path)
+            if live_n not in (0, None):
+                # purge unproven — still attempt the publish (alignment equality
+                # below is the real gate), but say so
+                print(f"    ! repair: {area_path} LIVE not proven purged by "
+                      f"unpublish (attempt {attempt + 1}/3) — publishing anyway",
+                      file=sys.stderr)
+            # 2. publish: actually runs now that the metadata was reset
             try:
                 self.m.publish(area_path)
             except Exception as e:
                 print(f"    ! republish {area_path} (attempt {attempt + 1}): "
                       f"{str(e)[:140]}", file=sys.stderr)
-            deadline = time.time() + 120  # ~120s per cycle for the async job
+            # 3. poll until FULL (name,uuid) equality — propagation trickles
+            #    past finished:true (measured: 84/84 only at t+200 s)
+            deadline = time.time() + 300
             while time.time() < deadline:
                 try:
                     live = self._area_children(area_path, "LIVE") or {}
@@ -602,11 +638,13 @@ class Loader:
                     return
                 time.sleep(3)
             print(f"    ! republish: {area_path} LIVE still misaligned after "
-                  f"attempt {attempt + 1}/3 — re-publishing", file=sys.stderr)
+                  f"attempt {attempt + 1}/3 — restarting unpublish+publish",
+                  file=sys.stderr)
         raise RuntimeError(
-            f"reconcile: LIVE republish of {area_path} FAILED — LIVE children "
-            f"still misaligned with EDIT (name,uuid) after 3 verified publish "
-            f"attempts. Refusing to proceed (stale LIVE identity makes every "
+            f"reconcile: LIVE repair of {area_path} FAILED — LIVE children "
+            f"still misaligned with EDIT (name,uuid) after 3 verified "
+            f"unpublish+publish attempts (NB: the area may be left unpublished "
+            f"in LIVE). Refusing to proceed (stale LIVE identity makes every "
             f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
 
     def _ledger_write(self, page, plan_hash, verdict, created=0, published=0):

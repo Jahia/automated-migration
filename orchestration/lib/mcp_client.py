@@ -128,13 +128,27 @@ class MCP:
 
     def delete_edit(self, path):
         """Delete a node from the EDIT workspace regardless of publication
-        state. The caller MUST publish the parent afterwards to purge the
-        LIVE copy (always publish after JCR mutations)."""
+        state. The caller MUST unpublish() the parent afterwards to purge the
+        LIVE copy — NOT publish(): on corrupted publication metadata a publish
+        no-ops in 1 ms and leaves LIVE stale (measured live, see unpublish)."""
         q = 'mutation { jcr(workspace: EDIT) { deleteNode(pathOrId: "%s") } }' % path
         return self.gql(q)
 
     def publish(self, path, languages=("fr", "en")):
-        return self.call("publication.publish", {"path": path, "languages": list(languages)})
+        return self.call("publication.publish", {"path": path, "languages": list(languages), "includeSubTree": True})
+
+    def unpublish(self, path, languages=("fr", "en")):
+        """Remove the LIVE copy of a subtree. THE reliable LIVE purge/reset:
+        on areas whose EDIT-side publication metadata is corrupted (aggregated
+        publication info claims PUBLISHED while LIVE is stale or absent),
+        publish() NO-OPS in 1 ms — a SUCCESSFUL scheduler job that publishes
+        NOTHING (measured live on discoverasr: durationMs:1, 18 005 jobs on
+        the counter; even includeSubTree:true changes nothing). unpublish
+        ignores that state, purges LIVE instantly (<1 s measured), and resets
+        the metadata so the NEXT publish actually runs."""
+        return self.call("publication.unpublish",
+                         {"path": path, "languages": list(languages),
+                          "includeSubTree": True})
 
     def search(self, query):
         return self.call("content.search", {"query": query})
