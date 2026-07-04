@@ -607,3 +607,15 @@ Full consolidation of the resume session — chronology, 11 generic lessons, arc
 decisions P5.5/P5.5b/P5.6 with git anchors, prioritized improvements A1-A8, next steps,
 session LLM ledger — lives in **`orchestration/SESSION-2026-07-04.md`** (written mid-run
 at 23/26 on Julian's instruction; to be completed after the terminal state if needed).
+
+## 15. P6 — modular contribution (Julian, 2026-07-04, APPROVED — restart from 0)
+
+Julian's structural critique: discoverasr's model = page-sized components (frozen
+`skeleton` + `bodyN` + ~2560 `rawHtml`), not modular/contributable. Target granularity =
+github.com/Jahia/jahiacom-v3 (atoms → `+ * (typedChild)` section containers → per-page-type
+templates with `<Area allowedTypes>`). Full plan (diagnosis, fidelity⟷composability
+tension, 5 pillars, phasing P6.1-P6.4, step 1) lives in **`orchestration/MODULARITY-PLAN.md`**.
+Key: the P6 rework is at the **pre-Jahia recomposition** (group stage); new **composability
+gate** forbids full-page monoliths (K-field cap). Restart-from-0: discoverasr site DELETED;
+old module undeploy + `asr` namespace purge deferred to P6.2 redeploy via `validate-module`
+(rule 13). Upstream capture (mirror/crawl/semantic) PRESERVED.
