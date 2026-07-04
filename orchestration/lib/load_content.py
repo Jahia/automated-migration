@@ -18,10 +18,24 @@ Mapping strategy (deterministic, no hardcoded per-field tables):
              everything else -> the page's main area.
 Then publishes (fr+en).
 
+RECONCILE (A2, incident resume — "ne pas recommencer à partir de 0"): with
+--clean the loader no longer razes every page. It computes a per-page VERDICT
+from three sources — the load ledger (what we THINK was done), EDIT reality and
+LIVE reality — and only rebuilds what needs it:
+  ALIGNED         → skip entirely (zero writes)
+  LIVE_DIVERGENT  → republish the main area only (no re-creation)
+  REBUILD         → verified purge + full reload (the previous behavior)
+The ledger is trusted only when corroborated by JCR reality (observed live
+2026-07-04: the assumed state LIES — a silently-aborted purge left 925 stale
+LIVE uuids while every artifact looked green; only Jahia is the source of
+truth). --force-rebuild restores the old unconditional raze; --dry --clean
+prints the verdicts without a single write (the "what is already done" report).
+
 Usage:
-  python3 orchestration/lib/load_content.py <project> <site> [--page home] [--limit N] [--dry]
+  python3 orchestration/lib/load_content.py <project> <site> [--page home] [--limit N] \
+      [--clean] [--force-rebuild] [--dry] [--locale en] [--chrome-from home|auto]
 """
-import json, os, sys
+import hashlib, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_client import MCP
 
@@ -95,6 +109,12 @@ class Loader:
         self._dam = load_json(self._dam_path, {})
         self.wire_stats = {"mediaWired": 0, "mediaFailed": 0,
                            "linkExternal": 0, "linkInternal": 0, "linkUnresolved": 0}
+        # A2: per-page load ledger (trace of the already-done) + verdict tallies.
+        # Bootstrap: absent ledger → verdicts computed from JCR reality alone,
+        # then backfilled. Runtime artifact, never written in --dry.
+        self._ledger_path = f"projects/{project}/workflow-output/load-ledger.json"
+        self.ledger = load_json(self._ledger_path, {})
+        self.reconcile = {"ALIGNED": [], "LIVE_DIVERGENT": [], "REBUILD": []}
 
     def upload_dam(self, fname):
         """Mirror asset -> /sites/<site>/files via media.upload.create/PUT/
@@ -447,6 +467,159 @@ class Loader:
             f"Refusing to proceed (stale LIVE UUIDs would make every subsequent "
             f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
 
+    # ── A2 reconcile: page-granular incident resume ("what is already done") ──
+    @staticmethod
+    def _plan_hash(pdata):
+        """sha256 of the page's CANONICAL plan slice (sort_keys + compact
+        separators over content['pages'][slug]) — a changed plan invalidates
+        the ledger entry and forces a REBUILD of that page only."""
+        blob = json.dumps(pdata, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=False)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+    def _area_children(self, area_path, workspace):
+        """{name: uuid} of the area's DIRECT children in a workspace (read-only
+        GraphQL), or None when the area node is absent there (GraphQL answers a
+        missing path with PathNotFoundException — verified live). Unlike
+        _live_child_count this RAISES on genuine transport faults: a verdict
+        must never be computed from a failed read (it would mis-classify a
+        loaded page as REBUILD and raze real content)."""
+        q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") '
+             '{ children { nodes { name uuid } } } } }' % (workspace, area_path))
+        try:
+            d = self.m.gql(q)
+        except Exception as e:
+            if "PathNotFound" in str(e) or "path not found" in str(e).lower():
+                return None
+            raise
+        node = (d.get("jcr") or {}).get("nodeByPath") if isinstance(d, dict) else None
+        if node is None:
+            return None
+        return {n["name"]: n.get("uuid")
+                for n in ((node.get("children") or {}).get("nodes")) or []}
+
+    def _expected_main_children(self, page, instances, main_area):
+        """The top-level node NAMES load_page WOULD create in the page's main
+        area — the SAME iteration surface and skip conditions as the create
+        loop (area-flagged chrome, unmapped types, absolute-area singletons,
+        undeployed types, empty non-container leaves, nesting under a created
+        container), computed WITHOUT any write. promoted/skeleton instances
+        always carry a non-empty payload (the skeleton prop) so they are always
+        created — we deliberately do NOT call promoted_props here (it uploads
+        to the DAM, a write). Deterministic names ({shortType}-{slug}-{idx})
+        are what make page-granular reconciliation possible at all."""
+        names = []
+        would_create = set()  # instance idx that get created (any parent)
+        for idx, inst in enumerate(instances):
+            if inst.get("area"):
+                continue
+            nt = self.type_map.get(inst["type"].lower())
+            if not nt:
+                continue
+            abs_area = area_for(nt, self.manifest, self.site)
+            if abs_area and abs_area != main_area:
+                continue
+            pdef = self.props_of(nt)
+            if not pdef.get("exists"):
+                continue
+            if not (inst.get("promoted") or inst.get("skeleton")):
+                is_container = any(c.get("nodeType") == nt and c.get("isContainer")
+                                   for c in self.manifest.get("components", []))
+                if not self.map_props(page, inst, pdef) and not is_container:
+                    continue  # empty leaf — load_page skips it too
+            would_create.add(idx)
+            pi = inst.get("parent")
+            if pi is not None and pi in would_create:
+                continue  # nests under its container — not a main-area child
+            names.append(f"{nt.split(':')[-1]}-{page}-{idx}")
+        return names
+
+    def _reconcile_verdict(self, page, pdata, main_area):
+        """A2 verdict — confront the ledger, EDIT reality and LIVE reality.
+        The ledger is only TRUSTED when corroborated by JCR reality (lesson of
+        2026-07-04: assumed state lies; only Jahia is the source of truth).
+          ALIGNED         plan-hash match (or bootstrap: no ledger entry) +
+                          EDIT structurally complete + LIVE aligned (name+uuid)
+                          → nothing to do, zero writes.
+          LIVE_DIVERGENT  EDIT complete but LIVE misaligned/empty → republish
+                          only; publication pushes the EDIT state to LIVE,
+                          including the REMOVAL of old-uuid LIVE nodes.
+          REBUILD         plan changed (hash mismatch) OR EDIT incomplete —
+                          missing AND surplus children both count (surplus =
+                          render-doubling risk) → verified purge + reload.
+        Returns (verdict, info dict for the report)."""
+        entry = self.ledger.get(page)
+        plan_hash = self._plan_hash(pdata)
+        hash_ok = bool(entry) and entry.get("planHash") == plan_hash
+        expected = self._expected_main_children(page, pdata.get("instances", []), main_area)
+        edit = self._area_children(main_area, "EDIT") or {}
+        info = {"expected": len(expected), "edit": len(edit),
+                "hashOk": hash_ok, "bootstrap": entry is None}
+        if entry and not hash_ok:
+            info["reason"] = "plan hash changed since last load"
+            return "REBUILD", info
+        missing = sorted(set(expected) - set(edit))
+        surplus = sorted(set(edit) - set(expected))
+        if missing or surplus:
+            info["reason"] = (f"EDIT incomplete: {len(missing)} missing, "
+                              f"{len(surplus)} surplus top-level node(s)")
+            info["missing"], info["surplus"] = missing[:5], surplus[:5]
+            return "REBUILD", info
+        live = self._area_children(main_area, "LIVE") or {}
+        info["live"] = len(live)
+        stale = sorted(n for n, u in edit.items() if live.get(n) != u)
+        extra_live = sorted(set(live) - set(edit))
+        if stale or extra_live:
+            info["stale"] = len(stale) + len(extra_live)
+            info["reason"] = (f"{len(stale)} EDIT child(ren) not in LIVE by (name,uuid)"
+                              + (f", {len(extra_live)} stale LIVE extra(s)" if extra_live else ""))
+            return "LIVE_DIVERGENT", info
+        info["reason"] = "EDIT complete + LIVE aligned"
+        return "ALIGNED", info
+
+    def _publish_until_aligned(self, area_path):
+        """LIVE_DIVERGENT repair: publish the area then POLL LIVE until its
+        children match EDIT by (name, uuid) — the same publish-verify pattern
+        as the clean_area purge (a fire-and-forget publish is exactly what
+        poisoned discoverasr: the job aborted silently and 12 pages kept stale
+        LIVE uuids). Up to 3 publish+poll cycles (~120 s each), then fail LOUD
+        — a state we cannot prove repaired must never be carried forward."""
+        import time
+        edit = self._area_children(area_path, "EDIT") or {}
+        for attempt in range(3):
+            try:
+                self.m.publish(area_path)
+            except Exception as e:
+                print(f"    ! republish {area_path} (attempt {attempt + 1}): "
+                      f"{str(e)[:140]}", file=sys.stderr)
+            deadline = time.time() + 120  # ~120s per cycle for the async job
+            while time.time() < deadline:
+                try:
+                    live = self._area_children(area_path, "LIVE") or {}
+                except Exception:
+                    live = None  # transient read fault — keep polling
+                if live == edit:
+                    return
+                time.sleep(3)
+            print(f"    ! republish: {area_path} LIVE still misaligned after "
+                  f"attempt {attempt + 1}/3 — re-publishing", file=sys.stderr)
+        raise RuntimeError(
+            f"reconcile: LIVE republish of {area_path} FAILED — LIVE children "
+            f"still misaligned with EDIT (name,uuid) after 3 verified publish "
+            f"attempts. Refusing to proceed (stale LIVE identity makes every "
+            f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
+
+    def _ledger_write(self, page, plan_hash, verdict, created=0, published=0):
+        """Persist the per-page load trace after each treated page, so an
+        interrupted run resumes page-granular. Never called in --dry."""
+        import time
+        self.ledger[page] = {"planHash": plan_hash,
+                             "loadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                             "created": created, "published": published,
+                             "verdict": verdict}
+        os.makedirs(os.path.dirname(self._ledger_path), exist_ok=True)
+        json.dump(self.ledger, open(self._ledger_path, "w"), indent=1)
+
     def _slug_to_jcr_path(self, slug):
         """Map a flat content-load slug to the hierarchical JCR page path.
         Uses the sitemap (orchestration/sitemaps/<project>.txt) to resolve hierarchy.
@@ -476,13 +649,47 @@ class Loader:
         # Fallback: flat path
         return f"/sites/{self.site}/home/{slug}"
 
-    def load_page(self, page, limit=None, dry=False, clean=False):
+    def load_page(self, page, limit=None, dry=False, clean=False, force=False):
         pdata = self.content.get("pages", {}).get(page)
         if not pdata:
             print(f"  no content-load data for page '{page}'"); return (0, 0)
         instances = pdata.get("instances", [])
         page_base = self._slug_to_jcr_path(page)
         main_area = f"{page_base}/main"
+        plan_hash = self._plan_hash(pdata)
+        if clean and not force:
+            # A2 reconcile: --clean IS the reconciling mode now. Its documented
+            # intent is "idempotent load without doubling content" — the
+            # reconciliation satisfies it strictly better than the old raze-all
+            # (skip what is proven done, republish what only diverged in LIVE,
+            # rebuild only what actually changed/broke). The in-flight run's
+            # plan already executes --clean and benefits without regeneration.
+            # --force-rebuild keeps the old unconditional raze reachable.
+            verdict, info = self._reconcile_verdict(page, pdata, main_area)
+            self.reconcile[verdict].append((page, info))
+            if verdict == "ALIGNED":
+                why = "plan hash match" if info["hashOk"] else "bootstrap"
+                print(f"  = {page}: ALIGNED — skip ({why}; EDIT {info['edit']} "
+                      f"node(s) complete, LIVE aligned)")
+                if not dry:
+                    old = self.ledger.get(page) or {}
+                    self._ledger_write(page, plan_hash, "ALIGNED",
+                                       created=old.get("created", info["edit"]),
+                                       published=old.get("published", info["edit"]))
+                return (0, 0)
+            if verdict == "LIVE_DIVERGENT":
+                if dry:
+                    print(f"  ~ {page}: LIVE_DIVERGENT — would republish "
+                          f"{main_area} ({info['reason']}); no re-creation")
+                    return (0, 0)
+                print(f"  ~ {page}: LIVE_DIVERGENT — republishing {main_area} "
+                      f"({info['reason']})")
+                self._publish_until_aligned(main_area)
+                self._ledger_write(page, plan_hash, "LIVE_DIVERGENT",
+                                   created=0, published=1)
+                return (0, 1)
+            # REBUILD → fall through to the verified purge + full reload below
+            print(f"  x {page}: REBUILD — {info['reason']}")
         if not dry:
             self.ensure_area(main_area)
             self.install_shell(page, pdata, page_base)
@@ -622,6 +829,10 @@ class Loader:
                 self.m.publish(main_area)
             except Exception:
                 pass
+        if clean and not dry:
+            # A2: record the completed (re)load so the next run can skip it.
+            # Only in reconcile/force mode — plain append mode stays unchanged.
+            self._ledger_write(page, plan_hash, "REBUILD", created, published)
         return (created, published)
 
     def install_shell(self, page, pdata, page_base):
@@ -695,7 +906,7 @@ class Loader:
 def main():
     if len(sys.argv) < 3:
         sys.exit("usage: load_content.py <project> <site> [--page home] [--limit N] "
-                 "[--clean] [--dry] [--locale en] [--chrome-from home|auto]")
+                 "[--clean] [--force-rebuild] [--dry] [--locale en] [--chrome-from home|auto]")
     project, site = sys.argv[1], sys.argv[2]
     args = sys.argv[3:]
     page = args[args.index("--page") + 1] if "--page" in args else None
@@ -703,7 +914,8 @@ def main():
     locale = args[args.index("--locale") + 1] if "--locale" in args else "en"
     chrome_from = args[args.index("--chrome-from") + 1] if "--chrome-from" in args else None
     dry = "--dry" in args
-    clean = "--clean" in args
+    force = "--force-rebuild" in args  # A2: the old unconditional raze-all
+    clean = "--clean" in args or force
     ld = Loader(project, site, locale=locale)
     if not ld.type_map:
         sys.exit("load_content: empty instance->nodeType map "
@@ -720,8 +932,17 @@ def main():
     pages = [page] if page else list(ld.content.get("pages", {}).keys())
     for pg in pages:
         print(f"== page {pg} ==")
-        c, p = ld.load_page(pg, limit=limit, dry=dry, clean=clean)
+        c, p = ld.load_page(pg, limit=limit, dry=dry, clean=clean, force=force)
         tot_c += c; tot_p += p
+    if clean and not force:
+        # A2 report: what was already done vs what needed action, per page
+        r = ld.reconcile
+        print(f"\nreconcile: {len(r['ALIGNED'])} aligned (skipped) / "
+              f"{len(r['LIVE_DIVERGENT'])} republished / "
+              f"{len(r['REBUILD'])} rebuilt{' [dry]' if dry else ''}")
+        for verdict in ("LIVE_DIVERGENT", "REBUILD"):
+            for pg, info in r[verdict]:
+                print(f"  - {verdict} {pg}: {info.get('reason', '')}")
     print(f"\nload_content: created {tot_c}, published {tot_p} node(s){' [dry]' if dry else ''}")
     if ld.prop_misses:
         # a lifted value with no CND home = text LOST from the render — this is
