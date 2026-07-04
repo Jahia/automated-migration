@@ -37,10 +37,11 @@ import { PNG } from 'pngjs';
 import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
+import { settlePage } from './settle.mjs';
 
 const [, , projArg, site, thrArg, ...rest] = process.argv;
 if (!projArg || !site) {
-  console.error('usage: groundtruth_probe.mjs <project> <siteKey> [threshold] [--pages a,b]');
+  console.error('usage: groundtruth_probe.mjs <project> <siteKey> [threshold] [--pages a,b] [--hydrate]');
   process.exit(2);
 }
 const proj = projArg.replace(/\/$/, '');
@@ -49,6 +50,15 @@ const threshold = Number(thrArg) || 99;
 let only = null;
 const pi = rest.indexOf('--pages');
 if (pi >= 0 && rest[pi + 1]) only = rest[pi + 1].split(',');
+// --hydrate: let the source JS finish on BOTH captures before the screenshot
+// (rule 30 settle applied symmetrically) so JS-driven visibility (rule 35 — an
+// empty carousel that its own JS hides when the data XHR fails offline) resolves
+// the SAME way on the reference and the preview. Without it (default), each side
+// gets only a fixed 3s wait after load, which lets the JS run PARTIALLY and
+// inconsistently → height divergence for a non-content reason. Symmetric by
+// construction: the same settlePage() runs on ref and live, both fully offline
+// outside the Jahia host (rule 26).
+const HYDRATE = rest.includes('--hydrate');
 
 const HOST = (process.env.JAHIA_URL || process.env.JAHIA_HOST || 'http://localhost:8080').replace(/\/$/, '');
 // Basic-auth credentials for the authenticated EDIT preview render (no LIVE).
@@ -134,7 +144,7 @@ for (const slug of slugs) {
     await ref.goto(`${mbase}/${slug}.html`, { waitUntil: 'domcontentloaded', timeout: 45000 });
     try { await ref.waitForLoadState('load', { timeout: 15000 }); } catch {}
     if (maskCss(slug)) await ref.addStyleTag({ content: maskCss(slug) });
-    await ref.waitForTimeout(3000);
+    if (HYDRATE) await settlePage(ref); else await ref.waitForTimeout(3000);
     await ref.screenshot({ path: `${outDir}/${slug}.ref.png`, fullPage: true });
     await ref.close();
 
@@ -161,7 +171,7 @@ for (const slug of slugs) {
     rec.httpStatus = resp ? resp.status() : 0;
     try { await live.waitForLoadState('load', { timeout: 15000 }); } catch {}
     if (maskCss(slug)) await live.addStyleTag({ content: maskCss(slug) });
-    await live.waitForTimeout(3000);
+    if (HYDRATE) await settlePage(live); else await live.waitForTimeout(3000);
     const mainText = await live.evaluate(() =>
       (document.querySelector('main, [role=main], body') || {}).innerText?.trim().length || 0);
     rec.mainChars = mainText;
@@ -194,7 +204,7 @@ mserver.close();
 const passed = results.filter(r => r.pass).length;
 const avgShare = shares.length ? shares.reduce((s, x) => s + x.share, 0) / shares.length : null;
 const summary = {
-  project, site, threshold, generatedAt: new Date().toISOString(),
+  project, site, threshold, hydrate: HYDRATE, generatedAt: new Date().toISOString(),
   pages: results, passed, total: results.length,
   gatePass: passed === results.length,
   semanticLeafShare: avgShare == null ? null : {
