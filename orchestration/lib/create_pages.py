@@ -27,6 +27,7 @@ def main():
     locale = args[args.index("--locale") + 1] if "--locale" in args else "en"
     limit = int(args[args.index("--limit") + 1]) if "--limit" in args else None
     dry = "--dry" in args
+    check = "--check" in args
 
     inv_path = f"projects/{project}/workflow-output/page-inventory.json"
     inv = json.load(open(inv_path))
@@ -35,6 +36,26 @@ def main():
         pages = pages[:limit]
 
     m = MCP(project)
+
+    if check:
+        # Gate mode (M4 live find): content.get on /home alone passes with an
+        # empty home skeleton — assert the WHOLE inventory tree exists in JCR.
+        missing = []
+        for p in pages:
+            slug = p["slug"]
+            path = f"/sites/{site}/home" if slug == "home" else f"/sites/{site}/home/{slug}"
+            try:
+                m.get(path, locale=locale)
+            except Exception:
+                missing.append(path)
+        if missing:
+            print(f"FAIL: {len(missing)}/{len(pages)} inventory pages missing in JCR:",
+                  file=sys.stderr)
+            for path in missing[:10]:
+                print(f"  - {path}", file=sys.stderr)
+            sys.exit(1)
+        print(f"PASS: all {len(pages)} inventory pages exist in JCR")
+        return
     other = "fr" if locale != "fr" else "en"
     created = updated = published = 0
     for p in pages:

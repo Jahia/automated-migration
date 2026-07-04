@@ -240,9 +240,12 @@ def build_plan(p):
         step("step_mcp", "MCP write path up", "verify",
              [f"PROBE: bash orchestration/probes/mcp.sh {PP}"],
              deps=["step_create_site"]),
+        # Probe hardened (M4 live find, Julian): asserting content.get on /home
+        # alone passes with an empty home skeleton — the gate must count the
+        # ACTUAL page tree against the crawl inventory.
         step("step_pages", "Create pages from the crawl inventory (en+fr, published)", "build",
              [f"Run: python3 orchestration/lib/create_pages.py {P} {SITE} --template basic --locale en",
-              f"PROBE: python3 orchestration/lib/mcp_client.py {P} call content.get '{{\"path\":\"/sites/{SITE}/home\",\"locale\":\"en\"}}'"],
+              f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_mcp"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
              [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
