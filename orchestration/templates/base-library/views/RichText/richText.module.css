@@ -1,0 +1,18 @@
+.richText {
+  font-family: var(--font-body, inherit);
+  color: var(--color-text, #111);
+  line-height: 1.6;
+}
+
+.richText :is(h1, h2, h3, h4) {
+  font-family: var(--font-heading, inherit);
+}
+
+.richText a {
+  color: var(--color-primary, #1a1a1a);
+}
+
+.richText img {
+  max-width: 100%;
+  height: auto;
+}

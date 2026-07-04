@@ -1,0 +1,10 @@
+{
+  "common": {
+    "seeAll": "See all"
+  },
+  "jcrQuery": {
+    "item": "item",
+    "items": "items",
+    "noResult": "No results found."
+  }
+}

@@ -1,0 +1,37 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-badge, 999px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--font-body, inherit);
+  line-height: 1.4;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+}
+
+.style_default {
+  background: var(--color-grey, #eee);
+  color: var(--color-text, #111);
+}
+
+.style_info {
+  background: var(--color-info-bg, #e7f0ff);
+  color: var(--color-info, #1c5fd6);
+}
+
+.style_success {
+  background: var(--color-success-bg, #e6f6ec);
+  color: var(--color-success, #197b3c);
+}
+
+.style_warning {
+  background: var(--color-warning-bg, #fff4e0);
+  color: var(--color-warning, #a35b00);
+}

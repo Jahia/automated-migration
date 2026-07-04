@@ -1,0 +1,197 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// base-library/definitions.cnd — the P6.1 project-AGNOSTIC component library.
+//
+// This is a GENERATOR template (like fidelity-shell/): $NS is the per-project
+// content prefix (e.g. asr), $NSMIX the per-project mixin prefix (e.g. asrmix).
+// install_base_library.py stamps it into projects/<p>/settings/definitions.cnd.
+//
+// GENERALIZED FROM the DEPLOYED `lesalondelaphoto` module (the in-stack reference
+// that already ships the target model: gridRow layout primitive + open Areas +
+// composable containers rendered via child nodes). Where LIBRARY-SPEC.md and the
+// deployed module disagreed, the DEPLOYED MODULE WON (locked decision, MODULARITY-
+// PLAN §5b). Conflicts resolved this way are noted inline.
+//
+// The library COEXISTS with fidelity-shell's $NS:rawHtml passthrough — that stays
+// the byte-exact safety net (fidelity-first). P6.2 promotes DOM subtrees onto these
+// types only when the composed render is pixel-verified; otherwise rawHtml.
+//
+// Namespace declarations are NOT emitted here — the project CND header (emitted by
+// cnd_emit.py) already declares <$NS=...> / <$NSMIX=...>. This file appends types.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Category mixins (palette membership) — empty markers, jahiacom-v3/lsp pattern ──
+// These already exist in every migrated module ($NSMIX:component / :pageComponent);
+// re-declaring them here is idempotent-safe ONLY if the project CND does not also
+// emit them. install_base_library.py de-dupes: it appends a type only if absent.
+// (Kept here so the library is self-describing; the installer strips duplicates.)
+
+[$NSMIX:component]     > jmix:droppableContent, jmix:accessControllableContent mixin
+[$NSMIX:pageComponent] > $NSMIX:component mixin
+// section marker: a top-level, page-droppable CONTAINER (LIBRARY-SPEC §1.1)
+[$NSMIX:section]       > $NSMIX:pageComponent mixin
+
+// ── Style / field-group mixins (reusable property groups, LIBRARY-SPEC §1.2) ──
+// Proven verbatim in lesalondelaphoto (lspmix:cta / lspmix:media). j:linkType is
+// declared INLINE; j:url / j:linknode are injected at runtime by Jahia's link
+// mixins — NEVER declared in a CND (jcr.md; verified on all deployed modules).
+
+[$NSMIX:cta] mixin
+ - ctaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+
+[$NSMIX:media] mixin
+ - image (weakreference, picker[type='image']) < jmix:image
+ - imageAltText (string) i18n
+
+[$NSMIX:theme] mixin
+ - theme (string, choicelist[resourceBundle]) = 'light' autocreated < 'light', 'dark', 'brand'
+
+[$NSMIX:background] mixin
+ - bgColor (string, choicelist[resourceBundle]) = 'bg-default' autocreated < 'bg-default', 'bg-white', 'bg-grey', 'bg-brand'
+
+[$NSMIX:spacing] mixin
+ - spacing (string, choicelist[resourceBundle]) = 'md' autocreated < 'none', 'sm', 'md', 'lg'
+
+[$NSMIX:cornerCut] mixin
+ - cornerCut (string, choicelist[resourceBundle]) = 'none' autocreated < 'none', 'cut-topleft', 'cut-botright'
+
+[$NSMIX:badge] mixin
+ - badgeLabel (string) i18n
+ - badgeStyle (string, choicelist[resourceBundle]) = 'default' autocreated < 'default', 'info', 'success', 'warning'
+
+[$NSMIX:seo] mixin
+ - metaTitle (string) i18n
+ - metaDescription (string, textarea) i18n
+
+// Site-level re-theming — added to the site node (jnt:virtualsite) so an editor
+// re-themes the whole site by overriding :root tokens (proven: lspmix:siteTheme).
+[$NSMIX:siteTheme] mixin
+ - themePrimaryColor (string)
+ - themeSecondaryColor (string)
+ - themeAccentColor (string)
+ - themeTextColor (string)
+ - themeBackgroundColor (string)
+ - themeFontHeading (string)
+ - themeFontBody (string)
+ - themeOverrideCss (weakreference, picker[type='file'])
+
+// ── ATOMS (leaf types — small, single-purpose, typed props; LIBRARY-SPEC §1.3) ──
+// mix:title supertype for titles (never jcr:title / a bespoke `title` prop).
+// richtext for bodies. j:linkType for links. weakref picker[type='image'] for images.
+
+// CTA / button — the primary link atom (lsp:ctaButton)
+[$NS:button] > jnt:content, $NSMIX:component, $NSMIX:cta, $NSMIX:theme
+ - isSmall (boolean) = false
+ - mainCTA (boolean) = false
+
+// chevron / arrow link (jahiacom-v3 chevronButton)
+[$NS:chevronLink] > jnt:content, $NSMIX:component, $NSMIX:cta
+
+// heading / section title (jahiacom-v3 titleSection); title via mix:title supertype
+[$NS:heading] > jnt:content, mix:title, $NSMIX:component
+ - subtitle (string) i18n
+ - level (string, choicelist[resourceBundle]) = 'h2' autocreated < 'h2', 'h3', 'h4'
+
+// free rich-text block (our addition; migration.md rule 3)
+[$NS:richText] > jnt:content, $NSMIX:component
+ - body (string, richtext) i18n
+
+// image atom — image+alt (media) + optional link (cta) (jahiacom-v3 imageItem)
+[$NS:image] > jnt:content, $NSMIX:component, $NSMIX:media, $NSMIX:cta
+ - caption (string) i18n
+
+// tag / badge chip (jahiacom-v3 tagItem)
+[$NS:tag] > jnt:content, $NSMIX:component, $NSMIX:badge
+ - tagImg (weakreference, picker[type='image']) < jmix:image
+ - tagImgAlt (string) hidden
+
+// logo atom — one logo image + link (the discoverasr brand-logo atom, DECOMP-PROTOTYPE)
+[$NS:logo] > jnt:content, $NSMIX:component, $NSMIX:media, $NSMIX:cta
+
+// divider / spacer (our addition)
+[$NS:divider] > jnt:content, $NSMIX:component
+ - style (string, choicelist[resourceBundle]) = 'line' autocreated < 'line', 'space'
+
+// icon + text row (jahiacom-v3 iconWithText)
+[$NS:iconWithText] > jnt:content, $NSMIX:component
+ - icon (weakreference, picker[type='image']) < jmix:image
+ - iconAlt (string) i18n
+ - label (string, richtext) i18n
+
+// FAQ / accordion Q-A row (jahiacom-v3 faqItem); question via mix:title
+[$NS:faqItem] > jnt:content, mix:title, $NSMIX:component
+ - answer (string, richtext) i18n
+
+// card — the richest atom. Variants are STYLE-MIXIN choices (theme/cornerCut), NOT
+// hash-suffixed types (migration.md rule 21). Node-level lifted fields: title, body,
+// image, imageAltText, theme, cornerCut = 6 (< K=8). tag/button are CHILD nodes.
+[$NS:card] > jnt:content, mix:title, $NSMIX:component, $NSMIX:media, $NSMIX:cornerCut, $NSMIX:theme
+ - body (string, richtext) i18n
+ + tag ($NS:tag)
+ + button ($NS:button)
+
+// tab pane — a titled container of atoms (child of $NS:tabs)
+[$NS:tab] > jnt:content, mix:title, $NSMIX:component
+ + * ($NSMIX:component)
+
+// ── CONTAINERS (composable — repeated typed children; LIBRARY-SPEC §1.4) ──
+// Composable containers declare `+ * (childType)` (open repeater; editor adds N).
+// We do NOT use jmix:list on containers (migration.md rule 11) — explicit children.
+
+// section — open palette of ANY atom (jahiacom-v3 sectionCustom / open <Area>)
+[$NS:section] > jnt:content, $NSMIX:section, $NSMIX:background, $NSMIX:spacing
+ - heading (string) i18n
+ + * ($NSMIX:component)
+
+// gridRow — the LAYOUT PRIMITIVE. Proven deployed form (lsp:gridRow): a `columns`
+// choicelist + `+ * (jmix:droppableContent)`; the VIEW renders one AbsoluteArea per
+// column (module-real wins over the spec's per-column-Area-vs-open-repeater note).
+[$NS:gridRow] > jnt:content, $NSMIX:pageComponent
+ - columns (string, choicelist[resourceBundle]) = '2' autocreated < '1', '2', '3', '4'
+ + * (jmix:droppableContent) = jmix:droppableContent
+
+// cardGrid — grid of $NS:card (jahiacom-v3 cardsCustomerCase / fourArticlesRow)
+[$NS:cardGrid] > jnt:content, $NSMIX:section
+ - heading (string) i18n
+ - columns (string, choicelist[resourceBundle]) = '3' autocreated < '2', '3', '4'
+ + * ($NS:card)
+
+// logoWall — wall of $NS:logo, with a fixed `master` slot (DECOMP-PROTOTYPE §4)
+[$NS:logoWall] > jnt:content, $NSMIX:section
+ - heading (string) i18n
+ + master ($NS:logo)
+ + * ($NS:logo)
+
+// carousel — slides of any atom (news-carousel target)
+[$NS:carousel] > jnt:content, $NSMIX:section
+ - autoplay (boolean) = true autocreated
+ - interval (long)
+ + * ($NSMIX:component)
+
+// tabs — container of $NS:tab (popularDestinationsTabs target)
+[$NS:tabs] > jnt:content, $NSMIX:section
+ - heading (string) i18n
+ + * ($NS:tab)
+
+// accordion — Q/A rows (jahiacom-v3 faqSection)
+[$NS:accordion] > jnt:content, $NSMIX:section
+ - heading (string) i18n
+ + * ($NS:faqItem)
+
+// ── JCRQuery — ships in EVERY module (CLAUDE.md rule 16 / migration.md rule 12) ──
+// jmix:list only (NOT jmix:cache): matches the 4 generated modules acquia/contentful/
+// discoverasr/supercar; jmix:cache does not exist in Jahia 8.2 (jahia.md rule 12).
+// (lesalondelaphoto's CND uses jmix:cache — an outlier we deliberately do NOT copy.)
+[$NS:jcrQuery] > jnt:content, $NSMIX:pageComponent, jmix:list, mix:title
+ - type (string, choicelist[subnodetypes = 'jnt:page,jmix:mainResource', resourceBundle]) indexed=no mandatory
+ - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated indexed=no < 'jcr:created', 'jcr:lastModified', 'j:lastPublished'
+ - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated indexed=no < 'asc', 'desc'
+ - maxItems (long) indexed=no
+ - startNode (weakreference) indexed=no
+ - excludeNodes (weakreference) multiple indexed=no
+ - filter (weakreference, category[autoSelectParent=false]) multiple indexed=no
+ - noResultText (string) i18n indexed=no
+ - j:subNodesView (string, choicelist[templates=subnodes,resourceBundle,image,dependentProperties='type']) nofulltext indexed=no
+ - j:linkType (string, choicelist[linkTypeInitializer]) indexed=no
+ - loadMore (boolean) = false indexed=no
+ - categoryFilter (boolean) = false indexed=no

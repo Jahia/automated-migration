@@ -1,0 +1,9 @@
+.line {
+  border: 0;
+  border-top: 1px solid var(--color-border, #ddd);
+  margin: var(--space-divider, 1.5rem) 0;
+}
+
+.space {
+  height: var(--space-divider, 2rem);
+}

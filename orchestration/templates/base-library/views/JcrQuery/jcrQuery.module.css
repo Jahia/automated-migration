@@ -1,0 +1,45 @@
+.wrapper {
+  width: 100%;
+}
+
+.editInfo {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted, #666);
+  background: var(--color-grey, #f5f5f5);
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.heading {
+  font-family: var(--font-heading, inherit);
+  color: var(--color-text, #111);
+  margin: 0;
+}
+
+.seeAll {
+  color: var(--color-primary, #1a1a1a);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-grid-gap, 1.5rem);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-items: stretch;
+}
+
+.empty {
+  color: var(--color-text-muted, #666);
+  font-style: italic;
+}

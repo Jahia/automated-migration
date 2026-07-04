@@ -1,0 +1,60 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-card-bg, #fff);
+  border-radius: var(--radius-card, 8px);
+  overflow: hidden;
+  box-shadow: var(--shadow-card, 0 1px 4px rgba(0, 0, 0, 0.08));
+  height: 100%;
+}
+
+.media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: var(--space-card, 1.25rem);
+}
+
+.title {
+  font-family: var(--font-heading, inherit);
+  color: var(--color-text, #111);
+  margin: 0;
+}
+
+.text {
+  font-family: var(--font-body, inherit);
+  color: var(--color-text-muted, #444);
+  line-height: 1.5;
+}
+
+.theme_dark {
+  background: var(--color-text, #111);
+  color: var(--color-bg, #fff);
+}
+
+.theme_dark .title,
+.theme_dark .text {
+  color: inherit;
+}
+
+.theme_brand {
+  background: var(--color-accent, #e4002b);
+  color: var(--color-on-primary, #fff);
+}
+
+.cut-topleft {
+  border-top-left-radius: 0;
+  clip-path: polygon(24px 0, 100% 0, 100% 100%, 0 100%, 0 24px);
+}
+
+.cut-botright {
+  border-bottom-right-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%);
+}

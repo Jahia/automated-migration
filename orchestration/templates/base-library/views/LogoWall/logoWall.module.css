@@ -1,0 +1,30 @@
+.root {
+  width: 100%;
+}
+
+.heading {
+  font-family: var(--font-heading, inherit);
+  color: var(--color-text, #111);
+  text-align: center;
+  margin: 0 0 1.5rem;
+}
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-logo-gap, 2rem);
+}
+
+.master {
+  flex: 0 0 auto;
+}
+
+.logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-logo-gap, 2rem);
+}

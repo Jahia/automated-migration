@@ -1,0 +1,20 @@
+.carousel {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.slides {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slide {
+  width: 100%;
+}
+
+.editStack {
+  display: grid;
+  gap: 1rem;
+}
