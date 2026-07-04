@@ -182,3 +182,57 @@ is the logo wall. **LIBRARY GAPS to grow (would each need a fidelity-safe recogn
 **Phase B (full re-migration) was NOT run** — the self-gate says stop and iterate. The generic
 recognizer + wiring ship; the loader/CND path for library-native instances (Phase B step 6)
 is designed but not built pending the recognizer-coverage decision.
+
+## 8. P6.3-bis — carousel + tabs recognizers, Phase A + B (commits 6db734e / 4bb7d5e)
+
+The two dominant discoverasr widget patterns are now fidelity-safe recognizers
+(`library_recognize.py`): **carousel** (JS slider — swiper/slick/owl/AEM cmp-carousel or the
+custom `asr-content-slider`) → `ns:carousel` of typed `ns:card` slides, and **tabs** (ARIA
+tablist / AEM cmp-tabs) → `ns:tabs` of `ns:tab` panes.
+
+**Cloned-slide dedup (the core mechanism):** a JS carousel clones first/last slides for the
+infinite-scroll illusion. `_dedup_clones` drops them by marker union (`cloned`/`*--cloned`/
+`swiper-slide-duplicate`/`owl-clone` class, `aria-hidden="true"`, duplicate
+`data-swiper-slide-index`); the slide signature is NORMALIZED (state tokens active/next/prev/
+cloned stripped) so a JS-toggled track still groups as one uniform slide run. JS scroll state
+(inline `transform`/`translate`/`opacity`/`display`/`width`/`margin-left`) is stripped so a
+node never freezes one scroll frame. Measured on the two `asr-content-slider` instances: 7
+raw → 5 canonical (2 clones removed each), 0 duplicated origs, 0 residual clone/state class.
+
+**Composability (apples-to-apples, updated probe):** 21.4% → **29.3%** (typed atoms 400 → 593:
++20 tabs/+80 tab panes, +16 carousels/+77 slides); frozen sections 384 → 348; monoliths
+53 → 44; K>8 types 11 → 4. `byteFail=0` (every promoted region self-checks recompose==original).
+`composability.py` now excludes whitespace/comment partition artifacts (tiny rawHtml <40B) from
+the ratio denominator — a byte-contract necessity, not a composable unit (other projects move
+≤0.2pt). Self-gate PASS: dominant widgets promote fidelity-safe, clean dedup, net jump.
+
+**Phase B ran (EDIT-only, 0 publication):** site recreated EN/FR, module redeployed (asr
+namespace superset via validate-module path), home loaded. Verified live:
+- **G6a** (`forms.editForm`): carousel slide = jcr:title/image/imageAltText/ctaLabel/j:linkType
+  rw; logo = image/imageAltText/ctaLabel/j:linkType rw; tab = jcr:title rw. Every promoted atom
+  is a real Content-Editor form.
+- **G6b** (Page Builder): 82 edit frames incl. 3 carousels + 14 slides, 1 tabs + 4 panes, 1
+  logoWall + 19 logos — every de-cloned slide/pane/logo is individually clickable. Required
+  making the `rawHtml` container view interleave `<Render>` per `{{child:N}}` in EDIT (rule 28);
+  single-pass chunking (the recursive form was O(n²) → 164s timeout on the 200KB whole-page
+  container; now O(n), editframe renders in ~1.1s).
+- **LIVE fidelity**: the library container carries a hidden `skeleton` (verbatim source markup)
+  so composeNode splices it byte-exact under the rawHtml partition — LIVE = source markup +
+  source JS (18 slide items incl. 4 clones, 21 logos, images resolve). EDIT = the de-cloned
+  composable atoms with edit frames. Fidelity↔composability reconciliation intact.
+- **Islands**: `CarouselIsland`/`TabsIsland` (`'use client'`) re-hydrate prev/next/autoplay/swipe
+  and click-to-show on the composable children — used when a carousel/tabs renders via its VIEW
+  (direct area child); under a composeNode-splicing rawHtml container, LIVE uses the byte-exact
+  source markup + source JS instead (fidelity-first).
+
+**Known limitation (feeds P6.4):** the contributor link TARGET (`j:url`/`j:linknode`) is NOT
+programmatically settable — MCP `content.update` silently drops the protected `j:`-value and
+GraphQL `mutateProperty` raises ConstraintViolation for `jmix:externalLink`'s `j:url` (exactly
+rule 9). The link mixin + `j:linkType` make the link EDITABLE in Content Editor (its link-picker
+populates the target through the choicelist flow); the working source link rides the verbatim
+`orig` markup meanwhile (fidelity-safe). This also affects the P6.2 logo wall (same finding).
+
+**Remaining gaps / P6.4:** Salesforce `<form>`s stay rawHtml (rule 29, correct); bespoke
+one-off heros/booking-bars/benefit-lists have no uniform repeater. Grow `richText`/`cardGrid`
+recognizers; consider a direct-area (non-rawHtml-parent) placement so the base-library
+Carousel/Tabs VIEW + island drive LIVE too (composable-interactive LIVE, not just verbatim).
