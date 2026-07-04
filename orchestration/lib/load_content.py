@@ -16,15 +16,20 @@ Mapping strategy (deterministic, no hardcoded per-field tables):
              (+ j:linkType/j:url best-effort).
   * place  : areaType=absolute components (nav/footer/topBar) -> /home/<area>;
              everything else -> the page's main area.
-Then publishes (fr+en).
+
+EDIT-ONLY (Julian doctrine, 2026-07-04): the load NEVER publishes. Publication
+is a single FINAL act, triggered by Julian via orchestration/assist/
+publish_site.sh (which applies the proven unpublish-first sequence — a naive
+publish no-ops in 1 ms on corrupted publication metadata, measured live).
+A stale LIVE is TOLERATED during the process; the final publication reconciles
+it. Consequently this loader performs no LIVE read either.
 
 RECONCILE (A2, incident resume — "ne pas recommencer à partir de 0"): with
 --clean the loader no longer razes every page. It computes a per-page VERDICT
-from three sources — the load ledger (what we THINK was done), EDIT reality and
-LIVE reality — and only rebuilds what needs it:
-  ALIGNED         → skip entirely (zero writes)
-  LIVE_DIVERGENT  → republish the main area only (no re-creation)
-  REBUILD         → verified purge + full reload (the previous behavior)
+from the load ledger (what we THINK was done) corroborated by EDIT reality —
+and only rebuilds what needs it:
+  ALIGNED  → skip entirely (zero writes)
+  REBUILD  → EDIT purge + full reload (the previous behavior)
 The ledger is trusted only when corroborated by JCR reality (observed live
 2026-07-04: the assumed state LIES — a silently-aborted purge left 925 stale
 LIVE uuids while every artifact looked green; only Jahia is the source of
@@ -114,13 +119,16 @@ class Loader:
         # then backfilled. Runtime artifact, never written in --dry.
         self._ledger_path = f"projects/{project}/workflow-output/load-ledger.json"
         self.ledger = load_json(self._ledger_path, {})
-        self.reconcile = {"ALIGNED": [], "LIVE_DIVERGENT": [], "REBUILD": []}
+        self.reconcile = {"ALIGNED": [], "REBUILD": []}  # EDIT-only verdicts
 
     def upload_dam(self, fname):
         """Mirror asset -> /sites/<site>/files via media.upload.create/PUT/
-        finalize, published, deduped by file name (mirror names are content
-        hashes). Returns {"path", "uuid"} or None (missing/failed — the view
-        then renders the original markup verbatim; nothing breaks)."""
+        finalize, deduped by file name (mirror names are content hashes).
+        EDIT-only (Julian 2026-07-04): no publication here — publish_site.sh
+        publishes /sites/<site>/files FIRST at the final act so weakref targets
+        resolve in LIVE before the pages that reference them. Returns
+        {"path", "uuid"} or None (missing/failed — the view then renders the
+        original markup verbatim; nothing breaks)."""
         if not fname:
             return None
         if fname in self._dam:
@@ -144,7 +152,7 @@ class Loader:
             self.m._urlopen_retry(req, timeout=120)  # transient-reset safe
             fin = self.m.call("media.upload.finalize", {"token": r["token"]})
             entry = {"path": fin["path"], "uuid": fin["identifier"]}
-            self.m.publish(entry["path"])  # weakref targets must resolve in LIVE
+            # no publish — EDIT-only; publish_site.sh publishes the files tree
         except Exception as e:
             print(f"    ! dam upload {fname}: {str(e)[:160]}", file=sys.stderr)
             return None
@@ -364,14 +372,16 @@ class Loader:
 
     def _live_child_count(self, area_path):
         """Read-only count of the area's LIVE children via GraphQL (workspace
-        LIVE). Returns:
+        LIVE). NOT used by the load itself (EDIT-only, Julian 2026-07-04) —
+        this is shared infra for publish_site.py, the single final publication
+        act, whose unpublish poll needs it. Returns:
           * an int  — the area exists in LIVE with that many direct children;
           * None    — the area node is ABSENT in LIVE (a PURGED state: verified
                       live, GraphQL answers a missing path with a
                       PathNotFoundException, which self.m.gql() raises — so we
                       MUST recognise that message as "purged", not as a fault,
                       or the poller would never see success on a fully-unpublished
-                      area and clean_area would falsely raise on a clean purge);
+                      area and would falsely raise on a clean purge);
           * -1      — a GENUINE transient read fault (connection reset/timeout):
                       unknown state, so the poller keeps retrying rather than
                       declaring success on a failed read.
@@ -393,16 +403,25 @@ class Loader:
         return len(((node.get("children") or {}).get("nodes")) or [])
 
     def clean_area(self, area_path):
-        """Delete existing content children of an area so the load is idempotent
-        (leftovers would DOUBLE page content on reload; observed live: Δheight
-        80-180%). GraphQL EDIT-workspace deleteNode is SYNCHRONOUS and works
-        regardless of publication state — the MCP delete guard refuses published
-        nodes, and the mark-for-deletion + publish flow proved unreliable for
-        skeleton nodes (jmix:markedForDeletion survivors) with an ASYNC deletion
-        publication that raced the reload's create ('already exists' collisions,
-        observed live P2.5). After clearing, an UNPUBLISH purges the LIVE
-        copies (a publish cannot be trusted to — see the purge block below);
-        the reload that follows republishes everything (rule 2).
+        """Delete existing content children of an area (EDIT ONLY) so the load
+        is idempotent (leftovers would DOUBLE page content on reload; observed
+        live: Δheight 80-180%). GraphQL EDIT-workspace deleteNode is SYNCHRONOUS
+        and works regardless of publication state — the MCP delete guard refuses
+        published nodes, and the mark-for-deletion + publish flow proved
+        unreliable for skeleton nodes (jmix:markedForDeletion survivors) with an
+        ASYNC deletion publication that raced the reload's create ('already
+        exists' collisions, observed live P2.5).
+        LIVE purge history (kept because each step was paid for live):
+          v1 one publish in try/except pass — silent abort left 925 stale LIVE
+             uuids, G2 red 3 gates later;
+          v2 verified publish+poll — STILL WRONG: on corrupted publication
+             metadata (aggregatedPublicationInfo claims PUBLISHED while LIVE is
+             stale) publish NO-OPS in 1 ms (SUCCESSFUL job, nothing published);
+          v3 verified unpublish+poll — correct, but publication does not belong
+             in the load at all:
+          v4 EDIT-ONLY (Julian, 2026-07-04): no LIVE action here. A stale LIVE
+             is TOLERATED during the process; the single FINAL publication
+             (publish_site.sh, unpublish-first) reconciles it.
         content.list PAGINATES (~20) — loop until empty or no progress."""
         n = 0
         for _round in range(12):
@@ -428,47 +447,7 @@ class Loader:
                 for k in kids[:3]:
                     print(f"    ! clean leftover: {k.get('path') or k.get('name')}", file=sys.stderr)
                 break
-        if not n:
-            return n
-        # VERIFIED LIVE purge by UNPUBLISH (was v1: one publish in try/except
-        # pass — silent abort left 925 stale LIVE uuids, G2 red 3 gates later;
-        # was v2: verified publish+poll — STILL WRONG). Measured live on the
-        # divergent discoverasr areas: the EDIT-side publication metadata is
-        # CORRUPTED — aggregatedPublicationInfo claims PUBLISHED while LIVE is
-        # stale/absent — so publication.publish (even includeSubTree:true)
-        # NO-OPS in 1 ms: a SUCCESSFUL scheduler job that publishes NOTHING
-        # (durationMs:1, 18 005 jobs on the counter). Publishing harder can
-        # never purge. publication.unpublish ignores that state, removes the
-        # LIVE subtree instantly (<1 s measured) and RESETS the metadata so the
-        # reload's publishes actually run. We still POLL LIVE and FAIL LOUD if
-        # the purge cannot be proven — a poisoned LIVE state must never be
-        # silently carried forward.
-        import time
-        for attempt in range(3):  # up to 3 unpublish+poll cycles
-            try:
-                self.m.unpublish(area_path)
-            except Exception as e:
-                print(f"    ! clean unpublish {area_path} (attempt {attempt + 1}): "
-                      f"{str(e)[:140]}", file=sys.stderr)
-            deadline = time.time() + 120  # measured <1 s; generous under load
-            live = self._live_child_count(area_path)
-            while live not in (0, None) and time.time() < deadline:
-                time.sleep(3)
-                live = self._live_child_count(area_path)
-            if live in (0, None):
-                return n  # LIVE proven empty — purge landed
-            print(f"    ! clean: {area_path} still has {live} LIVE child(ren) "
-                  f"after unpublish attempt {attempt + 1}/3 — re-unpublishing",
-                  file=sys.stderr)
-        # Exhausted retries with LIVE still populated: fail HARD rather than
-        # leave a poisoned state that only surfaces at G2, three gates later.
-        survivors = self._live_child_count(area_path)
-        raise RuntimeError(
-            f"clean_area: LIVE purge of {area_path} FAILED — "
-            f"{survivors if survivors and survivors > 0 else 'unknown count of'} "
-            f"stale LIVE child(ren) survive after 3 verified unpublish attempts. "
-            f"Refusing to proceed (stale LIVE UUIDs would make every subsequent "
-            f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
+        return n
 
     # ── A2 reconcile: page-granular incident resume ("what is already done") ──
     @staticmethod
@@ -483,10 +462,12 @@ class Loader:
     def _area_children(self, area_path, workspace):
         """{name: uuid} of the area's DIRECT children in a workspace (read-only
         GraphQL), or None when the area node is absent there (GraphQL answers a
-        missing path with PathNotFoundException — verified live). Unlike
-        _live_child_count this RAISES on genuine transport faults: a verdict
-        must never be computed from a failed read (it would mis-classify a
-        loaded page as REBUILD and raze real content)."""
+        missing path with PathNotFoundException — verified live). The load only
+        ever calls this with EDIT (EDIT-only doctrine); publish_site.py reuses
+        it with LIVE for the final-act alignment poll. Unlike _live_child_count
+        this RAISES on genuine transport faults: a verdict must never be
+        computed from a failed read (it would mis-classify a loaded page as
+        REBUILD and raze real content)."""
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") '
              '{ children { nodes { name uuid } } } } }' % (workspace, area_path))
         try:
@@ -538,18 +519,17 @@ class Loader:
         return names
 
     def _reconcile_verdict(self, page, pdata, main_area):
-        """A2 verdict — confront the ledger, EDIT reality and LIVE reality.
-        The ledger is only TRUSTED when corroborated by JCR reality (lesson of
-        2026-07-04: assumed state lies; only Jahia is the source of truth).
-          ALIGNED         plan-hash match (or bootstrap: no ledger entry) +
-                          EDIT structurally complete + LIVE aligned (name+uuid)
-                          → nothing to do, zero writes.
-          LIVE_DIVERGENT  EDIT complete but LIVE misaligned/empty → republish
-                          only; publication pushes the EDIT state to LIVE,
-                          including the REMOVAL of old-uuid LIVE nodes.
-          REBUILD         plan changed (hash mismatch) OR EDIT incomplete —
-                          missing AND surplus children both count (surplus =
-                          render-doubling risk) → verified purge + reload.
+        """A2 verdict — confront the ledger with EDIT reality. EDIT-ONLY
+        (Julian 2026-07-04): the load never reads LIVE — a stale LIVE is
+        tolerated during the process and reconciled by the single final
+        publication (publish_site.sh, unpublish-first). The ledger is only
+        TRUSTED when corroborated by JCR reality (lesson of 2026-07-04:
+        assumed state lies; only Jahia is the source of truth).
+          ALIGNED  plan-hash match (or bootstrap: no ledger entry) + EDIT
+                   structurally complete → nothing to do, zero writes.
+          REBUILD  plan changed (hash mismatch) OR EDIT incomplete — missing
+                   AND surplus children both count (surplus = render-doubling
+                   risk) → EDIT purge + full reload.
         Returns (verdict, info dict for the report)."""
         entry = self.ledger.get(page)
         plan_hash = self._plan_hash(pdata)
@@ -568,84 +548,8 @@ class Loader:
                               f"{len(surplus)} surplus top-level node(s)")
             info["missing"], info["surplus"] = missing[:5], surplus[:5]
             return "REBUILD", info
-        live = self._area_children(main_area, "LIVE") or {}
-        info["live"] = len(live)
-        stale = sorted(n for n, u in edit.items() if live.get(n) != u)
-        extra_live = sorted(set(live) - set(edit))
-        if stale or extra_live:
-            info["stale"] = len(stale) + len(extra_live)
-            info["reason"] = (f"{len(stale)} EDIT child(ren) not in LIVE by (name,uuid)"
-                              + (f", {len(extra_live)} stale LIVE extra(s)" if extra_live else ""))
-            return "LIVE_DIVERGENT", info
-        info["reason"] = "EDIT complete + LIVE aligned"
+        info["reason"] = "EDIT structurally complete"
         return "ALIGNED", info
-
-    def _publish_until_aligned(self, area_path):
-        """LIVE_DIVERGENT repair — UNPUBLISH-FIRST, then publish, then poll.
-        Proven live on en_adoor-apartment (84/84 aligned, 0 mismatch). What the
-        failed variants measured on these areas:
-          * publish alone — parent, includeSubTree, or per-child — NO-OPS in
-            1 ms: the EDIT-side publication metadata is corrupted (aggregated
-            publication info claims PUBLISHED while LIVE is stale/absent), so
-            the SUCCESSFUL scheduler job publishes NOTHING (durationMs:1,
-            18 005 jobs on the counter). Publishing harder never repairs.
-          * publication.unpublish purges LIVE instantly (<1 s) and RESETS that
-            metadata; the publish that follows then REALLY runs
-            (publishedNodeCount:85, finished:true)...
-          * ...but LIVE propagation TRICKLES past the return: 1 child visible
-            at t+180 s, 84/84 aligned at t+200 s. Hence the ~300 s alignment
-            budget, and the poll only concludes on FULL (name,uuid) equality —
-            never on a first partial count.
-        Languages: the publish/unpublish defaults (fr+en) — the same set every
-        other loader publication uses, so both sides cover identical variants.
-        Up to 3 unpublish→publish→poll cycles, then fail LOUD — a state we
-        cannot prove repaired must never be carried forward."""
-        import time
-        edit = self._area_children(area_path, "EDIT") or {}
-        for attempt in range(3):
-            # 1. unpublish: instant LIVE purge + publication-metadata reset
-            try:
-                self.m.unpublish(area_path)
-            except Exception as e:
-                print(f"    ! unpublish {area_path} (attempt {attempt + 1}): "
-                      f"{str(e)[:140]}", file=sys.stderr)
-            deadline = time.time() + 60  # measured <1 s; margin under load
-            live_n = self._live_child_count(area_path)
-            while live_n not in (0, None) and time.time() < deadline:
-                time.sleep(2)
-                live_n = self._live_child_count(area_path)
-            if live_n not in (0, None):
-                # purge unproven — still attempt the publish (alignment equality
-                # below is the real gate), but say so
-                print(f"    ! repair: {area_path} LIVE not proven purged by "
-                      f"unpublish (attempt {attempt + 1}/3) — publishing anyway",
-                      file=sys.stderr)
-            # 2. publish: actually runs now that the metadata was reset
-            try:
-                self.m.publish(area_path)
-            except Exception as e:
-                print(f"    ! republish {area_path} (attempt {attempt + 1}): "
-                      f"{str(e)[:140]}", file=sys.stderr)
-            # 3. poll until FULL (name,uuid) equality — propagation trickles
-            #    past finished:true (measured: 84/84 only at t+200 s)
-            deadline = time.time() + 300
-            while time.time() < deadline:
-                try:
-                    live = self._area_children(area_path, "LIVE") or {}
-                except Exception:
-                    live = None  # transient read fault — keep polling
-                if live == edit:
-                    return
-                time.sleep(3)
-            print(f"    ! republish: {area_path} LIVE still misaligned after "
-                  f"attempt {attempt + 1}/3 — restarting unpublish+publish",
-                  file=sys.stderr)
-        raise RuntimeError(
-            f"reconcile: LIVE repair of {area_path} FAILED — LIVE children "
-            f"still misaligned with EDIT (name,uuid) after 3 verified "
-            f"unpublish+publish attempts (NB: the area may be left unpublished "
-            f"in LIVE). Refusing to proceed (stale LIVE identity makes every "
-            f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
 
     def _ledger_write(self, page, plan_hash, verdict, created=0, published=0):
         """Persist the per-page load trace after each treated page, so an
@@ -699,34 +603,22 @@ class Loader:
             # A2 reconcile: --clean IS the reconciling mode now. Its documented
             # intent is "idempotent load without doubling content" — the
             # reconciliation satisfies it strictly better than the old raze-all
-            # (skip what is proven done, republish what only diverged in LIVE,
-            # rebuild only what actually changed/broke). The in-flight run's
-            # plan already executes --clean and benefits without regeneration.
-            # --force-rebuild keeps the old unconditional raze reachable.
+            # (skip what is proven done, rebuild only what actually changed or
+            # broke). EDIT-only verdicts (Julian 2026-07-04): no LIVE read —
+            # LIVE divergence is the final publication's business, not the
+            # load's. --force-rebuild keeps the old unconditional raze.
             verdict, info = self._reconcile_verdict(page, pdata, main_area)
             self.reconcile[verdict].append((page, info))
             if verdict == "ALIGNED":
                 why = "plan hash match" if info["hashOk"] else "bootstrap"
                 print(f"  = {page}: ALIGNED — skip ({why}; EDIT {info['edit']} "
-                      f"node(s) complete, LIVE aligned)")
+                      f"node(s) complete)")
                 if not dry:
                     old = self.ledger.get(page) or {}
                     self._ledger_write(page, plan_hash, "ALIGNED",
-                                       created=old.get("created", info["edit"]),
-                                       published=old.get("published", info["edit"]))
+                                       created=old.get("created", info["edit"]))
                 return (0, 0)
-            if verdict == "LIVE_DIVERGENT":
-                if dry:
-                    print(f"  ~ {page}: LIVE_DIVERGENT — would republish "
-                          f"{main_area} ({info['reason']}); no re-creation")
-                    return (0, 0)
-                print(f"  ~ {page}: LIVE_DIVERGENT — republishing {main_area} "
-                      f"({info['reason']})")
-                self._publish_until_aligned(main_area)
-                self._ledger_write(page, plan_hash, "LIVE_DIVERGENT",
-                                   created=0, published=1)
-                return (0, 1)
-            # REBUILD → fall through to the verified purge + full reload below
+            # REBUILD → fall through to the EDIT purge + full reload below
             print(f"  x {page}: REBUILD — {info['reason']}")
         if not dry:
             self.ensure_area(main_area)
@@ -812,10 +704,8 @@ class Loader:
                     if inst.get("promoted") or inst.get("skeleton"):
                         # P2.5-D: per-node slot mixins, mixin props, weakrefs
                         self.apply_payload(path, mixins, post, inst, nt)
-                    # publish AFTER the item children exist (below) — publishing
-                    # a parent while its subtree is still being created aborts
-                    # the publication job (observed live: 2 big articles whose
-                    # EDIT nodes never reached LIVE)
+                    # no publish — EDIT-only (Julian 2026-07-04): publication is
+                    # the single final act (publish_site.sh)
                     label = post.get("jcr:title") or props.get("heading") or nt
                     print(f"  + {path}  ({str(label)[:48]})")
             except Exception as e:
@@ -851,26 +741,17 @@ class Loader:
                             if cpath:
                                 created += 1
                                 self.apply_payload(cpath, cmix, cpost, ch, cnt)
-                                self.m.publish(cpath)
-                                published += 1
+                                # no publish — EDIT-only (final act publishes)
                         except Exception as e:
                             print(f"  ! item-{n + 1} ({cnt}) under {name} failed: {e}",
                                   file=sys.stderr)
-            if path:  # parent LAST — its subtree is complete and stable now
-                try:
-                    self.m.publish(path)
-                    published += 1
-                except Exception as e:
-                    print(f"  ! publish {name}: {str(e)[:120]}", file=sys.stderr)
-        if not dry and instances:
-            try:  # belt-and-braces: the area publication sweeps any straggler
-                self.m.publish(main_area)
-            except Exception:
-                pass
+            # no per-parent publish, no area sweep — EDIT-only (Julian
+            # 2026-07-04): the single final publication (publish_site.sh,
+            # unpublish-first) pushes the complete EDIT state to LIVE at once
         if clean and not dry:
             # A2: record the completed (re)load so the next run can skip it.
             # Only in reconcile/force mode — plain append mode stays unchanged.
-            self._ledger_write(page, plan_hash, "REBUILD", created, published)
+            self._ledger_write(page, plan_hash, "REBUILD", created)
         return (created, published)
 
     def install_shell(self, page, pdata, page_base):
@@ -894,10 +775,8 @@ class Loader:
             except Exception as e:
                 print(f"  ! shell {page}: {e}", file=sys.stderr)
                 return
-        try:
-            self.m.publish(spath)
-        except Exception:
-            pass
+        # no publish — EDIT-only; the shell rides the page-node publication
+        # of the final act (publish_site.sh covers the page subtree)
 
     def load_chrome(self, from_page, dry=False, clean=False):
         """Install area-flagged chrome instances (header/nav/footer) ONCE from a
@@ -933,8 +812,8 @@ class Loader:
                 path = r.get("path") if isinstance(r, dict) else None
                 if path:
                     created += 1
-                    self.m.publish(path)
-                    published += 1
+                    # no publish — EDIT-only; publish_site.sh publishes the
+                    # chrome areas at the final act
                     print(f"  + {path} (chrome:{inst['area']})")
             except Exception as e:
                 print(f"  ! chrome {name} failed: {e}", file=sys.stderr)
@@ -976,12 +855,12 @@ def main():
         # A2 report: what was already done vs what needed action, per page
         r = ld.reconcile
         print(f"\nreconcile: {len(r['ALIGNED'])} aligned (skipped) / "
-              f"{len(r['LIVE_DIVERGENT'])} republished / "
               f"{len(r['REBUILD'])} rebuilt{' [dry]' if dry else ''}")
-        for verdict in ("LIVE_DIVERGENT", "REBUILD"):
-            for pg, info in r[verdict]:
-                print(f"  - {verdict} {pg}: {info.get('reason', '')}")
-    print(f"\nload_content: created {tot_c}, published {tot_p} node(s){' [dry]' if dry else ''}")
+        for pg, info in r["REBUILD"]:
+            print(f"  - REBUILD {pg}: {info.get('reason', '')}")
+    # EDIT-only (Julian 2026-07-04): the load never publishes — publication is
+    # the single final act via orchestration/assist/publish_site.sh
+    print(f"\nload_content: created {tot_c} node(s) [EDIT-only]{' [dry]' if dry else ''}")
     if ld.prop_misses:
         # a lifted value with no CND home = text LOST from the render — this is
         # a build/CND mismatch, never acceptable (G1/G3 will be red)

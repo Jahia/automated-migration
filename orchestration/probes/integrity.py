@@ -30,16 +30,27 @@ REALITY (read-only GraphQL against $JAHIA_URL from .env.local):
 
 PHASE-AWARENESS (--phase <step_id>): expectations scale with pipeline position.
   step_pages          → page tree only (EDIT).
-  step_content_load   → page tree + per-page instances (EDIT) + STRICT publish
-                        alignment (EDIT↔LIVE main-area children by name+uuid).
-  step_publish_parity → page tree + instances + media, checked in LIVE too
-                        (parity) + strict publish alignment.
+  step_content_load   → page tree + per-page instances + media, EDIT ONLY —
+                        the process is EDIT-only (Julian doctrine 2026-07-04):
+                        nothing publishes during the loads, so a stale LIVE is
+                        EXPECTED here, never a mismatch.
+  step_publish_final  → everything, LIVE included + STRICT publish alignment
+                        (EDIT↔LIVE main-area children by name+uuid). This is
+                        the belt of the single final publication act
+                        (orchestration/assist/publish_site.sh runs it and
+                        exits with its code).
+  step_ground_truth   → same as step_publish_final (the ground-truth pixel
+                        gate presupposes an aligned LIVE).
+  step_publish_parity → page tree + instances + media in LIVE too (parity)
+                        + strict publish alignment (legacy phase key, kept).
   (default / unknown) → check everything derivable, EDIT + LIVE where sensible.
 
 The publish-alignment belt (A1) is STRICT where the instance belt is tolerant:
 a tolerant count belt plus an outage during a long load left a silent LIVE-purge
 hole paid three gates later at G2. Any EDIT node whose LIVE twin is missing or
-carries a different uuid (stale LIVE from a silently aborted purge) fails HARD.
+carries a different uuid (stale LIVE from a silently aborted purge) fails HARD —
+but only in post-publication phases, since the EDIT-only process tolerates a
+stale LIVE by design until the final act.
 
 Output: <PP>/workflow-output/integrity-report.json + a human summary listing every
 mismatch. Exit 1 on any mismatch, 0 clean. Read-only, idempotent, <60s.
@@ -61,17 +72,22 @@ import urllib.request
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # phase → which checks to run. Encoded as a small table so pipeline position, not
-# the caller, decides the expectation surface. LIVE parity is only expected once
-# publication is the promised outcome (step_publish_parity).
-# "publish" is the STRICT end-of-load belt (improvement A1): the per-phase
+# the caller, decides the expectation surface. LIVE checks only run once
+# publication is the promised outcome — the process is EDIT-only (Julian doctrine
+# 2026-07-04): nothing publishes during the loads, so step_content_load must
+# treat a stale LIVE as EXPECTED, never as a mismatch.
+# "publish" is the STRICT publish-alignment belt (improvement A1): the per-phase
 # instance checks are TOLERANT (upper-bound counts, min-ratio) — a tolerant belt
 # plus an outage during a long load left a silent purge hole paid three gates
-# later at G2. From step_content_load onward we ALSO assert EDIT↔LIVE identity
-# alignment (name+uuid) of each page's main-area children: a stale LIVE node
-# (old uuid) vs the reload's EDIT node (new uuid) is a hard FAIL here, not at G2.
+# later at G2. After the single final publication act (publish_site.sh) we
+# assert EDIT↔LIVE identity alignment (name+uuid) of each page's main-area
+# children: a stale LIVE node (old uuid) vs an EDIT node (new uuid) is a hard
+# FAIL at step_publish_final, not three gates later at G2.
 PHASE_CHECKS: dict[str, dict[str, bool]] = {
     "step_pages": {"pages": True, "instances": False, "media": False, "live": False, "publish": False},
-    "step_content_load": {"pages": True, "instances": True, "media": True, "live": False, "publish": True},
+    "step_content_load": {"pages": True, "instances": True, "media": True, "live": False, "publish": False},
+    "step_publish_final": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
+    "step_ground_truth": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
     "step_publish_parity": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
 }
 # default when --phase is absent or unknown: check everything derivable, both WS.
