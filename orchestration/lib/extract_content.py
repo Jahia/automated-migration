@@ -863,6 +863,9 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
     container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
                        if c.get("isContainer") and c.get("childType")}
+    # P6.3: the project content namespace (asr) — the library recognizer emits
+    # ns:logoWall / ns:logo etc. Derived from the manifest passthroughType.
+    ns = ((manifest or {}).get("passthroughType") or "ns:x").split(":")[0]
 
     def role_for(vision_name):
         # vision name -> role key present in instanceTypeMap (norm_name, the
@@ -894,9 +897,63 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             inst["area"] = area
         return inst
 
-    lift_stats = {"byteFail": 0, "emptyShell": 0}
+    lift_stats = {"byteFail": 0, "emptyShell": 0, "libraryPromoted": 0}
+    library_gaps = []   # (role, reason) — each rawHtml/skeleton fallback that a
+                        # library recognizer COULD one day cover (feeds §5 growth)
 
     import semantic_extract as SE
+    import library_recognize as LR
+
+    def emit_library_plan(plan):
+        """P6.3 GENERIC library promotion: a recognized DOM subtree -> a REAL
+        composable container instance + N typed atom CHILD instances (parent
+        linkage), library-native (no frozen skeleton). Every atom carries its
+        SOURCE fidelity facts (verbatim media orig, source anchor class, href)
+        so an unedited node is byte-exact (rule 26); the loader wires DAM weakref
+        + jmix:externalLink. Returns the number of instances appended to `out`.
+
+        This is the fidelity↔composability reconciliation applied generically:
+        the container view reproduces the source wrapper classes; each child atom
+        is fully editable (image + link) — the logo-wall debt (1/N editable) is
+        gone for EVERY subtree the recognizer covers, not just the prototype one.
+        """
+        cont_idx = len(out)
+        container = {
+            "type": plan["kind"], "nodeType": plan["nodeType"],
+            "parent": None, "libraryPlan": True, "promoted": True,
+            "atomType": plan["atomType"],
+            "container": plan["container"],
+            "fields": {}, "images": [], "links": [],
+        }
+        out.append(container)
+        n = 1
+
+        def _atom(facts, name):
+            return {
+                "type": plan["kind"] + "-atom", "nodeType": plan["atomType"],
+                "parent": cont_idx, "libraryAtom": True,
+                "slot": name,
+                "variant": facts.get("variant", "brand"),
+                "breakClass": facts.get("breakClass", ""),
+                "anchorClass": facts.get("anchorClass", ""),
+                "imgTitle": facts.get("title", ""),
+                # verbatim media markup on module-static refs (rule 26 default)
+                "imgOrig": rewrite_asset_refs(facts.get("orig", ""), base),
+                "imageAltText": facts.get("alt", ""),
+                "imageFile": filename_for(facts.get("src", "")),
+                "href": facts.get("href", ""),
+                "fields": {}, "images": [], "links": [],
+            }
+
+        master = plan.get("master")
+        if master:
+            out.append(_atom(master, "master"))
+            n += 1
+        for i, facts in enumerate(plan.get("children") or [], 1):
+            out.append(_atom(facts, f"item-{i}"))
+            n += 1
+        lift_stats["libraryPromoted"] += 1
+        return n
 
     def raw_lifted_live(el):
         """LIVE passthrough element -> ANONYMOUS editable block (same P2.5
@@ -921,13 +978,30 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 **payload_extras(d), "images": [], "links": []}
 
     def promote_live(vision_name, el):
-        """Promote a LIVE vision component element into a typed skeleton instance
-        (same schema emit_promoted produces). decompose_group mutates and
-        self-checks against str(el) on the live tree — byte-safe. Returns
-        (instance, content-leaves). On byte-fail / empty-shell, returns a verbatim
-        raw_instance built from the element's ORIGINAL serialization."""
+        """Promote a LIVE vision component element (P4 + P6.3).
+
+        FIDELITY-FIRST library recognition runs FIRST (MODULARITY-PLAN §5b): if the
+        subtree maps onto a base-library pattern (logoWall/…), emit REAL composable
+        typed atom child nodes (emit_library_plan) — returns (None, leaves) meaning
+        'already appended to out'. Otherwise fall back to the P4 skeleton path
+        (decompose_group, self-checked against str(el)), and on byte-fail/empty-shell
+        to verbatim rawHtml. Composability rises with library coverage; fidelity
+        never regresses (each atom carries its verbatim source markup)."""
         role = role_for(vision_name)
         original = str(el)
+        # snapshot the leaf count BEFORE any mutation (decompose/recognize)
+        try:
+            _snap0 = _reparse_root(original)
+            _leaves0 = SE._count_leaves(_snap0) if _snap0 is not None else 0
+        except Exception:
+            _leaves0 = 0
+        # P6.3 GENERIC LIBRARY RECOGNIZER — try to map onto the base library.
+        plan = LR.recognize(el, ns)
+        if plan is not None:
+            emit_library_plan(plan)
+            return None, _leaves0
+        else:
+            library_gaps.append((role, LR.library_gap_reason(el)))
         d = SE.decompose_group(el, allow_items=type_allows_items(role))
         if not d["ok"]:
             lift_stats["byteFail"] += 1
@@ -1008,6 +1082,10 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             n_chrome += 1
             return
         inst, lv = promote_live(payload, el)
+        if inst is None:
+            # library plan already appended (container + typed atoms) — composable
+            promoted_leaves += lv
+            return
         out.append(inst)
         if inst.get("promoted"):
             promoted_leaves += lv
@@ -1042,6 +1120,18 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         for r in inner:
             k = root_kind.get(id(r))
             role_seq.append(role_for(k[1]) if k and k[0] == "component" else "rawHtml")
+        # P6.3: BEFORE decompose_group_with_items mutates the inner roots, try to
+        # map each onto the base library (fidelity-first). A matched root becomes a
+        # library-native COMPOSABLE child (logoWall + typed atoms) instead of a
+        # frozen skeleton — while keeping its verbatim markup as the {{child:N}}
+        # skeleton (byte-exact LIVE splice + self-check parity). Order == marker order.
+        lib_plans = []
+        for r in inner:
+            k = root_kind.get(id(r))
+            plan = LR.recognize(r, ns) if (k and k[0] == "component") else None
+            lib_plans.append(plan)
+            if plan is None and k and k[0] == "component":
+                library_gaps.append((role_for(k[1]), LR.library_gap_reason(r)))
         original = str(el)
         snap = _reparse_root(original)
         leaves = SE._count_leaves(snap) if snap is not None else 0
@@ -1067,8 +1157,50 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         # markup — still spliced into its {{child:N}} slot, byte-identical.
         def _has(pl):
             return pl.get("fields") or pl.get("media") or pl.get("link")
+
+        def _emit_library_child(plan, ch):
+            """A library-matched inner root -> a COMPOSABLE library container child
+            (logoWall) with its typed atom grandchildren. It ALSO carries the root's
+            verbatim `skeleton` so the wrapper's {{child:N}} splice stays byte-exact
+            on LIVE (rule 26 verbatim default); in EDIT the container renders via its
+            library view (the atoms get their own edit frames, rule 28). Appends the
+            container + N atoms to `out`."""
+            lib_idx = len(out)
+            out.append({
+                "type": plan["kind"], "nodeType": plan["nodeType"],
+                "parent": cont_idx, "libraryPlan": True, "promoted": True,
+                "atomType": plan["atomType"], "container": plan["container"],
+                # verbatim root markup -> byte-exact {{child:N}} splice on LIVE
+                "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                "skeletonSubs": [], "skeletonMissed": [],
+                "fields": {}, "images": [], "links": [],
+            })
+
+            def _atom(facts, name):
+                return {
+                    "type": plan["kind"] + "-atom", "nodeType": plan["atomType"],
+                    "parent": lib_idx, "libraryAtom": True, "slot": name,
+                    "variant": facts.get("variant", "brand"),
+                    "breakClass": facts.get("breakClass", ""),
+                    "anchorClass": facts.get("anchorClass", ""),
+                    "imgTitle": facts.get("title", ""),
+                    "imgOrig": rewrite_asset_refs(facts.get("orig", ""), base),
+                    "imageAltText": facts.get("alt", ""),
+                    "imageFile": filename_for(facts.get("src", "")),
+                    "href": facts.get("href", ""),
+                    "fields": {}, "images": [], "links": [],
+                }
+            if plan.get("master"):
+                out.append(_atom(plan["master"], "master"))
+            for i, facts in enumerate(plan.get("children") or [], 1):
+                out.append(_atom(facts, f"item-{i}"))
+            lift_stats["libraryPromoted"] += 1
+
         for n, ch in enumerate(d["children"]):
             role = role_seq[n] if n < len(role_seq) else "rawHtml"
+            if n < len(lib_plans) and lib_plans[n] is not None:
+                _emit_library_child(lib_plans[n], ch)
+                continue
             if not _has(ch):
                 lift_stats["emptyShell"] += 1
                 # rawHtml passthrough child, but carry a marker-free `skeleton` so
@@ -1126,9 +1258,14 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             continue
         out.append(raw_lifted_live(child) or raw_instance(str(child)))
 
-    # empty-leaf accounting for the loader (containers keep, empty leaves flagged)
+    # empty-leaf accounting for the loader (containers keep, empty leaves flagged).
+    # Library atoms carry their content in imageFile/imgOrig/href (not fields/
+    # images/links) — they are NEVER empty (a real editable node the loader wires).
     parents = {i["parent"] for i in out if i.get("parent") is not None}
     for idx, i in enumerate(out):
+        if i.get("libraryPlan") or i.get("libraryAtom"):
+            i["empty"] = False
+            continue
         i["empty"] = not (i["fields"] or i["images"] or i["links"]) and idx not in parents
 
     shell = page_shell(txt, base) if ov.get("shell", True) else None
@@ -1149,6 +1286,12 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         "demotedLeaves": demoted_leaves,
         "liftByteFail": lift_stats["byteFail"],
         "liftEmptyShell": lift_stats["emptyShell"],
+        # P6.3 library promotion: containers promoted onto the base library + the
+        # typed atom children (composable, no frozen skeleton). library gaps = the
+        # roots that fell back to skeleton/rawHtml (feeds library growth §5).
+        "libraryPromoted": lift_stats["libraryPromoted"],
+        "libraryAtoms": sum(1 for i in out if i.get("libraryAtom")),
+        "libraryGaps": len(library_gaps),
         # vision children are SEPARATE parent-referenced instances (typed per
         # component), not embedded — count them by parent linkage.
         "childItems": sum(1 for i in out if i.get("parent") is not None),
@@ -1156,6 +1299,10 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         "componentRegions": n_promoted,
         "passthroughRegions": sum(1 for i in out if i.get("passthrough") and not i.get("area")),
     }
+    if library_gaps:
+        # keep a compact reason histogram so the fallback tail is legible
+        from collections import Counter as _C
+        summary["libraryGapReasons"] = dict(_C(r for _, r in library_gaps))
     page = {"adapter": "semantic", "instances": out, "partition": summary}
     if shell:
         page["shell"] = shell

@@ -159,11 +159,19 @@ def lifted_fields(inst):
 def classify(inst):
     """Three legible tiers for the structure ratio:
       'atom'        typed semantic node, no page-sized skeleton -> composable.
-                    (As P6.2 lifts small typed atoms out of skeletons, this rises.)
-      'frozen'      any node carrying a skeleton (structure baked into markup),
-                    including page-sized monoliths.
+                    (As P6.2/P6.3 lifts small typed atoms out of skeletons, this
+                    rises.) Includes P6.3 LIBRARY nodes: a libraryAtom (a real
+                    typed child, e.g. asr:logo) and a libraryPlan CONTAINER (e.g.
+                    asr:logoWall with typed atom children) — the container carries
+                    a verbatim `skeleton` ONLY for the byte-exact {{child:N}} LIVE
+                    splice (rule 26 fidelity default), NOT the God-object pattern,
+                    so it counts as composable structure, not frozen.
+      'frozen'      any OTHER node carrying a skeleton (structure baked into
+                    markup), including page-sized monoliths.
       'passthrough' rawHtml verbatim blob with no skeleton.
     """
+    if inst.get("libraryAtom") or inst.get("libraryPlan"):
+        return "atom"
     sk = inst.get("skeleton") or ""
     if sk:
         return "frozen"
@@ -235,7 +243,10 @@ def main():
             if t not in per_type_maxk or lf > per_type_maxk[t][0]:
                 per_type_maxk[t] = (lf, sorted((inst.get("fields") or {}).keys()), imgs, nlnk)
             sk = inst.get("skeleton") or ""
-            if sk:
+            # a library node's verbatim skeleton is the fidelity default, not a
+            # frozen God-object — do not count it toward the frozen/monolith debt.
+            is_lib = bool(inst.get("libraryAtom") or inst.get("libraryPlan"))
+            if sk and not is_lib:
                 per_type_frozen[t] = per_type_frozen.get(t, 0) + 1
 
             tier = classify(inst)
@@ -246,7 +257,7 @@ def main():
             else:
                 passthrough_pure += 1
 
-            if sk and len(sk) >= a.mono_bytes:
+            if sk and not is_lib and len(sk) >= a.mono_bytes:
                 monoliths.append((slug, inst.get("type"), len(sk), lf))
 
     frozen_blobs = frozen_sections + passthrough_pure
