@@ -316,6 +316,12 @@ def normalize_for_resume(run: RunState) -> None:
         if epic.status in (EpicStatus.running, EpicStatus.failed) and any(
                 st.status != StoryStatus.approved for st in epic.stories):
             epic.status = EpicStatus.pending
+        elif epic.status == EpicStatus.failed:
+            # Failed at the REVIEW stage (every story approved): re-enter the
+            # epic so the review re-runs. With overrule semantics a rejected
+            # proposal now approves the epic, so this branch only recovers
+            # legacy state (pre-overrule rejections) or a reviewer crash.
+            epic.status = EpicStatus.pending
 
 
 def find_all_dependents(story: StoryState, step_id: str) -> set[str]:

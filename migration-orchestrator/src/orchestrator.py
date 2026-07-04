@@ -219,9 +219,19 @@ async def _epic_loop(run: RunState, epic: EpicState, client: OpenCodeClient, eve
         await _wait_for_proposal_decision(run, epic)
 
         if epic.pending_proposal.status == "rejected":
-            epic.status = EpicStatus.failed
+            # OVERRULE semantics (P5): the human/assistant rejects the REVIEWER's
+            # rectification proposal, not the epic. The steps were already judged
+            # by deterministic probes and audited HALT approvals — a higher
+            # authority than the reviewer LLM (which can hallucinate failure from
+            # a halted-then-approved gate, seen live on M4). Rejecting a proposal
+            # therefore approves the epic as-is; failing the run requires an
+            # explicit rollback/abort, never a proposal rejection.
+            epic.status = EpicStatus.approved
             epic.pending_proposal = None
-            await notify_sse(run, "epic_status", {"status": "failed"}, epic_id=epic.id)
+            await notify_sse(run, "epic_status",
+                             {"status": "approved", "review": "rectification rejected — reviewer overruled"},
+                             epic_id=epic.id)
+            await _tag_epic(run, epic)
             return
 
         _inject_rectification_stories(epic, review_result)
