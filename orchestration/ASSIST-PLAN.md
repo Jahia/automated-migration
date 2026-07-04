@@ -43,6 +43,17 @@ Rules:
    for the 20-page run):** audited protocol decisions are part of the system; out-of-band
    actions remain interventions and void the run (fix, record, restart).
 4. One rollback per failure class, then escalate (CONTROL-LOOP.md kept).
+4b. **Amendment (dated 2026-07-04, Julian — assistant charter).** (a) U4 AUTHORIZED in
+   `assisted` mode: the assistant may re-parameterize a step at a decision point —
+   **`inputs` only, never `acceptance_criteria`/`PROBE:` lines** (rule-1 lint stays) —
+   through the audited `/decide` API. (b) HARD BOUNDARY: the assistant NEVER writes
+   project artifacts (`projects/*` module sources, static/scraped mirrors,
+   `workflow-output/*`, Jahia content) — execution belongs exclusively to the
+   deterministic orchestration layer (engine-executed `Run:` steps). The assistant may
+   READ everything at any time. (c) The assistant intervenes BETWEEN steps (decision
+   points, gates), never inside a step's execution. Harness/engine code changes remain
+   allowed but load only at engine restart (rule 3 unchanged: they void the run's
+   confinement claim, fix→record→restart).
 5. **Honest-outcome clause:** "run to completion" includes a documented red verdict with
    evidence. A run that ends in a Julian-reviewed rejection has still been taken to the end.
 6. **Intervention confinement & generalization invariant.** The assistant acts ONLY at
