@@ -12,6 +12,11 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/jahia
       DB_USER: jahia
       DB_PASS: dbpassword
+      # Explicit heap (Julian, 2026-07-04, post-OOM): -Xmx beats the image's
+      # MaxRAMPercentage=80, which sized the heap against the WHOLE Docker VM
+      # (no container limit) and got the container SIGKILLed under DAM load.
+      # Sized for a 12G Docker VM with the sec-lab containers stopped.
+      CATALINA_OPTS: "-Xmx8g"
       JPDA: "true"
       EXECUTE_PROVISIONING_SCRIPT: "file:/mnt/jahia/provisioning.yml"
     volumes:
