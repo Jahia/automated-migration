@@ -1106,9 +1106,13 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     #     per-root TYPED child instances ({{child:N}}; balanced + byte-exact)
     #   * a root-free wrapper -> lift text runs live | verbatim
     #   * a text node (incl. whitespace) -> verbatim (bytes contract)
+    from bs4 import Comment
     for child in list(body.children):
         if not isinstance(child, Tag):
-            t = str(child)
+            # bs4 str(Comment) yields the BARE text — the <!-- --> markers must be
+            # re-wrapped or comment content becomes VISIBLE text and the page body
+            # is no longer byte-exact (rule 32; same fix as page_shell's ser()).
+            t = f"<!--{child}-->" if isinstance(child, Comment) else str(child)
             if t:  # preserve ALL text incl. whitespace (bytes contract)
                 out.append(raw_instance(t))
             continue
@@ -1132,12 +1136,15 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     # accounting parity with semantic_page's partition summary (probe reads these)
     total_leaves = _vision_body_leaves(txt)
     n_promoted = sum(1 for i in out if i.get("promoted"))
+    # Every body child is emitted as at least one instance (promoted, container,
+    # lifted, or verbatim raw) — partition is total by construction.
     summary = {
         "adapterMode": "vision",
         "matchMode": match_mode,
         "visionComponents": len(vroots),
         "chromeAreas": n_chrome,
         "leavesTotal": total_leaves,
+        "leavesCovered": total_leaves,
         "semanticLeafShare": round(promoted_leaves / total_leaves, 3) if total_leaves else None,
         "demotedLeaves": demoted_leaves,
         "liftByteFail": lift_stats["byteFail"],

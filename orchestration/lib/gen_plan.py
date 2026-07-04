@@ -176,12 +176,23 @@ def build_plan(p):
               f"PROBE: python3 orchestration/probes/partition.py {P}",
               f"PROBE: python3 orchestration/probes/contribution.py {P}"],
              deps=["step_model_review"]),
+        # COMPOSE GATE (ASSIST-PLAN): pre-Jahia qualitative gate — the extracted
+        # content must re-compose each page EXACTLY as the Jahia LIVE views will
+        # (skeletonRender.ts composeNode semantics) and match the scoped mirror
+        # BYTE-FOR-BYTE, with a human-reviewable side-by-side. Byte-exactness is
+        # the frozen bar (rule 23); the partition/contribution gates judge the
+        # payload's accounting, this replays the LIVE composition end-to-end.
+        step("step_compose_gate", "Compose gate (byte-exact vs mirror + side-by-side)", "verify",
+             [f"Run: python3 orchestration/lib/compose_probe.py {PP}",
+              f"PROBE: bash orchestration/probes/compose.sh {PP}",
+              f"Gate: compose review at {PP}/workflow-output/compose/compose-review.html"],
+             deps=["step_content_extract"]),
         step("step_cnd", "Emit CND + view plan (wired-only sizing)", "build",
              [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json --content-load orchestration/content/{P}.content-load.json",
               f"PROBE: test -s {PP}/workflow-output/definitions.cnd",
               f"PROBE: grep -q \"{NS} = \" {PP}/workflow-output/definitions.cnd",
               f"PROBE: test -s {PP}/workflow-output/views.json"],
-             deps=["step_content_extract"]),
+             deps=["step_content_extract", "step_compose_gate"]),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
              [f"PROBE[900]: node orchestration/lib/reconstruct_probe.mjs {PP} 10 {THR}",
               "Gate: present worst pages + semantic share, return status halt."],
