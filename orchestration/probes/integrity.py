@@ -30,9 +30,16 @@ REALITY (read-only GraphQL against $JAHIA_URL from .env.local):
 
 PHASE-AWARENESS (--phase <step_id>): expectations scale with pipeline position.
   step_pages          → page tree only (EDIT).
-  step_content_load   → page tree + per-page instances (EDIT).
-  step_publish_parity → page tree + instances + media, checked in LIVE too (parity).
+  step_content_load   → page tree + per-page instances (EDIT) + STRICT publish
+                        alignment (EDIT↔LIVE main-area children by name+uuid).
+  step_publish_parity → page tree + instances + media, checked in LIVE too
+                        (parity) + strict publish alignment.
   (default / unknown) → check everything derivable, EDIT + LIVE where sensible.
+
+The publish-alignment belt (A1) is STRICT where the instance belt is tolerant:
+a tolerant count belt plus an outage during a long load left a silent LIVE-purge
+hole paid three gates later at G2. Any EDIT node whose LIVE twin is missing or
+carries a different uuid (stale LIVE from a silently aborted purge) fails HARD.
 
 Output: <PP>/workflow-output/integrity-report.json + a human summary listing every
 mismatch. Exit 1 on any mismatch, 0 clean. Read-only, idempotent, <60s.
@@ -56,13 +63,19 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # phase → which checks to run. Encoded as a small table so pipeline position, not
 # the caller, decides the expectation surface. LIVE parity is only expected once
 # publication is the promised outcome (step_publish_parity).
+# "publish" is the STRICT end-of-load belt (improvement A1): the per-phase
+# instance checks are TOLERANT (upper-bound counts, min-ratio) — a tolerant belt
+# plus an outage during a long load left a silent purge hole paid three gates
+# later at G2. From step_content_load onward we ALSO assert EDIT↔LIVE identity
+# alignment (name+uuid) of each page's main-area children: a stale LIVE node
+# (old uuid) vs the reload's EDIT node (new uuid) is a hard FAIL here, not at G2.
 PHASE_CHECKS: dict[str, dict[str, bool]] = {
-    "step_pages": {"pages": True, "instances": False, "media": False, "live": False},
-    "step_content_load": {"pages": True, "instances": True, "media": True, "live": False},
-    "step_publish_parity": {"pages": True, "instances": True, "media": True, "live": True},
+    "step_pages": {"pages": True, "instances": False, "media": False, "live": False, "publish": False},
+    "step_content_load": {"pages": True, "instances": True, "media": True, "live": False, "publish": True},
+    "step_publish_parity": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
 }
 # default when --phase is absent or unknown: check everything derivable, both WS.
-DEFAULT_CHECKS = {"pages": True, "instances": True, "media": True, "live": True}
+DEFAULT_CHECKS = {"pages": True, "instances": True, "media": True, "live": True, "publish": True}
 
 
 # ── environment (read-only; same .env.local contract as mcp_client / _lib.sh) ──
@@ -139,6 +152,27 @@ class Jahia:
         if not node:
             return None
         return len(node["descendants"]["nodes"])
+
+    def main_area_children(self, site: str, page_name: str, workspace: str) -> dict | None:
+        """DIRECT children of a page's /main area as {name: uuid} — the ordered
+        top-level content nodes an editor sees and publishes. Returns None when
+        the /main area node itself is absent in this workspace (never published /
+        purged), distinct from {} (area exists, no children). Non-recursive: the
+        publish-alignment belt compares the area's OWN children by identity; a
+        stale LIVE node keeps its OLD uuid while the reload's EDIT node has a NEW
+        one (observed live: 925 EDIT-vs-LIVE uuid mismatches from a silently
+        aborted purge)."""
+        path = f"/sites/{site}/home/{page_name}/main"
+        q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
+             'children { nodes { name uuid } } } } }' % (workspace, path))
+        try:
+            d = self.gql(q)
+        except RuntimeError:
+            return None  # path does not exist → not-yet-created / purged area
+        node = (d.get("jcr") or {}).get("nodeByPath")
+        if not node:
+            return None
+        return {n["name"]: n.get("uuid") for n in node["children"]["nodes"]}
 
     def dam_file_count(self, site: str, workspace: str) -> int:
         """jnt:file descendants under /sites/<site>/files."""
@@ -291,6 +325,48 @@ def run(pp: str, site: str, phase: str | None, min_ratio: float) -> dict:
                     "expected": exp_m, "actual": actual_m, "minRatio": min_ratio,
                     "detail": f"DAM files {actual_m} < {min_ratio:.0%} of expected {exp_m}"})
 
+    # ── publish alignment (STRICT end-of-load belt, A1) ───────────────────────
+    # For every page that carries content, compare its main-area DIRECT children
+    # EDIT-vs-LIVE by (name, uuid). Any uuid mismatch, or an EDIT node absent
+    # from LIVE, means the LIVE copy is STALE — a silently aborted purge left the
+    # old node (old uuid) while the reload made a new EDIT node (new uuid); every
+    # subsequent edit+publish then no-ops in silence (same path, other identity).
+    # This is the exact failure that read 925 mismatches and turned G2 red three
+    # gates later. Unlike the tolerant instance count above, ANY misalignment is
+    # a hard FAIL. Plan-derived (page-inventory + content-load), no project-
+    # specific knowledge — same slug→node convention as the instance check.
+    if checks.get("publish"):
+        exp_inst = expected_instances(project)
+        # pages that carry content AND exist as page nodes (or /home for "home")
+        content_pages = {s for s in expected_pages(pp) if exp_inst.get(s, 0) > 0}
+        if exp_inst.get("home", 0) > 0:
+            content_pages.add("home")
+        pub_sec: dict = {"pages": {}}
+        for slug in sorted(content_pages):
+            node_name = "home" if slug == "home" else slug
+            edit = j.main_area_children(site, node_name, "EDIT")
+            if not edit:
+                # no EDIT children to align (page skipped/empty at load time) —
+                # the instance belt covers "expected content but empty"; nothing
+                # to compare for identity, so this is not a publish mismatch
+                continue
+            live = j.main_area_children(site, node_name, "LIVE")
+            live = live or {}  # None == LIVE area absent → every EDIT node is stale
+            stale = sorted(n for n, u in edit.items() if live.get(n) != u)
+            if stale:
+                pub_sec["pages"][slug] = {
+                    "editCount": len(edit), "liveCount": len(live),
+                    "misaligned": len(stale), "sample": stale[:5]}
+                report["mismatches"].append({
+                    "kind": "publish_unaligned", "page": slug,
+                    "editCount": len(edit), "liveCount": len(live),
+                    "misaligned": len(stale),
+                    "detail": f"{len(stale)} main-area child(ren) differ EDIT-vs-LIVE "
+                              f"by name/uuid (stale LIVE — edit+publish would no-op)"})
+        pub_sec["misalignedPages"] = len(pub_sec["pages"])
+        pub_sec["totalMisaligned"] = sum(v["misaligned"] for v in pub_sec["pages"].values())
+        report["sections"]["publish"] = pub_sec
+
     return report
 
 
@@ -314,6 +390,10 @@ def human_summary(report: dict) -> str:
     if "media" in secs:
         m = secs["media"]
         lines.append(f"  media   : expected {m['expected']}, {m['workspace']} {m['actual']}")
+    if "publish" in secs:
+        pu = secs["publish"]
+        lines.append(f"  publish : {pu['misalignedPages']} page(s) with stale LIVE, "
+                     f"{pu['totalMisaligned']} main-area child(ren) EDIT≠LIVE (name/uuid)")
     ms = report.get("mismatches", [])
     if not ms:
         lines.append("  RESULT  : CLEAN — reality matches artifact-derived expectations.")
@@ -332,6 +412,10 @@ def human_summary(report: dict) -> str:
             elif k == "media_drift":
                 lines.append(f"    - MEDIA DRIFT [{m['workspace']}]: "
                              f"expected {m['expected']}, got {m['actual']}")
+            elif k == "publish_unaligned":
+                lines.append(f"    - STALE LIVE: {m['page']} "
+                             f"(EDIT {m['editCount']} / LIVE {m['liveCount']}, "
+                             f"{m['misaligned']} child(ren) name/uuid off)")
             else:
                 lines.append(f"    - {k}: {m.get('detail', '')}")
         if len(ms) > 40:

@@ -342,6 +342,36 @@ class Loader:
             print(f"    ! ensure_area {area_path}: {e}", file=sys.stderr)
             return False
 
+    def _live_child_count(self, area_path):
+        """Read-only count of the area's LIVE children via GraphQL (workspace
+        LIVE). Returns:
+          * an int  — the area exists in LIVE with that many direct children;
+          * None    — the area node is ABSENT in LIVE (a PURGED state: verified
+                      live, GraphQL answers a missing path with a
+                      PathNotFoundException, which self.m.gql() raises — so we
+                      MUST recognise that message as "purged", not as a fault,
+                      or the poller would never see success on a fully-unpublished
+                      area and clean_area would falsely raise on a clean purge);
+          * -1      — a GENUINE transient read fault (connection reset/timeout):
+                      unknown state, so the poller keeps retrying rather than
+                      declaring success on a failed read.
+        Never raises."""
+        q = ('{ jcr(workspace: LIVE) { nodeByPath(path: "%s") '
+             '{ children { nodes { name } } } } }' % area_path)
+        try:
+            d = self.m.gql(q)
+        except Exception as e:
+            # PathNotFoundException == the area is gone from LIVE == purged.
+            # gql() also returns null-data alongside this error, but it raises
+            # on `errors` first, so we key off the message here.
+            if "PathNotFound" in str(e) or "path not found" in str(e).lower():
+                return None
+            return -1  # transient/unknown — treat as "not yet proven empty"
+        node = (d.get("jcr") or {}).get("nodeByPath") if isinstance(d, dict) else None
+        if node is None:
+            return None  # area absent in LIVE == fully purged
+        return len(((node.get("children") or {}).get("nodes")) or [])
+
     def clean_area(self, area_path):
         """Delete existing content children of an area so the load is idempotent
         (leftovers would DOUBLE page content on reload; observed live: Δheight
@@ -350,7 +380,7 @@ class Loader:
         nodes, and the mark-for-deletion + publish flow proved unreliable for
         skeleton nodes (jmix:markedForDeletion survivors) with an ASYNC deletion
         publication that raced the reload's create ('already exists' collisions,
-        observed live P2.5). After clearing, ONE parent publication purges the
+        observed live P2.5). After clearing, the parent publication purges the
         LIVE copies (rule 2: always publish after JCR mutations).
         content.list PAGINATES (~20) — loop until empty or no progress."""
         n = 0
@@ -377,12 +407,45 @@ class Loader:
                 for k in kids[:3]:
                     print(f"    ! clean leftover: {k.get('path') or k.get('name')}", file=sys.stderr)
                 break
-        if n:
+        if not n:
+            return n
+        # VERIFIED LIVE purge (was: one publish wrapped in try/except: pass).
+        # Observed live (discoverasr, 12 of 20 pages): the single area publish
+        # SILENTLY ABORTED (a publication job racing/dropped under load) and the
+        # swallowed except hid it. LIVE kept the OLD nodes (old UUIDs); the
+        # reload created NEW EDIT nodes (new UUIDs); every per-node publish then
+        # conflicted IN SILENCE (same path, different identity) → edit+publish
+        # never reached LIVE → G2 roundtrip failed 3 gates later (925 EDIT-vs-
+        # LIVE UUID mismatches). Now we PUBLISH THEN POLL LIVE until the area
+        # has zero children (or is gone), retrying the publish, and FAIL LOUD if
+        # the purge cannot be proven — a poisoned LIVE state must never be
+        # silently carried forward.
+        import time
+        for attempt in range(3):  # up to 3 publish+poll cycles
             try:
                 self.m.publish(area_path)
-            except Exception:
-                pass
-        return n
+            except Exception as e:
+                print(f"    ! clean publish {area_path} (attempt {attempt + 1}): "
+                      f"{str(e)[:140]}", file=sys.stderr)
+            deadline = time.time() + 120  # ~120s per cycle for the async job
+            live = self._live_child_count(area_path)
+            while live not in (0, None) and time.time() < deadline:
+                time.sleep(3)
+                live = self._live_child_count(area_path)
+            if live in (0, None):
+                return n  # LIVE proven empty — purge landed
+            print(f"    ! clean: {area_path} still has {live} LIVE child(ren) "
+                  f"after publish attempt {attempt + 1}/3 — re-publishing",
+                  file=sys.stderr)
+        # Exhausted retries with LIVE still populated: fail HARD rather than
+        # leave a poisoned state that only surfaces at G2, three gates later.
+        survivors = self._live_child_count(area_path)
+        raise RuntimeError(
+            f"clean_area: LIVE purge of {area_path} FAILED — "
+            f"{survivors if survivors and survivors > 0 else 'unknown count of'} "
+            f"stale LIVE child(ren) survive after 3 verified publish attempts. "
+            f"Refusing to proceed (stale LIVE UUIDs would make every subsequent "
+            f"edit+publish a silent no-op; observed live: G2 roundtrip red).")
 
     def _slug_to_jcr_path(self, slug):
         """Map a flat content-load slug to the hierarchical JCR page path.
