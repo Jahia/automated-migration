@@ -144,3 +144,41 @@ fixes the height AND enables a shift-tolerant fidelity check.)
 3. Prototype recursive decomposition on ONE discoverasr section (brand-logos grid or a card
    grid) → promote to `grid` of `card` atoms; verify fidelity holds AND an editor can
    add/remove a card.
+
+## 7. P6.3 — generic recognizer (Phase A done; commit 95b9f1c)
+
+The P6.2 logo-wall prototype (`decompose_logowall.py`) was generalized into a
+project-agnostic recognizer **`orchestration/lib/library_recognize.py`**, wired into the
+recompose stage (`extract_content.py` vision adapter: `promote_live` + `emit_container_live`).
+Recognizer #1 (`logoWall`): a uniform run of `<a>`-wrapping-`<img>` siblings (≥3, same
+class signature) → `ns:logoWall` + N `ns:logo` typed atoms; odd-one-out master-class anchor
+→ fixed `master` slot; break-* spacers travel with their atom. Fidelity-first: each atom
+carries its verbatim source media `orig` + source anchor class + href (rule 26); the
+container keeps the source class chain so the view reproduces source layout. No match →
+existing skeleton/rawHtml path (no fidelity regression), logged as a library gap.
+
+**Measured (discoverasr, 20 pages): composable ratio 0.0% → 13.2%** (0 → 400 typed nodes:
+20 `logoWall` containers + 380 `logo` atoms). The logo-wall K=17 frozen debt is eliminated.
+Spot-checks clean: 0 over-decomposition (text runs / heros / grids / faq / tabs all correctly
+REFUSED), 0 empty atoms, all 19 atom origs byte-verbatim in source. The deployed logo-wall
+zone re-verified: **100% pixel fidelity** + **G6a** (image/alt/ctaLabel/j:linkType all rw in
+`forms.editForm`) — the generic path's output matches the proven prototype end-to-end.
+
+**Self-gate: >50% NOT reached (13.2%).** The recognizer is NOT deraphrasing — it correctly
+refuses fidelity-unsafe promotions. Of 141 frozen vision sections, **72 are script-driven
+widgets** (JS carousels with *cloned* infinite-scroll slides + JS `transform` inline styles;
+Salesforce web-to-lead `<form>`s; JS tabs) that are fidelity-unsafe to promote (rule 29/23);
+the remaining ~69 are bespoke one-off layouts. discoverasr's ONE cleanly-promotable pattern
+is the logo wall. **LIBRARY GAPS to grow (would each need a fidelity-safe recognizer):**
+- `carousel` (`our-brands-section`, `news-carousel`, `hero-*`): needs a JS Island + cloned-slide
+  de-duplication — cannot be a static skeleton promotion.
+- `tabs`/`accordion` (`popular-destinations-tabs`, `tabs-section`): JS-driven show/hide.
+- `richText` (`rich-text-section`): most instances are actually forms/tables (widget); the
+  clean ones are deeply nested — a `<section>` with no form/media-repeater → one `ns:richText`
+  body is the next-lowest-risk recognizer, but lifts the ratio only ~+5pt.
+- `cardGrid` (`destination-grid`, `multi-column-section`): heterogeneous section-large/section
+  mix with overlays — no clean uniform card signature.
+
+**Phase B (full re-migration) was NOT run** — the self-gate says stop and iterate. The generic
+recognizer + wiring ship; the loader/CND path for library-native instances (Phase B step 6)
+is designed but not built pending the recognizer-coverage decision.
