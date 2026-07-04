@@ -366,6 +366,39 @@ def rewrite_asset_refs(html, base):
     return html
 
 
+def _library_atom(plan, parent_idx, facts, name, base):
+    """Build one COMPOSABLE library atom instance (P6.3 logoWall, P6.3-bis
+    carousel slide / tabs pane) as a child of `parent_idx`.
+
+    FIDELITY-FIRST (rule 26 verbatim-default): the atom carries its VERBATIM
+    cleaned source markup in `imgOrig` (module-static refs). The loader/view
+    renders it as-is while the atom's picked image weakref still targets the DAM
+    copy of the original — byte-exact by construction. The first image + first
+    link (facts.src / facts.href) surface as the editable weakref + j:linkType
+    slots; the rest of the markup is the verbatim default. Generic across atom
+    kinds: a logo carries a media-only `orig`, a slide/tab carries a rich block
+    `orig` + optional title/active — the same contract, no bespoke logic."""
+    return {
+        "type": plan["kind"] + "-atom", "nodeType": plan["atomType"],
+        "parent": parent_idx, "libraryAtom": True,
+        "slot": name,
+        "variant": facts.get("variant", "brand"),
+        "breakClass": facts.get("breakClass", ""),
+        "anchorClass": facts.get("anchorClass", ""),
+        "elClass": facts.get("elClass", ""),
+        # slide/tab label (tabs) or logo title; drives the atom's editable title
+        "atomTitle": facts.get("title", ""),
+        "active": bool(facts.get("active", False)),
+        "imgTitle": facts.get("title", ""),
+        # verbatim source markup on module-static refs (rule 26 verbatim default)
+        "imgOrig": rewrite_asset_refs(facts.get("orig", ""), base),
+        "imageAltText": facts.get("alt", ""),
+        "imageFile": filename_for(facts.get("src", "")),
+        "href": facts.get("href", ""),
+        "fields": {}, "images": [], "links": [],
+    }
+
+
 def load_overrides(project):
     """workflow-output/passthrough-overrides.json — the fidelity/semantic DIAL:
     {"demoteRoles": ["*"|role...], "promoteRoles": [role...],
@@ -929,21 +962,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         n = 1
 
         def _atom(facts, name):
-            return {
-                "type": plan["kind"] + "-atom", "nodeType": plan["atomType"],
-                "parent": cont_idx, "libraryAtom": True,
-                "slot": name,
-                "variant": facts.get("variant", "brand"),
-                "breakClass": facts.get("breakClass", ""),
-                "anchorClass": facts.get("anchorClass", ""),
-                "imgTitle": facts.get("title", ""),
-                # verbatim media markup on module-static refs (rule 26 default)
-                "imgOrig": rewrite_asset_refs(facts.get("orig", ""), base),
-                "imageAltText": facts.get("alt", ""),
-                "imageFile": filename_for(facts.get("src", "")),
-                "href": facts.get("href", ""),
-                "fields": {}, "images": [], "links": [],
-            }
+            return _library_atom(plan, cont_idx, facts, name, base)
 
         master = plan.get("master")
         if master:
@@ -1176,24 +1195,10 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 "fields": {}, "images": [], "links": [],
             })
 
-            def _atom(facts, name):
-                return {
-                    "type": plan["kind"] + "-atom", "nodeType": plan["atomType"],
-                    "parent": lib_idx, "libraryAtom": True, "slot": name,
-                    "variant": facts.get("variant", "brand"),
-                    "breakClass": facts.get("breakClass", ""),
-                    "anchorClass": facts.get("anchorClass", ""),
-                    "imgTitle": facts.get("title", ""),
-                    "imgOrig": rewrite_asset_refs(facts.get("orig", ""), base),
-                    "imageAltText": facts.get("alt", ""),
-                    "imageFile": filename_for(facts.get("src", "")),
-                    "href": facts.get("href", ""),
-                    "fields": {}, "images": [], "links": [],
-                }
             if plan.get("master"):
-                out.append(_atom(plan["master"], "master"))
+                out.append(_library_atom(plan, lib_idx, plan["master"], "master", base))
             for i, facts in enumerate(plan.get("children") or [], 1):
-                out.append(_atom(facts, f"item-{i}"))
+                out.append(_library_atom(plan, lib_idx, facts, f"item-{i}", base))
             lift_stats["libraryPromoted"] += 1
 
         for n, ch in enumerate(d["children"]):

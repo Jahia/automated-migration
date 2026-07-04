@@ -156,8 +156,20 @@ def lifted_fields(inst):
     return n
 
 
+# a rawHtml passthrough whose stripped HTML is shorter than this is a BYTE-CONTRACT
+# PARTITION ARTIFACT (inter-element whitespace, a comment, a wrapper stub) — not a
+# frozen God-object and not a composable unit. It must not dilute the ratio
+# denominator (the ratio measures composable vs non-composable CONTENT, not the
+# whitespace the byte-exact partition necessarily emits between content regions).
+WHITESPACE_MAX = 40
+
+
+def _passthrough_html(inst):
+    return (inst.get("fields") or {}).get("html", "")
+
+
 def classify(inst):
-    """Three legible tiers for the structure ratio:
+    """Four legible tiers for the structure ratio:
       'atom'        typed semantic node, no page-sized skeleton -> composable.
                     (As P6.2/P6.3 lifts small typed atoms out of skeletons, this
                     rises.) Includes P6.3 LIBRARY nodes: a libraryAtom (a real
@@ -168,7 +180,10 @@ def classify(inst):
                     so it counts as composable structure, not frozen.
       'frozen'      any OTHER node carrying a skeleton (structure baked into
                     markup), including page-sized monoliths.
-      'passthrough' rawHtml verbatim blob with no skeleton.
+      'passthrough' rawHtml verbatim CONTENT blob with no skeleton (>WHITESPACE_MAX).
+      'whitespace'  a tiny/empty rawHtml passthrough — a byte-contract partition
+                    artifact (whitespace/comment between content regions), EXCLUDED
+                    from the ratio denominator (it is not a composable content unit).
     """
     if inst.get("libraryAtom") or inst.get("libraryPlan"):
         return "atom"
@@ -176,6 +191,8 @@ def classify(inst):
     if sk:
         return "frozen"
     if inst.get("type") == "rawHtml":
+        if len(_passthrough_html(inst).strip()) < WHITESPACE_MAX:
+            return "whitespace"
         return "passthrough"
     return "atom"
 
@@ -229,6 +246,7 @@ def main():
     typed_atoms = 0
     frozen_sections = 0
     passthrough_pure = 0
+    whitespace_artifacts = 0   # tiny/empty rawHtml — byte-contract partition noise
     monoliths = []          # (page, type, skeleton_bytes, lifted)
     total_inst = 0
 
@@ -254,6 +272,8 @@ def main():
                 typed_atoms += 1
             elif tier == "frozen":
                 frozen_sections += 1
+            elif tier == "whitespace":
+                whitespace_artifacts += 1
             else:
                 passthrough_pure += 1
 
@@ -261,7 +281,11 @@ def main():
                 monoliths.append((slug, inst.get("type"), len(sk), lf))
 
     frozen_blobs = frozen_sections + passthrough_pure
-    composable_ratio = 100.0 * typed_atoms / max(total_inst, 1)
+    # the ratio measures composable vs non-composable CONTENT; whitespace/comment
+    # partition artifacts are neither, so they are excluded from the denominator
+    # (they only exist because the partition is byte-exact between content regions).
+    content_nodes = total_inst - whitespace_artifacts
+    composable_ratio = 100.0 * typed_atoms / max(content_nodes, 1)
     over_k = sorted(
         [(t, per_type_maxk[t][0]) for t in per_type_maxk if per_type_maxk[t][0] > a.k],
         key=lambda x: -x[1])
@@ -285,9 +309,13 @@ def main():
           f"  (semantic node, no frozen skeleton)")
     print(f"  frozen sections (skeleton) . {frozen_sections}")
     print(f"  pure rawHtml passthrough ... {passthrough_pure}")
+    print(f"  whitespace/partition noise . {whitespace_artifacts}"
+          f"  (tiny rawHtml <{WHITESPACE_MAX}B — excluded from ratio denominator)")
     print(f"  (frozen blobs total ........ {frozen_blobs})")
+    print(f"  content nodes (ratio denom). {content_nodes}"
+          f"  (total minus whitespace)")
     print(f"  COMPOSABLE RATIO ........... {composable_ratio:.1f}%"
-          f"  (typed atoms / all nodes; higher = more composable)")
+          f"  (typed atoms / content nodes; higher = more composable)")
     print()
 
     print(f"K — MAX LIFTED FIELDS PER TYPE (anti-pattern threshold K={a.k})")
@@ -362,6 +390,8 @@ def main():
             "structure": {"totalNodes": total_inst, "typedAtoms": typed_atoms,
                           "frozenSections": frozen_sections,
                           "purePassthrough": passthrough_pure,
+                          "whitespaceArtifacts": whitespace_artifacts,
+                          "contentNodes": content_nodes,
                           "frozenBlobs": frozen_blobs,
                           "composableRatio": round(composable_ratio, 1)},
             "k": {"threshold": a.k, "overK": over_k},

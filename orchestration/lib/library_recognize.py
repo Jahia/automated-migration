@@ -50,6 +50,35 @@ BREAK_CLASSES = {"break-mobile", "break-tablet", "break-desktop"}
 # minimum repeated same-signature siblings to treat as a composable repeater
 MIN_REPEAT = 3
 
+# minimum CANONICAL (de-cloned) slides to treat a track as a carousel. A carousel
+# is meaningful with 2 slides (unlike a logo wall which needs >=3 to be a "wall").
+MIN_SLIDES = 2
+
+# clone/duplicate CSS-class markers a JS carousel injects for the infinite-scroll
+# illusion (swiper/slick/owl + the custom asr-content-slider). Any slide carrying
+# one of these — or a BEM `*--cloned`/`*__clone*` class — is a NON-canonical clone.
+# These are matched against the FULL class string (substring + token), so
+# `cmp-carousel__item--cloned` and a bare `cloned` token both hit.
+CLONE_CLASS_TOKENS = {
+    "cloned", "clone", "slick-cloned", "swiper-slide-duplicate",
+    "swiper-slide-duplicate-prev", "swiper-slide-duplicate-next",
+    "owl-clone", "is-clone", "js-clone",
+}
+CLONE_CLASS_SUBSTR = ("--cloned", "__clone", "-clone", "duplicate")
+
+# inline-style properties that encode a TRANSIENT JS SCROLL/VISIBILITY STATE and
+# must be stripped before an element becomes a persisted content node — otherwise
+# the node would freeze one frame of a scroll animation (rule: strip JS state).
+# `width`/`margin-left` on a JS-sized slide track are transient too (the JS lays
+# the flex row out in px); we strip the whole positional set. We NEVER touch
+# non-positional inline styles (colors, backgrounds) — those are source design.
+JS_STATE_STYLE_PROPS = {
+    "transform", "-webkit-transform", "transition", "-webkit-transition",
+    "translate", "margin-left", "margin-right", "left", "right", "top", "bottom",
+    "opacity", "display", "visibility", "width", "min-width", "max-width",
+    "will-change",
+}
+
 
 # ── small structural helpers (agnostic — no project vocabulary) ──────────────
 
@@ -150,6 +179,97 @@ def _source_class_chain(root, repeater):
     return chain
 
 
+# ── cloned-slide dedup + JS-state strip (carousel fidelity, P6.3-bis) ─────────
+
+def _is_clone(el):
+    """True if `el` is a JS-injected CLONE of a canonical slide (infinite-scroll
+    illusion) — NOT contributor content, must be excluded from the child count.
+
+    Deterministic marker union (never a project class name):
+      - a clone CSS-class token (cloned / slick-cloned / swiper-slide-duplicate /
+        owl-clone …) or a BEM `*--cloned`/`*__clone`/`-clone`/`duplicate` class;
+      - aria-hidden="true" (swiper/slick hide clones from AT);
+      - a `data-swiper-slide-index` that DUPLICATES a canonical index — handled
+        separately in the dedup pass (needs sibling context)."""
+    cls = _classes(el)
+    if any(c in CLONE_CLASS_TOKENS for c in cls):
+        return True
+    joined = " ".join(cls)
+    if any(sub in joined for sub in CLONE_CLASS_SUBSTR):
+        return True
+    if (el.get("aria-hidden") or "").strip().lower() == "true":
+        return True
+    return False
+
+
+def _dedup_clones(slides):
+    """Return the CANONICAL slides in document order, dropping JS clones.
+
+    Two-pass:
+      1) marker-based: drop any slide `_is_clone` flags (class/aria-hidden).
+      2) index-based: if slides carry `data-swiper-slide-index` (swiper), keep the
+         FIRST occurrence of each index (later duplicates are clones even when the
+         class marker is absent).
+    Falls back to the input unchanged if EVERY slide looks like a clone (a
+    misdetection guard — never return an empty canonical set)."""
+    kept = [s for s in slides if not _is_clone(s)]
+    # swiper index dedup on the survivors (and, if markers dropped everything,
+    # on the full list so we still de-duplicate an all-marked track)
+    pool = kept if kept else slides
+    seen_idx = set()
+    out = []
+    for s in pool:
+        idx = s.get("data-swiper-slide-index")
+        if idx is not None:
+            if idx in seen_idx:
+                continue
+            seen_idx.add(idx)
+        out.append(s)
+    return out if out else slides
+
+
+_STYLE_DECL_RE = re.compile(r"\s*([-\w]+)\s*:\s*[^;]*;?")
+
+
+def _strip_js_state(markup):
+    """Return `markup` (an HTML string) with TRANSIENT JS scroll/visibility state
+    removed from inline `style=""` attributes, on EVERY element in the fragment.
+    A slide the JS froze at `style="transform: translate3d(...); opacity: 1;
+    display: block; width: 1200px;"` becomes clean persisted content; a
+    non-positional inline style (a source background/color) is preserved.
+
+    Parses with the same html.parser BeautifulSoup the pipeline uses so the
+    re-serialization is byte-idempotent for the surviving markup."""
+    from bs4 import BeautifulSoup
+    frag = BeautifulSoup(markup, "html.parser")
+    for el in frag.find_all(style=True):
+        decls = []
+        for prop, decl in _extract_decls(el.get("style") or ""):
+            if prop.lower() in JS_STATE_STYLE_PROPS:
+                continue
+            decls.append(decl)
+        cleaned = "; ".join(d.rstrip(";").strip() for d in decls if d.strip())
+        if cleaned:
+            el["style"] = cleaned + ";"
+        else:
+            del el["style"]
+    return str(frag)
+
+
+def _extract_decls(style):
+    """Yield (prop, full-declaration) pairs from an inline style string."""
+    for chunk in style.split(";"):
+        chunk = chunk.strip()
+        if not chunk or ":" not in chunk:
+            continue
+        prop = chunk.split(":", 1)[0].strip()
+        yield prop, chunk
+
+
+def _text_of(el):
+    return el.get_text(" ", strip=True) if isinstance(el, Tag) else ""
+
+
 # ── recognizer: LOGO WALL / IMAGE ROW (P6.2 pattern, generalized) ────────────
 
 def _recognize_logowall(root, ns):
@@ -240,10 +360,288 @@ def _recognize_logowall(root, ns):
     }
 
 
+# ── shared: a rich atom's verbatim fidelity facts (rule 26 verbatim-default) ──
+# A slide / tab-panel is richer than a logo (media + link + text). Instead of
+# lifting each text/media field (which is fidelity-unsafe on JS-composed markup),
+# the atom carries its VERBATIM cleaned source markup as `orig` — rendered as-is
+# by the view (byte-exact by construction). The atom stays COMPOSABLE (a real
+# child node the editor can add/remove/reorder) while being fidelity-safe: the
+# first media + first link surface as editable slots (rule 26/27), the rest of
+# the markup is the verbatim default. This is the logo `imgOrig` contract applied
+# to any repeated widget item.
+
+def _clean_state_class(markup, is_slide):
+    """Drop transient JS state tokens (active/next/prev/cloned/…) from the ROOT
+    element's class of a slide/panel fragment, so a persisted node never freezes
+    one carousel frame as 'active'. Only the outer element is touched (inner
+    source classes are design and stay verbatim). Returns cleaned markup."""
+    if not is_slide:
+        return markup
+    from bs4 import BeautifulSoup
+    frag = BeautifulSoup(markup, "html.parser")
+    root = next((c for c in frag.children if isinstance(c, Tag)), None)
+    if root is not None and root.get("class"):
+        kept = [c for c in _classes(root)
+                if c not in SLIDE_STATE_TOKENS
+                and not any(sub in c for sub in CLONE_CLASS_SUBSTR)]
+        if kept:
+            root["class"] = kept
+        else:
+            del root["class"]
+    return str(frag)
+
+
+def _rich_atom_facts(el, variant):
+    """Fidelity facts of one slide / tab-panel / accordion-item element.
+    `orig` = the element's cleaned inner+outer markup (JS-state stripped) rendered
+    verbatim; first <img> + first <a href> surface as the editable image + link."""
+    cleaned = _clean_state_class(_strip_js_state(str(el)), variant == "slide")
+    img = el.find("img")
+    src = ""
+    alt = ""
+    if img is not None:
+        src = (img.get("src") or img.get("data-src") or "").strip()
+        if src.startswith("data:"):
+            src = ""
+        alt = img.get("alt", "") or ""
+    a = el.find("a", href=True)
+    href = (a.get("href").strip() if a is not None else "")
+    return {
+        "variant": variant,
+        "orig": cleaned,                 # verbatim cleaned markup (fidelity default)
+        "elClass": " ".join(_classes(el)),
+        "src": src,                       # first image -> editable weakref slot
+        "alt": alt,
+        "title": "",                      # optional label (tabs set this)
+        "href": href,                     # first link -> editable j:linkType slot
+        "text": _text_of(el)[:200],       # short preview (never persisted content)
+        "breakClass": "",
+    }
+
+
+# ── recognizer: CAROUSEL / SLIDER (JS-Island, cloned-slide dedup) — P6.3-bis ──
+
+# state/clone class tokens a JS carousel toggles on slides (active/prev/next/…) or
+# injects on clones. These fragment the raw class signature, so a slide-track's
+# sibling run looks heterogeneous unless we NORMALIZE them away before grouping —
+# that normalization is exactly what lets `asr-slide-item active`,
+# `asr-slide-item cloned prev`, `asr-slide-item next` all count as ONE slide type.
+SLIDE_STATE_TOKENS = (CLONE_CLASS_TOKENS | {
+    "active", "prev", "next", "current", "is-active", "is-current",
+    "swiper-slide-active", "swiper-slide-next", "swiper-slide-prev",
+    "slick-active", "slick-current", "slick-center", "owl-item",
+    "selected", "focused", "visible", "hidden",
+})
+
+# a "slide" is a BLOCK element; list-semantics children (<li>/<option>/<dd>) are a
+# TEXT RUN, never carousel slides (rule 24). A carousel view/track never nests a
+# real slide inside an <ul>/<ol> item run.
+_NON_SLIDE_TAGS = {"li", "option", "dd", "dt", "th", "td", "tr", "optgroup"}
+
+
+def _slide_sig(el):
+    """Class signature with clone/state tokens removed — so state variants of the
+    same slide group together (the key fix for de-cloning a JS slider track)."""
+    cls = [c for c in _classes(el)
+           if c not in SLIDE_STATE_TOKENS
+           and not any(sub in c for sub in CLONE_CLASS_SUBSTR)]
+    return (el.name, tuple(sorted(cls)))
+
+
+def _find_slide_track(root):
+    """Find the wrapper whose direct children are a run of same-(normalized)-
+    signature SLIDE siblings (>=MIN_SLIDES canonical after de-cloning), each a
+    BLOCK element that DIRECTLY wraps media (a real slide, not a text list).
+    Returns (track, [canonical_slides], [all_slides]) or (None, None, None).
+
+    Chooses the track with the MOST canonical slides (the real slide row dominates
+    a page's nested repeaters — a deeper 2-cell grid inside one slide loses to the
+    N-slide row); ties break by document order. Structural + agnostic: keyed on
+    normalized class signature + direct-media-wrap, never a project slide class.
+    Clones are de-duplicated so the infinite-scroll illusion never inflates the
+    child count (P6.3-bis core)."""
+    best_track = None
+    best_canon = None
+    best_all = None
+    for node in [root] + root.find_all(True):
+        kids = _child_tags(node)
+        if len(kids) < MIN_SLIDES:
+            continue
+        # group by NORMALIZED signature (state/clone tokens removed)
+        sig_counts = {}
+        for k in kids:
+            if k.name in _NON_SLIDE_TAGS:
+                continue
+            sig_counts.setdefault(_slide_sig(k), []).append(k)
+        if not sig_counts:
+            continue
+        sig, run = max(sig_counts.items(), key=lambda kv: len(kv[1]))
+        # the run must dominate the track's children (a slider track is uniform:
+        # N slides + maybe nav arrows/indicators; heterogeneous wrappers refused)
+        if len(run) < MIN_SLIDES or len(run) < 0.6 * len(kids):
+            continue
+        # each slide must DIRECTLY carry media (a content slide, not a text run).
+        # Direct = media somewhere in the slide subtree, but the slide itself is a
+        # block wrapper — the _NON_SLIDE_TAGS guard already excluded <li> runs.
+        if not all(_wraps_media(s) for s in run):
+            continue
+        canonical = _dedup_clones(run)
+        if len(canonical) < MIN_SLIDES:
+            continue
+        if best_canon is None or len(canonical) > len(best_canon):
+            best_track, best_canon, best_all = node, canonical, run
+    if best_track is None:
+        return None, None, None
+    return best_track, best_canon, best_all
+
+
+def _recognize_carousel(root, ns):
+    """A JS carousel/slider (swiper/slick/owl/AEM cmp-carousel or the custom
+    asr-content-slider) -> ns:carousel of typed slide atoms (ns:card variants).
+
+    FIDELITY-FIRST + COMPOSABLE:
+      - CLONED slides (infinite-scroll illusion) are de-duplicated so only the
+        CANONICAL slides become child nodes (P6.3-bis core — no duplicated content).
+      - JS SCROLL STATE (inline transform/translate/opacity/display/width) is
+        stripped from every slide so a node never freezes one scroll frame.
+      - Each canonical slide carries its VERBATIM cleaned markup (`orig`, rule 26)
+        -> byte-exact by construction; first image + link are editable slots.
+      - The carousel view (a JS Island) re-hydrates swipe/autoplay on the child
+        nodes in LIVE; in EDIT each slide is an independent Page-Builder edit frame
+        (G6b). So an unedited carousel renders identically, but is now composable.
+
+    Refuses (returns None -> skeleton fallback) when the track is heterogeneous or
+    has <2 canonical slides (a single-slide 'carousel' is just a banner — the
+    existing banner path handles it)."""
+    track, canonical, allslides = _find_slide_track(root)
+    if track is None:
+        return None
+    # _find_slide_track already picks the track with the MOST canonical slides, so
+    # a slide's inner 2-cell grid never wins over the N-slide row. A slide legitimately
+    # containing an inner grid is fine — it rides the slide's verbatim `orig` markup.
+
+    slides = []
+    for s in canonical:
+        facts = _rich_atom_facts(s, "slide")
+        slides.append(facts)
+    if len(slides) < MIN_SLIDES:
+        return None
+
+    src_classes = _source_class_chain(root, track)
+    n_clones = len(allslides) - len(canonical)
+    return {
+        "kind": "carousel",
+        "nodeType": f"{ns}:carousel",
+        "atomType": f"{ns}:card",
+        "container": {
+            "sourceClasses": src_classes,
+            "rootClass": " ".join(_classes(root)),
+            "trackClass": " ".join(_classes(track)),
+            "heading": "",
+            "clonesRemoved": n_clones,
+            "slideCount": len(slides),
+        },
+        "master": None,
+        "children": slides,
+        "editableLinks": sum(1 for s in slides if s["href"]),
+        "editableImages": sum(1 for s in slides if s["src"]),
+    }
+
+
+# ── recognizer: TABS / ACCORDION (JS show/hide) — P6.3-bis ────────────────────
+
+def _tab_labels_and_panels(root):
+    """Locate the tab labels + panels of a JS tabs widget.
+    Returns ([label_text,...], [panel_el,...]) or (None, None).
+
+    Supports the two dominant patterns generically:
+      - ARIA: role="tablist" > role="tab" labels + role="tabpanel" panels;
+      - BEM (AEM cmp-tabs / bootstrap-ish): `.cmp-tabs__tab` / `*__tab` labels
+        + `.cmp-tabs__tabpanel` / `*__tabpanel` / `*__panel` panels.
+    Panels must be >=2 and label count must match panel count (a tabs widget is a
+    1:1 label↔panel map). The active/first panel is the default (view sets idx 0)."""
+    def _by_role(role):
+        return [e for e in root.find_all(attrs={"role": role})]
+
+    tabs = _by_role("tab")
+    panels = _by_role("tabpanel")
+    if not tabs or not panels:
+        # BEM fallback: class tokens ending __tab / __tabpanel|__panel
+        def _bem(sub):
+            return [e for e in root.find_all(True)
+                    if any(c.endswith(sub) for c in _classes(e))]
+        tabs = tabs or _bem("__tab")
+        panels = panels or (_bem("__tabpanel") or _bem("__panel"))
+    if len(panels) < 2:
+        return None, None
+    # a tabpanel nested in another tabpanel is not a top-level tab (AEM carousels
+    # expose role=tabpanel on their slides — exclude panels that live inside a
+    # slide/another panel to avoid grabbing a carousel as tabs).
+    panels = [p for p in panels
+              if not any(op is not p and op in p.parents for op in panels)]
+    if len(panels) < 2:
+        return None, None
+    labels = [_text_of(t) for t in tabs] if tabs else []
+    # align labels to panels; if counts differ, fall back to positional label text
+    if len(labels) != len(panels):
+        labels = (labels + [""] * len(panels))[:len(panels)]
+    return labels, panels
+
+
+def _recognize_tabs(root, ns):
+    """A JS tabs widget (ARIA tablist or AEM cmp-tabs) -> ns:tabs of ns:tab panes.
+
+    FIDELITY-FIRST + COMPOSABLE: each panel becomes a ns:tab child carrying its
+    VERBATIM cleaned markup (`orig`, rule 26) + the tab LABEL as its title; the
+    tabs view (Island) shows/hides panels in LIVE (first active) and stacks them
+    as edit frames in EDIT (G6b). An unedited tabs block renders identically.
+
+    Refuses when there is no clean 1:1 label↔panel tab structure (skeleton
+    fallback). The AEM carousel's role=tabpanel slides are excluded by the
+    nested-panel guard so a carousel is never mis-read as tabs (carousel wins in
+    the registry order anyway)."""
+    labels, panels = _tab_labels_and_panels(root)
+    if panels is None:
+        return None
+    tabs = []
+    for i, p in enumerate(panels):
+        facts = _rich_atom_facts(p, "tab")
+        facts["title"] = (labels[i] if i < len(labels) else "") or f"Tab {i + 1}"
+        facts["active"] = (i == 0)
+        tabs.append(facts)
+
+    # the widget root class chain (skin = source classes)
+    # find the common wrapper of the panels for the source-class record
+    wrapper = panels[0].parent or root
+    src_classes = _source_class_chain(root, wrapper)
+    return {
+        "kind": "tabs",
+        "nodeType": f"{ns}:tabs",
+        "atomType": f"{ns}:tab",
+        "container": {
+            "sourceClasses": src_classes,
+            "rootClass": " ".join(_classes(root)),
+            "wrapperClass": " ".join(_classes(wrapper)),
+            "heading": "",
+            "tabCount": len(tabs),
+        },
+        "master": None,
+        "children": tabs,
+        "editableLinks": sum(1 for t in tabs if t["href"]),
+        "editableImages": sum(1 for t in tabs if t["src"]),
+    }
+
+
 # ── recognizer registry (ordered; first faithful match wins) ─────────────────
+# Order matters: carousel BEFORE tabs (an AEM carousel exposes role=tabpanel on
+# its slides; the carousel recognizer's slide-track structure matches first, and
+# the tabs recognizer separately guards against nested panels). logoWall is the
+# most specific (uniform <a><img> wall) so it stays first.
 
 RECOGNIZERS = [
     _recognize_logowall,
+    _recognize_carousel,
+    _recognize_tabs,
 ]
 
 
@@ -268,11 +666,22 @@ def library_gap_reason(el):
     logged so the fallback rate feeds library growth (a 'library gap')."""
     if not isinstance(el, Tag):
         return "not-an-element"
+    # carousel/tabs near-miss diagnostics first (the P6.3-bis library gaps)
+    track, canonical, allslides = _find_slide_track(el)
+    if track is not None:
+        return (f"slide-track-but-refused (slides={len(allslides)}, "
+                f"canonical={len(canonical)}, clones={len(allslides) - len(canonical)})")
+    labels, panels = _tab_labels_and_panels(el)
+    if panels is not None:
+        return f"tabs-structure-but-refused (panels={len(panels)})"
     rep, anchors = _find_repeater(el)
     if rep is None:
         n_a = len(el.find_all("a", href=True))
         n_img = len(el.find_all(["img", "picture"]))
-        return f"no-uniform-media-repeater (anchors={n_a}, media={n_img})"
+        n_panel = len(el.find_all(attrs={"role": "tabpanel"}))
+        n_form = len(el.find_all(["form", "iframe"]))
+        return (f"no-recognizable-widget (anchors={n_a}, media={n_img}, "
+                f"panels={n_panel}, forms={n_form})")
     return "repeater-found-but-heterogeneous-or-unliftable"
 
 
@@ -296,5 +705,6 @@ if __name__ == "__main__":
         print(f"NO MATCH — {library_gap_reason(root)}")
     else:
         summary = {k: (v if k not in ("children", "master") else
-                       (len(v) if isinstance(v, list) else "1")) for k, v in plan.items()}
+                       (len(v) if isinstance(v, list) else (0 if v is None else 1)))
+                   for k, v in plan.items()}
         print(json.dumps(summary, indent=2))
