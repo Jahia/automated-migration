@@ -26,6 +26,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from llm_usage import append_usage, normalize_openai_usage  # noqa: E402
+
 # Load .env file if it exists
 try:
     from dotenv import load_dotenv
@@ -175,7 +178,7 @@ OVH_ENDPOINT = "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completion
 VISION_MODEL = "Qwen2.5-VL-72B-Instruct"
 
 
-def vision_identify(page_url, page_slug):
+def vision_identify(page_url, page_slug, project=None):
     """Use Playwright + Qwen2.5-VL to identify CMS components on a page.
 
     Takes a screenshot, sends it to the vision model, and parses the response.
@@ -183,6 +186,7 @@ def vision_identify(page_url, page_slug):
     """
     import subprocess
     import base64
+    import time as _time
     import requests
 
     # Step 1: Take screenshot with Playwright
@@ -249,6 +253,7 @@ Reply in this JSON format:
   "crossCutting": ["header", "footer", "nav"]
 }"""
 
+    t0 = _time.time()
     try:
         resp = requests.post(
             OVH_ENDPOINT,
@@ -273,6 +278,21 @@ Reply in this JSON format:
             timeout=60
         )
 
+        # Ledger every OVH call that returned a response (success AND HTTP error —
+        # both are billed). Only a thrown network error goes unlogged.
+        if project:
+            usage = None
+            try:
+                usage = resp.json().get("usage")
+            except Exception:
+                usage = None
+            tin, tout, cache, missing = normalize_openai_usage(usage)
+            append_usage(project, provider="ovh", caller="hybrid-identify",
+                         model=VISION_MODEL, tokens_in=tin, tokens_out=tout,
+                         tokens_cache=cache, usage_missing=missing,
+                         meta={"page": page_slug, "status": resp.status_code,
+                               "duration_ms": round((_time.time() - t0) * 1000)})
+
         if resp.status_code != 200:
             print(f"  Vision API error: HTTP {resp.status_code}", file=sys.stderr)
             return None
@@ -295,7 +315,7 @@ Reply in this JSON format:
 
 # ── Main orchestrator ─────────────────────────────────────────────
 
-def process_page(page, kb, use_vision=False):
+def process_page(page, kb, use_vision=False, project=None):
     """Process a single page against the knowledge base."""
     blocks = page.get('blocks', [])
     block_map = {b['id']: b for b in blocks}
@@ -341,7 +361,7 @@ def process_page(page, kb, use_vision=False):
                     # New component — try vision or create generic
                     if use_vision:
                         print(f"    Vision: identifying {child['id']} ({child.get('classString', '')[:30]})...", file=sys.stderr)
-                        vision = vision_identify(page.get('url', ''), page['slug'])
+                        vision = vision_identify(page.get('url', ''), page['slug'], project=project)
                         if vision:
                             result['new_components'].append({
                                 'blockId': child['id'],
@@ -370,7 +390,7 @@ def process_page(page, kb, use_vision=False):
         vision_result = None
         if use_vision:
             print(f"    Vision: new template for {page['slug']}...", file=sys.stderr)
-            vision_result = vision_identify(page.get('url', ''), page['slug'])
+            vision_result = vision_identify(page.get('url', ''), page['slug'], project=project)
 
         # Create new template
         new_template_id = f"template_{len(kb['templates']) + 1:03d}"
@@ -466,7 +486,7 @@ def main():
 
     results = []
     for page in pages:
-        result = process_page(page, kb, use_vision)
+        result = process_page(page, kb, use_vision, project=proj)
         results.append(result)
 
         template = result['template_match']

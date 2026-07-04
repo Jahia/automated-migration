@@ -23,10 +23,14 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROMPT_FILE = os.path.join(HERE, "grouping-prompt.md")
+
+sys.path.insert(0, HERE)
+from llm_usage import append_usage, normalize_deepseek_usage  # noqa: E402
 
 
 def deepseek_key():
@@ -95,7 +99,7 @@ def build_prompt(cand, error_feedback=None):
     return "\n".join(parts)
 
 
-def call_deepseek(prompt, model, key):
+def call_deepseek(prompt, model, key, project=None, attempt=None):
     body = json.dumps({
         "model": model,
         "messages": [
@@ -111,8 +115,17 @@ def call_deepseek(prompt, model, key):
     req = urllib.request.Request(
         "https://api.deepseek.com/v1/chat/completions", data=body,
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    t0 = time.time()
     with urllib.request.urlopen(req, timeout=120) as resp:
         data = json.load(resp)
+    # Ledger every DeepSeek call (usage_missing when the response omits usage).
+    if project:
+        tin, tout, cache, missing = normalize_deepseek_usage(data.get("usage"))
+        append_usage(project, provider="deepseek", caller="group_llm", model=model,
+                     tokens_in=tin, tokens_out=tout, tokens_cache=cache,
+                     usage_missing=missing,
+                     meta={"step": "grouping", "attempt": attempt,
+                           "duration_ms": round((time.time() - t0) * 1000)})
     return data["choices"][0]["message"]["content"]
 
 
@@ -156,7 +169,7 @@ def main():
     for attempt in range(1, args.retries + 1):
         prompt = build_prompt(cand, feedback)
         try:
-            content = call_deepseek(prompt, args.model, key)
+            content = call_deepseek(prompt, args.model, key, project=args.project, attempt=attempt)
         except Exception as e:
             print(f"  attempt {attempt}: deepseek error: {e}", file=sys.stderr)
             continue

@@ -6,9 +6,46 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { PNG } from 'pngjs';
+import { appendUsage, normalizeOpenAIUsage } from './llm_ledger.mjs';
 
 const OVH_URL = 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions';
 export const OVH_VISION_MODEL = 'Qwen2.5-VL-72B-Instruct';
+
+// ── LLM usage ledger wiring ───────────────────────────────────────
+// ovh_vision doesn't own a project context. The ONLY in-code caller today is
+// segment_probe.mjs, which is off-limits to edit — so the project is resolved
+// zero-touch, in priority order:
+//   1. an explicit `ledgerProject` in the ovhVision options (future wiring),
+//   2. setLedgerProject(p) set by a caller before the call,
+//   3. the LLM_LEDGER_PROJECT env var (the engine passes env through to probes),
+//   4. an argv scan for a "projects/<name>" token — every real invocation is
+//      `node .../segment_probe.mjs projects/<name> ...`, so this is reliable.
+// This means segment_probe's vision calls are ledgered WITHOUT touching it.
+let _ledgerProject = null;
+export function setLedgerProject(p) { _ledgerProject = p || null; }
+
+// Scan argv for a projects/<name> token (or a --project <name> flag). Returns the
+// projects/<name> path so the ledger lands at projects/<name>/llm-usage.jsonl.
+function projectFromArgv() {
+  // Scan from argv[1] so both `node script.mjs projects/x` (real invocation, the
+  // token is at [2]) and the `node -e` layout (token at [1]) are covered; the
+  // script path itself never matches the projects/<name> pattern.
+  const argv = process.argv.slice(1);
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--project' && argv[i + 1]) {
+      const v = argv[i + 1];
+      return v.includes('projects/') ? v : `projects/${v}`;
+    }
+    const m = a.match(/(?:^|\/)projects\/([^/\s]+)/);
+    if (m) return `projects/${m[1]}`;
+  }
+  return null;
+}
+
+export function resolveLedgerProject(explicit) {
+  return explicit || _ledgerProject || process.env.LLM_LEDGER_PROJECT || projectFromArgv() || null;
+}
 
 export function ovhKey() {
   if (process.env.OVH_API_KEY) return process.env.OVH_API_KEY;
@@ -48,19 +85,39 @@ export function downscalePng(buf, maxW = 820, maxH = 4000) {
 
 // One vision+text call. `text` is the prompt, `pngBuf` the (already-downscaled) image.
 // Returns the assistant's raw string. maxTokens generous (the model reasons + emits JSON).
-export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 0, model = OVH_VISION_MODEL } = {}) {
+export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
   const key = ovhKey();
   const content = [{ type: 'text', text }];
   if (pngBuf) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });
   const body = JSON.stringify({ model, max_tokens: maxTokens, temperature, messages: [{ role: 'user', content }] });
+  const project = resolveLedgerProject(ledgerProject);
+  const callerName = caller || `ovh_vision:${(process.argv[1] && path.basename(process.argv[1])) || 'unknown'}`;
+  const t0 = Date.now();
   const resp = await fetch(OVH_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body,
     signal: AbortSignal.timeout(180000),
   });
-  if (!resp.ok) throw new Error(`OVH ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+  // Ledger EVERY call that produced a response — success AND failed-with-response
+  // (the call was billed regardless). Only a thrown network error (no response)
+  // goes unlogged, and that call did not reach the endpoint.
+  const record = (usage, extraMeta) => {
+    const u = normalizeOpenAIUsage(usage);
+    appendUsage(project, {
+      provider: 'ovh', caller: callerName, model,
+      tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_cache: u.tokens_cache,
+      usage_missing: u.usage_missing,
+      meta: { duration_ms: Date.now() - t0, ...(extraMeta || {}) },
+    });
+  };
+  if (!resp.ok) {
+    const errText = (await resp.text()).slice(0, 300);
+    record(null, { status: resp.status, error: true });
+    throw new Error(`OVH ${resp.status}: ${errText}`);
+  }
   const d = await resp.json();
+  record(d.usage, { status: resp.status });
   return d.choices?.[0]?.message?.content ?? '';
 }
 

@@ -269,9 +269,19 @@ twin) consumed by segment/extract/partition/reconstruct/groundtruth/loader.
 
 - **C1.** Decision bundle artifact links (A2) — includes the rep pages' `*.segmap.html` and
   `*.page.png` so decisions are made on evidence, not just numbers.
-- **C2.** Vision cost/latency logging: `ovh_vision.mjs` appends per-call usage to
-  `workflow-output/segment/vision-usage.jsonl`; cost report merges it (today vision is
-  invisible in `costs/run_*.json`).
+- **C2.** ✅ IMPLEMENTED — centralized per-project LLM usage ledger: append-only JSONL at
+  `projects/<p>/llm-usage.jsonl` (PROJECT ROOT, survives pipeline resets). Every OVH vision
+  call (`ovh_vision.mjs`, `hybrid-identify.py`) and every DeepSeek call (`group_llm.py`)
+  appends one line (nulls + `usage_missing:true` when the response omits usage, so the call
+  COUNT is always exact). Helpers: `orchestration/lib/llm_ledger.mjs` (`appendUsage`) and
+  `orchestration/lib/llm_usage.py` (`append_usage` + CLI). Summarize with
+  `python3 orchestration/lib/llm_usage.py projects/<p> [--json]` — per-provider calls +
+  tokens_in/out/cache and a grand total; it also MERGES the engine's opencode cost reports
+  (`migration-orchestrator/costs/run_*.json`) as provider `deepseek (opencode agents)` (those
+  reports carry no project, so they are repo-scoped — routing per-project would need an
+  off-limits `orchestrator.py` edit). `ovh_vision.mjs` resolves the project zero-touch
+  (explicit option → `setLedgerProject()` → `LLM_LEDGER_PROJECT` env → argv scan for a
+  `projects/<name>` token), so `segment_probe.mjs`'s vision calls are ledgered without editing it.
 - **C3.** Fix `cost_tracker.py:57` to an absolute path (kills the nested
   `migration-orchestrator/migration-orchestrator/` artifact).
 - **C4. SECURITY:** redaction filter (known provider-key regexes) applied to streaming deltas
