@@ -44,16 +44,18 @@ print("|".join([
     echo "PHASE $phase_key $phase_title"
     prev_phase="$phase_key"
   fi
-  # Julian's standing directive (2026-07-04): progress report every 10 minutes
-  # during an active run, whatever the step. 60 ticks x 10s = 600s.
-  if [ $((ticks % 60)) -eq 0 ]; then
+  # Julian's standing directive (2026-07-04, rev2): progress report every 5
+  # minutes during an active run, whatever the step. 30 ticks x 10s = 300s.
+  if [ $((ticks % 30)) -eq 0 ]; then
     prog=$(printf '%s' "$s" | python3 -c '
 import sys, json
 d = json.load(sys.stdin)
 c = d.get("current_step") or {}
 p = d.get("progress") or {}
-print(f"{d.get(\"status\")} step={c.get(\"id\")}({c.get(\"status\")},try{c.get(\"attempt\")}) {p.get(\"steps_done\")}/{p.get(\"steps_total\")} cost=${round(d.get(\"cost\") or 0,3)}")' 2>/dev/null)
-    echo "PROGRESS $prog"
+cost = round(d.get("cost") or 0, 3)
+print(d.get("status"), "step=%s(%s,try%s)" % (c.get("id"), c.get("status"), c.get("attempt")),
+      "%s/%s" % (p.get("steps_done"), p.get("steps_total")), "cost=$%s" % cost)' 2>/dev/null)
+    echo "PROGRESS ${prog:-status-parse-failed}"
   fi
   case "$status" in
     completed|failed|aborted) echo "TERMINAL $status (last step: $step_id)"; exit 0 ;;

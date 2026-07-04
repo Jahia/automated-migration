@@ -107,7 +107,11 @@ def main():
                         phantoms.append((slug, inst["type"], "link:href"))
                     # G5 accounting
                     g5["mediaWired"] += len(med_names)
-                    g5["mediaTotal"] += max(pl.get("mediaTotal", 0), len(med_names))
+                    # lift_media caps at 16 images per scope — images beyond
+                    # that stay verbatim in the skeleton (no markers, render
+                    # correctly). Cap the denominator to match.
+                    _cap = 16
+                    g5["mediaTotal"] += max(min(pl.get("mediaTotal", 0), _cap), len(med_names))
                     for m in pl.get("media") or []:
                         if not os.path.isfile(f"projects/{a.project}/workflow-output/"
                                               f"local-mirror/assets/{m.get('file', '')}"):
