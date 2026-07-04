@@ -1,7 +1,7 @@
 import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
 import { createElement } from "react";
 import { splitRoot, rootProps } from "../rawRoot.js";
-import { composeNode } from "../skeletonRender.js";
+import { composeNode, sanitizeFragment } from "../skeletonRender.js";
 
 /**
  * Passthrough view (QUALITY-PLAN P1.2): renders the captured source markup
@@ -24,8 +24,13 @@ jahiaComponent(
     const { currentNode } = useServerContext();
     let html = typeof props.html === "string" ? props.html : "";
     if (typeof props.skeleton === "string" && props.skeleton) {
-      // lifted anonymous block: full composition (body*/media/link markers)
+      // lifted anonymous block: full composition (body*/media/link markers).
+      // composeNode already hardens its output (sanitizeFragment).
       html = composeNode(currentNode as never);
+    } else {
+      // verbatim passthrough: harden too — force eager image decoding and
+      // contain any truncated data: URI so a broken tag can't corrupt siblings.
+      html = sanitizeFragment(html);
     }
     const root = splitRoot(html ?? "");
     if (root) {

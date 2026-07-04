@@ -37,6 +37,77 @@ export const escapeHtml = (s: string): string =>
 export const escapeAttr = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+// ── Render-time fragment hardening (fidelity fixes, P5 groundtruth) ──
+//
+// Every view injects composed markup via dangerouslySetInnerHTML. Two source
+// realities break the pixel render if injected raw; both are repaired here on
+// the SERVED HTML only (stored content is never rewritten), so the fix survives
+// regeneration and needs no re-load of the paused run.
+//
+// (1) loading="lazy": a below-the-fold lazy <img> never decodes in the render
+//     window (the fidelity probe does not scroll), so it collapses to a 0×0 box
+//     — measured live: the home brand-logos grid (19 logos) rendered as a blank
+//     ~745px void while the reference mirror happened to win the same timing
+//     race and showed them. Forcing eager decoding makes below-fold images
+//     deterministic on BOTH sides (rule 30b — materialise what a visitor sees).
+//     `loading` is invisible to pixels, so this is fidelity-safe.
+const stripLazy = (html: string): string =>
+  html.replace(/\s+loading=(["'])lazy\1/gi, "");
+
+// (2) A truncated data: URI leaves an <img src="data:…"> with no closing quote
+//     and no '>' (observed live: a ~38 KB chatbot data-URI clipped on the JCR
+//     write of the `skeleton` property). The browser then swallows every
+//     following sibling into the open attribute until the next quote — the
+//     footer node and real page content get absorbed and its attributes render
+//     as VISIBLE TEXT (`"="" style="display:contents">`). We cannot rebuild the
+//     lost bytes, but we terminate the runaway attribute + tag so the broken
+//     image stays contained and never corrupts its siblings. Guarded to `data:`
+//     values (the only observed failure) so legitimate '<' inside an attribute
+//     value is never touched; a no-op when the markup is already well-formed.
+const repairUnterminatedDataUri = (html: string): string => {
+  if (!html.includes("data:")) return html; // fast path — the failure is rare
+  let out = "";
+  let i = 0;
+  const n = html.length;
+  const isDataAttr = (openTag: string) => /=\s*["'][^"']*data:/i.test(openTag);
+  while (i < n) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) { out += html.slice(i); break; }
+    out += html.slice(i, lt);
+    if (!/[a-zA-Z/!]/.test(html[lt + 1] || "")) { out += "<"; i = lt + 1; continue; }
+    if (html.startsWith("<!--", lt)) {
+      const end = html.indexOf("-->", lt);
+      const e = end === -1 ? n : end + 3;
+      out += html.slice(lt, e); i = e; continue;
+    }
+    let j = lt + 1;
+    let quote: string | null = null;
+    let handled = false;
+    for (; j < n; j++) {
+      const ch = html[j];
+      if (quote) {
+        if (ch === quote) quote = null;
+        else if (ch === "<" && isDataAttr(html.slice(lt, j))) {
+          out += html.slice(lt, j) + quote + ">"; // close runaway attr + tag
+          i = j; handled = true; break;
+        }
+      } else if (ch === '"' || ch === "'") quote = ch;
+      else if (ch === ">") { out += html.slice(lt, j + 1); i = j + 1; handled = true; break; }
+    }
+    if (handled) continue;
+    if (quote && isDataAttr(html.slice(lt))) { out += html.slice(lt) + quote + ">"; }
+    else out += html.slice(lt);
+    i = n;
+  }
+  return out;
+};
+
+/** Harden a composed/passthrough fragment before it is injected verbatim into
+ * the DOM: force eager image decoding and contain any truncated data: URI. A
+ * no-op on already-valid, non-lazy markup (byte-identical LIVE fidelity). */
+export const sanitizeFragment = (html: string): string =>
+  repairUnterminatedDataUri(stripLazy(html));
+
 type Media = { name: string; orig: string; url: string | null; edited: boolean };
 type Payload = {
   skeleton: string;
@@ -148,7 +219,7 @@ export function childNodesOf(node: JCRNode): JCRNode[] {
 /** Substitute a payload's field/media/link markers (children NOT composed —
  * the edit-mode path renders them through Jahia's pipeline instead). */
 export function substitutePayload(p: Payload): string {
-  return substitute(p);
+  return sanitizeFragment(substitute(p));
 }
 
 // ── Edit-mode support: split a fragment into TOP-LEVEL chunks ──
@@ -295,5 +366,5 @@ export function composeNode(node: JCRNode): string {
       return (rendered[i] ?? "") + (i === maxIdx ? extras : "");
     });
   }
-  return html.replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+  return sanitizeFragment(html.replace(/\{\{(?:f|media|link):[^}]+\}\}/g, ""));
 }
