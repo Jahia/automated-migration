@@ -44,15 +44,17 @@ class Settings(BaseSettings):
     integrity: bool = True
     integrity_timeout: float = 120.0
 
-    # Engine-executes-Run: doctrine (P5, load_content 2×600s read-loop incident).
-    # A step whose acceptance_criteria carry `Run: <cmd>` lines has, at plan time,
-    # a KNOWN deterministic command — it does not need an LLM to be executed. The
-    # engine runs those lines ITSELF (same subprocess mechanism as PROBEs) BEFORE
-    # any agent session. If they all pass, no agent is opened at all; if one fails
-    # the agent is opened as a REPAIRER with the failure context appended. ON by
+    # Engine-executes-Run: doctrine (P5, load_content 2×600s read-loop incident;
+    # P5.5b: no LLM in the loop at all). A step whose acceptance_criteria carry
+    # `Run: <cmd>` lines has, at plan time, a KNOWN deterministic command — the
+    # engine runs those lines ITSELF (same subprocess mechanism as PROBEs). If they
+    # all pass, a synthetic agent="engine" result is fabricated and the PROBEs
+    # judge; if one fails the STEP fails with the failure context stashed
+    # (command, exit code, stderr/stdout tails) — retries re-run it, and once
+    # exhausted it parks as decision_pending (retry / repatch / rollback). ON by
     # default; set ORCHESTRATOR_ENGINE_EXEC_RUN=false to disable (kill-switch —
-    # same pattern as ORCHESTRATOR_INTEGRITY above), restoring the legacy path
-    # where the agent is always sent the Run: lines as prose to execute itself.
+    # same pattern as ORCHESTRATOR_INTEGRITY above): Run: lines are then NOT
+    # executed and only the PROBEs judge the step.
     # Per-task_type timeouts (seconds): content steps get a long budget (MCP media
     # uploads, page trees), everything else the default.
     engine_exec_run: bool = True

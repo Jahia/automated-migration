@@ -317,10 +317,10 @@ def normalize_for_resume(run: RunState) -> None:
                 st.status != StoryStatus.approved for st in epic.stories):
             epic.status = EpicStatus.pending
         elif epic.status == EpicStatus.failed:
-            # Failed at the REVIEW stage (every story approved): re-enter the
-            # epic so the review re-runs. With overrule semantics a rejected
-            # proposal now approves the epic, so this branch only recovers
-            # legacy state (pre-overrule rejections) or a reviewer crash.
+            # Failed with every story approved: legacy reviewer-era state (the
+            # LLM epic reviewer was removed in P5.5b — approval is deterministic
+            # now, and a not-green epic parks a decision instead of failing).
+            # Re-enter the epic so the deterministic gate re-judges it.
             epic.status = EpicStatus.pending
 
 

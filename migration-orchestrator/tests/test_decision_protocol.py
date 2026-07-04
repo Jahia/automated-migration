@@ -25,13 +25,16 @@ from src import cost_tracker, orchestrator, persistence
 from src.migration_control import compact_status
 from src.models import (
     EpicInput,
+    EpicStatus,
     PlanInput,
     RunStatus,
     StepInput,
     StepStatus,
     StoryInput,
+    StoryStatus,
     Strategy,
     StrategyPatch,
+    VerificationResult,
 )
 from src.prompt_builder import build_step_prompt
 from src.state import PlanLintError, build_run_state, gate_blocked_step, normalize_for_resume
@@ -490,6 +493,107 @@ def test_epic_all_green_false_when_verification_failed():
     assert orchestrator._epic_all_green(_epic_of(run)) is False
     v = orchestrator._epic_verdicts(_epic_of(run))[0]
     assert v["verification_passed"] is False and v["errors"] == ["probe X failed"]
+
+
+# ── (3d) A3 review regressions: M1 epic-not-green re-entry + M2 cross-step repatch ──
+
+
+def test_epic_not_green_retry_reenters_epic_and_completes(monkeypatch):
+    """A3/M1: all stories approved but a step is done with a FAILED verification →
+    _epic_loop parks it (epic_gate_not_green). A decide {retry} resets the step and
+    wakes the loop — the epic must RE-ENTER and re-execute the step, NOT return to
+    _run_loop with a running non-approved epic (which failed the run dead-end:
+    the ready step was never re-executed)."""
+    async def scenario():
+        run = _build("run_test_m1_epic_reentry", [
+            StepInput(id="step_x", title="X", acceptance_criteria=["PROBE: true"]),
+        ])
+        epic, story = run.epics[0], run.epics[0].stories[0]
+        step = story.steps[0]
+        # the "story loop tolerated it" state: step done, verification RED,
+        # story approved (e.g. a gate-approved step / loop_to completion)
+        step.status = StepStatus.done
+        step.verification = VerificationResult(passed=False, checks=[], errors=["probe red"])
+        story.status = StoryStatus.approved
+        run.status = RunStatus.running
+
+        # when the retry re-executes the step, it goes green
+        async def fake_exec(run_, epic_, story_, step_, client, listener):
+            step_.status = StepStatus.done
+            step_.verification = VerificationResult(passed=True, checks=["ok"], errors=[])
+
+        async def _noop(*a, **k):
+            return None
+
+        monkeypatch.setattr(orchestrator, "_execute_single_step", fake_exec)
+        monkeypatch.setattr(orchestrator, "_tag_epic", _noop)        # no git subprocess
+        monkeypatch.setattr(orchestrator, "_tag_epic_start", _noop)  # no git subprocess
+        monkeypatch.setattr(orchestrator, "write_run_cost", lambda *a, **k: {"total": {}})
+
+        task = asyncio.create_task(orchestrator._run_loop(run, None, None))
+        orchestrator._active_tasks[run.run_id] = task
+        try:
+            # the deterministic epic gate parks the red step
+            assert await _wait_for(lambda: step.status == StepStatus.decision_pending)
+            assert run.status == RunStatus.paused
+
+            res = await orchestrator.decide_step(
+                run.run_id, "step_x", action="retry", rationale="fixed out of band")
+            assert res["status"] == "retried"
+
+            # M1: the run must COMPLETE (epic re-entered, step re-run green),
+            # never fail with the ready step silently dropped.
+            await asyncio.wait_for(task, 5)
+            assert step.status == StepStatus.done
+            assert step.verification.passed is True
+            assert epic.status == EpicStatus.approved
+            assert run.status == RunStatus.completed
+        finally:
+            if not task.done():
+                task.cancel()
+            orchestrator._active_tasks.pop(run.run_id, None)
+    run_async(scenario())
+
+
+def test_repatch_other_step_unparks_the_decided_step():
+    """A3/M2: a repatch that targets ANOTHER step must move the DECIDED step out
+    of decision_pending (mirror of apply_and_rerun) — otherwise the woken parked
+    loop re-parks it, the repatched step is never consumed, gate_blocked_step
+    keeps returning the source step and every resume is refused (total wedge)."""
+    async def scenario():
+        run = _build("run_test_m2_cross_repatch", [
+            StepInput(id="step_a", title="A", acceptance_criteria=["PROBE: true"]),
+            StepInput(id="step_b", title="B", acceptance_criteria=["PROBE: true"],
+                      inputs={"n": 1, "keep": "me"}),
+        ])
+        step_a, step_b = run.epics[0].stories[0].steps
+        step_a.status = StepStatus.decision_pending
+        step_a.attempt = 3
+        run.status = RunStatus.paused
+        hold = asyncio.Event()
+        fake_loop = asyncio.create_task(hold.wait())
+        orchestrator._active_tasks[run.run_id] = fake_loop
+        try:
+            res = await orchestrator.decide_step(
+                run.run_id, "step_a", action="repatch",
+                repatch_step_id="step_b", repatch_inputs={"n": 5},
+                rationale="re-parameterize the upstream step")
+            assert res["status"] == "repatched"
+            assert res["target_step_id"] == "step_b"
+            # the target got the merge + the jump reset
+            assert step_b.inputs == {"n": 5, "keep": "me"}
+            assert step_b.status == StepStatus.ready
+            assert run.forced_next_step == "step_b"
+            # M2: the decided step must be UNPARKED (re-queued pending, attempts
+            # reset) so nothing blocks the resume — the run is not wedged.
+            assert step_a.status == StepStatus.pending
+            assert step_a.attempt == 0
+            assert gate_blocked_step(run) is None
+        finally:
+            hold.set()
+            await fake_loop
+            orchestrator._active_tasks.pop(run.run_id, None)
+    run_async(scenario())
 
 
 # ── (4) review steps: decision_pending WITHOUT any agent execution ─────

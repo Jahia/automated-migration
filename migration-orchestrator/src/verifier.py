@@ -262,16 +262,18 @@ async def run_step_commands(step: StepState, repo_dir: str,
 
     Each execution is audited as `command_executed` (mirror of probe_executed).
     Stops at the FIRST failure (exit != 0 or timeout) — a later Run: line usually
-    depends on an earlier one, so re-running them under the repair agent from a
-    clean point is safer than pushing past a broken prerequisite.
+    depends on an earlier one, so re-running the step from a clean point (retry /
+    repatch after the decision) is safer than pushing past a broken prerequisite.
 
     Returns (all_passed, records, failure_context):
       - all_passed: True iff every Run: line exited 0 (or there were none / disabled);
       - records: one dict per executed line (command, exit_code, duration_ms, passed,
         truncated stdout/stderr) for the synthetic engine agent_result summary;
-      - failure_context: "" on success, else a prompt-ready block naming the failed
-        command, its exit code, and the tail of its stderr/stdout (~800c) so the
-        agent becomes a REPAIRER, not an executant.
+      - failure_context: "" on success, else a human-readable block naming the failed
+        command, its exit code, and the tail of its stderr/stdout (~800c). P5.5b: it
+        is stashed on step.failure_context and surfaces in the decision bundle
+        (GET /runs/{id}/decisions) for the operator/assistant — no repair agent
+        reads it anymore.
     """
     if not settings.engine_exec_run:
         return True, [], ""
@@ -323,14 +325,16 @@ async def run_step_commands(step: StepState, repo_dir: str,
         records.append(rec)
 
         if exit_code != 0:
-            # First failure: build the repair context and stop (later lines may
+            # First failure: build the failure context and stop (later lines may
             # depend on this one). ~800c of the tail of each stream — the tail
             # carries the traceback / assertion, not the boilerplate header.
+            # P5.5b: this block is FOR THE DECISION BUNDLE (operator/assistant),
+            # not a repair-agent prompt — the step fails, retries re-run it, and
+            # once exhausted it parks as decision_pending carrying this context.
             failure_context = (
                 "EXÉCUTION DÉTERMINISTE ÉCHOUÉE — le moteur a lancé cette ligne "
-                "Run: lui-même et elle a échoué. Tu interviens en RÉPARATEUR: "
-                "corrige la cause puis, si nécessaire, relance la commande. Ne te "
-                "contente pas de la relire.\n"
+                "Run: lui-même et elle a échoué. Contexte pour la décision "
+                "(retry / repatch / rollback) une fois les retries épuisés.\n"
                 f"Commande: {cmd}\n"
                 f"Exit code: {exit_code}\n"
                 f"stderr (queue):\n{err[-800:]}\n"

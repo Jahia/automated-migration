@@ -161,9 +161,9 @@ async def _run_loop(run: RunState, client: LLMClient, event_listener: object | N
 # is approved AND every step is done with a passing verification. The reviewer LLM
 # ranked below the assistant in the authority ladder anyway, and it hallucinated a
 # false diagnosis twice on M4 (§13 Q1). The deterministic PROBEs already judged the
-# work — the reviewer added only risk. When the rule does NOT hold, the run is
-# already parked (a failed step becomes decision_pending, never a silent epic fail),
-# so the epic loop only re-enters here once the parked step has been re-run to done.
+# work — the reviewer added only risk. When the rule does NOT hold, the epic loop
+# parks the offending step (decision_pending) and, once decided, RE-ENTERS its own
+# while-loop to re-execute and re-judge (A3/M1) — never a silent epic fail.
 
 
 def _epic_verdicts(epic: EpicState) -> list[dict]:
@@ -198,41 +198,60 @@ def _epic_all_green(epic: EpicState) -> bool:
 
 
 async def _epic_loop(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None) -> None:
-    await _execute_epic_stories(run, epic, client, event_listener)
+    # A3/M1: this MUST be a loop. _run_loop never re-enters an epic after
+    # _epic_loop returns — so after an epic-level park is decided (retry/repatch/
+    # apply_and_rerun reset some step to ready/pending), returning here left a
+    # running non-approved epic that _run_loop turned into run=failed, with the
+    # reset step silently dropped. The loop re-executes the stories instead.
+    while True:
+        await _execute_epic_stories(run, epic, client, event_listener)
 
-    # If the story loop returned without every story approved, a gate/decision is
-    # blocking (halted, rejected, or decision_pending) OR the run was aborted — the
-    # run stays paused there and the loop must not fabricate an epic verdict. Only a
-    # genuinely stuck epic (no runnable work, no parked gate) fails here.
-    if not all_stories_approved(epic):
-        if run.status in (RunStatus.paused, RunStatus.aborted):
-            return
-        epic.status = EpicStatus.failed
-        await notify_sse(run, "epic_status", {"status": "failed"}, epic_id=epic.id)
-        return
-
-    verdicts = _epic_verdicts(epic)
-    if _epic_all_green(epic):
-        epic.status = EpicStatus.approved
-        get_audit_logger(run.run_id).epic_approved(epic.id, verdicts)
-        await save_event(run.run_id, "epic_approved", {"epic_id": epic.id, "verdicts": verdicts}, epic_id=epic.id)
-        await notify_sse(run, "epic_status", {"status": "approved", "verdicts": verdicts}, epic_id=epic.id)
-        await _tag_epic(run, epic)
-        return
-
-    # All stories approved but some step is not green (e.g. a verification the story
-    # loop tolerated) → NOT an LLM call: park the first offending step for a decision
-    # (assisted → assistant; red → Julian), exactly as retries-exhausted does.
-    for story in epic.stories:
-        for step in story.steps:
-            if step.status != StepStatus.done or (step.verification is not None and not step.verification.passed):
-                if not await _park_for_decision(run, epic, story, step, "epic_gate_not_green"):
-                    return
-                # After the decision re-runs the step, the outer run loop re-enters
-                # this epic (status still running); do not fabricate approval here.
+        # If the story loop returned without every story approved, a gate/decision is
+        # blocking (halted, rejected, or decision_pending) OR the run was aborted — the
+        # run stays paused there and the loop must not fabricate an epic verdict. Only a
+        # genuinely stuck epic (no runnable work, no parked gate) fails here.
+        if not all_stories_approved(epic):
+            if run.status in (RunStatus.paused, RunStatus.aborted):
                 return
-    epic.status = EpicStatus.failed
-    await notify_sse(run, "epic_status", {"status": "failed", "verdicts": verdicts}, epic_id=epic.id)
+            epic.status = EpicStatus.failed
+            await notify_sse(run, "epic_status", {"status": "failed"}, epic_id=epic.id)
+            return
+
+        verdicts = _epic_verdicts(epic)
+        if _epic_all_green(epic):
+            epic.status = EpicStatus.approved
+            get_audit_logger(run.run_id).epic_approved(epic.id, verdicts)
+            await save_event(run.run_id, "epic_approved", {"epic_id": epic.id, "verdicts": verdicts}, epic_id=epic.id)
+            await notify_sse(run, "epic_status", {"status": "approved", "verdicts": verdicts}, epic_id=epic.id)
+            await _tag_epic(run, epic)
+            return
+
+        # All stories approved but some step is not green (e.g. a verification the
+        # story loop tolerated) → NOT an LLM call: park the first offending step for
+        # a decision (assisted → assistant; red → Julian), exactly as retries-
+        # exhausted does.
+        offender = next(
+            ((story, step) for story in epic.stories for step in story.steps
+             if step.status != StepStatus.done
+             or (step.verification is not None and not step.verification.passed)),
+            None,
+        )
+        if offender is None:
+            # unreachable in practice (_epic_all_green false implies an offender)
+            epic.status = EpicStatus.failed
+            await notify_sse(run, "epic_status", {"status": "failed", "verdicts": verdicts}, epic_id=epic.id)
+            return
+        story, step = offender
+        if not await _park_for_decision(run, epic, story, step, "epic_gate_not_green"):
+            return  # aborted while parked
+        # The decision reset some step(s) to ready/pending via the jump machinery.
+        # Re-open every story whose steps are no longer all done —
+        # select_next_ready_story only picks PENDING stories, so without this the
+        # re-execution pass would find no work and re-park immediately.
+        for s in epic.stories:
+            if not all_steps_done(s):
+                s.status = StoryStatus.pending
+        # loop: re-execute the re-opened stories, then re-judge the epic.
 
 
 async def _execute_epic_stories(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None) -> None:
@@ -943,6 +962,15 @@ async def decide_step(
         merged = {**before, **repatch_inputs}
         ts.inputs = merged
         ts.failure_context = None
+        # A3/M2 (mirror of apply_and_rerun): when the repatch targets ANOTHER step,
+        # the DECIDED step must leave decision_pending BEFORE the jump wakes the
+        # parked loop — otherwise the loop sees it still decision_pending, re-parks
+        # it, the repatched step is never consumed, and gate_blocked_step keeps
+        # refusing every resume (total wedge). Re-queue it as pending with fresh
+        # attempts; it re-runs naturally after the repatched target.
+        if target_step_id != step_id:
+            step.status = StepStatus.pending
+            step.attempt = 0
         audit_payload["repatch"] = {
             "step_id": target_step_id, "inputs_before": before, "inputs_after": merged,
             "keys_changed": sorted(k for k in merged if before.get(k) != merged.get(k)),

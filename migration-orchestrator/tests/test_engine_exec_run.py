@@ -174,7 +174,7 @@ def test_run_step_commands_stops_at_first_failure(exec_run_on, monkeypatch):
     assert records[-1]["exit_code"] == 2
     assert "echo b" in ctx
     assert "Exit code: 2" in ctx
-    assert "boom traceback" in ctx  # stderr tail carried for the repairer
+    assert "boom traceback" in ctx  # stderr tail carried into the decision bundle
     assert "partial out" in ctx     # stdout tail too
 
 
