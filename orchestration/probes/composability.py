@@ -38,9 +38,34 @@ Metrics printed, per project:
 
 A global DEBT NOTE + a per-type table are printed.
 
-P6-step-1 posture: this REPORTS only and ALWAYS exits 0 (--report, the default).
-It is engineered to become the future composability GATE: pass --gate to have it
-exit non-zero when any type exceeds K or any full-page monolith exists.
+─────────────────────────────────────────────────────────────────────────────
+THE GATE CONTRACT (calibrated P6.1, K=8 locked by Julian 2026-07-04)
+─────────────────────────────────────────────────────────────────────────────
+Default (--report): REPORTS all metrics and ALWAYS exits 0.
+
+--gate: exit NON-ZERO (fail) iff EITHER
+  (a) any content type has an instance carrying > K lifted editor fields
+      (K=8; "one big component for the whole page with as many props as needed"
+      — beyond K a type MUST decompose into child nodes), OR
+  (b) any full-page MONOLITH exists (a node whose frozen skeleton is >= --mono-bytes,
+      i.e. one node standing in for a whole page/section).
+
+  The COMPOSABLE RATIO is REPORTED but is NOT part of the hard fail (it only
+  becomes blocking once P6.2 decomposition has run and we set a floor — the plan's
+  Pillar 4 posture). So the gate today enforces "no page-in-one-component and no
+  full-page monolith" without yet demanding a composability minimum.
+
+K CALIBRATION (why K=8 is safe — verified on acquia + supercar, P6.1):
+  Every type that exceeds K=8 in the 4 baselines is the DEBT the gate targets: a
+  skeleton/body-run aggregate (e.g. acquia content-listing K=27 with 18 body*,
+  supercar content K=34 with 18 body*). NO legitimate library-shaped component
+  exceeds 8: the richest base-library atom, $NS:card = title+body+image+alt+theme
+  +cornerCut = 6 node-level fields (tag/button are CHILD nodes, not lifted fields).
+  Even the borderline acquia card types (ct-article--card-wrapper K=9) exceed K
+  ONLY because they carry body+body2+body3+body4 (the un-decomposed numbered-run
+  anti-pattern) — decomposed to heading+richText+images they fall well under 8.
+  So K=8 fails the debt and passes every legitimate rich card. (Any future legit
+  case that trips K must be escalated to Julian, not silently raised — §5b.)
 
 Usage:  composability.py <project> [--k 8] [--mono-bytes 8000] [--gate] [--json]
 """
@@ -61,7 +86,14 @@ CHILD_RE = re.compile(r"^\s*\+\s*(\*|[\w:]+)\s*\(([\w:]+)\)")  # + */name (child
 
 # properties that FREEZE structure into markup instead of exposing children
 FROZEN_PROPS = ("skeleton", "html")
+# `body`/`body1` alone is a LEGIT single richtext field (an atom's body — see the
+# base library's $NS:richText / $NS:card). The God-object anti-pattern is a NUMBERED
+# RUN of body fields (body2, body3, ...): that means N text runs were aggregated onto
+# one type instead of decomposed into children (MODULARITY-PLAN §1, migration.md r24).
+# BODYN_RE  → any body* field (counted toward K, the lift metric).
+# BODYRUN_RE→ body2+ only (the frozen-type / decompose-me marker).
 BODYN_RE = re.compile(r"^body\d*$")
+BODYRUN_RE = re.compile(r"^body([2-9]|\d{2,})$")
 
 
 def parse_cnd(path):
@@ -169,7 +201,9 @@ def main():
     containers, leaves, frozen_types = [], [], []
     for n, d in concrete.items():
         composable = bool(d["children"])          # declares + */named child nodes
-        has_frozen = any(p in FROZEN_PROPS or BODYN_RE.match(p) for p in d["props"])
+        # frozen type = structure baked into markup: a skeleton/html blob OR a
+        # NUMBERED body run (body2+). A lone `body` is a legit atom richtext field.
+        has_frozen = any(p in FROZEN_PROPS or BODYRUN_RE.match(p) for p in d["props"])
         if composable:
             containers.append(n)
         else:
@@ -231,7 +265,7 @@ def main():
     print(f"  composable containers ...... {len(containers)}"
           f"  (open '+ *' palette: {len(open_containers)})")
     print(f"  leaf types ................. {len(leaves)}")
-    print(f"  frozen types (skeleton/html/body*) {len(frozen_types)}")
+    print(f"  frozen types (skeleton/html/body2+) {len(frozen_types)}")
     print()
 
     print("STRUCTURE (from content-load instance tree)")
@@ -289,11 +323,24 @@ def main():
         note.append("no open '+ *' container palette — editor cannot freely add blocks.")
     print("DEBT NOTE: " + " ".join(note))
 
+    # HARD GATE (calibrated P6.1): fail on any K>threshold instance OR any full-page
+    # monolith. The composable RATIO is reported above but NOT part of the fail
+    # (it becomes a floor only after P6.2 decomposition runs — see the gate contract
+    # in this file's header). exit 0/1 accordingly under --gate.
     fail = bool(over_k) or bool(monoliths)
     if a.gate:
-        print(("FAIL" if fail else "PASS") + ": composability gate")
+        reasons = []
+        if over_k:
+            reasons.append(f"{len(over_k)} type(s) over K={a.k} (worst {over_k[0][0]}={over_k[0][1]})")
+        if monoliths:
+            reasons.append(f"{len(monoliths)} full-page monolith(s)")
+        verdict = "FAIL" if fail else "PASS"
+        print(f"{verdict}: composability HARD gate (K={a.k}, mono>={a.mono_bytes}B)"
+              + (" — " + "; ".join(reasons) if reasons else "")
+              + f"  [ratio {composable_ratio:.1f}% reported, not gated]")
     else:
-        print("REPORT-ONLY (P6 step 1): not gating — exit 0 regardless of debt")
+        print("REPORT-ONLY: not gating — exit 0 regardless of debt "
+              "(pass --gate to enforce the hard K/monolith gate)")
 
     if a.json:
         print(json.dumps({
