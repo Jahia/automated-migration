@@ -13,7 +13,9 @@ RID="${1:?usage: monitor.sh <run_id> [engine_url]}"
 URL="${2:-http://127.0.0.1:8001}"
 prev_phase=""
 fails=0
+ticks=0
 while true; do
+  ticks=$((ticks+1))
   s=$(curl -s -m 5 "$URL/runs/$RID/status" 2>/dev/null || true)
   if [ -z "$s" ]; then
     fails=$((fails+1))
@@ -42,11 +44,38 @@ print("|".join([
     echo "PHASE $phase_key $phase_title"
     prev_phase="$phase_key"
   fi
+  # Julian's standing directive (2026-07-04): progress report every 10 minutes
+  # during an active run, whatever the step. 60 ticks x 10s = 600s.
+  if [ $((ticks % 60)) -eq 0 ]; then
+    prog=$(printf '%s' "$s" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+c = d.get("current_step") or {}
+p = d.get("progress") or {}
+print(f"{d.get(\"status\")} step={c.get(\"id\")}({c.get(\"status\")},try{c.get(\"attempt\")}) {p.get(\"steps_done\")}/{p.get(\"steps_total\")} cost=${round(d.get(\"cost\") or 0,3)}")' 2>/dev/null)
+    echo "PROGRESS $prog"
+  fi
   case "$status" in
     completed|failed|aborted) echo "TERMINAL $status (last step: $step_id)"; exit 0 ;;
   esac
   if [ -n "$gate_active" ]; then
     echo "DECISION_NEEDED type=$gate_type step=$gate_step"
+    exit 0
+  fi
+  # Epic-review approvals are not projected as gates (compact_status blind spot,
+  # found live on M4): poll the epics list for waiting_approval.
+  wa=$(curl -s -m 5 "$URL/runs/$RID/epics" 2>/dev/null | python3 -c '
+import sys, json
+try:
+    eps = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+eps = eps.get("epics", eps) if isinstance(eps, dict) else eps
+for e in eps:
+    if e.get("status") == "waiting_approval":
+        print(e.get("id")); break' 2>/dev/null)
+  if [ -n "$wa" ]; then
+    echo "DECISION_NEEDED type=epic_review epic=$wa"
     exit 0
   fi
   sleep 10

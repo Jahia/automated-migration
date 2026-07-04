@@ -1,9 +1,17 @@
 # Driving a migration from an LLM — the control-loop contract
 
-The migration cockpit is drivable by a human (the web UI) **and** by an LLM/agent
-over the same REST API. This is the poll→decide→act contract an agent follows. The
-engine stays the dumb executor; the agent is the brain that reads quality signals
-and decides whether to advance, escalate to a human, or roll back.
+> **The cockpit web UI is observability-only.** Runs are launched and relaunched
+> **exclusively by an LLM/agent via this REST API** — `POST /migrations`,
+> `/runs/{id}/start`, `/runs/{id}/restart`, the epic/story restart routes, and
+> `/runs/{id}/jump` have **no UI control** any more. The web UI observes (run list,
+> detail, progress tree, logs, quality panels, artifacts) and still exposes the
+> in-flight **decision** surfaces (pause / resume / abort and the gate
+> approve / reject / rerun panels) — but never launch or restart.
+
+The migration cockpit is drivable by an LLM/agent over the REST API below, and
+**observable** by a human through the web UI. This is the poll→decide→act contract
+an agent follows. The engine stays the dumb executor; the agent is the brain that
+reads quality signals and decides whether to advance, escalate to a human, or roll back.
 
 Same-origin base = the engine (default `http://localhost:8001`).
 

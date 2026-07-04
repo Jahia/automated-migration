@@ -17,37 +17,12 @@ export async function fetchSchema(): Promise<Record<string, unknown>> {
   return resp.json()
 }
 
-export async function createRun(plan: Record<string, unknown>): Promise<{ run_id: string }> {
-  const resp = await fetch(`${BASE}/runs`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(plan),
-  })
-  return resp.json()
-}
-
-export interface MigrationInput {
-  site_url: string
-  project: string
-  ns: string
-  mixns?: string
-  max_pages?: number
-  depth?: number
-  rate_delay?: number
-  sample_pages?: string[]
-  autonomy?: 'manual' | 'assisted' | 'autonomous'
-}
-
-/** Create a run from the fixed deterministic analyze plan (POST /migrations). */
-export async function createMigration(input: MigrationInput): Promise<{ run_id: string; status: string; message?: string }> {
-  const resp = await fetch(`${BASE}/migrations`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
-  if (!resp.ok) throw new Error(`création de la migration échouée: ${resp.status}`)
-  return resp.json()
-}
+// NOTE: launch/relaunch of runs is intentionally NOT exposed here. The cockpit
+// is observability-only — runs are created, started, and restarted exclusively
+// via the REST API (POST /migrations, /runs/{id}/start, /runs/{id}/restart,
+// /runs/{id}/epics|stories .../restart, /runs/{id}/jump). See CONTROL-LOOP.md.
+// The UI keeps only in-flight decision controls (pause / resume / abort) plus
+// housekeeping (delete / prune) and the gate approve/reject/rerun surfaces.
 
 export async function pauseRun(runId: string): Promise<void> {
   await fetch(`${BASE}/runs/${runId}/pause`, { method: 'POST' })
@@ -57,16 +32,8 @@ export async function resumeRun(runId: string): Promise<void> {
   await fetch(`${BASE}/runs/${runId}/resume`, { method: 'POST' })
 }
 
-export async function startRun(runId: string): Promise<void> {
-  await fetch(`${BASE}/runs/${runId}/start`, { method: 'POST' })
-}
-
 export async function abortRun(runId: string): Promise<void> {
   await fetch(`${BASE}/runs/${runId}/abort`, { method: 'POST' })
-}
-
-export async function restartRun(runId: string): Promise<void> {
-  await fetch(`${BASE}/runs/${runId}/restart`, { method: 'POST' })
 }
 
 export async function deleteRun(runId: string): Promise<void> {
@@ -77,25 +44,6 @@ export async function deleteRun(runId: string): Promise<void> {
 export async function pruneRuns(): Promise<{ deleted: string[]; count: number }> {
   const resp = await fetch(`${BASE}/runs/prune`, { method: 'POST' })
   if (!resp.ok) throw new Error(`prune failed: ${resp.status}`)
-  return resp.json()
-}
-
-export async function jumpToStep(runId: string, stepId: string, resetDependents = true): Promise<Record<string, unknown>> {
-  const resp = await fetch(`${BASE}/runs/${runId}/jump`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ step_id: stepId, reset_dependents: resetDependents }),
-  })
-  return resp.json()
-}
-
-export async function restartEpic(runId: string, epicId: string): Promise<Record<string, unknown>> {
-  const resp = await fetch(`${BASE}/runs/${runId}/epics/${epicId}/restart`, { method: 'POST' })
-  return resp.json()
-}
-
-export async function restartStory(runId: string, epicId: string, storyId: string): Promise<Record<string, unknown>> {
-  const resp = await fetch(`${BASE}/runs/${runId}/epics/${epicId}/stories/${storyId}/restart`, { method: 'POST' })
   return resp.json()
 }
 

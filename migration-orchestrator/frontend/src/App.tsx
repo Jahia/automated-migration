@@ -4,7 +4,6 @@ import RunList from './components/RunList'
 import RunDetail from './components/RunDetail'
 import SchemaViewer from './components/SchemaViewer'
 import TokenCounter from './components/TokenCounter'
-import NewMigration from './components/migration/NewMigration'
 
 // The real light Jahia wordmark (from jahia.com). Falls back to a text wordmark offline.
 const JAHIA_LOGO = 'https://cdfoqfniea.cloudimg.io/https://www.jahia.com/modules/jahiacom/dist/assets/jahia-light-kFJWkPOB.svg'
@@ -32,7 +31,6 @@ export default function App() {
           </Link>
           <span className="h-5 w-px bg-[#0a3252]" />
           <NavLink to="/" end className={navClass}>Runs</NavLink>
-          <NavLink to="/new" className={navClass}>Nouvelle migration</NavLink>
           <NavLink to="/schema" className={navClass}>API Schema</NavLink>
           <div className="ml-auto">
             <TokenCounter />
@@ -41,7 +39,6 @@ export default function App() {
         <main className="mx-auto max-w-7xl px-4 py-6">
           <Routes>
             <Route path="/" element={<RunList />} />
-            <Route path="/new" element={<NewMigration />} />
             <Route path="/runs/:runId" element={<RunDetail />} />
             <Route path="/schema" element={<SchemaViewer />} />
           </Routes>

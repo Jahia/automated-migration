@@ -82,9 +82,9 @@ the frontend derives phase/gate from step status + `gate_type`.
 
 ```
 App
-├── TopBar (navy + Jahia logo)  ✅ DONE            # App.tsx nav: logo, Runs / Nouvelle migration / API
-├── MigrationList              ← RunList          # cards: source → :ns, phase, fidelity %  (+ "Nouvelle migration" CTA ✅)
-├── NewMigration               ✅ DONE            # form: url + project + ns + mixns + sample  (1a)
+├── TopBar (navy + Jahia logo)  ✅ DONE            # App.tsx nav: logo, Runs / API Schema (observability-only; no "Nouvelle migration")
+├── MigrationList              ← RunList          # cards: source → :ns, phase, fidelity %  (no launch/restart CTA; empty-state hint → CONTROL-LOOP.md)
+│                                                  # NewMigration screen REMOVED — runs are launched via the REST API only (see CONTROL-LOOP.md)
 └── MigrationDetail            ← RunDetail
     ├── KpiBar                  ✅ DONE            # pages / types / templates / x-cut / fidelity% / spend
     ├── PipelineRail            ✅ DONE ← EpicTimeline/EpicCard/StoryCard/StepCard
@@ -99,8 +99,9 @@ App
         ├── ProofStrip            ← (from verification) # PROBE results, green checks
         └── CostPanel             ← TokenCounter   # DeepSeek tokens / cost (KpiBar surfaces spend today)
 ```
-Shared, kept as-is: `LiveLog`, `AgentOutput` (renamed conceptually to StepLog), SSE plumbing,
-`RunControls`.
+Shared, kept as-is: `LiveLog`, `AgentOutput` (renamed conceptually to StepLog), SSE plumbing.
+`RunControls` is trimmed to in-flight decision controls only (pause / resume / abort);
+its start / restart / jump-to-step controls were removed — launch/relaunch is REST-API-only.
 
 New leaf components to build after this PR: `BeforeAfterSlider` ✅, `ComponentModelView`,
 `SitemapTree`, `CndPreview`, `CoveragePanel`, `DiffGallery`.
