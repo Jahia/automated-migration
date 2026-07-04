@@ -22,10 +22,10 @@ from .models import (
     StoryState,
     StoryStatus,
 )
-from .opencode_client import OpenCodeClient
-from .opencode_events import OpenCodeEventListener
+from .llm_client import LLMClient
 from .persistence import load_run, save_event, save_run
-from .prompt_builder import build_review_epic_prompt, build_step_prompt
+from .prompt_builder import build_step_prompt
+from .repair_agent import review_epic_direct, run_repair_agent
 from .question_detector import detect_question
 from .rectification_detector import parse_epic_review_result
 from .state import (
@@ -95,14 +95,14 @@ async def notify_sse(run: RunState, event_type: str, data: dict, **ids) -> None:
     await save_event(run.run_id, event_type, data, **{k: v for k, v in ids.items() if v})
 
 
-async def start_run(run: RunState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def start_run(run: RunState, client: LLMClient, event_listener: object | None = None) -> None:
     register_run(run)
     await save_run(run)
     task = asyncio.create_task(_run_loop(run, client, event_listener))
     _active_tasks[run.run_id] = task
 
 
-async def _run_loop(run: RunState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def _run_loop(run: RunState, client: LLMClient, event_listener: object | None = None) -> None:
     audit = get_audit_logger(run.run_id)
     run_start = time.time() * 1000
     audit.run_started(run.goal, run.model, len(run.epics))
@@ -160,7 +160,7 @@ async def _run_loop(run: RunState, client: OpenCodeClient, event_listener: OpenC
             del _active_tasks[run.run_id]
 
 
-async def _epic_loop(run: RunState, epic: EpicState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def _epic_loop(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None) -> None:
     while True:
         await _execute_epic_stories(run, epic, client, event_listener)
         if not all_stories_approved(epic):
@@ -241,7 +241,7 @@ async def _epic_loop(run: RunState, epic: EpicState, client: OpenCodeClient, eve
         await notify_sse(run, "epic_status", {"status": "running"}, epic_id=epic.id)
 
 
-async def _execute_epic_stories(run: RunState, epic: EpicState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def _execute_epic_stories(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None) -> None:
     while True:
         story = select_next_ready_story(epic)
         if not story:
@@ -306,7 +306,7 @@ async def _park_for_decision(run: RunState, epic: EpicState, story: StoryState, 
     return True
 
 
-async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState, client: LLMClient, event_listener: object | None = None) -> None:
     while True:
         if run.forced_next_step:
             step = get_step_by_id(story, run.forced_next_step)
@@ -386,7 +386,7 @@ async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState
             return
 
 
-async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState, step: StepState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState, step: StepState, client: LLMClient, event_listener: object | None = None) -> None:
     step.status = StepStatus.running
     step.streaming_text = ""
     step.started_at = time.time() * 1000
@@ -434,51 +434,23 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
                 run_failure = failure_context
                 log.info(f"Step {step.id}: a Run: line failed — opening repair agent with failure context")
 
-        session = await client.create_session(title=f"{story.id} - {step.task_type}", directory=run.repo_dir)
-        step.opencode_session_id = session["id"]
-
+        # ── RÉPARATEUR: in-engine tool loop via the direct LLM API (P5.5) ────
+        # Replaces the opencode session/polling/permission machinery. The model
+        # chooses read_file/bash/write_file; the ENGINE executes them (same
+        # subprocess+env path as probes/Run:); the final JSON envelope is parsed
+        # exactly as before. Token usage is accumulated per chat() call into the
+        # step counters + per-project ledger inside run_repair_agent → llm_cost.
         prompt = build_step_prompt(step, story, epic, run, run_failure=run_failure)
         step.prompt_text = prompt[:5000]
-        audit.step_prompt_sent(epic.id, story.id, step.id, prompt, session["id"])
+        audit.step_prompt_sent(epic.id, story.id, step.id, prompt, "direct")
 
-        queue = event_listener.subscribe(session["id"])
-        try:
-            await client.send_prompt_async(session["id"], prompt, agent=step.agent, directory=run.repo_dir)
-            result_text = await _wait_for_step_completion(session["id"], queue, step, run, story, epic, client)
-        finally:
-            event_listener.unsubscribe(session["id"], queue)
+        result_text = await run_repair_agent(
+            run=run, epic=epic, story=story, step=step, prompt=prompt,
+            client=client, model=run.model,
+        )
 
         if result_text is None:
-            log.warning(f"Step {step.id}: result_text is None, trying to extract from messages")
-            try:
-                msgs = await client.get_messages(step.opencode_session_id)
-                # Collect all assistant text and reasoning
-                all_text = ""
-                for m in reversed(msgs):
-                    if m.get("info", {}).get("role") != "assistant":
-                        continue
-                    for p in reversed(m.get("parts", [])):
-                        txt = p.get("text", "") or ""
-                        if p.get("type") in ("text", "reasoning") and txt:
-                            all_text = txt + "\n" + all_text
-                if all_text:
-                    # Try to extract JSON from the concatenated text
-                    from .verifier import extract_json
-                    json_str = extract_json(all_text)
-                    if json_str:
-                        result_text = json_str
-                        log.info(f"Step {step.id}: recovered JSON from reasoning ({len(json_str)} chars)")
-                    else:
-                        result_text = all_text
-                        log.info(f"Step {step.id}: recovered raw text from reasoning ({len(all_text)} chars)")
-                else:
-                    log.warning(f"Step {step.id}: no assistant text found in messages")
-            except Exception as e:
-                log.warning(f"Step {step.id}: recovery failed: {e}")
-            except Exception as e:
-                log.warning(f"Step {step.id}: recovery failed: {e}")
-
-        if result_text is None:
+            log.warning(f"Step {step.id}: repair agent produced no result text")
             step.status = StepStatus.failed
             return
 
@@ -504,20 +476,14 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
         log.info(f"Step {step.id}: agent_result status={agent_result.status} summary={agent_result.summary[:100]}")
 
         step.agent_result = agent_result
-
-        # Fetch token usage and cost from the session
+        # Cost: token counters were accumulated per chat() call; compute the
+        # dollar cost from them so /runs/{id}/stats reflects the direct-API spend.
         try:
-            sess_detail = await client.http.get(f"/session/{step.opencode_session_id}")
-            if sess_detail.status_code == 200:
-                sd = sess_detail.json()
-                t = sd.get("tokens", {})
-                step.tokens_in = t.get("input", 0)
-                step.tokens_out = t.get("output", 0)
-                step.tokens_cache = t.get("cache", {}).get("read", 0) if isinstance(t.get("cache"), dict) else 0
-                step.cost = sd.get("cost", 0.0)
-                log.info(f"Step {step.id}: tokens in={step.tokens_in} out={step.tokens_out} cache={step.tokens_cache} cost=${step.cost:.4f}")
+            from .cost_tracker import calculate_cost
+            step.cost = calculate_cost(step.tokens_in, step.tokens_out, step.tokens_cache, run.model)["cost_total"]
+            log.info(f"Step {step.id}: tokens in={step.tokens_in} out={step.tokens_out} cache={step.tokens_cache} cost=${step.cost:.4f}")
         except Exception as e:
-            log.warning(f"Step {step.id}: failed to fetch tokens: {e}")
+            log.warning(f"Step {step.id}: failed to compute cost: {e}")
 
         await _verify_and_finalize(run, epic, story, step, agent_result, audit)
 
@@ -611,292 +577,15 @@ def _infer_gate_type(step: StepState) -> str | None:
     return None
 
 
-def _latest_assistant_text(msgs: list) -> str:
-    """Concatenate the text parts of the most recent assistant message."""
-    for m in reversed(msgs):
-        if m.get("info", {}).get("role") != "assistant":
-            continue
-        texts = [p.get("text", "") for p in m.get("parts", []) if p.get("type") == "text" and p.get("text")]
-        if texts:
-            return "\n".join(texts)
-    return ""
-
-
-def _latest_assistant_stream(msgs: list) -> str:
-    """Latest assistant message rendered for the LIVE LOG window: text parts as-is,
-    reasoning parts prefixed with a marker so the UI can show the model *thinking*
-    even when it never emits a final text part (the reasoning-only stall we hit on
-    build steps). Display-only — result harvesting still uses the raw messages."""
-    for m in reversed(msgs):
-        if m.get("info", {}).get("role") != "assistant":
-            continue
-        out: list[str] = []
-        for p in m.get("parts", []):
-            t = p.get("type")
-            txt = p.get("text", "") or ""
-            if not txt:
-                continue
-            if t == "text":
-                out.append(txt)
-            elif t == "reasoning":
-                # prefix each reasoning line with the brain marker so the live-log
-                # UI can dim it (and so a reasoning-only stall is still visible)
-                out.append("\n".join("\U0001f9e0 " + ln for ln in txt.splitlines()))
-        if out:
-            return "\n".join(out)
-    return ""
-
-
-def _assistant_turn_complete(msgs: list) -> bool:
-    """True when the most recent assistant message has finished. opencode sets
-    info.time.completed once a turn (including its tool calls) is done. NOTE: this
-    is true at EVERY turn boundary, not only at final session idle — an agent that
-    emits a short preamble turn then continues (or spawns subagents) will momentarily
-    look 'complete'. Callers must debounce with _session_fingerprint to avoid
-    harvesting mid-task. See _wait_for_step_completion."""
-    for m in reversed(msgs):
-        info = m.get("info", {})
-        if info.get("role") == "assistant":
-            return bool(info.get("time", {}).get("completed"))
-    return False
-
-
-def _session_fingerprint(msgs: list) -> tuple:
-    """A cheap signature of the conversation state: message count, last message id,
-    and total text length. It changes whenever a new turn starts or text grows, so
-    a stable fingerprint across consecutive polls means the agent has genuinely gone
-    quiet (not just paused at a turn boundary)."""
-    total_text = 0
-    for m in msgs:
-        for p in m.get("parts", []):
-            if p.get("type") in ("text", "reasoning"):
-                total_text += len(p.get("text", "") or "")
-    last_id = msgs[-1].get("info", {}).get("id", "") if msgs else ""
-    return (len(msgs), last_id, total_text)
-
-
-async def _wait_for_step_completion(
-    session_id: str,
-    queue: asyncio.Queue,
-    step: StepState,
-    run: RunState,
-    story: StoryState,
-    epic: EpicState,
-    client: OpenCodeClient,
-) -> str | None:
-    """Wait for the opencode session to truly finish, then return the final
-    assistant text. The primary signal is the session.idle event; because that
-    event feed is unreliable for directory-scoped sessions, a polling fallback
-    treats the agent as done only when the last turn is complete AND the
-    conversation fingerprint has been stable for QUIESCE_POLLS consecutive polls.
-    The debounce is essential: info.time.completed flips true at every turn
-    boundary, so without it a short preamble turn (or a pause while subagents run)
-    would be harvested as the final result. Whichever signal fires first wins, so a
-    dead event feed no longer forces the full timeout. Streams text deltas to the
-    UI best-effort and auto-approves permission prompts; the 600s deadline is a
-    hard backstop, not the common case."""
-    last_text = ""
-    poll_every = 3.0
-    deadline = 600.0
-    elapsed = 0.0
-    QUIESCE_POLLS = 7  # ~21s of no change after a completed turn => genuinely idle
-    last_fp: tuple | None = None
-    stable = 0
-
-    async def _stream(msgs: list) -> None:
-        nonlocal last_text
-        # Live log includes reasoning (prefixed) so the window shows the model
-        # thinking even when it emits no final text part.
-        txt = _latest_assistant_stream(msgs)
-        if txt and len(txt) > len(last_text):
-            delta = txt[len(last_text):]
-            last_text = txt
-            step.streaming_text = txt
-            await notify_sse(run, "step_streaming", {"delta": delta, "text": txt}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-
-    while True:
-        # 1. React to events promptly when they arrive (streaming, permissions, idle).
-        try:
-            event = await asyncio.wait_for(queue.get(), timeout=poll_every)
-        except asyncio.TimeoutError:
-            event = None
-
-        if event is not None:
-            et = event.get("type", "")
-            if et == "permission.updated":
-                pid = event.get("properties", {}).get("id", "")
-                if pid:
-                    await client.respond_permission(session_id, pid, "always")
-                continue
-            if et == "session.idle":
-                try:
-                    msgs = await client.get_messages(session_id)
-                    txt = _latest_assistant_text(msgs)
-                except Exception:
-                    txt = ""
-                return txt or last_text or None
-            try:
-                await _stream(await client.get_messages(session_id))
-            except Exception:
-                pass
-            continue
-
-        # 2. No event this window — polling fallback with debounce (works even if
-        # the event feed is dead, without harvesting at an intermediate turn).
-        elapsed += poll_every
-        try:
-            msgs = await client.get_messages(session_id)
-        except Exception:
-            msgs = None
-        if msgs:
-            await _stream(msgs)
-            fp = _session_fingerprint(msgs)
-            if _assistant_turn_complete(msgs) and fp == last_fp:
-                stable += 1
-                if stable >= QUIESCE_POLLS:
-                    return _latest_assistant_text(msgs) or last_text or None
-            else:
-                stable = 0
-            last_fp = fp
-
-        if elapsed >= deadline:
-            return last_text or None
-
-
-async def _wait_for_completion_poll(
-    session_id: str,
-    step: StepState,
-    run: RunState,
-    story: StoryState,
-    epic: EpicState,
-    client: OpenCodeClient,
-    poll_interval: int = 1,
-    max_polls: int = 180,
-) -> str | None:
-    last_text = ""
-    last_reasoning_len = 0
-    step.streaming_text = ""
-    reasoning_stable = 0
-    text_stable = 0
-
-    for poll_count in range(max_polls):
-        await asyncio.sleep(poll_interval)
-
-        try:
-            msgs_resp = await client.http.get(f"/session/{session_id}/message", params={"limit": 5})
-            if msgs_resp.status_code == 200:
-                msgs = msgs_resp.json()
-                has_step_finish = False
-                has_step_start = False
-                current_reasoning_len = 0
-
-                for m in msgs:
-                    if m.get("info", {}).get("role") != "assistant":
-                        continue
-                    parts = m.get("parts", [])
-                    for p in parts:
-                        if p.get("type") == "text":
-                            full_text = p.get("text", "")
-                            if len(full_text) > len(last_text):
-                                delta = full_text[len(last_text):]
-                                last_text = full_text
-                                step.streaming_text = full_text
-                                text_stable = 0
-                                await notify_sse(run, "step_streaming", {"delta": delta, "text": full_text}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-                        if p.get("type") == "reasoning":
-                            current_reasoning_len += len(p.get("text", "") or "")
-                        if p.get("type") == "step-finish":
-                            has_step_finish = True
-                        if p.get("type") == "step-start":
-                            has_step_start = True
-
-                # Text stability: if text exists and unchanged for 10s, done
-                if last_text:
-                    text_stable += 1
-                    if text_stable >= 10:
-                        return last_text
-                else:
-                    text_stable = 0
-
-                # Reasoning stability: if reasoning stopped growing for 15s and step-finish exists, session is done
-                if current_reasoning_len > last_reasoning_len:
-                    last_reasoning_len = current_reasoning_len
-                    reasoning_stable = 0
-                elif current_reasoning_len > 0:
-                    reasoning_stable += 1
-
-                if has_step_finish and reasoning_stable >= 15:
-                    return last_text or None
-
-        except Exception as e:
-            log.warning(f"Poll error for step {step.id}: {e}")
-
-    return step.streaming_text or last_text or None
-
-
-async def _review_epic(run: RunState, epic: EpicState, client: OpenCodeClient, event_listener: OpenCodeEventListener):
-    prompt = build_review_epic_prompt(epic, run)
-    session = await client.create_session(title=f"Review {epic.id} round {epic.review_round}", directory=run.repo_dir)
-    epic.opencode_session_id = session["id"]
-
-    queue = event_listener.subscribe(session["id"])
-    try:
-        await client.send_prompt_async(session["id"], prompt, directory=run.repo_dir)
-        result_text = await _wait_for_review_completion(session["id"], queue, client)
-    finally:
-        event_listener.unsubscribe(session["id"], queue)
-
+async def _review_epic(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None):
+    """Epic review via a SINGLE direct API call (P5.5) — no tools, json_object
+    forced. review_epic_direct returns the raw JSON text; parse_epic_review_result
+    turns it into a verdict (None on failure → the caller's resilient auto-approve).
+    The 'reviewer OVERRULED' protocol downstream is unchanged."""
+    result_text = await review_epic_direct(run, epic, client, model=run.model)
     if result_text is None:
         return None
-
     return parse_epic_review_result(result_text)
-
-
-async def _wait_for_review_completion(session_id: str, queue: asyncio.Queue, client: OpenCodeClient) -> str | None:
-    """Same dual strategy as _wait_for_step_completion: react to session.idle when
-    the event feed delivers it, otherwise poll the last assistant message for
-    info.time.completed. Without the fallback, reviews silently time out and
-    auto-approve, so the epic review gate never actually runs. Uses the same
-    completed-turn + stable-fingerprint debounce as _wait_for_step_completion so it
-    does not harvest at an intermediate turn boundary."""
-    poll_every = 3.0
-    deadline = 600.0
-    elapsed = 0.0
-    QUIESCE_POLLS = 7
-    last_fp: tuple | None = None
-    stable = 0
-    while True:
-        try:
-            event = await asyncio.wait_for(queue.get(), timeout=poll_every)
-        except asyncio.TimeoutError:
-            event = None
-
-        if event is not None:
-            event_type = event.get("type", "")
-            if event_type == "session.idle":
-                return _latest_assistant_text(await client.get_messages(session_id)) or None
-            if event_type == "permission.updated":
-                perm_id = event.get("properties", {}).get("id", "")
-                if perm_id:
-                    await client.respond_permission(session_id, perm_id, "always")
-            continue
-
-        elapsed += poll_every
-        try:
-            msgs = await client.get_messages(session_id)
-        except Exception:
-            msgs = None
-        if msgs:
-            fp = _session_fingerprint(msgs)
-            if _assistant_turn_complete(msgs) and fp == last_fp:
-                stable += 1
-                if stable >= QUIESCE_POLLS:
-                    return _latest_assistant_text(msgs) or None
-            else:
-                stable = 0
-            last_fp = fp
-        if elapsed >= deadline:
-            return None
 
 
 async def _wait_for_proposal_decision(run: RunState, epic: EpicState) -> None:
@@ -961,7 +650,7 @@ async def resume_run(run_id: str) -> bool:
     return True
 
 
-async def try_resume_run(run_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> bool:
+async def try_resume_run(run_id: str, client: LLMClient, event_listener: object | None = None) -> bool:
     run = get_run(run_id)
     # Resume a paused run, and also RECOVER a failed one in place: _run_loop skips
     # already-approved epics and never re-runs done steps (select_next_ready_step
@@ -999,7 +688,7 @@ async def _resolve_registered_run(run_id: str) -> RunState | None:
     return run
 
 
-async def approve_gate(run_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> dict:
+async def approve_gate(run_id: str, client: LLMClient, event_listener: object | None = None) -> dict:
     """The ONLY path that turns a halted gate into done: mark the step approved,
     persist, then resume the run (in-flight loop or a fresh one)."""
     run = await _resolve_registered_run(run_id)
@@ -1045,8 +734,8 @@ async def jump_to_step(
     step_id: str,
     epic_id: str | None = None,
     reset_dependents: bool = True,
-    client: OpenCodeClient | None = None,
-    event_listener: OpenCodeEventListener | None = None,
+    client: LLMClient | None = None,
+    event_listener: object | None = None,
     skip_done: list[str] | None = None,
 ) -> dict:
     """Force the run to redo a step (the ONLY documented redo path for a
@@ -1195,7 +884,7 @@ def _find_step_anywhere(run: RunState, step_id: str) -> tuple[EpicState | None, 
     return None, None, None
 
 
-async def _resume_after_decision(run: RunState, client: OpenCodeClient | None, event_listener: OpenCodeEventListener | None) -> None:
+async def _resume_after_decision(run: RunState, client: LLMClient | None, event_listener: object | None = None) -> None:
     """Resume a run whose decision step just left decision_pending: wake the
     parked in-flight loop, or spawn a fresh one after an engine restart."""
     if run.run_id in _active_tasks and not _active_tasks[run.run_id].done():
@@ -1217,8 +906,8 @@ async def decide_step(
     rules_file: str | None = None,
     patch: dict | None = None,
     rerun_from: str | None = None,
-    client: OpenCodeClient | None = None,
-    event_listener: OpenCodeEventListener | None = None,
+    client: LLMClient | None = None,
+    event_listener: object | None = None,
 ) -> dict:
     """Decide a decision_pending step (POST /runs/{id}/steps/{id}/decide).
     Returns {"error", "code"} on refusal, else a success dict. Semantics:
@@ -1393,7 +1082,7 @@ def decision_bundles(run: RunState) -> list[dict]:
     return bundles
 
 
-async def restart_run(run_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> dict:
+async def restart_run(run_id: str, client: LLMClient, event_listener: object | None = None) -> dict:
     run = get_run(run_id)
     if not run:
         run = await load_run(run_id)
@@ -1488,7 +1177,7 @@ def _story_dependents(epic: EpicState, story_id: str) -> set[str]:
     return deps
 
 
-async def _relaunch_loop(run: RunState, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> None:
+async def _relaunch_loop(run: RunState, client: LLMClient, event_listener: object | None = None) -> None:
     """Cancel any in-flight loop task, then start a fresh one from the reset state."""
     old = _active_tasks.get(run.run_id)
     if old and not old.done():
@@ -1508,7 +1197,7 @@ async def _relaunch_loop(run: RunState, client: OpenCodeClient, event_listener: 
     _active_tasks[run.run_id] = task
 
 
-async def restart_epic(run_id: str, epic_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> dict:
+async def restart_epic(run_id: str, epic_id: str, client: LLMClient, event_listener: object | None = None) -> dict:
     run = get_run(run_id)
     if not run:
         run = await load_run(run_id)
@@ -1524,7 +1213,7 @@ async def restart_epic(run_id: str, epic_id: str, client: OpenCodeClient, event_
     return {"status": "epic_restarted", "epic_id": epic_id}
 
 
-async def restart_story(run_id: str, epic_id: str, story_id: str, client: OpenCodeClient, event_listener: OpenCodeEventListener) -> dict:
+async def restart_story(run_id: str, epic_id: str, story_id: str, client: LLMClient, event_listener: object | None = None) -> dict:
     run = get_run(run_id)
     if not run:
         run = await load_run(run_id)

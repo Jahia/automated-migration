@@ -62,7 +62,7 @@ async def restart_epic_endpoint(run_id: str, epic_id: str, request: Request):
     Earlier approved epics are skipped; later epics stay pending."""
     return await restart_epic(
         run_id, epic_id,
-        request.app.state.opencode_client,
+        request.app.state.llm_client,
         request.app.state.event_listener,
     )
 
@@ -74,6 +74,6 @@ async def restart_story_endpoint(run_id: str, epic_id: str, story_id: str, reque
     stories stay approved."""
     return await restart_story(
         run_id, epic_id, story_id,
-        request.app.state.opencode_client,
+        request.app.state.llm_client,
         request.app.state.event_listener,
     )

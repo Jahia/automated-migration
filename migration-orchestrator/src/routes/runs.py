@@ -11,8 +11,7 @@ from pydantic import BaseModel
 from ..github_client import GitHubClient
 from ..migration_control import compact_status, log_tail, project_path, quality_verdict, workflow_output_dir
 from ..models import EpicInput, PlanInput, RunState, RunStatus, StepInput, StoryInput
-from ..opencode_client import OpenCodeClient
-from ..opencode_events import OpenCodeEventListener
+from ..llm_client import LLMClient
 from ..orchestrator import (
     abort_run,
     approve_gate,
@@ -80,8 +79,8 @@ async def start_run_endpoint(run_id: str, request: Request, background_tasks: Ba
     if run.status != RunStatus.created:
         return RunResponse(run_id=run_id, status=run.status.value, message=f"Le run est déjà en statut {run.status.value}")
 
-    client: OpenCodeClient = request.app.state.opencode_client
-    event_listener: OpenCodeEventListener = request.app.state.event_listener
+    client: LLMClient = request.app.state.llm_client
+    event_listener = request.app.state.event_listener
 
     run.status = RunStatus.running
     await save_run(run)
@@ -129,8 +128,8 @@ async def resume_run_endpoint(run_id: str, request: Request):
         run = await load_run(run_id)
         if run:
             register_run(run)
-    client: OpenCodeClient = request.app.state.opencode_client
-    event_listener: OpenCodeEventListener = request.app.state.event_listener
+    client: LLMClient = request.app.state.llm_client
+    event_listener = request.app.state.event_listener
     ok = await try_resume_run(run_id, client, event_listener)
     return {"status": "resumed" if ok else "error"}
 
@@ -139,7 +138,7 @@ async def resume_run_endpoint(run_id: str, request: Request):
 async def jump_endpoint(run_id: str, req: JumpRequest, request: Request):
     result = await jump_to_step(
         run_id, req.step_id, req.epic_id, req.reset_dependents,
-        client=request.app.state.opencode_client,
+        client=request.app.state.llm_client,
         event_listener=request.app.state.event_listener,
     )
     return result
@@ -170,8 +169,8 @@ async def delete_run_endpoint(run_id: str):
 
 @router.post("/runs/{run_id}/restart", response_model=RunResponse)
 async def restart_run_endpoint(run_id: str, request: Request):
-    client: OpenCodeClient = request.app.state.opencode_client
-    event_listener: OpenCodeEventListener = request.app.state.event_listener
+    client: LLMClient = request.app.state.llm_client
+    event_listener = request.app.state.event_listener
     result = await restart_run(run_id, client, event_listener)
     if "error" in result:
         return RunResponse(run_id=run_id, status="error", message=result["error"])
@@ -442,8 +441,8 @@ async def run_gate(run_id: str, req: GateDecision, request: Request):
     await save_event(run_id, "gate_decision", {"decision": dec, "reason": req.reason, "pages": req.pages})
 
     if dec == "approve":
-        client: OpenCodeClient = request.app.state.opencode_client
-        event_listener: OpenCodeEventListener = request.app.state.event_listener
+        client: LLMClient = request.app.state.llm_client
+        event_listener = request.app.state.event_listener
         result = await approve_gate(run_id, client, event_listener)
         if result.get("error"):
             return {"status": "error", "decision": dec, "detail": result["error"]}
@@ -505,7 +504,7 @@ async def run_decide(run_id: str, step_id: str, req: DecideRequest, request: Req
         rules_file=req.rules_file,
         patch=req.patch,
         rerun_from=req.rerun_from,
-        client=request.app.state.opencode_client,
+        client=request.app.state.llm_client,
         event_listener=request.app.state.event_listener,
     )
     if result.get("error"):
@@ -525,7 +524,7 @@ async def run_rollback(run_id: str, req: Rollback, request: Request):
     await save_event(run_id, "rollback", {"to_step": req.to_step, "reason": req.reason})
     result = await jump_to_step(
         run_id, req.to_step, None, True,
-        client=request.app.state.opencode_client,
+        client=request.app.state.llm_client,
         event_listener=request.app.state.event_listener,
     )
     if isinstance(result, dict) and result.get("error"):

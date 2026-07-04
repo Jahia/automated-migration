@@ -10,7 +10,6 @@ import time
 from .audit import get_audit_logger
 from .config import settings
 from .models import AgentResult, StepState, VerificationResult
-from .opencode_client import OpenCodeClient
 
 log = logging.getLogger(__name__)
 

@@ -502,13 +502,34 @@ orchestrator.db secrets scrub + key rotation (task_f6799dd1). Backlog: reviewer 
 fed the deterministic gate record instead of the agent narrative; monitor PHASE mapping
 cosmetics; rename/merge scope-rule actions; P6 (§11b); true FR content strategy;
 compose-gate shell support for vision pages with a real <main>.
-**Backlog architecture (Julian's question, 2026-07-04): "engine executes · direct API
-judges · opencode repairs".** opencode is the TOOL harness — needed only when the LLM
-must act on the repo (repair/diagnosis). Mechanical `Run:` steps need no LLM (engine-exec
-fix). Pure-judgment roles (step summary, reviewer, epic approval) need no TOOLS — move
-them to direct DeepSeek API calls with `response_format: json_object`: kills the
-"missing summary" envelope-flake class by construction, no 3s polling, no 600s deadline,
-cheaper. opencode stays for genuine repair sessions only.
+**IMPLEMENTED P5.5 (Julian's directive, 2026-07-04): opencode dropped — direct
+OpenAI-compatible API.** "The engine executes · the direct API judges · an in-engine
+tool loop repairs." Landed in the single commit `feat(p5.5): drop opencode — direct
+DeepSeek API …` (activates at the next engine restart; a
+run was PAUSED for infra during the change, so the running process still holds the old
+code):
+- `src/llm_client.py` — direct OpenAI-compatible chat client (httpx async). Transport
+  retries only (ConnectError/timeout, capped backoff, ×`ORCHESTRATOR_LLM_MAX_RETRIES`);
+  HTTP 4xx/5xx NEVER retried. Provider-agnostic: `ORCHESTRATOR_LLM_BASE_URL` /
+  `_MODEL` / `_API_KEY` (defaults DeepSeek `https://api.deepseek.com/v1` /
+  `deepseek-v4-flash`; key env-only, gitignored `migration-orchestrator/.env`).
+- `src/repair_agent.py` — RÉPARATEUR in-engine tool loop (`read_file`/`bash`/`write_file`
+  via the SAME subprocess+`probe_env` path as probes; per-tool timeout capped; every call
+  audited `tool_executed`; caps `ORCHESTRATOR_REPAIR_MAX_TOOL_CALLS`=24 /
+  `_WALL_BUDGET_S`=1500; final `json_object` envelope parsed by the existing
+  `parse_agent_result`). Also `review_epic_direct` — reviewer = ONE tool-free
+  `json_object` call (the "reviewer OVERRULED" protocol downstream unchanged).
+- `orchestrator.py` — engine-exec-Run path unchanged (nominal); the repair agent replaces
+  the opencode session in the failure fallback AND for steps with no `Run:` lines. All
+  session/events/permission/polling code removed. `main.py` — no opencode subprocess;
+  `/health` → `{"status":"ok","llm":{"configured":bool,"model":…,"base_url":…}}` (no key).
+- Cost/ledger unchanged in format: each response's `usage` → step token counters (fed to
+  `cost_tracker` at run end) AND the per-project `llm-usage.jsonl` (provider
+  `deepseek-direct`) via `src/llm_cost.py`.
+- `opencode_client.py`/`opencode_events.py` deleted (deletion committed in ea62a1c during
+  an infra collision). pytest 139/139 green (123 baseline + 16 new: llm_client transport/
+  no-4xx/format, repair tool dispatch+caps+audit+failure-continue, reviewer, health).
+  `scripts/smoke_llm.py` proved the key: `model=deepseek-v4-flash`, real usage returned.
 
 ## 13. The two questions (Julian, 2026-07-04 — recorded for resumption)
 

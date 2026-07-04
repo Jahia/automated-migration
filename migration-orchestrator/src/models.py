@@ -199,6 +199,8 @@ class StepState(BaseModel):
     status: StepStatus = StepStatus.pending
     attempt: int = 0
     max_attempts: int = 3
+    # Legacy field: kept for backward compat with persisted run blobs and the
+    # frontend types (P5.5 dropped opencode; the engine no longer sets it).
     opencode_session_id: str | None = None
     agent_result: AgentResult | None = None
     verification: VerificationResult | None = None

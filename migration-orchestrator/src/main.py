@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import asyncio
 import logging
-import subprocess
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,62 +12,35 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .github_client import GitHubClient
-from .opencode_client import OpenCodeClient
-from .opencode_events import OpenCodeEventListener
+from .llm_client import LLMClient
 from .persistence import close_db, get_db
 from .routes import content_progress, epics, events, runs, schema, stats, steps
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-_opencode_process: subprocess.Popen | None = None
-
-
-async def start_opencode_server() -> None:
-    global _opencode_process
-    log.info(f"Starting opencode serve on port {settings.opencode_port}...")
-    _opencode_process = subprocess.Popen(
-        ["opencode", "serve", "--port", str(settings.opencode_port), "--hostname", settings.opencode_hostname],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    client = OpenCodeClient()
-    for i in range(30):
-        try:
-            health = await client.health()
-            if health.get("healthy"):
-                log.info("OpenCode server is ready")
-                return
-        except Exception:
-            pass
-        await asyncio.sleep(1)
-    log.warning("OpenCode server did not become ready in 30s")
-
-
-async def stop_opencode_server() -> None:
-    global _opencode_process
-    if _opencode_process:
-        _opencode_process.terminate()
-        try:
-            _opencode_process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            _opencode_process.kill()
-        _opencode_process = None
-        log.info("OpenCode server stopped")
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await start_opencode_server()
+    # P5.5: OpenCode dropped. The engine talks DIRECTLY to an OpenAI-compatible
+    # API (DeepSeek by default). No subprocess to spawn, no event listener — the
+    # LLMClient is created here and shared as app.state.llm_client.
+    client = LLMClient()
+    if not client.configured:
+        log.warning(
+            "ORCHESTRATOR_LLM_API_KEY is not set — the engine will fail any LLM call "
+            "(judgment/repair). Set it in migration-orchestrator/.env (see .env.example)."
+        )
+    else:
+        log.info(f"Direct LLM client ready: model={client.model} base_url={client.base_url}")
 
-    client = OpenCodeClient()
-    event_listener = OpenCodeEventListener()
-
-    app.state.opencode_client = client
-    app.state.event_listener = event_listener
+    app.state.llm_client = client
+    # event_listener is a P4 vestige; the routes still read app.state.event_listener
+    # and thread it through, but it is unused (None) now that there is no SSE feed
+    # from an agent runtime to subscribe to.
+    app.state.event_listener = None
     app.state.github_client = GitHubClient()
 
-    await event_listener.start()
     await get_db()
 
     ui_path = Path(__file__).parent / "ui"
@@ -78,15 +49,14 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    await event_listener.stop()
     await close_db()
-    await stop_opencode_server()
+    await client.aclose()
 
 
 app = FastAPI(
     title="LLM Orchestration Loop",
-    description="Orchestrateur LLM avec opencode serve",
-    version="0.1.0",
+    description="Orchestrateur LLM — API directe OpenAI-compatible (DeepSeek par défaut)",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -119,9 +89,12 @@ async def spa_middleware(request: Request, call_next):
 
 @app.get("/health")
 async def health():
-    try:
-        client: OpenCodeClient = app.state.opencode_client
-        oc_health = await client.health()
-        return {"status": "ok", "opencode": oc_health}
-    except Exception as e:
-        return {"status": "degraded", "error": str(e)}
+    # Never leaks the key — only whether one is configured, plus the model/base_url.
+    return {
+        "status": "ok",
+        "llm": {
+            "configured": settings.llm_configured,
+            "model": settings.llm_model,
+            "base_url": settings.llm_base_url,
+        },
+    }

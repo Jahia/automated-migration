@@ -1,9 +1,12 @@
 # migration-orchestrator
 
-A FastAPI engine that runs structured migration plans (**epics → stories → steps**)
-against [OpenCode](https://opencode.ai) coding agents, and **proves** each step with
-shell commands instead of trusting the model's word. A step passes only when every
-command it runs exits `0`.
+A FastAPI engine that runs structured migration plans (**epics → stories → steps**),
+and **proves** each step with shell commands instead of trusting the model's word.
+A step passes only when every command it runs exits `0`.
+
+Doctrine (P5.5): **the engine executes · the direct API judges · an in-engine tool
+loop repairs.** The engine talks DIRECTLY to an OpenAI-compatible LLM API (DeepSeek by
+default) — there is no OpenCode process anymore.
 
 Part of the **jahiaMigration** harness — drives the 13-step migration pipeline
 (see `../orchestration/`).
@@ -13,24 +16,31 @@ Part of the **jahiaMigration** harness — drives the 13-step migration pipeline
 ## How it works
 
 You POST a **plan** to `/runs`. The plan is a tree: a run has **epics**, each epic has
-**stories**, each story has **steps**. The engine walks steps in dependency order; for
-each step it opens an OpenCode session, sends the step prompt (the repo's `AGENTS.md` is
-injected as the contract), and the agent returns a result that may include
-`commands_requested`. The **verifier** runs those commands with `cwd` = the plan's
-`repo_dir`; **all must exit 0** or the step fails and retries (up to `max_attempts`).
-After every epic's stories complete, the engine runs an **epic review**; the reviewer
-either approves or proposes **rectification** stories, which wait for human approval.
-Steps can also pause for a human (`waiting_human`) or halt the run.
+**stories**, each story has **steps**. The engine walks steps in dependency order.
+
+- A step whose acceptance criteria carry `Run: <cmd>` lines has a KNOWN, deterministic
+  command at plan time — the **engine runs those lines itself** (same subprocess path as
+  the probes). If they all pass, no LLM is invoked at all.
+- Otherwise (or if a `Run:` line fails), the engine invokes the **RÉPARATEUR** role: a
+  small in-engine tool loop (`read_file` / `bash` / `write_file`) driven by the direct
+  LLM API. The model chooses actions; the engine executes them (same cwd/env as probes),
+  audits each as `tool_executed`, and caps the loop by tool-call count and wall-clock.
+- The step's final JSON envelope (`status`/`summary`/…) is parsed, then the **verifier**
+  runs the acceptance `PROBE:` commands with `cwd` = the plan's `repo_dir`; **all must
+  exit 0** or the step fails and retries (up to `max_attempts`).
+- After every epic's stories complete, the engine runs an **epic review** — a single
+  tool-free direct API call with `response_format: json_object`. The reviewer either
+  approves or proposes **rectification** stories, which wait for human approval.
+  Steps can also pause for a human (`waiting_human`) or halt the run.
 
 ---
 
 ## Prerequisites
 
 - **Python ≥ 3.11** with the project venv installed (see Setup).
-- **OpenCode CLI** on `PATH` (`opencode --version`). The engine spawns `opencode serve`
-  automatically on startup — you do **not** start it yourself.
-- **An OpenCode model configured** in `~/.config/opencode/opencode.jsonc`. This is what
-  the agents actually run as. See "Which model runs?" below.
+- **An OpenAI-compatible LLM API key** in `ORCHESTRATOR_LLM_API_KEY` (env or
+  `migration-orchestrator/.env`, gitignored). `base_url` and `model` default to DeepSeek
+  but are swappable — see "Which model runs?" below.
 - `jq` and `curl` (used by `../orchestration/run.sh`).
 
 ## Setup
@@ -42,8 +52,9 @@ python3 -m venv .venv
 # optional dev tools: .venv/bin/pip install -e '.[dev]'
 ```
 
-Configuration is via env vars (prefix `ORCHESTRATOR_`) or a `.env` file. Copy
-`.env.example` to `.env` and adjust. **Defaults are in `src/config.py` and are the source
+Configuration is via env vars (prefix `ORCHESTRATOR_`) or a `.env` file (loaded from
+`migration-orchestrator/.env`, gitignored). Copy `.env.example` to `.env` and set at
+least `ORCHESTRATOR_LLM_API_KEY`. **Defaults are in `src/config.py` and are the source
 of truth** — notably the API listens on **port 8001**.
 
 ## Build the web UI
@@ -67,17 +78,22 @@ cd migration-orchestrator
 ```
 
 On startup the lifespan handler:
-1. spawns `opencode serve --port 4096 --hostname 127.0.0.1` (the agent runtime),
-2. waits up to 30s for it to report healthy,
-3. opens the SQLite store (`orchestrator.db`),
-4. mounts the built web UI at **`/app`** (if `src/ui/` exists).
+1. constructs the direct LLM client from `ORCHESTRATOR_LLM_*` (no subprocess),
+2. opens the SQLite store (`orchestrator.db`),
+3. mounts the built web UI at **`/app`** (if `src/ui/` exists).
 
 Verify it is up:
 
 ```bash
-curl -s http://localhost:8001/health        # {"status":"ok","opencode":{...}}
-curl -s http://localhost:8001/runs           # [] (no runs yet)
-open  http://localhost:8001/app              # web UI
+curl -s http://localhost:8001/health   # {"status":"ok","llm":{"configured":true,"model":"…","base_url":"…"}}
+curl -s http://localhost:8001/runs      # [] (no runs yet)
+open  http://localhost:8001/app         # web UI
+```
+
+Prove the key works with a tiny real call (prints only model + usage, never the key):
+
+```bash
+.venv/bin/python scripts/smoke_llm.py
 ```
 
 ## Run a plan
@@ -91,11 +107,13 @@ ORCH_URL=http://localhost:8001 bash orchestration/run.sh orchestration/plans/<pr
 
 ## Which model runs?
 
-**The agent model is whatever OpenCode is configured with in
-`~/.config/opencode/opencode.jsonc`**. The `model` field in a plan and
-`ORCHESTRATOR_OPENCODE_MODEL` in config are recorded in run state but are **not** passed
-to OpenCode by the client — they are cosmetic. To change the model the agents use,
-edit `opencode.jsonc`, not the plan.
+The model is `ORCHESTRATOR_LLM_MODEL` (default `deepseek-v4-flash`), reached at
+`ORCHESTRATOR_LLM_BASE_URL` (default `https://api.deepseek.com/v1`) with
+`ORCHESTRATOR_LLM_API_KEY`. The provider stays swappable — point those three at any
+OpenAI-compatible endpoint (DeepSeek, OVH, Mistral, vLLM, …) that speaks Chat
+Completions with tool/function calling and `response_format`. The `model` field in a
+plan is recorded in run state and used for cost accounting; the runtime model is the
+config value.
 
 ---
 
@@ -116,7 +134,7 @@ edit `opencode.jsonc`, not the plan.
 | `GET  /runs/{id}/epics` · `GET /runs/{id}/epics/{epic_id}` | epic state |
 | `POST /runs/{id}/epics/{epic_id}/proposal/approve` · `/reject` | rectification |
 | `GET  /schema` | plan JSON schema |
-| `GET  /health` | engine + opencode health |
+| `GET  /health` | engine + LLM readiness (`{"status":"ok","llm":{"configured":bool,"model":…,"base_url":…}}`) |
 
 ## Configuration (env, prefix `ORCHESTRATOR_`)
 
@@ -124,9 +142,13 @@ edit `opencode.jsonc`, not the plan.
 |---|---|---|
 | `ORCHESTRATOR_PORT` | `8001` | API port — keep in sync with `run.sh`'s `ORCH_URL` |
 | `ORCHESTRATOR_HOST` | `0.0.0.0` | API bind host |
-| `ORCHESTRATOR_OPENCODE_PORT` | `4096` | port for spawned `opencode serve` |
-| `ORCHESTRATOR_OPENCODE_HOSTNAME` | `127.0.0.1` | |
-| `ORCHESTRATOR_OPENCODE_MODEL` | `anthropic/claude-sonnet-4-5` | **cosmetic** — real model is in `opencode.jsonc` |
+| `ORCHESTRATOR_LLM_API_KEY` | – | **required** — OpenAI-compatible API key (env or `.env`; never committed) |
+| `ORCHESTRATOR_LLM_BASE_URL` | `https://api.deepseek.com/v1` | OpenAI-compatible endpoint (swap to change provider) |
+| `ORCHESTRATOR_LLM_MODEL` | `deepseek-v4-flash` | model id |
+| `ORCHESTRATOR_LLM_TIMEOUT` | `180` | per-call timeout (s) for judgment/repair turns |
+| `ORCHESTRATOR_LLM_MAX_RETRIES` | `3` | transport-only retries (HTTP status errors are NOT retried) |
+| `ORCHESTRATOR_REPAIR_MAX_TOOL_CALLS` | `24` | RÉPARATEUR tool-call cap |
+| `ORCHESTRATOR_REPAIR_WALL_BUDGET_S` | `1500` | RÉPARATEUR wall-clock budget (s) |
 | `ORCHESTRATOR_DB_PATH` | `orchestrator.db` | SQLite run store |
 | `GITHUB_TOKEN` / `ORCHESTRATOR_GITHUB_REPO` | – | optional, for issue context |
 
@@ -134,18 +156,21 @@ edit `opencode.jsonc`, not the plan.
 
 ```
 src/
-├── main.py            # FastAPI app + lifespan (spawns opencode serve, mounts /app)
-├── config.py          # Settings (ORCHESTRATOR_* env)
+├── main.py            # FastAPI app + lifespan (builds the direct LLM client, mounts /app)
+├── config.py          # Settings (ORCHESTRATOR_* env; LLM base_url/model/key defaults)
 ├── orchestrator.py    # the loop: walk steps, verify, epic review, rectification, SSE
-├── audit.py           # structured audit logger (per-run JSONL)
-├── opencode_client.py # talks to opencode serve
-├── verifier.py        # runs commands_requested, all-exit-0 gate
+├── audit.py           # structured audit logger (per-run JSONL; probe/command/tool_executed)
+├── llm_client.py      # direct OpenAI-compatible chat client (transport retries, no-4xx-retry)
+├── repair_agent.py    # in-engine RÉPARATEUR tool loop + direct epic reviewer
+├── llm_cost.py        # routes each response's usage → step counters + per-project ledger
+├── verifier.py        # engine-runs Run: lines, runs PROBE:/commands_requested, all-exit-0 gate
 ├── models.py          # Pydantic plan + state models
 ├── persistence.py     # aiosqlite store
 ├── prompt_builder.py  # builds step and review prompts
 ├── routes/            # runs, steps, epics, events, stats, schema
 └── ui/                # built web UI (not committed, build with frontend/)
 frontend/              # UI source (Vite + React + Tailwind)
+scripts/smoke_llm.py   # one real minimal LLM call (prints model + usage only)
 PLANNER_INSTRUCTIONS.md# guidance for an LLM that authors plans
 ```
 

@@ -4,9 +4,7 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Request
-
-from ..opencode_client import OpenCodeClient
+from fastapi import APIRouter
 
 log = logging.getLogger(__name__)
 
@@ -14,37 +12,35 @@ router = APIRouter()
 
 
 @router.get("/stats")
-async def get_stats(request: Request) -> dict:
-    client: OpenCodeClient = request.app.state.opencode_client
+async def get_stats() -> dict:
+    """Global token/cost counter (P5.5): aggregated from the per-step counters of
+    every in-memory run — the direct-API usage accumulated in _execute_single_step
+    / run_repair_agent. Same response shape the UI's TokenCounter expects. There
+    are no agent "sessions" anymore; `sessions` reports the run count instead."""
+    from ..orchestrator import _runs
+
+    total = {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cache_read": 0,
+        "cache_write": 0,
+        "cost": 0.0,
+        "sessions": 0,
+    }
     try:
-        sessions = await client.http.get("/session")
-        sessions.raise_for_status()
-        data = sessions.json()
-
-        total = {
-            "input": 0,
-            "output": 0,
-            "reasoning": 0,
-            "cache_read": 0,
-            "cache_write": 0,
-            "cost": 0.0,
-            "sessions": len(data),
-        }
-
-        for s in data:
-            t = s.get("tokens", {})
-            total["input"] += t.get("input", 0)
-            total["output"] += t.get("output", 0)
-            total["reasoning"] += t.get("reasoning", 0)
-            c = t.get("cache", {})
-            total["cache_read"] += c.get("read", 0)
-            total["cache_write"] += c.get("write", 0)
-            total["cost"] += s.get("cost", 0)
-
-        return total
-    except Exception as e:
-        log.warning(f"Failed to fetch stats: {e}")
-        return {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0, "cost": 0, "sessions": 0}
+        total["sessions"] = len(_runs)
+        for run in _runs.values():
+            for epic in run.epics:
+                for story in epic.stories:
+                    for step in story.steps:
+                        total["input"] += step.tokens_in
+                        total["output"] += step.tokens_out
+                        total["cache_read"] += step.tokens_cache
+                        total["cost"] += step.cost
+    except Exception as e:  # noqa: BLE001
+        log.warning(f"Failed to aggregate stats: {e}")
+    return total
 
 
 @router.get("/runs/{run_id}/stats")

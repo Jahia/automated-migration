@@ -167,6 +167,23 @@ class RunAuditLogger:
             "passed": exit_code == 0,
         })
 
+    def tool_executed(self, epic_id: str, story_id: str, step_id: str,
+                      tool: str, tool_input: str, ok: bool, result: str, duration_ms: float) -> None:
+        """A tool call the RÉPARATEUR loop executed in-engine (P5.5: read_file /
+        bash / write_file via the SAME subprocess+env path as probes and Run:).
+        Mirrors command_executed so a post-mortem sees every repair action —
+        tool name, truncated input (~500c), success flag, truncated result
+        (~500c), duration. `ok` is the tool-level success (bash exit 0, file
+        read/written), NOT the LLM's verdict."""
+        self._write("tool_executed", {
+            "epic_id": epic_id, "story_id": story_id, "step_id": step_id,
+            "tool": tool,
+            "input": (tool_input or "")[:500],
+            "result": (result or "")[:500],
+            "duration_ms": duration_ms,
+            "passed": ok,
+        })
+
     def verification_result(self, epic_id: str, story_id: str, step_id: str,
                             passed: bool, checks: list[str], errors: list[str]) -> None:
         self._write("verification_result", {

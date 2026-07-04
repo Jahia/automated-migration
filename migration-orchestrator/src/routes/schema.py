@@ -57,7 +57,7 @@ SCHEMA = {
                                                 "id": {"type": "string", "description": "Identifiant unique de la step (ex: story_001_step_1)"},
                                                 "title": {"type": "string", "description": "Titre de la step"},
                                                 "task_type": {"type": "string", "default": "general", "description": "Type de tâche (ex: analyze, implement, review, test, refactor, security_check)"},
-                                                "agent": {"type": "string", "description": "Nom de l'agent OpenCode à utiliser (défaut: code). Voir GET /agents pour la liste."},
+                                                "agent": {"type": "string", "description": "Nom logique de l'agent (défaut: code). Cosmétique — le moteur exécute désormais via l'API LLM directe."},
                                                 "depends_on": {"type": "array", "items": {"type": "string"}, "default": [], "description": "IDs des steps dont celle-ci dépend"},
                                                 "inputs": {"type": "object", "default": {}, "description": "Données d'entrée pour la step"},
                                                 "expected_outputs": {"type": "object", "default": {}, "description": "Sorties attendues"},
@@ -105,7 +105,7 @@ SCHEMA = {
         },
     },
     "agents": {
-        "description": "Le champ 'agent' dans chaque step est un libre. Le planificateur décide quels agents utiliser. Le serveur passe le nom à opencode run --agent <name>. Défaut: 'code' si omis.",
+        "description": "Le champ 'agent' dans chaque step est un libellé libre et cosmétique. Le moteur exécute toutes les steps via l'API LLM directe (rôle réparateur in-engine). Défaut: 'code' si omis.",
     },
     "workflow": {
         "description": "Le serveur orchestre l'exécution. Pour chaque epic: exécute les stories (chacune avec ses steps), puis lance une étape de review de l'epic. Si le review propose des rectifications, elles sont soumises à approbation humaine.",
@@ -244,7 +244,7 @@ RÈGLES:
 2. Chaque story contient ses propres steps avec des task_type et des agents
 3. Les steps sont exécutées dans l'ordre de dépendance (DAG)
 4. Chaque step est atomique et a des acceptance_criteria mesurables
-5. Le champ agent permet de choisir l'agent OpenCode (défaut: code)
+5. Le champ agent est un libellé cosmétique (défaut: code) — exécution via l'API LLM directe
 6. Les dépendances entre stories et entre steps forment des DAG (pas de cycles)
 7. Le serveur gère les boucles automatiquement: si une step retourne {status: failed, loop_to: step_id}, la step cible et les suivantes sont ré-exécutées
 """
