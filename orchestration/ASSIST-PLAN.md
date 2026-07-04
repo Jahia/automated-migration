@@ -502,6 +502,13 @@ orchestrator.db secrets scrub + key rotation (task_f6799dd1). Backlog: reviewer 
 fed the deterministic gate record instead of the agent narrative; monitor PHASE mapping
 cosmetics; rename/merge scope-rule actions; P6 (§11b); true FR content strategy;
 compose-gate shell support for vision pages with a real <main>.
+**Backlog architecture (Julian's question, 2026-07-04): "engine executes · direct API
+judges · opencode repairs".** opencode is the TOOL harness — needed only when the LLM
+must act on the repo (repair/diagnosis). Mechanical `Run:` steps need no LLM (engine-exec
+fix). Pure-judgment roles (step summary, reviewer, epic approval) need no TOOLS — move
+them to direct DeepSeek API calls with `response_format: json_object`: kills the
+"missing summary" envelope-flake class by construction, no 3s polling, no 600s deadline,
+cheaper. opencode stays for genuine repair sessions only.
 
 ## 13. The two questions (Julian, 2026-07-04 — recorded for resumption)
 
