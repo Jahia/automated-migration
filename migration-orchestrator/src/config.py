@@ -14,6 +14,13 @@ class Settings(BaseSettings):
 
     env_file: str = ".env.local"
 
+    # Engine-level integrity belt (orchestration/probes/integrity.py): after a
+    # content step's own probes pass, the engine diffs the live Jahia against the
+    # pipeline artifacts as an ADDITIONAL verification. ON by default; set
+    # ORCHESTRATOR_INTEGRITY=false to disable (kill-switch). Its own timeout in s.
+    integrity: bool = True
+    integrity_timeout: float = 120.0
+
     github_token: str | None = None
     github_repo: str | None = None
 

@@ -233,6 +233,26 @@ Rules of thumb for an assisted agent:
 - **Persisted "running" is a lie after an engine restart** — `load_run` and the runs
   list normalize it to `paused` (no loop exists). In-memory status wins when a loop is
   registered.
+- **Integrity belt (plan-independent completeness, added 2026-07-04).** Per-step probes
+  are gates — they only assert what one step promised, and a *weak* one can pass over a
+  hollow site (observed live: a `content.get` on `/home` alone went green with 0/19
+  sub-pages created). The belt closes that blind spot: after a **content** step
+  (`task_type == "content"`, or the ids `step_pages` / `step_content_load` /
+  `step_publish_parity`) passes its own probes, `verifier.run_integrity_belt` runs
+  `orchestration/probes/integrity.py <project> <site> --phase <step_id>` as an
+  **additional** verification. That probe is read-only: it derives EXPECTATIONS
+  mechanically from the pipeline artifacts (page tree from `page-inventory.json`,
+  per-page instance counts from `content/<project>.content-load.json`, media from
+  `images/<project>.dam.json`) and diffs them against the live Jahia over GraphQL
+  (EDIT, and LIVE where the phase expects publication), exiting non-zero on any
+  mismatch (a page missing, a page that expects content but has an empty main area, or
+  media/instance drift below `--min-ratio`). A non-zero exit **fails the verification**
+  and takes the same retry/decision path as any probe — it is audited like a probe with
+  an `[integrity]` marker in the command. Site key comes from `inputs.site` (now emitted
+  by `gen_plan`), falling back to the project basename so in-flight plans that predate
+  the field still work; with no project/site derivable it **skips gracefully** with an
+  audit note, never crashes. Kill-switch: `ORCHESTRATOR_INTEGRITY=false` (default on);
+  own timeout `ORCHESTRATOR_INTEGRITY_TIMEOUT` (default 120s).
 
 See the fixed pipeline + gates in [`../orchestration/ANALYZE-PIPELINE.md`](../orchestration/ANALYZE-PIPELINE.md)
 and the cockpit UI in [`frontend/MIGRATION_PROFILE.md`](frontend/MIGRATION_PROFILE.md).

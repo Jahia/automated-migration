@@ -75,6 +75,118 @@ def probe_env(repo_dir: str) -> dict[str, str]:
     return env
 
 
+# ── engine-level integrity belt (plan-independent completeness) ──────────────
+# Content-phase steps for which the belt runs as an ADDITIONAL verification once
+# the step's own probes pass. Matched by task_type OR by these step ids (the v2
+# gen_plan emits step_pages as task_type=build, so the id set is load-bearing).
+CONTENT_TASK_TYPES = {"content"}
+CONTENT_STEP_IDS = {"step_pages", "step_content_load", "step_publish_parity"}
+INTEGRITY_PROBE = "orchestration/probes/integrity.py"
+
+
+def is_content_phase(step: StepState) -> bool:
+    return step.task_type in CONTENT_TASK_TYPES or step.id in CONTENT_STEP_IDS
+
+
+def derive_site(step: StepState) -> str | None:
+    """Site key for the integrity belt: from step inputs if present (gen_plan
+    now emits inputs.site), else the project basename as a graceful fallback.
+    The LIVE plan predates the inputs.site addition, so the fallback keeps the
+    belt working on in-flight runs. Returns None only when no project is known
+    (belt is then skipped with an audit note, never crashes)."""
+    inputs = step.inputs or {}
+    site = inputs.get("site")
+    if site:
+        return str(site)
+    project = inputs.get("project")
+    if project:
+        return os.path.basename(str(project).rstrip("/"))
+    return None
+
+
+def integrity_command(step: StepState) -> str | None:
+    """The read-only integrity probe command for a content step, or None when it
+    is not derivable (no project/site → skip gracefully). Phase == step id so the
+    probe scales its expectations to pipeline position."""
+    inputs = step.inputs or {}
+    project = inputs.get("project")
+    if not project:
+        return None
+    site = derive_site(step)
+    if not site:
+        return None
+    return f"python3 {INTEGRITY_PROBE} {project} {site} --phase {step.id}"
+
+
+async def run_integrity_belt(step: StepState, repo_dir: str,
+                             run_id: str | None) -> tuple[list[str], list[str]]:
+    """Run the integrity belt as an additional verification for a content step.
+    Returns (checks, errors) merged into the VerificationResult. A non-zero exit
+    is a verification FAILURE (same retry/decision path as any probe). Audited
+    like a probe with an "[integrity]" kind marker in the command string. Honours
+    the ORCHESTRATOR_INTEGRITY kill-switch and its own timeout. Never raises —
+    an unexpected fault degrades to a skip note, not a crash."""
+    checks: list[str] = []
+    errors: list[str] = []
+    if not settings.integrity:
+        checks.append("integrity_disabled")
+        return checks, errors
+    if not is_content_phase(step):
+        return checks, errors
+    cmd = integrity_command(step)
+    if not cmd:
+        # graceful: no site derivable → skip with an audit note, never crash
+        checks.append("integrity_skipped:no_site")
+        if run_id:
+            from .audit import get_audit_logger
+            get_audit_logger(run_id).probe_executed(
+                epic_id="", story_id="", step_id=step.id,
+                command=f"[integrity] {step.id}: skipped (no project/site derivable)",
+                exit_code=0, stdout="", stderr="", duration_ms=0.0)
+        return checks, errors
+
+    env = probe_env(repo_dir)
+    cmd_start = time.time() * 1000
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            cmd, cwd=repo_dir, env=env,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=settings.integrity_timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            errors.append(f"Integrity belt timed out after {int(settings.integrity_timeout)}s")
+            return checks, errors
+        duration = time.time() * 1000 - cmd_start
+        out = stdout.decode("utf-8", errors="replace")[:2000]
+        err = stderr.decode("utf-8", errors="replace")[:2000]
+        if run_id:
+            from .audit import get_audit_logger
+            # "[integrity]" marker in the command string so the audit trail
+            # distinguishes the belt from a plan step's own probes.
+            get_audit_logger(run_id).probe_executed(
+                epic_id="", story_id="", step_id=step.id,
+                command=f"[integrity] {cmd}", exit_code=proc.returncode,
+                stdout=out, stderr=err, duration_ms=duration)
+        if proc.returncode == 0:
+            checks.append("integrity_passed")
+        else:
+            errors.append(f"Integrity belt failed for {step.id} (exit {proc.returncode})\n{out[:1200]}")
+    except Exception as e:  # never crash the verifier on an infra fault
+        duration = time.time() * 1000 - cmd_start
+        errors.append(f"Integrity belt error: {e}")
+        if run_id:
+            from .audit import get_audit_logger
+            get_audit_logger(run_id).probe_executed(
+                epic_id="", story_id="", step_id=step.id,
+                command=f"[integrity] {cmd}", exit_code=-1,
+                stdout="", stderr=str(e)[:2000], duration_ms=duration)
+    return checks, errors
+
+
 def probe_commands(step: StepState) -> list[tuple[str, float]]:
     """The deterministic gate: every `PROBE: <cmd>` in the step's acceptance
     criteria, returned as (command, timeout_seconds). `PROBE[NNN]: <cmd>` sets a
@@ -185,6 +297,17 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
             e.startswith(("Command", "step_id mismatch", "invalid status")) for e in errors):
         checks.append("passed_on_probes_despite_narrative_gaps:" + ";".join(errors))
         errors = []
+
+    # ENGINE-LEVEL INTEGRITY BELT: once a content step's own probes pass, diff the
+    # live Jahia against the pipeline artifacts as an ADDITIONAL verification (a
+    # weak step probe can pass while the site is hollow — observed live: 0/19
+    # sub-pages with a green content.get). A belt failure fails the verification,
+    # taking the same retry/decision path as any probe. Runs only when the step's
+    # own gate is otherwise green (no point diffing a step that already failed).
+    if not errors:
+        belt_checks, belt_errors = await run_integrity_belt(step, repo_dir, run_id)
+        checks.extend(belt_checks)
+        errors.extend(belt_errors)
 
     return VerificationResult(passed=len(errors) == 0, checks=checks, errors=errors)
 

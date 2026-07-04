@@ -232,6 +232,14 @@ def build_plan(p):
              deps=["step_shell_templates"]),
     ]
 
+    # Content phase. Beyond each step's own PROBE gate, the ENGINE runs a
+    # plan-independent INTEGRITY BELT after step_pages / step_content_load /
+    # step_publish_parity pass (verifier.run_integrity_belt →
+    # orchestration/probes/integrity.py, phase = step id): it diffs the live
+    # Jahia against page-inventory / content-load / dam artifacts, so a weak step
+    # probe (content.get on /home alone) can no longer hide a hollow site. The
+    # belt reads inputs.site (emitted below), falling back to the project
+    # basename for older plans.
     content = [
         step("step_create_site", "Create the site (provisioning API only)", "build",
              [f"Run: bash orchestration/lib/create_site.sh {SITE} \"{TITLE}\" {MODULE} en,fr",
@@ -288,10 +296,16 @@ def build_plan(p):
 
     # every step carries inputs.project = the project PATH (^projects/...) —
     # the engine derives the scope-rules file (<PP>/workflow-output/
-    # scope-rules.json) from it at /decide time.
+    # scope-rules.json) from it at /decide time. inputs.site = the Jahia site key
+    # so the engine-level integrity belt (verifier.run_integrity_belt) can diff
+    # the live site against the artifacts on content steps WITHOUT parsing probe
+    # command lines; the belt also falls back to the project basename when a plan
+    # predates this field (the LIVE plan does), so adding it here is purely a
+    # clean-path improvement, never a hard dependency.
     for grp in (analyze, module, content, groundtruth):
         for s in grp:
             s["inputs"].setdefault("project", PP)
+            s["inputs"].setdefault("site", SITE)
 
     def epic(id, title, goal, steps):
         return {"id": id, "title": title, "goal": goal,
