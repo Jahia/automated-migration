@@ -13,6 +13,7 @@ def build_step_prompt(
     story: StoryState,
     epic: EpicState,
     run: RunState,
+    run_failure: str | None = None,
 ) -> str:
     task_type = step.task_type
     agent = step.agent
@@ -21,6 +22,11 @@ def build_step_prompt(
     previous = _format_previous_stories(epic, story)
     loop_block = _format_loop_context(step)
     answer_block = _format_human_answer(step)
+    # P5 engine-executes-Run: when the engine already ran this step's Run: lines
+    # and one FAILED, the agent is opened as a REPAIRER — the failure context
+    # (command, exit code, stderr/stdout tail) is prepended so the LLM fixes the
+    # cause instead of re-discovering the command from scratch.
+    repair_block = _format_run_failure(run_failure)
 
     inputs_block = ""
     if step.inputs:
@@ -42,7 +48,7 @@ Ce fichier contient les conventions, le contexte et les règles du projet.
 Respecte ses instructions tout au long de ton travail.
 
 Tu es dans la tâche "{task_type}" de la story "{story.title}".
-{loop_block}{answer_block}
+{repair_block}{loop_block}{answer_block}
 STORY:
 - Titre: {story.title}
 - Description: {story.description}
@@ -188,6 +194,16 @@ def _format_human_answer(step: StepState) -> str:
     text += f"Réponse humaine à ta question précédente: {step.human_answer}\n"
     text += "Prends cette réponse en compte et NE repose PAS la même question.\n"
     return text
+
+
+def _format_run_failure(run_failure: str | None) -> str:
+    """P5 repair block: the engine ran this step's deterministic Run: line(s)
+    itself and one failed. The block is placed high in the prompt so the LLM
+    treats itself as a repairer of a known-failing command, not as the executant
+    of a fresh instruction."""
+    if not run_failure:
+        return ""
+    return "\n" + run_failure.strip() + "\n"
 
 
 def _format_loop_context(step: StepState) -> str:

@@ -8,6 +8,7 @@ import time
 from .audit import get_audit_logger
 from .cost_tracker import write_run_cost, format_cost_summary
 from .models import (
+    AgentResult,
     EpicState,
     EpicStatus,
     NewStepProposal,
@@ -49,7 +50,7 @@ from .state import (
     all_stories_approved,
     all_steps_done,
 )
-from .verifier import parse_agent_result, verify_result
+from .verifier import parse_agent_result, run_lines, run_step_commands, verify_result
 
 log = logging.getLogger(__name__)
 
@@ -394,10 +395,49 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
     await notify_sse(run, "step_status", {"status": "running", "task_type": step.task_type, "agent": step.agent}, step_id=step.id, story_id=story.id, epic_id=epic.id)
 
     try:
+        # ── engine-executes-Run: doctrine (P5) ──────────────────────────────
+        # A step whose acceptance_criteria carry `Run: <cmd>` lines has a KNOWN
+        # deterministic command at plan time. The engine runs those lines ITSELF
+        # (same subprocess mechanism as the probes) BEFORE any agent session.
+        #   • ALL pass  → NO agent session is opened; a synthetic engine
+        #                 agent_result is fabricated and the existing verification
+        #                 (probes + integrity belt) still judges the step.
+        #   • one FAILS → the agent session opens as today, but with the failure
+        #                 context appended to the prompt — the LLM is a REPAIRER,
+        #                 not the executant.
+        # Kill-switch ORCHESTRATOR_ENGINE_EXEC_RUN and "no Run: lines" both make
+        # run_step_commands a no-op returning (True, [], "") → legacy path intact.
+        run_failure: str | None = None
+        has_run_lines = bool(run_lines(step.acceptance_criteria))
+        if has_run_lines:
+            ok, records, failure_context = await run_step_commands(step, run.repo_dir, run.run_id)
+            if ok and records:
+                # Every Run: line passed → skip the agent entirely. The LLM would
+                # only re-run commands the engine already proved (the 2×600s
+                # read-loop incident). Verification below remains the judge.
+                cmds = "; ".join(r["command"] for r in records)
+                agent_result = AgentResult(
+                    step_id=step.id,
+                    agent="engine",
+                    status="completed",
+                    summary=f"engine executed {len(records)} Run: command(s) deterministically: {cmds}"[:500],
+                )
+                await notify_sse(run, "step_status",
+                                 {"status": "engine_executed", "task_type": step.task_type,
+                                  "commands": len(records), "agent": "engine"},
+                                 step_id=step.id, story_id=story.id, epic_id=epic.id)
+                log.info(f"Step {step.id}: engine ran {len(records)} Run: line(s) OK — agent skipped")
+                step.agent_result = agent_result
+                return await _verify_and_finalize(run, epic, story, step, agent_result, audit)
+            if not ok:
+                # A Run: line failed → open the agent as a repairer with context.
+                run_failure = failure_context
+                log.info(f"Step {step.id}: a Run: line failed — opening repair agent with failure context")
+
         session = await client.create_session(title=f"{story.id} - {step.task_type}", directory=run.repo_dir)
         step.opencode_session_id = session["id"]
 
-        prompt = build_step_prompt(step, story, epic, run)
+        prompt = build_step_prompt(step, story, epic, run, run_failure=run_failure)
         step.prompt_text = prompt[:5000]
         audit.step_prompt_sent(epic.id, story.id, step.id, prompt, session["id"])
 
@@ -443,7 +483,7 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
             return
 
         log.info(f"Step {step.id}: got result_text ({len(result_text)} chars)")
-        
+
         question = detect_question(result_text, step.id)
         if question:
             step.question = question
@@ -454,14 +494,13 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
         agent_result = parse_agent_result(result_text, step)
         if agent_result is None:
             log.warning(f"Step {step.id}: parse_agent_result returned None, creating fallback from raw text ({len(result_text)} chars)")
-            from .models import AgentResult
             agent_result = AgentResult(
                 step_id=step.id,
                 agent=step.agent,
                 status="completed",
                 summary=result_text[:500],
             )
-        
+
         log.info(f"Step {step.id}: agent_result status={agent_result.status} summary={agent_result.summary[:100]}")
 
         step.agent_result = agent_result
@@ -479,49 +518,8 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
                 log.info(f"Step {step.id}: tokens in={step.tokens_in} out={step.tokens_out} cache={step.tokens_cache} cost=${step.cost:.4f}")
         except Exception as e:
             log.warning(f"Step {step.id}: failed to fetch tokens: {e}")
-        step.status = StepStatus.verifying
-        await notify_sse(run, "step_status", {"status": "verifying", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
 
-        verification = await verify_result(step, agent_result, run.repo_dir, run.run_id)
-        step.verification = verification
-
-        if verification.passed and agent_result.status == "completed":
-            step.status = StepStatus.done
-            step.completed_at = time.time() * 1000
-            step.duration_ms = step.completed_at - step.started_at
-            audit.step_completed(epic.id, story.id, step.id, step.duration_ms, step.tokens_in, step.tokens_out, step.cost, agent_result.summary)
-            audit.verification_result(epic.id, story.id, step.id, True, verification.checks, verification.errors)
-            await save_run(run)
-            await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-            await notify_sse(run, "step_completed", {"result": agent_result.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-        elif agent_result.status == "halt":
-            step.status = StepStatus.halted
-            # Every halted step MUST carry a gate_type or it is invisible to the
-            # control surface (active_gate filters on a truthy gate_type, and the
-            # assistant's monitor watches gate.active). Fall back to "unknown"
-            # when inference misses so the step still surfaces as a decidable gate.
-            step.gate_type = _infer_gate_type(step) or "unknown"
-            step.completed_at = time.time() * 1000
-            step.duration_ms = step.completed_at - step.started_at
-            audit.step_halted(epic.id, story.id, step.id, agent_result.summary)
-            await save_run(run)
-            await notify_sse(run, "step_status", {"status": "halted", "task_type": step.task_type, "gate_type": step.gate_type, "summary": agent_result.summary}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-        elif agent_result.status == "failed" and agent_result.loop_to:
-            step.status = StepStatus.done
-            step.completed_at = time.time() * 1000
-            step.duration_ms = step.completed_at - step.started_at
-            audit.step_completed(epic.id, story.id, step.id, step.duration_ms, step.tokens_in, step.tokens_out, step.cost, f"loop_to={agent_result.loop_to}")
-            await save_run(run)
-            await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "loop_to": agent_result.loop_to}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-        else:
-            step.status = StepStatus.failed
-            step.completed_at = time.time() * 1000
-            step.duration_ms = step.completed_at - step.started_at
-            will_retry = step.attempt < step.max_attempts
-            audit.step_failed(epic.id, story.id, step.id, step.duration_ms, f"agent_status={agent_result.status}", step.attempt, step.max_attempts, will_retry)
-            audit.verification_result(epic.id, story.id, step.id, verification.passed, verification.checks, verification.errors)
-            await save_run(run)
-            await notify_sse(run, "step_status", {"status": "failed", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+        await _verify_and_finalize(run, epic, story, step, agent_result, audit)
 
     except Exception as e:
         step.completed_at = time.time() * 1000
@@ -532,6 +530,59 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
         audit.step_failed(epic.id, story.id, step.id, step.duration_ms, str(e), step.attempt, step.max_attempts, will_retry)
         await save_run(run)
         await notify_sse(run, "step_status", {"status": "failed", "task_type": step.task_type, "error": str(e)}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+
+
+async def _verify_and_finalize(run: RunState, epic: EpicState, story: StoryState, step: StepState,
+                               agent_result: AgentResult, audit) -> None:
+    """Shared verification + status transition, used by BOTH paths: the normal
+    agent path and the engine-executes-Run: path (where agent_result is the
+    synthetic engine result). The deterministic PROBEs + integrity belt inside
+    verify_result remain the sole judge in either case — the engine executing the
+    Run: lines never bypasses the gate, it only skips the LLM that would have
+    typed the commands."""
+    step.status = StepStatus.verifying
+    await notify_sse(run, "step_status", {"status": "verifying", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+
+    verification = await verify_result(step, agent_result, run.repo_dir, run.run_id)
+    step.verification = verification
+
+    if verification.passed and agent_result.status == "completed":
+        step.status = StepStatus.done
+        step.completed_at = time.time() * 1000
+        step.duration_ms = step.completed_at - step.started_at
+        audit.step_completed(epic.id, story.id, step.id, step.duration_ms, step.tokens_in, step.tokens_out, step.cost, agent_result.summary)
+        audit.verification_result(epic.id, story.id, step.id, True, verification.checks, verification.errors)
+        await save_run(run)
+        await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+        await notify_sse(run, "step_completed", {"result": agent_result.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    elif agent_result.status == "halt":
+        step.status = StepStatus.halted
+        # Every halted step MUST carry a gate_type or it is invisible to the
+        # control surface (active_gate filters on a truthy gate_type, and the
+        # assistant's monitor watches gate.active). Fall back to "unknown"
+        # when inference misses so the step still surfaces as a decidable gate.
+        step.gate_type = _infer_gate_type(step) or "unknown"
+        step.completed_at = time.time() * 1000
+        step.duration_ms = step.completed_at - step.started_at
+        audit.step_halted(epic.id, story.id, step.id, agent_result.summary)
+        await save_run(run)
+        await notify_sse(run, "step_status", {"status": "halted", "task_type": step.task_type, "gate_type": step.gate_type, "summary": agent_result.summary}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    elif agent_result.status == "failed" and agent_result.loop_to:
+        step.status = StepStatus.done
+        step.completed_at = time.time() * 1000
+        step.duration_ms = step.completed_at - step.started_at
+        audit.step_completed(epic.id, story.id, step.id, step.duration_ms, step.tokens_in, step.tokens_out, step.cost, f"loop_to={agent_result.loop_to}")
+        await save_run(run)
+        await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "loop_to": agent_result.loop_to}, step_id=step.id, story_id=story.id, epic_id=epic.id)
+    else:
+        step.status = StepStatus.failed
+        step.completed_at = time.time() * 1000
+        step.duration_ms = step.completed_at - step.started_at
+        will_retry = step.attempt < step.max_attempts
+        audit.step_failed(epic.id, story.id, step.id, step.duration_ms, f"agent_status={agent_result.status}", step.attempt, step.max_attempts, will_retry)
+        audit.verification_result(epic.id, story.id, step.id, verification.passed, verification.checks, verification.errors)
+        await save_run(run)
+        await notify_sse(run, "step_status", {"status": "failed", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
 
 
 def _infer_gate_type(step: StepState) -> str | None:

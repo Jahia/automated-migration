@@ -7,6 +7,7 @@ import os
 import re
 import time
 
+from .audit import get_audit_logger
 from .config import settings
 from .models import AgentResult, StepState, VerificationResult
 from .opencode_client import OpenCodeClient
@@ -41,6 +42,11 @@ def parse_agent_result(text: str, step: StepState) -> AgentResult | None:
 PROBE_TIMEOUT_S = 600  # a probe may drive a real browser (playwright) — cap, don't hang
 
 PROBE_RE = re.compile(r"\s*PROBE(?:\[(\d+)\])?:\s*(.+)", re.DOTALL)
+
+# `Run: <cmd>` lines are the deterministic, plan-time-KNOWN commands of a step
+# (crawl-site, load_content, create_pages, scaffold…). Same shape as PROBE_RE so
+# an optional `Run[NNN]:` per-line timeout override is accepted symmetrically.
+RUN_RE = re.compile(r"\s*Run(?:\[(\d+)\])?:\s*(.+)", re.DOTALL)
 
 
 def default_probe_timeout() -> float:
@@ -201,6 +207,139 @@ def probe_commands(step: StepState) -> list[tuple[str, float]]:
             timeout_s = float(m.group(1)) if m.group(1) else default_probe_timeout()
             cmds.append((" ".join(m.group(2).split()), timeout_s))
     return cmds
+
+
+# ── engine-executes-Run: doctrine (P5) ──────────────────────────────────────
+# A step whose acceptance_criteria carry `Run: <cmd>` lines has, at plan time, a
+# KNOWN deterministic command. The engine runs those lines ITSELF (same
+# subprocess mechanism as probe_commands) BEFORE opening any agent session — an
+# LLM does not need to read source files to type a command the planner already
+# wrote. Root cause it closes: step_content_load burned 2×600s of DeepSeek
+# reading AGENTS.md / load_content.py source / the probes without ever running
+# "python3 orchestration/lib/load_content.py …". Doctrine: the engine drives,
+# the LLM assists at decision points — a known command is not a decision point.
+CONTENT_TASK_TYPES_EXEC = {"content"}
+
+
+def run_lines(criteria: list[str] | None) -> list[tuple[str, float | None]]:
+    """Every `Run: <cmd>` line in a step's acceptance_criteria, in order, as
+    (command, timeout_override_or_None). `Run[NNN]:` sets a per-line override;
+    plain `Run:` gets None (resolved to the task_type default by the caller).
+    Whitespace-collapsed exactly like probe_commands so a multi-line criterion
+    normalises to a single shell command string."""
+    out: list[tuple[str, float | None]] = []
+    for crit in criteria or []:
+        m = RUN_RE.match(crit)
+        if m:
+            timeout_s = float(m.group(1)) if m.group(1) else None
+            out.append((" ".join(m.group(2).split()), timeout_s))
+    return out
+
+
+def is_content_task(step: StepState) -> bool:
+    """A step gets the long Run: budget when it is a content step — by task_type
+    OR by the known content step ids (gen_plan emits step_pages as task_type
+    build, so the id set is load-bearing, mirroring is_content_phase for the
+    integrity belt)."""
+    return step.task_type in CONTENT_TASK_TYPES_EXEC or step.id in CONTENT_STEP_IDS
+
+
+def run_step_timeout(step: StepState) -> float:
+    """Default per-Run-line timeout for a step: content steps get the long budget
+    (MCP media uploads, page trees), everything else the default. Both overridable
+    by env (ORCHESTRATOR_ENGINE_EXEC_RUN_CONTENT_TIMEOUT / _DEFAULT_TIMEOUT)."""
+    if is_content_task(step):
+        return settings.engine_exec_run_content_timeout
+    return settings.engine_exec_run_default_timeout
+
+
+async def run_step_commands(step: StepState, repo_dir: str,
+                            run_id: str | None = None) -> tuple[bool, list[dict], str]:
+    """Execute the step's `Run: <cmd>` lines sequentially — same subprocess
+    mechanism as the probes (same cwd=repo_dir, same probe_env, per-line timeout).
+    Honours the ORCHESTRATOR_ENGINE_EXEC_RUN kill-switch (same pattern as the
+    integrity belt): when disabled OR the step has no Run: lines, returns
+    (True, [], "") so the caller falls straight through to the legacy agent path.
+
+    Each execution is audited as `command_executed` (mirror of probe_executed).
+    Stops at the FIRST failure (exit != 0 or timeout) — a later Run: line usually
+    depends on an earlier one, so re-running them under the repair agent from a
+    clean point is safer than pushing past a broken prerequisite.
+
+    Returns (all_passed, records, failure_context):
+      - all_passed: True iff every Run: line exited 0 (or there were none / disabled);
+      - records: one dict per executed line (command, exit_code, duration_ms, passed,
+        truncated stdout/stderr) for the synthetic engine agent_result summary;
+      - failure_context: "" on success, else a prompt-ready block naming the failed
+        command, its exit code, and the tail of its stderr/stdout (~800c) so the
+        agent becomes a REPAIRER, not an executant.
+    """
+    if not settings.engine_exec_run:
+        return True, [], ""
+    lines = run_lines(step.acceptance_criteria)
+    if not lines:
+        return True, [], ""
+
+    default_timeout = run_step_timeout(step)
+    env = probe_env(repo_dir)
+    records: list[dict] = []
+    audit = get_audit_logger(run_id) if run_id else None
+
+    for cmd, override in lines:
+        timeout_s = override if override is not None else default_timeout
+        cmd_start = time.time() * 1000
+        exit_code: int
+        out = ""
+        err = ""
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                cmd, cwd=repo_dir, env=env,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
+                exit_code = proc.returncode
+                out = stdout.decode("utf-8", errors="replace")
+                err = stderr.decode("utf-8", errors="replace")
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.communicate()
+                exit_code = -1
+                err = f"Run: line timed out after {int(timeout_s)}s"
+        except Exception as e:  # never crash the engine on an infra fault
+            exit_code = -1
+            err = f"Run: line error: {e}"
+        duration = time.time() * 1000 - cmd_start
+
+        if audit:
+            audit.command_executed(
+                epic_id="", story_id="", step_id=step.id,
+                command=cmd, exit_code=exit_code,
+                stdout=out, stderr=err, duration_ms=duration)
+
+        rec = {
+            "command": cmd, "exit_code": exit_code, "duration_ms": duration,
+            "passed": exit_code == 0, "stdout": out[:500], "stderr": err[:500],
+        }
+        records.append(rec)
+
+        if exit_code != 0:
+            # First failure: build the repair context and stop (later lines may
+            # depend on this one). ~800c of the tail of each stream — the tail
+            # carries the traceback / assertion, not the boilerplate header.
+            failure_context = (
+                "EXÉCUTION DÉTERMINISTE ÉCHOUÉE — le moteur a lancé cette ligne "
+                "Run: lui-même et elle a échoué. Tu interviens en RÉPARATEUR: "
+                "corrige la cause puis, si nécessaire, relance la commande. Ne te "
+                "contente pas de la relire.\n"
+                f"Commande: {cmd}\n"
+                f"Exit code: {exit_code}\n"
+                f"stderr (queue):\n{err[-800:]}\n"
+                f"stdout (queue):\n{out[-800:]}\n"
+            )
+            return False, records, failure_context
+
+    return True, records, ""
 
 
 async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run_id: str | None = None) -> VerificationResult:

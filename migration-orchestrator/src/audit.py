@@ -149,6 +149,24 @@ class RunAuditLogger:
             "passed": exit_code == 0,
         })
 
+    def command_executed(self, epic_id: str, story_id: str, step_id: str,
+                         command: str, exit_code: int, stdout: str, stderr: str, duration_ms: float) -> None:
+        """A `Run: <cmd>` line the ENGINE executed itself (P5 doctrine: a command
+        known at plan time needs no LLM to run). Mirrors probe_executed so the
+        audit trail treats an engine-run command exactly like a probe — same
+        command / exit_code / truncated streams / duration / passed shape — but
+        under its own event type so a post-mortem can tell the deterministic
+        Run: phase apart from the acceptance PROBEs. stdout truncated ~500c."""
+        self._write("command_executed", {
+            "epic_id": epic_id, "story_id": story_id, "step_id": step_id,
+            "command": command[:200],
+            "exit_code": exit_code,
+            "stdout": stdout[:500],
+            "stderr": stderr[:500],
+            "duration_ms": duration_ms,
+            "passed": exit_code == 0,
+        })
+
     def verification_result(self, epic_id: str, story_id: str, step_id: str,
                             passed: bool, checks: list[str], errors: list[str]) -> None:
         self._write("verification_result", {
