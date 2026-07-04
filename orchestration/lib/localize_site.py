@@ -351,6 +351,13 @@ class Localizer:
             for a in LAZY_SET:
                 if tag.get(a):
                     tag[a] = self._srcset(tag[a], page_url)
+            # force EAGER decoding: a below-the-fold loading="lazy" image never
+            # decodes inside the fidelity probe's render window (it does not
+            # scroll), collapsing to a 0×0 box. Both the reference render AND
+            # the Jahia render (skeletonRender.sanitizeFragment does the same
+            # on the served side) must be deterministic here, not a timing race.
+            if tag.name == "img" and tag.get("loading", "").lower() == "lazy":
+                del tag["loading"]
         # inline style="… url() …" and <style> blocks live at the page root → prefix assets/
         for tag in soup.find_all(style=True):
             tag["style"] = self._rewrite_css(tag["style"], page_url, prefix="assets/").decode("utf-8", "replace")
