@@ -87,60 +87,6 @@ Utilise "halt" si tu détectes un problème grave nécessitant une intervention 
 """
 
 
-def build_review_epic_prompt(epic: EpicState, run: RunState) -> str:
-    stories_block = _format_all_stories(epic)
-    history_block = _format_review_history(epic)
-
-    return f"""Tu es un agent de revue d'architecture.
-Tu évalues le travail réalisé dans un epic.
-
-OBJECTIF DE L'EPIC:
-{epic.goal}
-
-CRITÈRES D'ACCEPTATION:
-{_format_criteria(epic.review_config.review_criteria)}
-
-{stories_block}
-
-{history_block}
-
-Retourne EXCLUSIVEMENT un JSON (sans markdown):
-{{
-  "action": "approved | rectify",
-  // si approved:
-  "summary": "...",
-  "confidence": 0.9,
-  "remaining_concerns": ["..."]
-  // si rectify:
-  "diagnosis": "...",
-  "target_after_story_id": "story_XXX ou null pour ajouter à la fin",
-  "new_stories": [
-    {{
-      "id": "...",
-      "title": "...",
-      "description": "...",
-      "acceptance_criteria": ["..."],
-      "depends_on": [],
-      "github_issues": [],
-      "reason": "...",
-      "steps": [
-        {{
-          "id": "...",
-          "title": "...",
-          "task_type": "...",
-          "agent": "code",
-          "depends_on": [],
-          "inputs": {{}},
-          "expected_outputs": {{}},
-          "acceptance_criteria": ["..."],
-          "reason": "..."
-        }}
-      ]
-    }}
-  ]
-}}"""
-
-
 def _format_criteria(criteria: list[str]) -> str:
     if not criteria:
         return "  (aucun)"
@@ -215,41 +161,3 @@ def _format_loop_context(step: StepState) -> str:
     if diagnosis:
         text += f"Diagnostic complet:\n{diagnosis}\n"
     return text
-
-
-def _format_all_stories(epic: EpicState) -> str:
-    lines = ["PLAN ET RÉSULTATS:"]
-    for story in epic.stories:
-        lines.append(f"\n### {story.id} — {story.title} [{story.status.value}]")
-        lines.append(f"Description: {story.description}")
-        lines.append(f"Critères: {', '.join(story.acceptance_criteria)}")
-        for step in story.steps:
-            status_icon = {"done": "✅", "running": "🔄", "pending": "⏳", "failed": "❌"}.get(step.status.value, "❓")
-            lines.append(f"  {status_icon} {step.task_type} [{step.status.value}] (agent: {step.agent})")
-            if step.agent_result:
-                lines.append(f"    Résumé: {step.agent_result.summary[:200]}")
-                if step.agent_result.modified_files:
-                    lines.append(f"    Fichiers: {', '.join(step.agent_result.modified_files[:10])}")
-                if step.agent_result.risks:
-                    lines.append(f"    Risques: {', '.join(step.agent_result.risks[:3])}")
-            if step.verification:
-                v = "✅ PASSÉE" if step.verification.passed else "❌ ÉCHOUÉE"
-                lines.append(f"    Vérification: {v}")
-    return "\n".join(lines)
-
-
-def _format_review_history(epic: EpicState) -> str:
-    if not epic.review_history:
-        return ""
-    lines = ["HISTORIQUE DES REVIEWS:"]
-    for entry in epic.review_history:
-        r = entry.get("result", {})
-        action = r.get("action", "unknown")
-        lines.append(f"\nRound {entry.get('round', '?')}: {action}")
-        if action == "rectify":
-            lines.append(f"  Diagnosis: {r.get('diagnosis', '')[:300]}")
-            for s in r.get("new_stories", []):
-                lines.append(f"  → {s.get('id', '?')}: {s.get('title', '')}")
-        elif action == "approved":
-            lines.append(f"  Summary: {r.get('summary', '')[:200]}")
-    return "\n".join(lines)

@@ -13,10 +13,11 @@ router = APIRouter()
 
 @router.get("/stats")
 async def get_stats() -> dict:
-    """Global token/cost counter (P5.5): aggregated from the per-step counters of
-    every in-memory run — the direct-API usage accumulated in _execute_single_step
-    / run_repair_agent. Same response shape the UI's TokenCounter expects. There
-    are no agent "sessions" anymore; `sessions` reports the run count instead."""
+    """Global token/cost counter: aggregated from the per-step counters of every
+    in-memory run. P5.5b: the engine makes no LLM calls, so these counters are 0 for
+    engine-driven runs (any nonzero value is legacy persisted state). Same response
+    shape the UI's TokenCounter expects; there are no agent "sessions" anymore, so
+    `sessions` reports the run count instead."""
     from ..orchestrator import _runs
 
     total = {

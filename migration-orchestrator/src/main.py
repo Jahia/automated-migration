@@ -22,17 +22,20 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # P5.5: OpenCode dropped. The engine talks DIRECTLY to an OpenAI-compatible
-    # API (DeepSeek by default). No subprocess to spawn, no event listener — the
-    # LLMClient is created here and shared as app.state.llm_client.
+    # P5.5b: DeepSeek exited the CONTROL loop. The engine executes deterministically
+    # (Run: lines + PROBEs), approves epics by rule, and parks on decision_pending —
+    # it makes NO LLM calls in nominal operation. The LLMClient is still constructed
+    # (provider-agnostic config compat; a future judgment role could return) and
+    # shared as app.state.llm_client, but no call site in the orchestrator uses it.
     client = LLMClient()
     if not client.configured:
-        log.warning(
-            "ORCHESTRATOR_LLM_API_KEY is not set — the engine will fail any LLM call "
-            "(judgment/repair). Set it in migration-orchestrator/.env (see .env.example)."
+        log.info(
+            "ORCHESTRATOR_LLM_API_KEY is not set — fine: the engine makes no LLM calls. "
+            "The key is only for out-of-engine pipeline scripts (group_llm / vision)."
         )
     else:
-        log.info(f"Direct LLM client ready: model={client.model} base_url={client.base_url}")
+        log.info(f"LLM client configured (pipeline-only; engine makes no LLM calls): "
+                 f"model={client.model} base_url={client.base_url}")
 
     app.state.llm_client = client
     # event_listener is a P4 vestige; the routes still read app.state.event_listener
@@ -90,11 +93,19 @@ async def spa_middleware(request: Request, call_next):
 @app.get("/health")
 async def health():
     # Never leaks the key — only whether one is configured, plus the model/base_url.
+    # P5.5b: DeepSeek exited the control loop entirely — the ENGINE makes NO LLM
+    # calls in nominal operation (epic approval is deterministic, retries+idempotence
+    # cover transients, and there is no repair agent). `configured` stays for the
+    # PIPELINE scripts (group_llm / vision) that still use an LLM outside the engine;
+    # `role: "pipeline-only"` says so plainly so the field isn't read as "the engine
+    # will call the LLM".
     return {
         "status": "ok",
         "llm": {
             "configured": settings.llm_configured,
             "model": settings.llm_model,
             "base_url": settings.llm_base_url,
+            "role": "pipeline-only",
+            "note": "engine makes no LLM calls; key is for out-of-engine pipeline scripts only",
         },
     }

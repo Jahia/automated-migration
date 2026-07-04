@@ -1,13 +1,15 @@
 """Decision-protocol suite (ASSIST-PLAN §3 Phase A).
 
 Covers: plan lint (strategy PROBE preservation + review exemption), the
-decision_pending transition (retries exhausted with strategies / review steps),
-the decide endpoint semantics (strategy apply+rerun, proceed, halt, refusals,
-autonomy gating of free-form patches), scope-rules file writing, resume
-refusal, compact_status projection, the retry-on-verification-failure fix
-(P4 regression: step_segment died at attempt 1/3 because the retry branch set
-'ready', which select_next_ready_step never picks), the human-answer
-re-execution fix, and the C3 absolute cost dir.
+decision_pending transition (retries exhausted WITH or WITHOUT strategies /
+review steps — P5.5b: retries exhausted ALWAYS parks, never fails), the decide
+endpoint semantics (strategy apply+rerun, proceed, halt, refusals, autonomy
+gating of free-form patches, and the P5.5b retry/repatch actions — U4 inputs-only
++ PROBE lint), deterministic epic approval (the LLM reviewer is gone),
+scope-rules file writing, resume refusal, compact_status projection, the
+retry-on-verification-failure fix (P4 regression: step_segment died at attempt
+1/3 because the retry branch set 'ready', which select_next_ready_step never
+picks), the human-answer re-execution fix, and the C3 absolute cost dir.
 
 Same style as test_gate_integrity.py: drives the state machine and
 orchestrator functions directly — no live engine, no opencode, no HTTP.
@@ -146,6 +148,7 @@ def test_verification_failure_retries_up_to_max_attempts(monkeypatch):
         run = _build("run_test_retry_fix", [
             StepInput(id="step_x", title="X", max_attempts=3, acceptance_criteria=["PROBE: true"]),
         ])
+        step = run.epics[0].stories[0].steps[0]
         attempts_seen: list[int] = []
 
         async def fake_exec(run_, epic, story, step, client, listener):
@@ -154,11 +157,19 @@ def test_verification_failure_retries_up_to_max_attempts(monkeypatch):
 
         monkeypatch.setattr(orchestrator, "_execute_single_step", fake_exec)
         epic, story = run.epics[0], run.epics[0].stories[0]
-        await orchestrator._execute_story_steps(run, epic, story, None, None)
-        # attempt is a 1-based execution counter; max_attempts = total budget
-        assert attempts_seen == [1, 2, 3]
-        assert story.steps[0].status == StepStatus.failed
-        assert story.steps[0].attempt == 3
+        # P5.5b: after the budgeted retries, an exhausted step PARKS for a decision
+        # (never a silent return), so drive the loop with a task and wait for it.
+        task = asyncio.create_task(orchestrator._execute_story_steps(run, epic, story, None, None))
+        orchestrator._active_tasks[run.run_id] = task
+        try:
+            assert await _wait_for(lambda: step.status == StepStatus.decision_pending)
+            # attempt is a 1-based execution counter; max_attempts = total budget
+            assert attempts_seen == [1, 2, 3]
+            assert step.attempt == 3
+        finally:
+            if not task.done():
+                task.cancel()
+            orchestrator._active_tasks.pop(run.run_id, None)
     run_async(scenario())
 
 
@@ -246,20 +257,239 @@ def test_retries_exhausted_with_strategies_goes_decision_pending(monkeypatch):
     run_async(scenario())
 
 
-def test_retries_exhausted_without_strategies_still_fails(monkeypatch):
+def test_retries_exhausted_without_strategies_goes_decision_pending(monkeypatch):
+    """P5.5b (Julian's directive 3): retries exhausted → ALWAYS decision_pending,
+    even with NO pre-registered strategies. The run PAUSES; DeepSeek is out of the
+    loop, so there is no repair fallback — the operator decides (retry/repatch/
+    rollback). A plain resume is refused while the decision is pending."""
     async def scenario():
-        run = _build("run_test_no_strategies_fail", [
+        run = _build("run_test_no_strategies_decision", [
             StepInput(id="step_x", title="X", max_attempts=1, acceptance_criteria=["PROBE: true"]),
         ])
+        step = run.epics[0].stories[0].steps[0]
 
         async def fake_exec(run_, epic, story, step, client, listener):
             step.status = StepStatus.failed
+            step.failure_context = "Run: line failed\nExit code: 2\nstderr (queue):\nboom"
 
         monkeypatch.setattr(orchestrator, "_execute_single_step", fake_exec)
         epic, story = run.epics[0], run.epics[0].stories[0]
-        await orchestrator._execute_story_steps(run, epic, story, None, None)
-        assert story.steps[0].status == StepStatus.failed
+        task = asyncio.create_task(orchestrator._execute_story_steps(run, epic, story, None, None))
+        orchestrator._active_tasks[run.run_id] = task
+        try:
+            assert await _wait_for(lambda: step.status == StepStatus.decision_pending)
+            assert run.status == RunStatus.paused
+            assert gate_blocked_step(run) is step  # blocks plain resume
+            ok = await orchestrator.resume_run(run.run_id)
+            assert ok is False
+            assert step.status == StepStatus.decision_pending
+
+            # bundle carries the exhausted-retries reason + the failing command context
+            b = orchestrator.decision_bundles(run)[0]
+            assert b["reason"] == "retries_exhausted"
+            assert b["failure_context"] and "Exit code: 2" in b["failure_context"]
+            # no strategies → next_actions is retry/repatch/rollback/restart (no strategy)
+            assert b["next_actions"] == ["retry", "repatch", "rollback", "restart"]
+        finally:
+            if not task.done():
+                task.cancel()
+            orchestrator._active_tasks.pop(run.run_id, None)
     run_async(scenario())
+
+
+# ── (3b) P5.5b: retry resets attempts; repatch merges inputs only ──────
+
+
+def test_decide_retry_resets_attempts_and_reruns(monkeypatch):
+    """action=retry re-queues the step UNCHANGED with a fresh attempt budget and
+    clears failure_context. It refuses any strategy_id/patch/rules (it is a pure
+    re-run). The decision is audited."""
+    async def scenario():
+        run = _build("run_test_retry_action", [
+            StepInput(id="step_x", title="X", max_attempts=1, acceptance_criteria=["PROBE: true"]),
+        ])
+        step = run.epics[0].stories[0].steps[0]
+        step.status = StepStatus.decision_pending
+        step.attempt = 1
+        step.failure_context = "boom"
+        run.status = RunStatus.paused
+        hold = asyncio.Event()
+        fake_loop = asyncio.create_task(hold.wait())
+        orchestrator._active_tasks[run.run_id] = fake_loop
+        try:
+            # retry does not take strategy/patch/rules
+            res = await orchestrator.decide_step(run.run_id, "step_x", action="retry",
+                                                 strategy_id="s1", rationale="r")
+            assert res["code"] == 400 and "retry takes no" in res["error"]
+
+            res = await orchestrator.decide_step(run.run_id, "step_x", action="retry",
+                                                 rationale="jahia restarted out of band")
+            assert res["status"] == "retried"
+            assert step.status == StepStatus.ready  # reset by the jump machinery
+            assert step.attempt == 0
+            assert step.failure_context is None
+            assert run.forced_next_step == "step_x"
+        finally:
+            hold.set()
+            await fake_loop
+            orchestrator._active_tasks.pop(run.run_id, None)
+    run_async(scenario())
+
+
+def test_decide_repatch_merges_inputs_only(monkeypatch):
+    """action=repatch merges `inputs` (keeping keys the operator didn't send),
+    clears failure_context, resets attempts and re-runs. Allowed in any autonomy
+    (it cannot move a bar)."""
+    async def scenario():
+        run = _build("run_test_repatch_action", [
+            StepInput(id="step_x", title="X", acceptance_criteria=["PROBE: true"],
+                      inputs={"consensus": 2, "keep": "me"}),
+        ], autonomy="assisted")
+        step = run.epics[0].stories[0].steps[0]
+        step.status = StepStatus.decision_pending
+        step.attempt = 3
+        step.failure_context = "boom"
+        run.status = RunStatus.paused
+        hold = asyncio.Event()
+        fake_loop = asyncio.create_task(hold.wait())
+        orchestrator._active_tasks[run.run_id] = fake_loop
+        try:
+            res = await orchestrator.decide_step(
+                run.run_id, "step_x", action="repatch",
+                repatch_inputs={"consensus": 5}, rationale="widen the estimator")
+            assert res["status"] == "repatched"
+            assert res["target_step_id"] == "step_x"
+            # merge, not replace: 'keep' survives, 'consensus' updated
+            assert step.inputs == {"consensus": 5, "keep": "me"}
+            assert step.failure_context is None
+            assert step.attempt == 0  # reset by the jump machinery
+            assert step.status == StepStatus.ready
+            assert run.forced_next_step == "step_x"
+        finally:
+            hold.set()
+            await fake_loop
+            orchestrator._active_tasks.pop(run.run_id, None)
+    run_async(scenario())
+
+
+def test_decide_repatch_refuses_acceptance_criteria_and_probe(monkeypatch):
+    """U4 / amendment 4b: repatch is inputs-ONLY. acceptance_criteria (and its
+    PROBE: lines) are frozen bars — any field beyond `inputs` (surfaced via the
+    route's extra-field tripwire) is refused with a rule-1 message, and a missing
+    `inputs` object is refused too."""
+    async def scenario():
+        run = _build("run_test_repatch_lint", [
+            StepInput(id="step_x", title="X", acceptance_criteria=["PROBE: true"], inputs={"a": 1}),
+        ])
+        step = run.epics[0].stories[0].steps[0]
+        step.status = StepStatus.decision_pending
+        run.status = RunStatus.paused
+
+        # a repatch smuggling acceptance_criteria (route surfaces it as repatch_extra)
+        res = await orchestrator.decide_step(
+            run.run_id, "step_x", action="repatch",
+            repatch_inputs={"a": 2},
+            repatch_extra={"acceptance_criteria": ["only prose"]},
+            rationale="r")
+        assert res["code"] == 400
+        assert "acceptance_criteria" in res["error"] and "frozen bars" in res["error"]
+        assert step.inputs == {"a": 1}  # nothing changed
+
+        # a repatch with no inputs object is refused
+        res = await orchestrator.decide_step(run.run_id, "step_x", action="repatch",
+                                             repatch_inputs=None, rationale="r")
+        assert res["code"] == 400 and "inputs" in res["error"]
+
+        # repatch may not carry strategy_id/patch
+        res = await orchestrator.decide_step(run.run_id, "step_x", action="repatch",
+                                             repatch_inputs={"a": 2}, strategy_id="s1", rationale="r")
+        assert res["code"] == 400 and "inputs` only" in res["error"]
+    run_async(scenario())
+
+
+def test_decide_retry_and_repatch_are_audited(tmp_path):
+    """Both new actions write a 'decision' event to the JSONL audit trail (the
+    audit source of truth). repatch records the inputs_before/after + keys_changed."""
+    async def scenario():
+        import src.audit as audit_mod
+        run = _build("run_test_actions_audit", [
+            StepInput(id="step_x", title="X", acceptance_criteria=["PROBE: true"],
+                      inputs={"consensus": 2}),
+        ])
+        # register a temp-dir logger for this run so decide_step's get_audit_logger
+        # (a module dict) returns it and writes the JSONL under tmp_path.
+        audit_mod._loggers[run.run_id] = audit_mod.RunAuditLogger(run.run_id, log_dir=tmp_path)
+        step = run.epics[0].stories[0].steps[0]
+        step.status = StepStatus.decision_pending
+        run.status = RunStatus.paused
+        hold = asyncio.Event()
+        fake_loop = asyncio.create_task(hold.wait())
+        orchestrator._active_tasks[run.run_id] = fake_loop
+        try:
+            await orchestrator.decide_step(run.run_id, "step_x", action="repatch",
+                                           repatch_inputs={"consensus": 5}, rationale="widen")
+            step.status = StepStatus.decision_pending  # pretend it parked again
+            await orchestrator.decide_step(run.run_id, "step_x", action="retry", rationale="again")
+            lines = (tmp_path / f"{run.run_id}.jsonl").read_text().splitlines()
+            entries = [json.loads(l) for l in lines if l.strip()]
+            decisions = [e for e in entries if e.get("event") == "decision"]
+            assert len(decisions) == 2
+            repatch_ev = next(d for d in decisions if d.get("action") == "repatch")
+            assert repatch_ev["repatch"]["inputs_after"] == {"consensus": 5}
+            assert repatch_ev["repatch"]["keys_changed"] == ["consensus"]
+            assert any(d.get("action") == "retry" for d in decisions)
+        finally:
+            audit_mod._loggers.pop(run.run_id, None)
+            hold.set()
+            await fake_loop
+            orchestrator._active_tasks.pop(run.run_id, None)
+    run_async(scenario())
+
+
+# ── (3c) P5.5b: deterministic epic approval (the LLM reviewer is gone) ──
+
+
+def _epic_of(run):
+    return run.epics[0]
+
+
+def test_epic_all_green_true_when_every_step_done_and_verified():
+    run = _build("run_test_epic_green", [
+        StepInput(id="step_a", title="A", acceptance_criteria=["PROBE: true"]),
+        StepInput(id="step_b", title="B", acceptance_criteria=["PROBE: true"]),
+    ])
+    from src.models import VerificationResult
+    for s in run.epics[0].stories[0].steps:
+        s.status = StepStatus.done
+        s.verification = VerificationResult(passed=True, checks=["ok"], errors=[])
+    assert orchestrator._epic_all_green(_epic_of(run)) is True
+    verdicts = orchestrator._epic_verdicts(_epic_of(run))
+    assert [v["step_id"] for v in verdicts] == ["step_a", "step_b"]
+    assert all(v["status"] == "done" and v["verification_passed"] for v in verdicts)
+
+
+def test_epic_all_green_false_when_a_step_not_done():
+    run = _build("run_test_epic_notdone", [
+        StepInput(id="step_a", title="A", acceptance_criteria=["PROBE: true"]),
+        StepInput(id="step_b", title="B", acceptance_criteria=["PROBE: true"]),
+    ])
+    steps = run.epics[0].stories[0].steps
+    steps[0].status = StepStatus.done
+    steps[1].status = StepStatus.pending  # not done
+    assert orchestrator._epic_all_green(_epic_of(run)) is False
+
+
+def test_epic_all_green_false_when_verification_failed():
+    run = _build("run_test_epic_verifail", [
+        StepInput(id="step_a", title="A", acceptance_criteria=["PROBE: true"]),
+    ])
+    from src.models import VerificationResult
+    s = run.epics[0].stories[0].steps[0]
+    s.status = StepStatus.done
+    s.verification = VerificationResult(passed=False, checks=[], errors=["probe X failed"])
+    assert orchestrator._epic_all_green(_epic_of(run)) is False
+    v = orchestrator._epic_verdicts(_epic_of(run))[0]
+    assert v["verification_passed"] is False and v["errors"] == ["probe X failed"]
 
 
 # ── (4) review steps: decision_pending WITHOUT any agent execution ─────

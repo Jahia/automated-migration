@@ -1,9 +1,11 @@
 """Direct OpenAI-compatible chat client (P5.5 — replaces OpenCode).
 
-The engine no longer proxies through an `opencode serve` process. Judgment roles
-(step verdict, epic reviewer) make a SINGLE `/chat/completions` call with
-`response_format: json_object` and no tools; the RÉPARATEUR role drives an
-in-engine tool loop (see repair_agent.py) whose every turn is one `chat()` call.
+The engine no longer proxies through an `opencode serve` process. P5.5b then took
+DeepSeek OUT of the control loop entirely: the orchestrator makes NO LLM calls in
+nominal operation (deterministic epic approval, retries+idempotence for transients,
+decision_pending instead of a repair agent). This client is retained provider-
+agnostic for out-of-engine pipeline scripts and any FUTURE in-engine judgment role
+that returns; there is currently no call site in the orchestrator.
 
 Provider-agnostic by construction (Julian's non-negotiable): everything flows
 through base_url / model / api_key from Settings. Nothing here is DeepSeek-

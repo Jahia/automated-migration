@@ -3,9 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from ..orchestrator import (
-    approve_proposal,
     get_run,
-    reject_proposal,
     restart_epic,
     restart_story,
 )
@@ -27,6 +25,8 @@ async def list_epics(run_id: str):
             "status": epic.status.value,
             "review_round": epic.review_round,
             "stories_count": len(epic.stories),
+            # pending_proposal is a compat-read field (P5.5b removed the LLM reviewer);
+            # the engine never sets it now, so it is always null for new runs.
             "pending_proposal": epic.pending_proposal.model_dump() if epic.pending_proposal else None,
         }
         for epic in run.epics
@@ -44,16 +44,8 @@ async def get_epic_detail(run_id: str, epic_id: str):
     return epic.model_dump()
 
 
-@router.post("/runs/{run_id}/epics/{epic_id}/proposal/approve")
-async def approve_epic_proposal(run_id: str, epic_id: str):
-    ok = await approve_proposal(run_id, epic_id)
-    return {"status": "approved" if ok else "error"}
-
-
-@router.post("/runs/{run_id}/epics/{epic_id}/proposal/reject")
-async def reject_epic_proposal(run_id: str, epic_id: str):
-    ok = await reject_proposal(run_id, epic_id)
-    return {"status": "rejected" if ok else "error"}
+# P5.5b: the /proposal/approve and /proposal/reject endpoints were removed with the
+# LLM epic reviewer (epic approval is now deterministic in the orchestrator).
 
 
 @router.post("/runs/{run_id}/epics/{epic_id}/restart")

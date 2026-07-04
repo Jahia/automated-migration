@@ -11,27 +11,18 @@ from .models import (
     AgentResult,
     EpicState,
     EpicStatus,
-    NewStepProposal,
-    RectificationProposal,
     RunState,
     RunStatus,
     SSEEvent,
     StepState,
     StepStatus,
-    StoryInput,
     StoryState,
     StoryStatus,
 )
 from .llm_client import LLMClient
 from .persistence import load_run, save_event, save_run
-from .prompt_builder import build_step_prompt
-from .repair_agent import review_epic_direct, run_repair_agent
-from .question_detector import detect_question
-from .rectification_detector import parse_epic_review_result
 from .state import (
     approve_gate_step,
-    build_step_state,
-    build_story_state,
     check_transition,
     find_all_dependents,
     find_decision_steps,
@@ -50,13 +41,12 @@ from .state import (
     all_stories_approved,
     all_steps_done,
 )
-from .verifier import parse_agent_result, run_lines, run_step_commands, verify_result
+from .verifier import run_lines, run_step_commands, verify_result
 
 log = logging.getLogger(__name__)
 
 _runs: dict[str, RunState] = {}
 _sse_queues: dict[str, list[asyncio.Queue]] = {}
-_proposal_events: dict[str, asyncio.Event] = {}
 _active_tasks: dict[str, asyncio.Task] = {}
 
 
@@ -116,6 +106,11 @@ async def _run_loop(run: RunState, client: LLMClient, event_listener: object | N
             await _tag_epic_start(run, epic)
             await _epic_loop(run, epic, client, event_listener)
             if epic.status != EpicStatus.approved:
+                # A paused/aborted run left the epic mid-flight (a blocking gate or
+                # decision point): DON'T fail the run — it must survive to be resumed
+                # (a decision decides the parked step, then the loop re-enters).
+                if run.status in (RunStatus.paused, RunStatus.aborted):
+                    return
                 run.status = RunStatus.failed
                 break
         else:
@@ -160,85 +155,84 @@ async def _run_loop(run: RunState, client: LLMClient, event_listener: object | N
             del _active_tasks[run.run_id]
 
 
+# ── Deterministic epic approval (P5.5b — the LLM reviewer is gone) ────────────
+# Julian's directive (2026-07-04): DeepSeek exits the control loop entirely. Epic
+# approval is now a RULE, not a judgment call: an epic is approved iff every story
+# is approved AND every step is done with a passing verification. The reviewer LLM
+# ranked below the assistant in the authority ladder anyway, and it hallucinated a
+# false diagnosis twice on M4 (§13 Q1). The deterministic PROBEs already judged the
+# work — the reviewer added only risk. When the rule does NOT hold, the run is
+# already parked (a failed step becomes decision_pending, never a silent epic fail),
+# so the epic loop only re-enters here once the parked step has been re-run to done.
+
+
+def _epic_verdicts(epic: EpicState) -> list[dict]:
+    """Per-step evidence justifying (or refusing) deterministic approval: the
+    audit record of what the gate saw. One row per step across every story."""
+    verdicts: list[dict] = []
+    for story in epic.stories:
+        for step in story.steps:
+            v = step.verification
+            verdicts.append({
+                "step_id": step.id,
+                "story_id": story.id,
+                "status": step.status.value,
+                "verification_passed": bool(v.passed) if v else None,
+                "checks": len(v.checks) if v else 0,
+                "errors": (v.errors[:5] if v else []),
+            })
+    return verdicts
+
+
+def _epic_all_green(epic: EpicState) -> bool:
+    """The deterministic approval rule: every step done, and every step that ran a
+    verification passed it. A step done via the engine-exec path (synthetic result)
+    still carries the PROBE-run VerificationResult, so this is the real gate record."""
+    for story in epic.stories:
+        for step in story.steps:
+            if step.status != StepStatus.done:
+                return False
+            if step.verification is not None and not step.verification.passed:
+                return False
+    return True
+
+
 async def _epic_loop(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None) -> None:
-    while True:
-        await _execute_epic_stories(run, epic, client, event_listener)
-        if not all_stories_approved(epic):
-            epic.status = EpicStatus.failed
-            await notify_sse(run, "epic_status", {"status": "failed"}, epic_id=epic.id)
+    await _execute_epic_stories(run, epic, client, event_listener)
+
+    # If the story loop returned without every story approved, a gate/decision is
+    # blocking (halted, rejected, or decision_pending) OR the run was aborted — the
+    # run stays paused there and the loop must not fabricate an epic verdict. Only a
+    # genuinely stuck epic (no runnable work, no parked gate) fails here.
+    if not all_stories_approved(epic):
+        if run.status in (RunStatus.paused, RunStatus.aborted):
             return
+        epic.status = EpicStatus.failed
+        await notify_sse(run, "epic_status", {"status": "failed"}, epic_id=epic.id)
+        return
 
-        epic.status = EpicStatus.reviewing
-        await notify_sse(run, "epic_status", {"status": "reviewing"}, epic_id=epic.id)
-        epic.review_round += 1
+    verdicts = _epic_verdicts(epic)
+    if _epic_all_green(epic):
+        epic.status = EpicStatus.approved
+        get_audit_logger(run.run_id).epic_approved(epic.id, verdicts)
+        await save_event(run.run_id, "epic_approved", {"epic_id": epic.id, "verdicts": verdicts}, epic_id=epic.id)
+        await notify_sse(run, "epic_status", {"status": "approved", "verdicts": verdicts}, epic_id=epic.id)
+        await _tag_epic(run, epic)
+        return
 
-        review_result = await _review_epic(run, epic, client, event_listener)
-        if review_result is None:
-            # Resilient mode: a review that the model couldn't produce a parseable
-            # verdict for (hang/timeout/non-JSON) must NOT kill a run whose actual
-            # work was gated by the step PROBEs. Auto-approve and continue.
-            log.warning(f"Epic {epic.id}: review returned no parseable verdict; auto-approving (resilient mode).")
-            epic.status = EpicStatus.approved
-            await notify_sse(run, "epic_status", {"status": "approved", "note": "auto-approved: review unparseable"}, epic_id=epic.id)
-            await _tag_epic(run, epic)
-            return
-
-        epic.review_history.append({
-            "round": epic.review_round,
-            "result": review_result.model_dump(),
-            "timestamp": time.time() * 1000,
-        })
-        await notify_sse(run, "review_result", {"round": epic.review_round, "result": review_result.model_dump()}, epic_id=epic.id)
-
-        if hasattr(review_result, "summary"):
-            epic.status = EpicStatus.approved
-            await notify_sse(run, "epic_status", {"status": "approved"}, epic_id=epic.id)
-            await _tag_epic(run, epic)
-            return
-
-        if epic.review_round >= epic.review_config.max_review_rounds:
-            if epic.review_config.auto_approve_on_max_rounds:
-                epic.status = EpicStatus.approved
-                await notify_sse(run, "epic_status", {"status": "approved"}, epic_id=epic.id)
-                await _tag_epic(run, epic)
-            else:
-                epic.status = EpicStatus.failed
-                await notify_sse(run, "epic_status", {"status": "failed"}, epic_id=epic.id)
-            return
-
-        proposal = RectificationProposal(
-            proposal_id=f"prop_{run.run_id}_{epic.id}_{epic.review_round}",
-            epic_id=epic.id,
-            round=epic.review_round,
-            result=review_result,
-            timestamp=time.time() * 1000,
-        )
-        epic.pending_proposal = proposal
-        epic.status = EpicStatus.waiting_approval
-        await notify_sse(run, "rectification_proposed", {"proposal": proposal.model_dump()}, epic_id=epic.id)
-
-        await _wait_for_proposal_decision(run, epic)
-
-        if epic.pending_proposal.status == "rejected":
-            # OVERRULE semantics (P5): the human/assistant rejects the REVIEWER's
-            # rectification proposal, not the epic. The steps were already judged
-            # by deterministic probes and audited HALT approvals — a higher
-            # authority than the reviewer LLM (which can hallucinate failure from
-            # a halted-then-approved gate, seen live on M4). Rejecting a proposal
-            # therefore approves the epic as-is; failing the run requires an
-            # explicit rollback/abort, never a proposal rejection.
-            epic.status = EpicStatus.approved
-            epic.pending_proposal = None
-            await notify_sse(run, "epic_status",
-                             {"status": "approved", "review": "rectification rejected — reviewer overruled"},
-                             epic_id=epic.id)
-            await _tag_epic(run, epic)
-            return
-
-        _inject_rectification_stories(epic, review_result)
-        epic.pending_proposal = None
-        epic.status = EpicStatus.running
-        await notify_sse(run, "epic_status", {"status": "running"}, epic_id=epic.id)
+    # All stories approved but some step is not green (e.g. a verification the story
+    # loop tolerated) → NOT an LLM call: park the first offending step for a decision
+    # (assisted → assistant; red → Julian), exactly as retries-exhausted does.
+    for story in epic.stories:
+        for step in story.steps:
+            if step.status != StepStatus.done or (step.verification is not None and not step.verification.passed):
+                if not await _park_for_decision(run, epic, story, step, "epic_gate_not_green"):
+                    return
+                # After the decision re-runs the step, the outer run loop re-enters
+                # this epic (status still running); do not fabricate approval here.
+                return
+    epic.status = EpicStatus.failed
+    await notify_sse(run, "epic_status", {"status": "failed", "verdicts": verdicts}, epic_id=epic.id)
 
 
 async def _execute_epic_stories(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None) -> None:
@@ -373,13 +367,20 @@ async def _execute_story_steps(run: RunState, epic: EpicState, story: StoryState
                 # silently skipped every retry (P4: step_segment died at attempt 1/3).
                 step.status = StepStatus.pending
                 continue
-            if _remaining_strategies(step):
-                # Retries exhausted WITH strategies left → decision point, not failure.
-                if not await _park_for_decision(run, epic, story, step, "retries_exhausted"):
-                    return
-                continue
-            return
+            # Retries EXHAUSTED → ALWAYS a decision point, never a silent run
+            # failure (P5.5b, Julian's directive 3): with pre-registered strategies
+            # OR without, the run PAUSES and the operator/assistant decides (retry,
+            # repatch, apply a strategy, roll back). DeepSeek is out of the loop —
+            # there is no repair agent to fall back to. The failure context (last
+            # command, exit code, stderr/stdout tails) is already on step.failure_context
+            # for the decision bundle.
+            if not await _park_for_decision(run, epic, story, step, "retries_exhausted"):
+                return
+            continue
         elif step.status == StepStatus.waiting_human:
+            # Legacy compat path: no engine step produces a question anymore (the LLM
+            # left the loop), but a step manually parked in waiting_human still waits
+            # for POST /steps/{id}/answer, which re-queues it as pending.
             await _wait_for_human_answer(step)
             continue
         else:
@@ -395,96 +396,59 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
     await notify_sse(run, "step_status", {"status": "running", "task_type": step.task_type, "agent": step.agent}, step_id=step.id, story_id=story.id, epic_id=epic.id)
 
     try:
-        # ── engine-executes-Run: doctrine (P5) ──────────────────────────────
+        # ── engine-executes-Run: doctrine (P5) — NO LLM in the loop (P5.5b) ──
         # A step whose acceptance_criteria carry `Run: <cmd>` lines has a KNOWN
         # deterministic command at plan time. The engine runs those lines ITSELF
-        # (same subprocess mechanism as the probes) BEFORE any agent session.
-        #   • ALL pass  → NO agent session is opened; a synthetic engine
-        #                 agent_result is fabricated and the existing verification
-        #                 (probes + integrity belt) still judges the step.
-        #   • one FAILS → the agent session opens as today, but with the failure
-        #                 context appended to the prompt — the LLM is a REPAIRER,
-        #                 not the executant.
+        # (same subprocess mechanism as the probes).
+        #   • ALL pass (or NO Run: lines) → a synthetic agent="engine" result is
+        #     fabricated and the existing verification (probes + integrity belt)
+        #     judges the step. There is NO agent session — DeepSeek left the control
+        #     loop entirely (Julian's directive 2026-07-04): its repair track record
+        #     was zero, transients are covered by retries + idempotence, and a shell
+        #     at the weakest tier is pure attack surface.
+        #   • one FAILS → the step FAILS with the failure context stashed; retries
+        #     re-run it, and once exhausted it becomes a decision_pending (retry /
+        #     repatch / rollback), never a silent run failure.
         # Kill-switch ORCHESTRATOR_ENGINE_EXEC_RUN and "no Run: lines" both make
-        # run_step_commands a no-op returning (True, [], "") → legacy path intact.
-        run_failure: str | None = None
+        # run_step_commands a no-op returning (True, [], "").
+        records: list[dict] = []
         has_run_lines = bool(run_lines(step.acceptance_criteria))
         if has_run_lines:
             ok, records, failure_context = await run_step_commands(step, run.repo_dir, run.run_id)
-            if ok and records:
-                # Every Run: line passed → skip the agent entirely. The LLM would
-                # only re-run commands the engine already proved (the 2×600s
-                # read-loop incident). Verification below remains the judge.
-                cmds = "; ".join(r["command"] for r in records)
-                agent_result = AgentResult(
-                    step_id=step.id,
-                    agent="engine",
-                    status="completed",
-                    summary=f"engine executed {len(records)} Run: command(s) deterministically: {cmds}"[:500],
-                )
-                await notify_sse(run, "step_status",
-                                 {"status": "engine_executed", "task_type": step.task_type,
-                                  "commands": len(records), "agent": "engine"},
-                                 step_id=step.id, story_id=story.id, epic_id=epic.id)
-                log.info(f"Step {step.id}: engine ran {len(records)} Run: line(s) OK — agent skipped")
-                step.agent_result = agent_result
-                return await _verify_and_finalize(run, epic, story, step, agent_result, audit)
             if not ok:
-                # A Run: line failed → open the agent as a repairer with context.
-                run_failure = failure_context
-                log.info(f"Step {step.id}: a Run: line failed — opening repair agent with failure context")
+                # A Run: line failed → the step fails; the failure context is stashed
+                # for the decision bundle. No repair agent — the engine drives alone.
+                step.failure_context = failure_context
+                step.completed_at = time.time() * 1000
+                step.duration_ms = step.completed_at - step.started_at if step.started_at else 0
+                step.status = StepStatus.failed
+                will_retry = step.attempt < step.max_attempts
+                audit.step_failed(epic.id, story.id, step.id, step.duration_ms,
+                                  "Run: line failed", step.attempt, step.max_attempts, will_retry)
+                await save_run(run)
+                await notify_sse(run, "step_status",
+                                 {"status": "failed", "task_type": step.task_type,
+                                  "reason": "run_line_failed"},
+                                 step_id=step.id, story_id=story.id, epic_id=epic.id)
+                return
 
-        # ── RÉPARATEUR: in-engine tool loop via the direct LLM API (P5.5) ────
-        # Replaces the opencode session/polling/permission machinery. The model
-        # chooses read_file/bash/write_file; the ENGINE executes them (same
-        # subprocess+env path as probes/Run:); the final JSON envelope is parsed
-        # exactly as before. Token usage is accumulated per chat() call into the
-        # step counters + per-project ledger inside run_repair_agent → llm_cost.
-        prompt = build_step_prompt(step, story, epic, run, run_failure=run_failure)
-        step.prompt_text = prompt[:5000]
-        audit.step_prompt_sent(epic.id, story.id, step.id, prompt, "direct")
-
-        result_text = await run_repair_agent(
-            run=run, epic=epic, story=story, step=step, prompt=prompt,
-            client=client, model=run.model,
+        # Every Run: line passed (or there were none) → synthetic engine result. The
+        # deterministic PROBEs + integrity belt inside verify_result remain the sole
+        # judge. No prompt, no tokens, no LLM call.
+        if records:
+            cmds = "; ".join(r["command"] for r in records)
+            summary = f"engine executed {len(records)} Run: command(s) deterministically: {cmds}"[:500]
+        else:
+            summary = f"engine step (no Run: lines) — verified by {len(step.acceptance_criteria or [])} acceptance criterion/probes"
+        agent_result = AgentResult(
+            step_id=step.id, agent="engine", status="completed", summary=summary,
         )
-
-        if result_text is None:
-            log.warning(f"Step {step.id}: repair agent produced no result text")
-            step.status = StepStatus.failed
-            return
-
-        log.info(f"Step {step.id}: got result_text ({len(result_text)} chars)")
-
-        question = detect_question(result_text, step.id)
-        if question:
-            step.question = question
-            step.status = StepStatus.waiting_human
-            await notify_sse(run, "human_question", {"question": question.model_dump()}, step_id=step.id, story_id=story.id, epic_id=epic.id)
-            return
-
-        agent_result = parse_agent_result(result_text, step)
-        if agent_result is None:
-            log.warning(f"Step {step.id}: parse_agent_result returned None, creating fallback from raw text ({len(result_text)} chars)")
-            agent_result = AgentResult(
-                step_id=step.id,
-                agent=step.agent,
-                status="completed",
-                summary=result_text[:500],
-            )
-
-        log.info(f"Step {step.id}: agent_result status={agent_result.status} summary={agent_result.summary[:100]}")
-
+        await notify_sse(run, "step_status",
+                         {"status": "engine_executed", "task_type": step.task_type,
+                          "commands": len(records), "agent": "engine"},
+                         step_id=step.id, story_id=story.id, epic_id=epic.id)
+        log.info(f"Step {step.id}: engine step ({len(records)} Run: line(s)) — no LLM, verifying")
         step.agent_result = agent_result
-        # Cost: token counters were accumulated per chat() call; compute the
-        # dollar cost from them so /runs/{id}/stats reflects the direct-API spend.
-        try:
-            from .cost_tracker import calculate_cost
-            step.cost = calculate_cost(step.tokens_in, step.tokens_out, step.tokens_cache, run.model)["cost_total"]
-            log.info(f"Step {step.id}: tokens in={step.tokens_in} out={step.tokens_out} cache={step.tokens_cache} cost=${step.cost:.4f}")
-        except Exception as e:
-            log.warning(f"Step {step.id}: failed to compute cost: {e}")
-
         await _verify_and_finalize(run, epic, story, step, agent_result, audit)
 
     except Exception as e:
@@ -544,6 +508,10 @@ async def _verify_and_finalize(run: RunState, epic: EpicState, story: StoryState
         step.status = StepStatus.failed
         step.completed_at = time.time() * 1000
         step.duration_ms = step.completed_at - step.started_at
+        # Stash the probe/verification failure so a later decision_pending bundle
+        # carries the real reason (no repair agent gets it anymore).
+        if verification.errors:
+            step.failure_context = "Verification failed:\n" + "\n".join(verification.errors)[:2000]
         will_retry = step.attempt < step.max_attempts
         audit.step_failed(epic.id, story.id, step.id, step.duration_ms, f"agent_status={agent_result.status}", step.attempt, step.max_attempts, will_retry)
         audit.verification_result(epic.id, story.id, step.id, verification.passed, verification.checks, verification.errors)
@@ -577,51 +545,11 @@ def _infer_gate_type(step: StepState) -> str | None:
     return None
 
 
-async def _review_epic(run: RunState, epic: EpicState, client: LLMClient, event_listener: object | None = None):
-    """Epic review via a SINGLE direct API call (P5.5) — no tools, json_object
-    forced. review_epic_direct returns the raw JSON text; parse_epic_review_result
-    turns it into a verdict (None on failure → the caller's resilient auto-approve).
-    The 'reviewer OVERRULED' protocol downstream is unchanged."""
-    result_text = await review_epic_direct(run, epic, client, model=run.model)
-    if result_text is None:
-        return None
-    return parse_epic_review_result(result_text)
-
-
-async def _wait_for_proposal_decision(run: RunState, epic: EpicState) -> None:
-    key = f"{run.run_id}:{epic.id}"
-    event = asyncio.Event()
-    _proposal_events[key] = event
-    await event.wait()
-    del _proposal_events[key]
-
-
-async def approve_proposal(run_id: str, epic_id: str) -> bool:
-    run = get_run(run_id)
-    if not run:
-        return False
-    epic = get_epic_by_id(run, epic_id)
-    if not epic or not epic.pending_proposal:
-        return False
-    epic.pending_proposal.status = "approved"
-    key = f"{run_id}:{epic_id}"
-    if key in _proposal_events:
-        _proposal_events[key].set()
-    return True
-
-
-async def reject_proposal(run_id: str, epic_id: str) -> bool:
-    run = get_run(run_id)
-    if not run:
-        return False
-    epic = get_epic_by_id(run, epic_id)
-    if not epic or not epic.pending_proposal:
-        return False
-    epic.pending_proposal.status = "rejected"
-    key = f"{run_id}:{epic_id}"
-    if key in _proposal_events:
-        _proposal_events[key].set()
-    return True
+# P5.5b: the LLM epic reviewer and its rectification-proposal protocol were
+# removed. Epic approval is deterministic (_epic_loop). The reviewer OVERRULED
+# protocol and the approve/reject-proposal endpoints are gone with it; persisted
+# run blobs still deserialize (pending_proposal/review_history stay on the model
+# as compat-read fields).
 
 
 async def pause_run(run_id: str) -> bool:
@@ -779,6 +707,7 @@ async def jump_to_step(
                 dep.verification = None
                 dep.streaming_text = ""
                 dep.attempt = 0
+                dep.failure_context = None
                 reset_ids.append(dep_id)
 
     target_step.status = StepStatus.ready
@@ -786,6 +715,7 @@ async def jump_to_step(
     target_step.verification = None
     target_step.streaming_text = ""
     target_step.attempt = 0
+    target_step.failure_context = None
 
     skipped: list[str] = []
     for skip_id in skip_done or []:
@@ -906,15 +836,21 @@ async def decide_step(
     rules_file: str | None = None,
     patch: dict | None = None,
     rerun_from: str | None = None,
+    repatch_step_id: str | None = None,
+    repatch_inputs: dict | None = None,
+    repatch_extra: dict | None = None,
     client: LLMClient | None = None,
     event_listener: object | None = None,
 ) -> dict:
     """Decide a decision_pending step (POST /runs/{id}/steps/{id}/decide).
     Returns {"error", "code"} on refusal, else a success dict. Semantics:
       - action=proceed (review steps only) → step done, run resumes;
-      - strategy_id → apply the strategy's patches/skips (or halt), reset via
-        jump machinery (reset_dependents), resume. Single-shot per strategy.
-      - patch (free-form) → autonomy=manual ONLY; PROBE lines must be preserved.
+      - action=retry → reset the step's attempts and re-queue it as-is (P5.5b);
+      - action=repatch {inputs} → merge inputs into the step (NEVER
+        acceptance_criteria / PROBE lines — U4/amendment 4b), reset attempts, re-queue;
+      - action=apply_and_rerun + strategy_id → apply the strategy's patches/skips
+        (or halt), reset via jump machinery. Single-shot per strategy.
+      - action=apply_and_rerun + patch (free-form) → autonomy=manual ONLY; PROBE preserved.
       - rules → appended (deduped by id) to the scope-rules file, whatever the action.
     """
     run = await _resolve_registered_run(run_id)
@@ -927,8 +863,8 @@ async def decide_step(
         return {"error": f"step {step_id} is '{step.status.value}', not decision_pending — nothing to decide", "code": 409}
     if not (rationale or "").strip():
         return {"error": "rationale is required", "code": 400}
-    if action not in ("apply_and_rerun", "proceed"):
-        return {"error": "action must be apply_and_rerun|proceed", "code": 400}
+    if action not in ("apply_and_rerun", "proceed", "retry", "repatch"):
+        return {"error": "action must be apply_and_rerun|proceed|retry|repatch", "code": 400}
     if patch is not None and strategy_id is not None:
         return {"error": "provide either strategy_id or patch, not both", "code": 400}
     if patch is not None and getattr(run, "autonomy", "assisted") != "manual":
@@ -967,6 +903,57 @@ async def decide_step(
         await notify_sse(run, "step_status", {"status": "done", "task_type": step.task_type, "decision": "proceed"}, step_id=step_id, story_id=story.id, epic_id=epic.id)
         await _resume_after_decision(run, client, event_listener)
         return {"status": "proceeded", "step_id": step_id, "rules": rules_result}
+
+    # ── retry (P5.5b): reset attempts + re-queue the step UNCHANGED ──────────
+    # No strategy, no patch — just give the same step a fresh attempt budget and
+    # send it back through the loop. For transients the engine already covers
+    # (retries + idempotence); the operator uses this after fixing the world
+    # out-of-band (a Jahia restart, a freed disk) and wants the run to continue.
+    if action == "retry":
+        if strategy_id is not None or patch is not None or rules is not None:
+            return {"error": "retry takes no strategy_id/patch/rules — it re-runs the step as-is", "code": 400}
+        step.failure_context = None
+        await save_event(run_id, "decision", audit_payload, step_id=step_id, story_id=story.id, epic_id=epic.id)
+        get_audit_logger(run_id).decision(epic.id, story.id, step_id, audit_payload)
+        result = await jump_to_step(run_id, step_id, None, True, client=client, event_listener=event_listener)
+        if result.get("error"):
+            return {"error": result["error"], "code": 400}
+        return {"status": "retried", "step_id": step_id, "jump": result}
+
+    # ── repatch (P5.5b, U4 / amendment 4b): merge INPUTS then re-queue ───────
+    # The assistant re-parameterizes the step at the decision point — `inputs`
+    # ONLY. acceptance_criteria (and its PROBE: lines) are frozen bars that a
+    # patch may NEVER touch (rule-1 lint), so repatch refuses acceptance_criteria
+    # AND any field other than inputs. Merge (not replace) so the operator only
+    # sends the keys that change. Allowed in ANY autonomy (it cannot move a bar).
+    if action == "repatch":
+        if strategy_id is not None or patch is not None:
+            return {"error": "repatch takes `inputs` only — not strategy_id/patch", "code": 400}
+        target_step_id = repatch_step_id or step_id
+        if not isinstance(repatch_inputs, dict):
+            return {"error": "repatch requires an `inputs` object", "code": 400}
+        forbidden = set(repatch_extra or {})
+        if forbidden:
+            return {"error": "repatch merges `inputs` only — these fields are refused: "
+                    + ", ".join(sorted(forbidden)) + " (acceptance_criteria/PROBE: lines are frozen bars — rule 1)", "code": 400}
+        _, _, ts = _find_step_anywhere(run, target_step_id)
+        if not ts:
+            return {"error": f"repatch targets unknown step '{target_step_id}'", "code": 400}
+        before = dict(ts.inputs or {})
+        merged = {**before, **repatch_inputs}
+        ts.inputs = merged
+        ts.failure_context = None
+        audit_payload["repatch"] = {
+            "step_id": target_step_id, "inputs_before": before, "inputs_after": merged,
+            "keys_changed": sorted(k for k in merged if before.get(k) != merged.get(k)),
+        }
+        await save_event(run_id, "decision", audit_payload, step_id=step_id, story_id=story.id, epic_id=epic.id)
+        get_audit_logger(run_id).decision(epic.id, story.id, step_id, audit_payload)
+        result = await jump_to_step(run_id, target_step_id, None, True, client=client, event_listener=event_listener)
+        if result.get("error"):
+            return {"error": result["error"], "code": 400}
+        return {"status": "repatched", "step_id": step_id, "target_step_id": target_step_id,
+                "inputs": merged, "rules": rules_result, "jump": result}
 
     # apply_and_rerun
     skip_ids: list[str] = []
@@ -1039,15 +1026,22 @@ async def decide_step(
 
 
 def decision_bundles(run: RunState) -> list[dict]:
-    """GET /runs/{id}/decisions — the full decision bundle per pending step:
-    identity, attempts, strategies remaining/applied, verification (incl. probe
-    stdout/stderr tails from the audit trail), inputs and criteria."""
+    """GET /runs/{id}/decisions — the full decision bundle per pending step so the
+    assistant (or Julian) can decide WITHOUT the conversation context (P5.5b: the
+    LLM is out of the loop, so the bundle IS the failure record):
+      - identity, attempts history, strategies remaining/applied;
+      - the step's stashed failure_context (last Run: failure or verification errors);
+      - probe verdicts (command, exit code, stdout/stderr ~800c tails) AND the last
+        engine-run command_executed events (Run: line that failed), from the audit trail;
+      - the last verification result, inputs and acceptance criteria."""
+    import json
+    from pathlib import Path
+
     bundles = []
     for epic, story, step in find_decision_steps(run):
-        probes = []
+        probes: list[dict] = []
+        commands: list[dict] = []
         try:
-            import json
-            from pathlib import Path
             audit_file = Path("/tmp/orch-audit") / f"{run.run_id}.jsonl"
             if audit_file.is_file():
                 for line in audit_file.read_text().splitlines():
@@ -1055,12 +1049,22 @@ def decision_bundles(run: RunState) -> list[dict]:
                         ev = json.loads(line)
                     except Exception:
                         continue
-                    if ev.get("event") == "probe_executed" and ev.get("step_id") == step.id:
+                    if ev.get("step_id") != step.id:
+                        continue
+                    if ev.get("event") == "probe_executed":
                         probes.append({
                             "command": ev.get("command"), "exit_code": ev.get("exit_code"),
                             "passed": ev.get("passed"),
-                            "stdout_tail": (ev.get("stdout") or "")[-1000:],
-                            "stderr_tail": (ev.get("stderr") or "")[-1000:],
+                            "stdout_tail": (ev.get("stdout") or "")[-800:],
+                            "stderr_tail": (ev.get("stderr") or "")[-800:],
+                            "ts": ev.get("ts"),
+                        })
+                    elif ev.get("event") == "command_executed":
+                        commands.append({
+                            "command": ev.get("command"), "exit_code": ev.get("exit_code"),
+                            "passed": ev.get("passed"),
+                            "stdout_tail": (ev.get("stdout") or "")[-800:],
+                            "stderr_tail": (ev.get("stderr") or "")[-800:],
                             "ts": ev.get("ts"),
                         })
         except Exception:
@@ -1069,14 +1073,19 @@ def decision_bundles(run: RunState) -> list[dict]:
         bundles.append({
             "step_id": step.id, "title": step.title, "epic_id": epic.id, "story_id": story.id,
             "review": step.review,
+            "reason": ("review" if step.review else "retries_exhausted"),
             "attempt": step.attempt, "max_attempts": step.max_attempts,
             "inputs": step.inputs,
             "acceptance_criteria": step.acceptance_criteria,
+            "failure_context": step.failure_context,
             "strategies_remaining": [s.model_dump() for s in remaining],
             "strategies_applied": list(step.strategies_applied),
             "verification": step.verification.model_dump() if step.verification else None,
             "agent_summary": step.agent_result.summary if step.agent_result else None,
             "probes": probes[-5:],
+            "commands": commands[-5:],
+            "next_actions": (["proceed"] if step.review
+                             else ["retry", "repatch"] + (["decide(strategy)"] if remaining else []) + ["rollback", "restart"]),
             "rules_file_default": derive_rules_file(step),
         })
     return bundles
@@ -1105,7 +1114,7 @@ async def restart_run(run_id: str, client: LLMClient, event_listener: object | N
                 step.attempt = 0
                 step.question = None
                 step.human_answer = None
-                step.opencode_session_id = None
+                step.failure_context = None
                 step.strategies_applied = []
     run.status = RunStatus.running
     run.current_epic_id = None
@@ -1132,7 +1141,7 @@ def _reset_step(step: StepState) -> None:
     step.attempt = 0
     step.question = None
     step.human_answer = None
-    step.opencode_session_id = None
+    step.failure_context = None
     step.strategies_applied = []
 
 
@@ -1340,35 +1349,3 @@ async def submit_human_answer(run_id: str, step_id: str, answer: str) -> bool:
 async def _wait_for_human_answer(step: StepState) -> None:
     while step.status == StepStatus.waiting_human:
         await asyncio.sleep(0.5)
-
-
-def _inject_rectification_stories(epic: EpicState, review) -> None:
-    for new_story in review.new_stories:
-        story_input = StoryInput(
-            id=new_story.id,
-            title=new_story.title,
-            description=new_story.description,
-            acceptance_criteria=new_story.acceptance_criteria,
-            depends_on=new_story.depends_on,
-            github_issues=new_story.github_issues,
-            steps=[
-                StepInput(
-                    id=s.id,
-                    title=s.title,
-                    task_type=s.task_type,
-                    agent=s.agent,
-                    depends_on=s.depends_on,
-                    inputs={**s.inputs, "_rectification_reason": s.reason, "_rectification_diagnosis": review.diagnosis},
-                    expected_outputs=s.expected_outputs,
-                    acceptance_criteria=s.acceptance_criteria,
-                )
-                for s in new_story.steps
-            ] if new_story.steps else [],
-        )
-        story_state = build_story_state(story_input)
-
-        if review.target_after_story_id:
-            idx = next(i for i, s in enumerate(epic.stories) if s.id == review.target_after_story_id)
-            epic.stories.insert(idx + 1, story_state)
-        else:
-            epic.stories.append(story_state)

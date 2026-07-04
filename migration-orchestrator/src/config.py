@@ -31,16 +31,11 @@ class Settings(BaseSettings):
     llm_base_url: str = DEFAULT_LLM_BASE_URL
     llm_model: str = DEFAULT_LLM_MODEL
     llm_api_key: str | None = None
-    # Judgment calls (reviewer / verdict) get a short timeout; the repair tool
-    # loop uses its own per-tool + wall-clock budget (see repair_agent).
+    # Kept for out-of-engine pipeline scripts and any future in-engine judgment
+    # role. P5.5b: the engine's control loop makes NO LLM calls (DeepSeek left the
+    # loop), so these knobs are currently unused by the orchestrator itself.
     llm_timeout: float = 180.0
     llm_max_retries: int = 3
-
-    # ── Repair tool-loop caps (in-engine RÉPARATEUR; overridable by env) ─────
-    repair_max_tool_calls: int = 24
-    repair_wall_budget_s: float = 1500.0
-    repair_bash_timeout_s: float = 300.0
-    repair_bash_timeout_cap_s: float = 900.0
 
     # Engine-level integrity belt (orchestration/probes/integrity.py): after a
     # content step's own probes pass, the engine diffs the live Jahia against the

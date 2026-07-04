@@ -466,18 +466,28 @@ async def run_gate(run_id: str, req: GateDecision, request: Request):
 
 class DecideRequest(BaseModel):
     """POST /runs/{id}/steps/{id}/decide — decide a decision_pending step.
-    strategy_id: apply a pre-registered strategy (patches/skips/halt);
-    rules: scope rules appended (deduped by id) to rules_file (default derived
-    from the step's projects/<name> input → workflow-output/scope-rules.json);
-    patch: free-form step patch — autonomy=manual ONLY;
-    action: apply_and_rerun (reset via jump machinery) | proceed (review steps)."""
+    action: apply_and_rerun | proceed | retry | repatch.
+      - retry: re-run the step unchanged (reset attempts);
+      - repatch: merge `inputs` into `step_id` (default: the decided step) — NEVER
+        acceptance_criteria/PROBE: lines (U4/amendment 4b); any other field is refused;
+      - apply_and_rerun + strategy_id: apply a pre-registered strategy (patches/skips/halt);
+      - apply_and_rerun + patch: free-form step patch — autonomy=manual ONLY;
+      - proceed: complete a review checkpoint.
+    rules: scope rules appended (deduped by id) to rules_file (default derived from
+    the step's projects/<name> input → workflow-output/scope-rules.json).
+    `reason` is the audited rationale (alias: `rationale`)."""
+    model_config = {"extra": "allow"}  # so repatch can refuse forbidden fields explicitly
     strategy_id: str | None = None
     rules: list[dict] | None = None
     rules_file: str | None = None
     patch: dict | None = None
     action: str
     rerun_from: str | None = None
-    rationale: str
+    # repatch (U4): the target step (default = the decided step) and its inputs merge.
+    step_id: str | None = None
+    inputs: dict | None = None
+    rationale: str | None = None
+    reason: str | None = None
 
 
 @router.get("/runs/{run_id}/decisions")
@@ -490,20 +500,35 @@ async def run_decisions(run_id: str):
             "decisions": decision_bundles(run)}
 
 
+_DECIDE_KNOWN_FIELDS = {
+    "strategy_id", "rules", "rules_file", "patch", "action", "rerun_from",
+    "step_id", "inputs", "rationale", "reason",
+}
+
+
 @router.post("/runs/{run_id}/steps/{step_id}/decide")
 async def run_decide(run_id: str, step_id: str, req: DecideRequest, request: Request):
     """Typed, audited decision — the ONLY way to move a step out of
     decision_pending (a plain resume is refused while one exists)."""
     await _resolve_run(run_id)
+    # `reason` is the spec field; `rationale` is the legacy alias — accept either.
+    rationale = req.reason or req.rationale or ""
+    # Any field the request carried beyond the known set is a repatch tripwire:
+    # a repatch that tries to smuggle acceptance_criteria/PROBE: lines lands here.
+    extras = getattr(req, "model_extra", None) or {}
+    repatch_extra = {k: v for k, v in extras.items() if k not in _DECIDE_KNOWN_FIELDS}
     result = await decide_step(
         run_id, step_id,
         action=req.action,
-        rationale=req.rationale,
+        rationale=rationale,
         strategy_id=req.strategy_id,
         rules=req.rules,
         rules_file=req.rules_file,
         patch=req.patch,
         rerun_from=req.rerun_from,
+        repatch_step_id=req.step_id,
+        repatch_inputs=req.inputs,
+        repatch_extra=repatch_extra,
         client=request.app.state.llm_client,
         event_listener=request.app.state.event_listener,
     )

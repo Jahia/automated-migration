@@ -6,14 +6,14 @@ subprocess mechanism as the probes) BEFORE opening any agent session — so an L
 never burns its 600s session deadline READING files to type a command the
 planner already wrote (the step_content_load 2×600s DeepSeek read-loop incident).
 
-Doctrine: the engine drives, the LLM assists at decision points. A known command
-is not a decision point. These tests MOCK the subprocess (no live tools, no
-network) and the opencode client (no engine, no HTTP), and assert:
+Doctrine: the engine drives (P5.5b: DeepSeek left the control loop entirely — no
+repair agent). A known command is not a decision point. These tests MOCK the
+subprocess (no live tools, no network) and assert:
   (a) run_lines parses `Run:` / `Run[NNN]:` in order, ignoring PROBE: lines;
   (b) all Run: lines pass  → NO agent session opened, synthetic engine result,
       verification still runs (the probes/belt remain the judge);
-  (c) a Run: line FAILS → the agent session opens as a REPAIRER with the failure
-      context (command, exit code, stderr/stdout tail) appended to the prompt;
+  (c) a Run: line FAILS → the step FAILS with the failure context stashed on
+      step.failure_context (retries re-run it; exhausted → decision_pending);
   (d) a timeout counts as a failure (exit -1, timeout message in context);
   (e) the ORCHESTRATOR_ENGINE_EXEC_RUN kill-switch restores the legacy path;
   (f) a step with NO Run: lines is unchanged (legacy agent path);
@@ -296,13 +296,14 @@ def test_prompt_includes_repair_block_when_run_failed():
 
 
 # ── integration: _execute_single_step engine path ───────────────────────
-# P5.5: opencode is gone. The "was the LLM invoked?" signal is now whether
-# orchestrator.run_repair_agent was called (the in-engine tool loop / direct API),
-# which each test monkeypatches. FakeClient is a bare LLMClient stand-in — the
-# engine-exec all-pass path never touches it, and the repair path is stubbed.
+# P5.5b: DeepSeek left the control loop — there is NO repair agent to monkeypatch.
+# The engine either fabricates a synthetic "engine" result (Run: lines pass, or no
+# Run: lines) and lets verification judge, or FAILS the step with failure_context
+# when a Run: line fails. FakeClient is a bare LLMClient stand-in that is never
+# touched: the engine makes no LLM calls.
 class FakeClient:
-    """LLMClient stand-in. model attr only; chat() is never reached in these tests
-    because run_repair_agent is monkeypatched at the orchestrator seam."""
+    """LLMClient stand-in. model attr only; chat() is never reached — the engine
+    makes NO LLM calls in the control loop (P5.5b)."""
 
     model = "deepseek-v4-flash"
 
@@ -327,13 +328,7 @@ def test_execute_single_step_engine_path_skips_agent(exec_run_on, monkeypatch):
 
         monkeypatch.setattr(asyncio, "create_subprocess_shell", _fake_shell)
 
-        captured = {"repair_called": False}
-
-        async def _spy_repair(**k):
-            captured["repair_called"] = True
-            return '{"status":"completed","summary":"should not run"}'
-
-        monkeypatch.setattr(orchestrator, "run_repair_agent", _spy_repair)
+        captured = {}
 
         async def _fake_verify(step, agent_result, repo_dir, run_id=None):
             captured["agent"] = agent_result.agent
@@ -352,7 +347,7 @@ def test_execute_single_step_engine_path_skips_agent(exec_run_on, monkeypatch):
         client = FakeClient()
         await orchestrator._execute_single_step(run, epic, story, step, client, None)
 
-        assert captured["repair_called"] is False  # NO LLM invoked
+        # NO LLM invoked — the engine fabricates a synthetic result and verify judges
         assert step.status == StepStatus.done
         assert captured["agent"] == "engine"
         assert "echo x" in captured["summary"]
@@ -360,7 +355,10 @@ def test_execute_single_step_engine_path_skips_agent(exec_run_on, monkeypatch):
     run_async(scenario())
 
 
-def test_execute_single_step_failure_opens_repair_agent(exec_run_on, monkeypatch):
+def test_execute_single_step_run_failure_fails_step_with_context(exec_run_on, monkeypatch):
+    """P5.5b: a failing Run: line FAILS the step (no repair agent). The failure
+    context (command / exit code / stderr tail) is stashed on step.failure_context
+    for the decision bundle; verify_result is NEVER reached."""
     async def scenario():
         _patch_side_effects(monkeypatch)
 
@@ -369,32 +367,14 @@ def test_execute_single_step_failure_opens_repair_agent(exec_run_on, monkeypatch
 
         monkeypatch.setattr(asyncio, "create_subprocess_shell", _fake_shell)
 
-        captured = {"repair_called": False}
+        # verify must NOT be reached on a Run: failure
+        async def _boom_verify(step, agent_result, repo_dir, run_id=None):
+            raise AssertionError("verify must not run when a Run: line failed")
 
-        # capture the run_failure threaded into the prompt builder
-        real_build = build_step_prompt
-
-        def _spy_build(step, story, epic, run, run_failure=None):
-            captured["run_failure"] = run_failure
-            return real_build(step, story, epic, run, run_failure=run_failure)
-
-        monkeypatch.setattr(orchestrator, "build_step_prompt", _spy_build)
-
-        # the repair agent (in-engine tool loop) "responds" with a completed result
-        async def _fake_repair(*, run, epic, story, step, prompt, client, model=None):
-            captured["repair_called"] = True
-            captured["prompt"] = prompt
-            return '{"step_id":"step_content_load","agent":"code","status":"completed","summary":"repaired"}'
-
-        monkeypatch.setattr(orchestrator, "run_repair_agent", _fake_repair)
-
-        async def _fake_verify(step, agent_result, repo_dir, run_id=None):
-            return VerificationResult(passed=True, checks=[], errors=[])
-
-        monkeypatch.setattr(orchestrator, "verify_result", _fake_verify)
+        monkeypatch.setattr(orchestrator, "verify_result", _boom_verify)
 
         run = _mini_run()
-        run.run_id = "run_repair_path"
+        run.run_id = "run_run_failure"
         orchestrator.register_run(run)
         epic = run.epics[0]
         story = epic.stories[0]
@@ -403,20 +383,18 @@ def test_execute_single_step_failure_opens_repair_agent(exec_run_on, monkeypatch
         client = FakeClient()
         await orchestrator._execute_single_step(run, epic, story, step, client, None)
 
-        assert captured["repair_called"] is True  # repair agent WAS invoked
-        assert captured["run_failure"] is not None
-        assert "engine ran it and it broke" in captured["run_failure"]
-        # the failure context is threaded into the repair prompt
-        assert "engine ran it and it broke" in captured["prompt"]
-        assert step.status == StepStatus.done  # repair agent + verify passed
+        assert step.status == StepStatus.failed  # NO repair agent — the step fails
+        assert step.failure_context is not None
+        assert "engine ran it and it broke" in step.failure_context
+        assert "Exit code: 1" in step.failure_context
 
     run_async(scenario())
 
 
-def test_execute_single_step_no_run_lines_uses_agent(exec_run_on, monkeypatch):
-    """A step with only PROBE: lines (no Run:) takes the repair-agent path
-    unchanged — the engine-exec branch is a strict no-op for it, so the LLM
-    (in-engine tool loop) is invoked to do the work."""
+def test_execute_single_step_no_run_lines_synthesizes_engine_result(exec_run_on, monkeypatch):
+    """A step with only PROBE: lines (no Run:) is NOT sent to any agent (P5.5b: the
+    LLM left the loop). The engine fabricates a synthetic engine result and lets
+    verification (the probes) judge — no subprocess, no LLM call."""
     async def scenario():
         _patch_side_effects(monkeypatch)
 
@@ -425,15 +403,10 @@ def test_execute_single_step_no_run_lines_uses_agent(exec_run_on, monkeypatch):
 
         monkeypatch.setattr(asyncio, "create_subprocess_shell", _boom_shell)
 
-        captured = {"repair_called": False}
-
-        async def _fake_repair(*, run, epic, story, step, prompt, client, model=None):
-            captured["repair_called"] = True
-            return '{"step_id":"step_probe_only","agent":"code","status":"completed","summary":"ok"}'
-
-        monkeypatch.setattr(orchestrator, "run_repair_agent", _fake_repair)
+        captured = {}
 
         async def _fake_verify(step, agent_result, repo_dir, run_id=None):
+            captured["agent"] = agent_result.agent
             return VerificationResult(passed=True, checks=[], errors=[])
 
         monkeypatch.setattr(orchestrator, "verify_result", _fake_verify)
@@ -457,7 +430,7 @@ def test_execute_single_step_no_run_lines_uses_agent(exec_run_on, monkeypatch):
         client = FakeClient()
         await orchestrator._execute_single_step(run, epic, story, step, client, None)
 
-        assert captured["repair_called"] is True  # repair-agent path invoked
-        assert step.status == StepStatus.done
+        assert step.status == StepStatus.done  # engine synthetic result + verify passed
+        assert captured["agent"] == "engine"  # NO LLM invoked
 
     run_async(scenario())

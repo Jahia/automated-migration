@@ -199,9 +199,16 @@ class StepState(BaseModel):
     status: StepStatus = StepStatus.pending
     attempt: int = 0
     max_attempts: int = 3
-    # Legacy field: kept for backward compat with persisted run blobs and the
-    # frontend types (P5.5 dropped opencode; the engine no longer sets it).
+    # Legacy field (compat-read only): kept so persisted run blobs and the frontend
+    # types still deserialize. P5.5 dropped opencode; P5.5b removed the last engine
+    # writer of it (restart no longer clears it). The engine NEVER sets it now.
     opencode_session_id: str | None = None
+    # Failure context (P5.5b): when a step's Run: line fails or its probes fail and
+    # retries are exhausted, the last failure block (command, exit code, stderr/stdout
+    # tails) is stashed here so GET /runs/{id}/decisions carries it into the bundle.
+    # DeepSeek is out of the control loop — a failed step becomes decision_pending
+    # with this context instead of opening a repair agent.
+    failure_context: str | None = None
     agent_result: AgentResult | None = None
     verification: VerificationResult | None = None
     question: HumanQuestion | None = None
@@ -305,6 +312,10 @@ class EpicState(BaseModel):
     review_config: ReviewConfig = Field(default_factory=ReviewConfig)
     review_round: int = 0
     review_history: list[dict] = []
+    # Legacy fields (compat-read only): the LLM epic reviewer was removed in P5.5b
+    # (epic approval is now a deterministic rule in the orchestrator). pending_proposal
+    # / review_history stay on the model so persisted run blobs deserialize and the
+    # frontend types are unchanged; the engine no longer writes a proposal.
     pending_proposal: RectificationProposal | None = None
     opencode_session_id: str | None = None
 
