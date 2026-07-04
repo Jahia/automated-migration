@@ -600,3 +600,10 @@ en soi. Le test décisif: le PROCHAIN site jamais vu, mesuré en interventions h
 4. **Le run "gradé" de cette nuit ne l'est pas.** C'est un run d'ingénierie honnêtement
    documenté (§12). La démonstration confinement-clean — le moteur seul, l'assistant en
    décisions pures — reste à produire, et c'est elle qui validera P5.
+
+## 14. Session consolidation 2026-07-04 (J2)
+
+Full consolidation of the resume session — chronology, 11 generic lessons, architecture
+decisions P5.5/P5.5b/P5.6 with git anchors, prioritized improvements A1-A8, next steps,
+session LLM ledger — lives in **`orchestration/SESSION-2026-07-04.md`** (written mid-run
+at 23/26 on Julian's instruction; to be completed after the terminal state if needed).
