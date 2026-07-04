@@ -511,7 +511,9 @@ main loop (see §13 Q2.1).
 **Pending side-tasks (chips):** WAF-blank live captures → "n/a" display (task_869f21a8);
 orchestrator.db secrets scrub + key rotation (task_f6799dd1). Backlog: reviewer should be
 fed the deterministic gate record instead of the agent narrative; monitor PHASE mapping
-cosmetics; rename/merge scope-rule actions; P6 (§11b); true FR content strategy;
+cosmetics; rename/merge scope-rule actions; P6 (§11b); multi-locale strategy = crawl the
+SOURCE's locale variants when they exist — NEVER translate/generate (Julian 2026-07-04);
+single default locale is the focus for now;
 compose-gate shell support for vision pages with a real <main>.
 **IMPLEMENTED P5.5 (Julian's directive, 2026-07-04): opencode dropped — direct
 OpenAI-compatible API.** "The engine executes · the direct API judges · an in-engine
@@ -540,6 +542,30 @@ code):
 - `opencode_client.py`/`opencode_events.py` deleted (deletion committed in ea62a1c during
   an infra collision). pytest 139/139 green (123 baseline + 16 new: llm_client transport/
   no-4xx/format, repair tool dispatch+caps+audit+failure-continue, reviewer, health).
+
+**QUEUED P5.5b (Julian, 2026-07-04 — same activation restart, pending the adversarial
+review verdict on P5.5):** DeepSeek exits the CONTROL loop entirely.
+1. repair tool loop REMOVED (track record zero; retries+idempotence cover transients;
+   giving the weakest tier a shell is pure attack surface).
+2. LLM epic reviewer REMOVED — epic approval is a deterministic rule: all gates/probes
+   green → approved; anything else → decision_pending (assistant; red → Julian). The
+   authority ladder already ranked reviewer below assistant.
+3. Retries exhausted → ALWAYS `decision_pending` + run `paused` (not `failed`), decision
+   bundle carries the failing command context (exit code, stderr tail).
+4. New audited decide actions: `retry {reason}` (reset attempts) and **U4
+   `repatch {step_id, inputs, reason}`** (amendment 4b: inputs only, PROBE-line lint).
+
+**P5.6 — DeepSeek's real value: high-volume bounded METADATA generation (never site
+content — "on ne génère jamais de contenu", Julian 2026-07-04, fidelity doctrine):**
+- ❌ content translation — DEAD ON ARRIVAL (content generation). Multi-locale = crawl
+  source locale variants (deterministic, future).
+- SEO meta — deterministic EXTRACTION from source `<head>` (no LLM needed; pipeline).
+- ✅ candidate 1: editor-UI field labels + `ui.tooltip` keys (EN/FR resource bundles) —
+  editor chrome, not visitor content; judged by i18n-check + G6. AWAITING Julian's
+  explicit OK on the content/chrome distinction.
+- ✅ candidate 2: component naming/merge proposals at the model gate + exceptions review
+  (names the MODEL, not content; assistant arbitrates).
+- ✅ candidate 3: exceptions pre-triage in batch mode (pre-digested decision bundles).
   `scripts/smoke_llm.py` proved the key: `model=deepseek-v4-flash`, real usage returned.
 
 ## 13. The two questions (Julian, 2026-07-04 — recorded for resumption)
