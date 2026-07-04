@@ -8,6 +8,7 @@ import RunReport from './RunReport'
 import { PipelineRail } from './migration/PipelineRail'
 import { KpiBar } from './migration/KpiBar'
 import { MigrationStage } from './migration/MigrationStage'
+import { ContentLoadProgress } from './migration/ContentLoadProgress'
 import { useEffect, useState, useRef } from 'react'
 
 export default function RunDetail() {
@@ -116,6 +117,8 @@ export default function RunDetail() {
       )}
 
       {isMigration && <KpiBar run={run} />}
+
+      {isMigration && <ContentLoadProgress run={run} />}
 
       {isMigration && (
         <div className="mb-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-[260px_1fr]">

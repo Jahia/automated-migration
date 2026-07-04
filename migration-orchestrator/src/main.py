@@ -17,7 +17,7 @@ from .github_client import GitHubClient
 from .opencode_client import OpenCodeClient
 from .opencode_events import OpenCodeEventListener
 from .persistence import close_db, get_db
-from .routes import epics, events, runs, schema, stats, steps
+from .routes import content_progress, epics, events, runs, schema, stats, steps
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -104,6 +104,7 @@ app.include_router(steps.router, tags=["steps"])
 app.include_router(epics.router, tags=["epics"])
 app.include_router(events.router, tags=["events"])
 app.include_router(stats.router, tags=["stats"])
+app.include_router(content_progress.router, tags=["content-progress"])
 
 
 @app.middleware("http")

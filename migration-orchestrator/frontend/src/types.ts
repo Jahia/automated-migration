@@ -154,6 +154,30 @@ export interface RunState {
   updated_at: number
 }
 
+/** One tick written by orchestration/assist/content_watch.sh per integrity pass. */
+export interface ContentTick {
+  ts: string
+  expected: number
+  created: number
+  pct: number | null
+  pagesStarted: number
+  pagesTotal: number
+  media: number
+}
+
+/** GET /projects/{project}/content-progress — read-only ticker + belt summary. */
+export interface ContentProgress {
+  project: string
+  ticks: ContentTick[]
+  latest: ContentTick | null
+  report: {
+    ranAt?: string | null
+    phase?: string | null
+    mismatchCount: number
+    pages?: { expectedCount?: number; actualCount?: number; missing?: string[] } | null
+  } | null
+}
+
 export interface SSEEvent {
   type: string
   run_id: string

@@ -1,6 +1,18 @@
-import type { RunState, SSEEvent } from './types'
+import type { ContentProgress, RunState, SSEEvent } from './types'
 
 const BASE = ''
+
+/**
+ * Read-only content-load progress for a project (the content_watch.sh ticker +
+ * a light integrity-report summary). Pure file read on the engine — no Jahia call.
+ * Throws on 404 / network error so the caller can degrade gracefully (the belt
+ * endpoint only exists after the next engine restart).
+ */
+export async function fetchContentProgress(project: string, limit = 50): Promise<ContentProgress> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/content-progress?limit=${limit}`)
+  if (!resp.ok) throw new Error(`content-progress unavailable (${resp.status})`)
+  return resp.json()
+}
 
 export async function fetchRuns(): Promise<{ run_id: string; goal: string; status: string; created_at: number }[]> {
   const resp = await fetch(`${BASE}/runs`)
