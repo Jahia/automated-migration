@@ -173,6 +173,19 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
                     duration_ms=cmd_duration,
                 )
 
+    # Authority ladder (P5, M4 live find): engine-enforced PROBEs are the
+    # deterministic truth; the agent's final JSON is narrative. When EVERY
+    # probe passed and the only complaints are about the agent's reply shape
+    # (missing summary / step_id echo), pass with a note instead of burning
+    # retries re-running work the probes already proved (step_pages lost 2
+    # attempts to a DeepSeek reply without the JSON envelope).
+    narrative_only = {"missing summary"}
+    if errors and all(e in narrative_only for e in errors) and any(
+            c.startswith("command_passed:") for c in checks) and not any(
+            e.startswith(("Command", "step_id mismatch", "invalid status")) for e in errors):
+        checks.append("passed_on_probes_despite_narrative_gaps:" + ";".join(errors))
+        errors = []
+
     return VerificationResult(passed=len(errors) == 0, checks=checks, errors=errors)
 
 
