@@ -381,6 +381,24 @@ Registered BEFORE any v2 measurement. The BAR does not move; the ESTIMATOR does.
 - **Quota:** the assistant is decision-only; all heavy lifting is DeepSeek (~$0.04/run) + OVH
   vision. Expected Claude involvement in M4: monitor wakeups + roughly 5–10 decisions.
 
+## 11b. P6 direction — classic-site decomposition (registered 2026-07-04, Julian)
+
+The SPA adapter ships pages as ONE container skeleton + typed editable children. That clears
+the frozen gates but is not yet a CLASSIC CMS site. Julian's directive: every migrated site
+must break down like a classic SSR site. Three generic transformations, in priority order,
+each judged by the EXISTING frozen gates (compose byte-exactness per transform, G6 frames,
+ground truth ≥99):
+1. **Chrome-lift** — cross-page invariant subtrees of a cluster (identical subtree hash on
+   ≥N pages = header/nav/footer) are lifted out of the page container into site singletons
+   (absolute areas), re-spliced by Layout at render. Fixes "editing the footer = editing 20
+   pages".
+2. **Wrapper dissolution** — pure-layout wrapper segments between consecutive `{{child:N}}`
+   slots (no text/media) dissolve into per-child attributes or GridRow, making components
+   direct, orderable Area children. Content-bearing wrappers keep their skeleton.
+3. **Template derivation** — each semantic cluster becomes a page-template variant carrying
+   the common structure; pages keep only their own children.
+Scope: P6, after M4 completes. Not part of the M4 acceptance.
+
 ## 11. Out of scope
 
 Cockpit UI decision panel (API-first; the web UI can come later); `autonomous` strategy
@@ -388,3 +406,131 @@ auto-pick; chunked page-group batch steps for 100+-page sites (the calibrate→b
 holds, M4 runs at 20 pages on the existing step granularity); scope-rule actions beyond
 `exclude`/`force_passthrough` (grouping/altitude overrides, renames — later); pushing commits
 to the remote fork (unchanged: Julian's call); Xiaomi/MiMo provider (configured but unused).
+
+---
+
+## 12. M4 SESSION STATE — 2026-07-04 (frozen on Julian's instruction, quota)
+
+**Milestones:** M0 ✅ · M1 ✅ (banner exclusion: en 0.742→1.0) · M2 ✅ (all assertions live,
++1 engine bug fixed) · M3 SKIPPED (recorded rationale) · **M4 partial — run
+`run_1783115025242` on engine :8011, status `failed` at `step_pages` (18/26 done), NOT
+resumed.** Failure cause: 3× DeepSeek reply without the JSON envelope ("missing summary")
+while probes were green and the 20 pages verifiably existed. The fix (verifier: all probes
+green + narrative-only gaps = PASS, commit 65b8af7) is committed but NOT loaded — the
+engine still runs the 08:30 code.
+
+**Gates achieved (real numbers, this run):** mirror 20/20 offline 0 miss/0 404 ·
+segmentation v2 5/5 spread pages 0.833–1.0 (frozen 0.8) after the AUDITED consent-banner
+scope decision · model review 22 clean components · partition 20/20 total (semantic share
+min 65/avg 84) · G1 **73.0 min / 85.8 avg** (floors 60/85), 0 dead/phantom/shell · G5
+media **100%** (977/977) after the localizer fix, links **100%** (184/184) · compose gate
+**20/20 byte-exact** (new) · fidelity content 100%, pixelSim 92.5–100 (HALT approved with
+compose evidence) · namespace free · deploy **bundle ACTIVE** (try 2, credentials fix) ·
+create_site OK (4th site, license held) · pages **20/20 in JCR** (verified via --check).
+Not reached: content_load (G1/G5 on JCR + belt), publish_parity, G6, G2,
+exceptions_review, ground truth.
+
+**Twelve live finds, all fixed+committed tonight (each generic, none a threshold change):**
+1. Engine retries NEVER executed (failed→ready dead requeue) — P4's "retried 3×" was false.
+2. Decision events missing from the JSONL audit trail.
+3. Scope-rule staleness: green segmentations survived a mirror rescope (scope_apply now
+   invalidates changed pages' artifacts).
+4. Degenerate single-cluster sampling (first-k near-identical pages) → spread sampling +
+   mega-cluster boost.
+5. Halted steps with unknown gate_type invisible to the control surface + monitor.
+6. **The vision→extraction bridge was never wired** (0 typed instances of 1631; semantic
+   walk collapses on no-<main> SPAs) → vision adapter: 0→209 typed, G1 50.3→73.0,
+   media 44→100%.
+7. Localizer URL-encoding mismatch (crawler caches percent-encoded, rendered DOM decoded;
+   spaces + AEM .transform) → normalize_url + urlMap all-forms contract.
+8. jahia-deploy credential shadowing (.env.local's plain JAHIA_USER overrides the module
+   .env via dotenv-no-override) → deploy.sh recomposes user:password + JAHIA_HOST.
+9. Epic reviewer hallucinates failure from a halted-then-approved gate → proposal reject
+   = reviewer OVERRULED (epic approved); authority ladder codified: probes > human/assistant
+   > reviewer > agent.
+10. step_pages probe accepted an empty home (content.get /home) → create_pages --check
+    asserts the whole inventory tree.
+11. Agent narrative flakes burn retries → verifier passes on green probes (committed,
+    loads at next restart).
+12. No plan-independent completeness check → **engine integrity belt** (Jahia GraphQL
+    reality vs artifact-derived expectations, phase-aware, audited, kill-switch).
+
+**New capabilities shipped:** decision protocol (decision_pending, /decisions, /decide,
+review checkpoints, strategies incl. claude_adjudicate — NB: the strategy ladder was never
+consumed; the audited scope rule alone made segmentation green) · protocol v2 · scope rules
+(scoped mirror + invalidation) · compose gate + drill-down component map · per-project LLM
+ledger + summary CLI · observability-only cockpit UI · 5-min monitor cadence · integrity
+belt · hardened probes (deploy creds, pages --check).
+
+**Honesty — this was an ENGINEERING run, not a confinement-clean graded run:** mid-run
+code fixes with audited rollbacks (×2), two engine restarts, one accidental out-of-band
+create_pages execution (idempotent, duplicated the step's own work), reviewer overruled
+twice on a refuted diagnosis. Every steering action is in the audit trail; the honest
+claim is "engine-driven with heavy assistant co-engineering on a NEW site class", not
+"autonomous". A clean run (fresh POST of the same plan, decisions-only) remains the proof
+target once the current fixes are loaded.
+
+**RESUME PROCEDURE (exact):**
+1. `pkill -f 'uvicorn src.main:app --host 0.0.0.0 --port 8011'` (careful: lsof lists
+   Chrome clients too; pkill by cmdline), then from `migration-orchestrator/`:
+   `.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 8011 > /tmp/orch.log 2>&1 &`
+   (8001 is squatted by the unrelated `jahia-security-scan-dev` container); wait
+   `/health` ok. This loads verifier fix + integrity belt.
+2. `curl -X POST http://127.0.0.1:8011/runs/run_1783115025242/resume` — normalization
+   re-queues step_pages; it passes on probes (+ belt: pages 20/20).
+3. Re-arm `orchestration/assist/monitor.sh run_1783115025242 http://127.0.0.1:8011`
+   (5-min PROGRESS cadence + decision/gate/epic-approval detection).
+4. Expected remainder: content_load (~1631 instances + 977 DAM media; G1/G5 re-judged on
+   JCR; belt active; MCP resets auto-retried) → publish_parity → edit_frame → G6 → G2 →
+   **step_exceptions_review** (agenda: naming near-dupes Brand Logos/Brands Logo Section +
+   Property Listing/Listings Container; chrome in-flow noted for P6) → ground truth HALT
+   (≥99%/page vs frozen mirror; live side under offlineRoute, rule 26; flush caches).
+5. Watch: EE license (4 sites — restart jahia clears transient violations); engine is
+   currently LEFT RUNNING idle on :8011 with old code.
+Alternative: fresh clean run = POST the plan again (artifacts are incremental; segmentation
+greens survive; scope rule must be re-emitted at the model review — the audited decision
+flow, ~15 min extra vision).
+
+**LLM spend (Julian's standing report, ledger + engine costs):** DeepSeek (opencode
+agents): 9 calls, 912,795 in / 70,062 out / 16.8M cache (≈$0.075). OVH vision (Qwen2.5-VL):
+27 calls, 261,978 in / 21,451 out. Claude (assistant + subagents): the dominant real cost —
+~2.5–3M subagent tokens across ~12 implementation/diagnosis agents this session, plus the
+main loop (see §13 Q2.1).
+
+**Pending side-tasks (chips):** WAF-blank live captures → "n/a" display (task_869f21a8);
+orchestrator.db secrets scrub + key rotation (task_f6799dd1). Backlog: reviewer should be
+fed the deterministic gate record instead of the agent narrative; monitor PHASE mapping
+cosmetics; rename/merge scope-rule actions; P6 (§11b); true FR content strategy;
+compose-gate shell support for vision pages with a real <main>.
+
+## 13. The two questions (Julian, 2026-07-04 — recorded for resumption)
+
+**Q1 — Ma plus grosse crainte sur ce projet : la non-convergence du long tail.** Chaque
+site ou phase NOUVELLE a révélé une fournée de trous réels (P2: 59 dead props; P3: 15
+fixes; cette nuit: 12). Le pattern ne faiblit pas encore — WAF, encodages, variantes SPA,
+licences, flakiness des agents bon marché. Ma crainte est que le coût marginal d'un site
+nouveau reste "une nuit d'ingénierie assistée" au lieu de tendre vers "un run supervisé",
+et que la promesse produit dépende de cette dérivée qu'on n'a PAS encore observée: il
+n'y a jamais eu deux sites consécutifs sans chirurgie moteur. Corollaire: la fiabilité du
+tier LLM économique (DeepSeek a menti sur un gate en P4, a perdu 3 tentatives sur un JSON
+manquant, le reviewer a halluciné deux fois le même faux diagnostic) — on blinde le moteur
+autour de cette faiblesse, et ce blindage accumule sa propre complexité, qui est un risque
+en soi. Le test décisif: le PROCHAIN site jamais vu, mesuré en interventions hors-bande.
+
+**Q2 — Ce que tu ne réalises probablement pas :**
+1. **L'asymétrie des coûts LLM.** Le "run à $0.075 DeepSeek" a en réalité coûté des
+   millions de tokens Claude (sous-agents d'implémentation + pilotage) — plusieurs ordres
+   de grandeur au-dessus. L'économie du système repose entièrement sur la décroissance de
+   MON rôle site après site, pas sur le prix de DeepSeek. Le ledger le rend désormais
+   visible par projet; exige la même visibilité pour le coût assistant.
+2. **La structure éditoriale réelle: 209 instances typées, ~2500 blobs rawHtml.** G1=85.8%
+   mesure le TEXTE éditable, pas la STRUCTURE éditable. Un éditeur change textes, images
+   et liens partout où ça compte — mais ne peut ni réagencer une page librement ni toucher
+   le markup passthrough. P6 (chrome-lift, dissolution des wrappers, templates) n'est pas
+   du polish: c'est la moitié de la valeur CMS, et il n'est pas commencé.
+3. **FR est une coquille.** Titres traduits, contenu en-only. La règle "EN et FR minimum"
+   est satisfaite techniquement, pas éditorialement — une migration bilingue réelle
+   (traduction du contenu) n'existe pas dans le pipeline.
+4. **Le run "gradé" de cette nuit ne l'est pas.** C'est un run d'ingénierie honnêtement
+   documenté (§12). La démonstration confinement-clean — le moteur seul, l'assistant en
+   décisions pures — reste à produire, et c'est elle qui validera P5.
