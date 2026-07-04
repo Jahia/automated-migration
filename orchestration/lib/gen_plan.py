@@ -168,6 +168,21 @@ def build_plan(p):
                      f"Decide: POST /runs/{{run_id}}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to {PP}/workflow-output/scope-rules.json + action=apply_and_rerun.",
                      "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."],
                     deps=["step_group"]),
+        # P5.6: generic, CMS-reusable NAMING of zones/components (metadata only,
+        # never site content) — DeepSeek proposes clean names + near-dupe merges
+        # and REWRITES the manifest (--apply) BEFORE extraction/CND, so the type
+        # names an editor sees are generic and reusable (migration rule 21, moved
+        # from a manual review note into a deterministic assisted step). Runs
+        # AFTER the model-review gate (the assistant has already judged the model)
+        # and BEFORE extraction (which keys off the manifest node types). A run
+        # with no LLM key is a no-op passthrough (script exits leaving the
+        # manifest untouched only if configured); the PROBE just asserts the
+        # manifest still parses + carries components.
+        step("step_naming", "Generic zone/component naming (--apply, future-run manifest)", "build",
+             [f"Run: python3 orchestration/lib/name_model.py {PP} --apply",
+              f"PROBE: python3 -c \"import json,sys; d=json.load(open('{PP}/workflow-output/component-manifest.json')); sys.exit(0 if d.get('components') else 1)\"",
+              f"PROBE: test -s {PP}/workflow-output/naming-proposals.json"],
+             deps=["step_model_review"]),
         # P2.5: extraction BEFORE the CND — cnd_emit sizes the body..bodyN
         # richtext props per type from the OBSERVED lift (wired-only types:
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
@@ -175,7 +190,7 @@ def build_plan(p):
              [f"Run: python3 orchestration/lib/extract_content.py {P}",
               f"PROBE: python3 orchestration/probes/partition.py {P}",
               f"PROBE: python3 orchestration/probes/contribution.py {P}"],
-             deps=["step_model_review"]),
+             deps=["step_naming"]),
         # COMPOSE GATE (ASSIST-PLAN): pre-Jahia qualitative gate — the extracted
         # content must re-compose each page EXACTLY as the Jahia LIVE views will
         # (skeletonRender.ts composeNode semantics) and match the scoped mirror
@@ -222,10 +237,23 @@ def build_plan(p):
               f"PROBE: bash orchestration/probes/cnd.sh {PP} {NS}",
               f"PROBE: bash orchestration/probes/cnd-patterns.sh {PP} {NS}"],
              deps=["step_scaffold"]),
+        # P5.6: editor-UI field labels + ui.tooltip keys, EN+FR (rule 18 / i18n.md)
+        # — these are AUTHORING-INTERFACE chrome strings, the ONE sanctioned EN/FR
+        # generation (never visitor content). Runs AFTER merge_cnd emits the
+        # boilerplate bundles and OVERWRITES them with context-aware labels +
+        # one-sentence useful tooltips (--apply). Non-manifest keys (JCR Query /
+        # Grid Row / Raw HTML / contrib slot mixins) are preserved verbatim. The
+        # PROBE re-asserts EN/FR key parity is not broken (i18n-check contract).
+        step("step_bundles", "Editor-UI field labels + tooltips (EN/FR, --apply)", "build",
+             [f"Run: python3 orchestration/lib/gen_bundles.py {PP} --module {MODULE} --ns {NS} --mixns {MIXNS} --apply",
+              f"PROBE: test -s {PP}/settings/resources/{MODULE}_en.properties",
+              f"PROBE: test -s {PP}/settings/resources/{MODULE}_fr.properties",
+              f"PROBE: python3 -c \"import sys; g=lambda p:{{l.split('=',1)[0].strip() for l in open(p,encoding='utf-8') if l.strip() and not l.startswith('#') and '=' in l}}; en=g('{PP}/settings/resources/{MODULE}_en.properties'); fr=g('{PP}/settings/resources/{MODULE}_fr.properties'); sys.exit(0 if en==fr else 1)\""],
+             deps=["step_cnd_merge"]),
         step("step_shell_templates", "Agnostic fidelity-shell template set + skeleton views", "build",
              [f"Run: python3 orchestration/lib/install_shell_templates.py {P} --ns {NS} --manifest {PP}/workflow-output/component-manifest.json",
               f"PROBE: grep -q 'rawHtml' {PP}/src/components/RawHtml/default.server.tsx"],
-             deps=["step_assets", "step_cnd_merge"]),
+             deps=["step_assets", "step_cnd_merge", "step_bundles"]),
         step("step_deploy", "Build + deploy to Jahia (deploy gate)", "deploy",
              [f"PROBE[900]: bash orchestration/probes/deploy.sh {PP}",
               f"PROBE: bash orchestration/probes/namespace-check.sh {NS} '{URI}'"],
@@ -278,13 +306,25 @@ def build_plan(p):
         step("step_roundtrip", "G2 contribution round-trip (sentinel edits)", "verify",
              [f"PROBE[900]: python3 orchestration/probes/roundtrip.py {P} {SITE}"],
              deps=["step_editor_surface"]),
+        # P5.6: batch PRE-TRIAGE of failing gate/probe exceptions (run metadata,
+        # never site content) — DeepSeek collapses the (potentially dozens of)
+        # per-page failures into a few failure CLASSES (pattern vs page-specific)
+        # so the exceptions-review decision bundle below is small + structured
+        # instead of a wall of raw probe output. Reads the integrity-report's
+        # mismatches/low-ratio pages (+ an explicit exceptions report if the run
+        # dropped one); writes exceptions-triage.json. A deterministic Run: line
+        # (engine-executes-Run), always exit 0 — nothing failing => empty triage.
+        step("step_triage", "Pre-triage batch exceptions (DeepSeek classes)", "build",
+             [f"Run: python3 orchestration/lib/triage_exceptions.py {PP}",
+              f"PROBE: test -f {PP}/workflow-output/exceptions-triage.json"],
+             deps=["step_roundtrip"]),
         # Scheduled decision point A6-2: end-of-batch exceptions review — ONE
         # checkpoint for the whole batch, never per page.
         review_step("step_exceptions_review", "Batch exceptions review (scheduled decision point)",
-                    [f"Review: per-page probe results ({PP}/workflow-output/contribution + partition + publish-parity + roundtrip outputs) and the exceptions report — pages that did not fit the frozen profile.",
+                    [f"Review: the pre-triaged failure classes ({PP}/workflow-output/exceptions-triage.json — pattern vs page-specific, per-class counts + suggested actions) alongside the per-page probe results ({PP}/workflow-output/contribution + partition + publish-parity + roundtrip outputs) — pages that did not fit the frozen profile.",
                      f"Decide: POST /runs/{{run_id}}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into {PP}/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
                      "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."],
-                    deps=["step_roundtrip"]),
+                    deps=["step_triage"]),
     ]
 
     groundtruth = [
