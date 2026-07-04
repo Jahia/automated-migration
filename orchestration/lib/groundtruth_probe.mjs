@@ -3,17 +3,34 @@
 //
 // Every fidelity number before this is self-referential (the analyzer scoring
 // its own reconstruction against its own mirror). This is the ground truth:
-// the DEPLOYED Jahia page (live render, real templates, real content) pixel-
-// diffed against the SOURCE local mirror (served offline via mirror_net, the
-// same deterministic reference the mirror gate certified).
+// the DEPLOYED Jahia page pixel-diffed against the SOURCE local mirror (served
+// offline via mirror_net, the same deterministic reference the mirror gate
+// certified).
+//
+// EDIT-ONLY / NO-LIVE DOCTRINE (Julian, 2026-07-04: "aucun test en live"):
+// the migration process is EDIT-only and publication is a single FINAL delivery
+// act by Julian (publish_site.sh); LIVE is deliberately stale until then. So
+// this gate renders the AUTHENTICATED EDIT PREVIEW workspace, NEVER the LIVE
+// anonymous page and NEVER after publishing:
+//
+//     GET $JAHIA_URL/cms/render/default/{lang}/sites/{site}/{pagePath}.html
+//         with Basic auth (Playwright context httpCredentials from .env.local)
+//
+// renders the EDIT (= default) workspace. Measured live (discoverasr,
+// 2026-07-04): an EDIT edit is visible here immediately (~0.3 s, no cache
+// flush, no publication) and the preview render is byte-near the live render
+// (1 220 826 vs 1 220 731 bytes on the same page) — a faithful pixel-diff
+// stand-in. Rendering the EDIT state Julian will publish makes the eventual
+// LIVE correctness true BY CONSTRUCTION, while keeping this gate entirely off
+// the publication/LIVE path (the path that corrupted the run's metadata).
 //
 // GATE: render fidelity >= threshold (default 99) on EVERY migrated page.
 // Masking policy (§2): only regions listed in workflow-output/groundtruth-
 // masks.json ([{page:"*"|slug, selector, reason}]) are hidden on BOTH sides.
-// Residual diffs must be visible: review.html shows ref | live | diff per page.
+// Residual diffs must be visible: review.html shows ref | preview | diff per page.
 //
 // Usage: node groundtruth_probe.mjs <project> <siteKey> [threshold] [--pages a,b]
-//        env: JAHIA_URL (or JAHIA_HOST)
+//        env: JAHIA_URL (or JAHIA_HOST), JAHIA_USER, JAHIA_PASS
 import { chromium } from 'playwright';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
@@ -34,6 +51,13 @@ const pi = rest.indexOf('--pages');
 if (pi >= 0 && rest[pi + 1]) only = rest[pi + 1].split(',');
 
 const HOST = (process.env.JAHIA_URL || process.env.JAHIA_HOST || 'http://localhost:8080').replace(/\/$/, '');
+// Basic-auth credentials for the authenticated EDIT preview render (no LIVE).
+// JAHIA_USER may already be in "user:pass" form (_lib.sh combines it); split it.
+const RAW_USER = process.env.JAHIA_USER || 'root';
+const AUTH_USER = RAW_USER.includes(':') ? RAW_USER.split(':')[0] : RAW_USER;
+const AUTH_PASS = RAW_USER.includes(':') ? RAW_USER.split(':').slice(1).join(':')
+  : (process.env.JAHIA_PASS || 'root');
+const LANG = process.env.JAHIA_PREVIEW_LANG || 'en';
 const wo = `${proj}/workflow-output`;
 const mirrorDir = `${wo}/local-mirror`;
 const outDir = `${wo}/groundtruth`;
@@ -59,10 +83,14 @@ if (fs.existsSync(sm)) {
     slugMap[l.toLowerCase()] = l;
   }
 }
-const livePath = (slug) => {
-  if (slug === 'home') return `/sites/${site}/home.html`;
-  const rel = slugMap[slug.toLowerCase()] || slug;
-  return `/sites/${site}/home/${rel}.html`;
+// AUTHENTICATED EDIT PREVIEW path (workspace=default), NOT the anonymous LIVE
+// page. Prefixed with /cms/render/default/{lang} — the render that reflects the
+// EDIT state Julian will publish (doctrine: no LIVE, no publication in probes).
+const previewPath = (slug) => {
+  const base = slug === 'home'
+    ? `/sites/${site}/home`
+    : `/sites/${site}/home/${slugMap[slug.toLowerCase()] || slug}`;
+  return `/cms/render/default/${LANG}${base}.html`;
 };
 
 // masking policy (§2): committed, per-site, each entry carries a reason
@@ -80,11 +108,25 @@ const runtimeManifest = loadRuntimeManifest(mirrorDir);
 const { srv: mserver, port: mport } = await serveMirror(mirrorDir, runtimeManifest);
 const mbase = `http://127.0.0.1:${mport}`;
 const browser = await chromium.launch({ headless: true });
+// AUTHENTICATED context for the EDIT preview render (Basic auth). The header
+// is sent PREEMPTIVELY via extraHTTPHeaders — httpCredentials alone is NOT
+// enough here: /cms/render/default/… returns 404 (not a 401 challenge) to an
+// anonymous request, so Playwright would never get prompted to send the
+// credentials and the top-level render 404s (measured live 2026-07-04: 404 vs
+// 200). httpCredentials is kept as a belt-and-suspenders for any sub-resource
+// that DOES issue a 401 challenge. The reference (offline mirror) uses a
+// separate unauthenticated context.
+const AUTH_HEADER = 'Basic ' + Buffer.from(`${AUTH_USER}:${AUTH_PASS}`).toString('base64');
+const previewCtx = await browser.newContext({
+  viewport: { width: 1440, height: 900 },
+  httpCredentials: { username: AUTH_USER, password: AUTH_PASS },
+  extraHTTPHeaders: { Authorization: AUTH_HEADER },
+});
 
 const readPng = (p) => PNG.sync.read(fs.readFileSync(p));
 const results = [];
 for (const slug of slugs) {
-  const rec = { slug, livePath: livePath(slug), masks: masksFor(slug).length };
+  const rec = { slug, previewPath: previewPath(slug), masks: masksFor(slug).length };
   try {
     // ── reference: source mirror, offline-deterministic ──
     const ref = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -96,14 +138,16 @@ for (const slug of slugs) {
     await ref.screenshot({ path: `${outDir}/${slug}.ref.png`, fullPage: true });
     await ref.close();
 
-    // ── live: the deployed Jahia page ──
+    // ── preview: the AUTHENTICATED EDIT-workspace render (NOT anonymous LIVE) ──
     // OFFLINE PARITY: the reference runs fully offline (offlineRoute), so the
-    // live side must not reach the internet either — otherwise external-only
+    // preview side must not reach the internet either — otherwise external-only
     // widgets (observed live: the OneTrust cookie banner from cdn.cookielaw.org
     // on supercar) render on ONE side and eat ~20 fidelity points. Only the
-    // Jahia host is allowed.
+    // Jahia host is allowed (rule 26 — same offlineRoute both sides). Basic auth
+    // rides the authenticated context (httpCredentials), applied automatically
+    // to the continued Jahia-host request; no LIVE, no publication.
     const jahiaHost = new URL(HOST).host;
-    const live = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const live = await previewCtx.newPage();
     const offlineForLive = offlineRoute(mbase, mirrorDir, runtimeManifest, null);
     await live.route('**/*', (route) => {
       const h = new URL(route.request().url()).host;
@@ -113,7 +157,7 @@ for (const slug of slugs) {
       // sides must see an identical world outside the Jahia host
       return offlineForLive(route);
     });
-    const resp = await live.goto(HOST + rec.livePath, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    const resp = await live.goto(HOST + rec.previewPath, { waitUntil: 'domcontentloaded', timeout: 45000 });
     rec.httpStatus = resp ? resp.status() : 0;
     try { await live.waitForLoadState('load', { timeout: 15000 }); } catch {}
     if (maskCss(slug)) await live.addStyleTag({ content: maskCss(slug) });
@@ -134,7 +178,7 @@ for (const slug of slugs) {
     fs.writeFileSync(`${outDir}/${slug}.diff.png`, PNG.sync.write(diff));
     rec.fidelity = +(100 * (1 - n / (w * h))).toFixed(2);
     rec.heightDelta = +((Math.abs(a.height - b.height) / Math.max(a.height, 1)) * 100).toFixed(1);
-    rec.dims = `${w}x${h} (ref ${a.height}px, live ${b.height}px)`;
+    rec.dims = `${w}x${h} (ref ${a.height}px, preview ${b.height}px)`;
     rec.ok = true;
     rec.pass = rec.fidelity >= threshold && rec.httpStatus === 200 && mainText > 0;
   } catch (e) {
@@ -143,6 +187,7 @@ for (const slug of slugs) {
   results.push(rec);
   console.error(`  ${slug}: ${rec.ok ? `${rec.fidelity}% (HTTP ${rec.httpStatus}, main ${rec.mainChars} chars, Δh ${rec.heightDelta}%)` : 'FAIL ' + rec.error} ${rec.pass ? '✓' : '✗'}`);
 }
+await previewCtx.close();
 await browser.close();
 mserver.close();
 
@@ -160,7 +205,7 @@ const summary = {
 };
 fs.writeFileSync(`${outDir}/groundtruth.json`, JSON.stringify(summary, null, 2));
 
-// ── review.html: ref | live | diff per page, worst first ──
+// ── review.html: ref | preview | diff per page, worst first ──
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const rows = results.slice().sort((x, y) => (x.fidelity ?? -1) - (y.fidelity ?? -1)).map(r => `
 <section class="${r.pass ? 'pass' : 'fail'}">
@@ -168,7 +213,7 @@ const rows = results.slice().sort((x, y) => (x.fidelity ?? -1) - (y.fidelity ?? 
    <small>HTTP ${esc(r.httpStatus)} · main ${esc(r.mainChars)} chars · Δheight ${esc(r.heightDelta)}% · ${esc(r.dims || '')} · masks ${r.masks}${r.error ? ' · ' + esc(r.error) : ''}</small></h2>
  <div class="tri">
   <figure><figcaption>source mirror (reference)</figcaption><img src="${esc(r.slug)}.ref.png"></figure>
-  <figure><figcaption>Jahia live</figcaption><img src="${esc(r.slug)}.live.png"></figure>
+  <figure><figcaption>Jahia preview (EDIT)</figcaption><img src="${esc(r.slug)}.live.png"></figure>
   <figure><figcaption>diff</figcaption><img src="${esc(r.slug)}.diff.png"></figure>
  </div>
 </section>`).join('\n');

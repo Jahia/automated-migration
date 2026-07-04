@@ -34,15 +34,24 @@ PHASE-AWARENESS (--phase <step_id>): expectations scale with pipeline position.
                         the process is EDIT-only (Julian doctrine 2026-07-04):
                         nothing publishes during the loads, so a stale LIVE is
                         EXPECTED here, never a mismatch.
+  step_publish_parity → page tree + per-page instances + media, EDIT ONLY —
+                        SAME as step_content_load. EDIT-only doctrine (Julian
+                        2026-07-04: "aucun test en live"): the run never
+                        publishes, so LIVE is deliberately stale until the final
+                        act; comparing against LIVE here would fail on that
+                        expected staleness (observed live: 8 pages stale, 672
+                        EDIT≠LIVE children) and prove nothing about the work
+                        done. Content/i18n parity is asserted CÔTÉ EDIT (every
+                        page has its expected content + translation nodes) by
+                        this belt + publish-parity.py; LIVE alignment lives ONLY
+                        in step_publish_final.
   step_publish_final  → everything, LIVE included + STRICT publish alignment
                         (EDIT↔LIVE main-area children by name+uuid). This is
-                        the belt of the single final publication act
-                        (orchestration/assist/publish_site.sh runs it and
-                        exits with its code).
+                        the belt of the single final publication act — the ONLY
+                        phase that touches LIVE (orchestration/assist/
+                        publish_site.sh runs it and exits with its code).
   step_ground_truth   → same as step_publish_final (the ground-truth pixel
                         gate presupposes an aligned LIVE).
-  step_publish_parity → page tree + instances + media in LIVE too (parity)
-                        + strict publish alignment (legacy phase key, kept).
   (default / unknown) → check everything derivable, EDIT + LIVE where sensible.
 
 The publish-alignment belt (A1) is STRICT where the instance belt is tolerant:
@@ -88,7 +97,7 @@ PHASE_CHECKS: dict[str, dict[str, bool]] = {
     "step_content_load": {"pages": True, "instances": True, "media": True, "live": False, "publish": False},
     "step_publish_final": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
     "step_ground_truth": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
-    "step_publish_parity": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
+    "step_publish_parity": {"pages": True, "instances": True, "media": True, "live": False, "publish": False},
 }
 # default when --phase is absent or unknown: check everything derivable, both WS.
 DEFAULT_CHECKS = {"pages": True, "instances": True, "media": True, "live": True, "publish": True}

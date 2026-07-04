@@ -56,13 +56,23 @@ def main():
     for slug in sample:
         pdata = ld.content["pages"][slug]
         page_base = ld._slug_to_jcr_path(slug)
+        created_path = {}
         for idx, inst in enumerate(pdata.get("instances", [])):
             if inst.get("area") or not inst.get("skeleton"):
                 continue
             nt = ld.type_map.get((inst.get("type") or "").lower())
             if not nt:
                 continue
-            node = f"{page_base}/main/{nt.split(':')[-1]}-{slug}-{idx}"
+            # parent nesting (matching the loader's parent_for logic): if the
+            # instance references a parent that was already created, nest under
+            # it; otherwise flat under the page's main area
+            pi = inst.get("parent")
+            if pi is not None and isinstance(pi, int) and pi in created_path:
+                parent = created_path[pi]
+            else:
+                parent = f"{page_base}/main"
+            node = f"{parent}/{nt.split(':')[-1]}-{slug}-{idx}"
+            created_path[idx] = node  # track for children
             targets = [(node, inst)] + [(f"{node}/item-{n + 1}", ch)
                                         for n, ch in enumerate(inst.get("children") or [])]
             for npath, pl in targets[:6]:
@@ -101,6 +111,7 @@ def main():
     for slug in sample:
         pdata = ld.content["pages"][slug]
         page_base = ld._slug_to_jcr_path(slug)
+        created_path = {}
         expected = []
         for idx, inst in enumerate(pdata.get("instances", [])):
             if inst.get("area") or not inst.get("children"):
@@ -108,7 +119,13 @@ def main():
             nt = ld.type_map.get((inst.get("type") or "").lower())
             if not nt:
                 continue
-            node = f"{page_base}/main/{nt.split(':')[-1]}-{slug}-{idx}"
+            pi = inst.get("parent")
+            if pi is not None and isinstance(pi, int) and pi in created_path:
+                parent = created_path[pi]
+            else:
+                parent = f"{page_base}/main"
+            node = f"{parent}/{nt.split(':')[-1]}-{slug}-{idx}"
+            created_path[idx] = node
             expected += [f"{node}/item-{n + 1}"
                          for n in range(len(inst["children"]))]
         if not expected:

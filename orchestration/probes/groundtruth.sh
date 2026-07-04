@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# groundtruth.sh — the P1 exit gate: DEPLOYED Jahia pages pixel-diffed against
-# the certified source mirror (see lib/groundtruth_probe.mjs). Render fidelity
-# must reach the threshold on EVERY migrated page; semantic share is reported.
-# Usage: groundtruth.sh <project> <siteKey> [threshold=99] [--pages a,b]
+# groundtruth.sh — the P1 exit gate: the AUTHENTICATED EDIT-PREVIEW render of
+# each Jahia page pixel-diffed against the certified source mirror (see
+# lib/groundtruth_probe.mjs). EDIT-ONLY / NO-LIVE DOCTRINE (Julian, 2026-07-04:
+# "aucun test en live"): the probe renders /cms/render/default/{lang}/… via
+# Basic auth (Playwright httpCredentials) — the EDIT workspace Julian will
+# publish — NEVER the anonymous LIVE page, and it never publishes. Render
+# fidelity must reach the threshold on EVERY migrated page; semantic share is
+# reported. Usage: groundtruth.sh <project> <siteKey> [threshold=99] [--pages a,b]
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=_lib.sh
