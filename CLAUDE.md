@@ -65,7 +65,7 @@ Never use React 18 APIs. Never target OSGi/Java bundles here — this harness is
 ### All tracks
 
 1. **Never escalate to a system JCR session** for content the calling user authored.
-2. **Always publish after JCR mutations.** Writes go to `default`; live visitors see `live`.
+2. **Publication is a SINGLE FINAL act, never during the process (Julian, 2026-07-04).** The migration process is EDIT-only: never publish per-node/per-area during loads or probes — a stale LIVE is tolerated and expected. Per-node publication during loads corrupted the publication metadata (a naive `publish` then no-ops in 1 ms while LIVE stays stale; measured: 18 005 jobs). Publish once at the end via `orchestration/assist/publish_site.sh <project> <site>` (unpublish-first). "Always publish after JCR mutations" applies to that FINAL act only. See `.claude/rules/migration.md` §14.
 3. **Always include `-H "Origin: $JAHIA_URL"`** in GraphQL curl requests — the Origin must match `$JAHIA_URL` exactly (it is port-sensitive).
 4. **All modules ship EN and FR at minimum.** See `.agents/context/jahia-i18n-patterns.md`.
 
