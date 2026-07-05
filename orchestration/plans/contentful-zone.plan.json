@@ -1,81 +1,79 @@
 {
-  "goal": "Contentful — identification des ZONES et CONTENT TYPES (orchestrateur-driven, DeepSeek API, EDIT-only). Réutilise le mirror local. S'ARRÊTE au gate model pour revue humaine du zoning + fidélité scrape-vs-live. AUCUN deploy/load/pixel avant validation.",
+  "goal": "Contentful — identification des ZONES et CONTENT TYPES (orchestrateur-driven, DeepSeek API, EDIT-only). Réutilise le mirror local. HALT à CHAQUE étape pour validation humaine avec observabilité : (1) mirror scrape-vs-live, (2) zoning + carte visuelle des composants. AUCUN deploy/load/pixel avant validation.",
   "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
   "epics": [
     {
       "id": "epic_zone_identify",
-      "title": "Zone & content-type identification (halt for review)",
-      "goal": "Depuis le mirror local de contentful : vérifier le rendu offline + la fidélité scrape-vs-live, détecter les zones (fine-signal) et émettre le component model (content types), puis S'ARRÊTER au gate model pour revue humaine. Aucun deploy/load/pixel.",
+      "title": "Zone & content-type identification (halt à chaque étape)",
+      "goal": "Depuis le mirror local de contentful : valider offline + scrape-vs-live (halt), puis détecter les zones + émettre le component model + la carte visuelle du zonage et valider (halt). Aucun deploy/load/pixel.",
       "stories": [
         {
           "id": "story_identify",
-          "title": "Identifier les zones et content types depuis le mirror local",
-          "description": "connect (mirror présent) -> mirror gate (offline + scrape-vs-live) -> zone_detect + zone_to_contentload + artefact observabilité -> HALT au gate model.",
+          "title": "Identifier + valider les zones et content types",
+          "description": "connect -> mirror probe -> HALT revue mirror -> zone_detect + bridge + overlay + artefact -> HALT revue model.",
           "steps": [
             {
               "id": "step_connect",
               "title": "Mirror local présent (réutilisé, pas de re-scrape)",
               "task_type": "verify",
               "acceptance_criteria": [
-                "PROBE: test -s projects/contentful/workflow-output/local-mirror/mirror.json",
-                "PROBE: test -d projects/contentful/workflow-output/local-mirror"
+                "PROBE: test -s projects/contentful/workflow-output/local-mirror/mirror.json"
               ],
               "max_attempts": 1,
-              "inputs": {
-                "project_path": "projects/contentful"
-              }
+              "inputs": { "project_path": "projects/contentful" }
             },
             {
               "id": "step_mirror",
               "title": "Mirror gate: rend 100% offline + fidélité scrape-vs-live",
               "task_type": "verify",
-              "depends_on": [
-                "step_connect"
-              ],
+              "depends_on": ["step_connect"],
               "acceptance_criteria": [
                 "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/contentful 10"
               ],
               "max_attempts": 1,
-              "inputs": {
-                "project_path": "projects/contentful"
-              }
+              "inputs": { "project_path": "projects/contentful" }
+            },
+            {
+              "id": "step_mirror_review",
+              "title": "Mirror gate (HALT) — valider le scrape vs le site live",
+              "task_type": "verify",
+              "depends_on": ["step_mirror"],
+              "review": true,
+              "acceptance_criteria": [
+                "Gate: présenter le rendu offline + la fidélité scrape-vs-live (slider local↔live). return status halt."
+              ],
+              "max_attempts": 1,
+              "inputs": { "project_path": "projects/contentful" }
             },
             {
               "id": "step_zone_bridge",
-              "title": "Fine-signal zone detection + component model + observabilité",
+              "title": "Zone detection + component model + carte visuelle + observabilité",
               "task_type": "build",
-              "depends_on": [
-                "step_mirror"
-              ],
+              "depends_on": ["step_mirror_review"],
               "acceptance_criteria": [
                 "Run: ZONE3_JSON_DIR=projects/contentful/workflow-output python3 orchestration/lib/zone_detect.py contentful",
-                "Run: python3 orchestration/lib/zone_to_contentload.py contentful contentfulv2 --ns ctf2 --module contentful-v2",
+                "Run: python3 orchestration/lib/zone_to_contentload.py contentful contentfulv2 --ns ctf2 --module contentful-v2 --overlay",
+                "Run: node orchestration/lib/zone_overlay_probe.mjs projects/contentful",
                 "Run: python3 orchestration/lib/zone_review_artifact.py contentful",
                 "PROBE: test -s projects/contentful/workflow-output/component-manifest.json",
+                "PROBE: test -s projects/contentful/workflow-output/zone-overlay/index.html",
                 "PROBE: test -s projects/contentful/workflow-output/zone-review.html",
-                "PROBE: test -s orchestration/content/contentful.content-load.json",
                 "PROBE: python3 orchestration/probes/contribution.py contentful"
               ],
               "max_attempts": 1,
-              "inputs": {
-                "project_path": "projects/contentful"
-              }
+              "inputs": { "project_path": "projects/contentful" }
             },
             {
               "id": "step_component_model_review",
-              "title": "Component model gate (HALT) — revue humaine du zoning + content types",
+              "title": "Component model gate (HALT) — valider zoning (table + carte visuelle des composants)",
               "task_type": "verify",
-              "depends_on": [
-                "step_zone_bridge"
-              ],
+              "depends_on": ["step_zone_bridge"],
               "review": true,
               "acceptance_criteria": [
-                "Gate: présenter zone-review.html (zones + content types par page) + namingQuality + fidélité mirror scrape-vs-live. return status halt."
+                "Gate: présenter zone-review.html + zone-overlay/index.html (frontières par page) + namingQuality/genericShare. return status halt."
               ],
               "max_attempts": 1,
-              "inputs": {
-                "project_path": "projects/contentful"
-              }
+              "inputs": { "project_path": "projects/contentful" }
             }
           ]
         }

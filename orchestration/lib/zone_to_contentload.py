@@ -46,6 +46,32 @@ def area_for(key):
 CONTAINERS = {"section", "gridRow", "cardGrid", "logoWall", "carousel", "tabs", "accordion"}
 TEXT_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol",
              "dl", "pre", "figcaption"}
+
+# Overlay: draw the detected zone/component boundaries ON the rendered page so a
+# human JUDGES the decomposition granularity (a pixel-diff can't — skeletons are
+# byte-exact source by construction). Colored by category: chrome / container /
+# atom / generic-section / rawHtml. The type name rides a ::before label.
+OVERLAY_CSS = """
+[data-zt]{position:relative!important;outline-offset:-2px!important}
+[data-zc=chrome]{outline:2px dashed #8a8f98!important}
+[data-zc=cont]  {outline:2px solid #0E7A6B!important}
+[data-zc=atom]  {outline:2px solid #4A55C7!important}
+[data-zc=generic]{outline:2px solid #B4590B!important}
+[data-zc=raw]   {outline:2px dotted #C0392B!important}
+[data-zt]::before{content:attr(data-zt);position:absolute;top:0;left:0;z-index:2147483647;
+ font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;padding:0 4px;pointer-events:none;
+ white-space:nowrap;border-bottom-right-radius:4px}
+[data-zc=chrome]::before{background:#8a8f98}[data-zc=cont]::before{background:#0E7A6B}
+[data-zc=atom]::before{background:#4A55C7}[data-zc=generic]::before{background:#B4590B}
+[data-zc=raw]::before{background:#C0392B}
+"""
+
+def _overlay_category(t):
+    if t == "rawHtml":
+        return "raw"
+    if t == "section":
+        return "generic"
+    return "cont" if t in CONTAINERS else "atom"
 CHILD_TYPE = {"carousel": "card", "logoWall": "logo", "tabs": "tab", "cardGrid": "card",
               "accordion": "faqItem", "section": "card", "gridRow": "card"}
 
@@ -149,7 +175,7 @@ def raw_inst(el, base, area=None):
         inst["area"] = area
     return inst
 
-def build(project, site, ns, module=None):
+def build(project, site, ns, module=None, overlay=False):
     global MIRROR_ASSETS, STATIC_ASSETS
     MIRROR_ASSETS = f"{REPO}/projects/{project}/workflow-output/local-mirror/assets"
     STATIC_ASSETS = f"{REPO}/projects/{project}/static/assets"
@@ -190,15 +216,17 @@ def build(project, site, ns, module=None):
     # /content/dam/... paths (404 -> broken images). Structure is identical, so the detection
     # (scope/keys from analyze on _crawl) still applies. Shell also comes from the localised HTML.
     lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
-    slug2raw, slug2body = {}, {}
+    slug2raw, slug2body, slug2soup = {}, {}, {}
     for slug, _ in pages:
         lp = os.path.join(lm, f"{slug}.html")
         if os.path.exists(lp):
             raw = open(lp, encoding="utf-8", errors="replace").read()
             slug2raw[slug] = raw
-            b = BeautifulSoup(raw, "lxml").body
+            soup = BeautifulSoup(raw, "lxml")
+            b = soup.body
             if b is not None:
                 slug2body[slug] = b
+                slug2soup[slug] = soup  # kept so the overlay serializes the FULL styled doc
 
     used, out, chrome, chrome_done = set(), {}, [], set()
 
@@ -287,6 +315,14 @@ def build(project, site, ns, module=None):
                 "skeleton": skel, "fields": {}, "media": [], "link": None,
                 "children": []}
 
+    def tag(el, t):
+        # overlay: mark the SOURCE element with the type it was emitted as, so the
+        # screenshot probe can draw its boundary. Set AFTER skeletonOrig is captured
+        # (str(el) at emit time) so the content-load stays clean of these attrs.
+        if overlay and el is not None:
+            el["data-zt"] = t
+            el["data-zc"] = _overlay_category(t)
+
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
         Inside a container (parent is not None) every node emits EXACTLY ONE
@@ -302,6 +338,7 @@ def build(project, site, ns, module=None):
                 if k not in chrome_done:
                     chrome_done.add(k)
                     chrome.append(raw_inst(node["_el"], base, area_for(k)))
+                tag(node["_el"], "chrome")  # tag even the deduped repeats
                 return
             if k and R["is_root_wrapper"](k):
                 for kd in node["kids"]:  # transparent layout root (top level only)
@@ -317,6 +354,7 @@ def build(project, site, ns, module=None):
                 used.add(lib)
                 stats["typed"] += 1
                 stats["wired"] += 1
+                tag(node["_el"], lib)
                 return  # prune at the first confident anchor (maximal typed component)
         too_big = node["size"] > 300 or len(str(node["_el"])) > CAP
         if depth < 10 and node["kids"] and (subtree_has_typed(node) or too_big):
@@ -327,6 +365,7 @@ def build(project, site, ns, module=None):
                 insts.append(w)
                 used.add("section")
                 stats["container"] += 1
+                tag(node["_el"], "section")
                 for kd in node["kids"]:
                     emit_node(kd, insts, depth + 1, idx)
                 return
@@ -344,6 +383,7 @@ def build(project, site, ns, module=None):
         t = lift_or_raw(node["_el"])
         t["parent"] = parent
         insts.append(t)
+        tag(node["_el"], t["type"])
 
     max_zones = 0
     for slug, crawl_body in pages:
@@ -378,6 +418,17 @@ def build(project, site, ns, module=None):
             # Layout must keep rendering the contributed AbsoluteAreas (C0b)
             shell["chromeAreas"] = True
         out[slug] = {"adapter": "semantic", "instances": insts, "shell": shell}
+        # overlay: emit_node tagged the source elements in slug2soup's body; inject
+        # the boundary CSS and write the full styled doc next to the mirror so the
+        # screenshot probe serves it with assets resolving.
+        if overlay and slug in slug2soup:
+            soup = slug2soup[slug]
+            if soup.head is not None:
+                st = soup.new_tag("style")
+                st.string = OVERLAY_CSS
+                soup.head.append(st)
+            with open(os.path.join(lm, f"{slug}.overlay.html"), "w", encoding="utf-8") as f:
+                f.write(str(soup))
 
     if chrome and out:
         first = next(iter(out))
@@ -455,7 +506,12 @@ def main():
     if "--ns" in sys.argv:
         ns = sys.argv[sys.argv.index("--ns") + 1]
     module = sys.argv[sys.argv.index("--module") + 1] if "--module" in sys.argv else None
-    content, manifest, used, stats = build(project, site, ns, module)
+    overlay = "--overlay" in sys.argv
+    content, manifest, used, stats = build(project, site, ns, module, overlay=overlay)
+    if overlay:
+        lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
+        n = len([f for f in os.listdir(lm) if f.endswith(".overlay.html")]) if os.path.isdir(lm) else 0
+        print(f"  -> {n} zone-overlay page(s) written to {lm}/<slug>.overlay.html")
     cl_path = os.path.join(REPO, "orchestration", "content", f"{project}.content-load.json")
     mf_dir = os.path.join(REPO, "projects", project, "workflow-output")
     os.makedirs(mf_dir, exist_ok=True)
