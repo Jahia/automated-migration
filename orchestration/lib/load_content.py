@@ -1008,7 +1008,7 @@ class Loader:
             return (0, 0)
         created = published = 0
         done_areas = set()
-        for inst in chrome:
+        for idx, inst in enumerate(chrome):
             area_path = f"/sites/{self.site}/home/{inst['area']}"
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
@@ -1022,7 +1022,10 @@ class Loader:
             done_areas.add(inst["area"])
             pdef = self.props_of(nt)
             props = self.map_props(from_page, inst, pdef)
-            name = f"{nt.split(':')[-1]}-{inst['area']}"
+            # unique per block: MULTIPLE chrome blocks can share one area (e.g. top-menu +
+            # main-nav + mobile-menu all -> header). A shared name collided -> only 1 survived
+            # per area (the fidelity loss). Index keeps every block; the AbsoluteArea is a list.
+            name = f"{nt.split(':')[-1]}-{inst['area']}-{idx}"
             if dry:
                 print(f"  [dry] {area_path}/{name} <- {nt} props={list(props)}")
                 created += 1

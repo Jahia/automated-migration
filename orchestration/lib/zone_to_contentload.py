@@ -71,12 +71,12 @@ def raw_inst(el, base, area=None):
         inst["area"] = area
     return inst
 
-def build(project, site, ns):
+def build(project, site, ns, module=None):
     R = ZD.analyze(project)
     agg, isa, site_chrome = R["agg"], R["is_anchor"], R["site_chrome"]
     pages = ZD.load(project)
     stemdf = ZD.stem_docfreq([b for _, b in pages])
-    module = project
+    module = module or project
     base = f"/modules/{module}/static/"
     try:
         EC.load_runtime_map(project)
@@ -172,7 +172,8 @@ def main():
     ns = "asr"
     if "--ns" in sys.argv:
         ns = sys.argv[sys.argv.index("--ns") + 1]
-    content, manifest, used = build(project, site, ns)
+    module = sys.argv[sys.argv.index("--module") + 1] if "--module" in sys.argv else None
+    content, manifest, used = build(project, site, ns, module)
     cl_path = os.path.join(REPO, "orchestration", "content", f"{project}.content-load.json")
     mf_dir = os.path.join(REPO, "projects", project, "workflow-output")
     os.makedirs(mf_dir, exist_ok=True)
