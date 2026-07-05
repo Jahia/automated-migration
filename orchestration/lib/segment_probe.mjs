@@ -44,7 +44,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
-import { ovhVision, downscalePng, extractJson, OVH_VISION_MODEL } from './ovh_vision.mjs';
+import { ovhVision, downscalePng, extractJson, OVH_VISION_MODEL, VISION_TEXT_ONLY } from './ovh_vision.mjs';
 import { STABILITY_BAR, MIN_COVERAGE_BAR, meanPairwiseJaccard, medoidIndex, consensusRootIds, pagePassV2, clusterPassV2, spreadIndexes, effectivePerCluster } from './segment_consensus.mjs';
 
 const argv = process.argv.slice(2);
@@ -146,7 +146,9 @@ function outlineText(nodes) {
 
 const PROMPT = (ol) => `You are segmenting a web page into CMS components for a Jahia migration, exactly as a human content editor would model it.
 
-You get a SCREENSHOT and a numbered OUTLINE of the page's block elements. Each line: #id <tag.class> [WxH@Ytop, BG=has background, LEAF=carries its own text/media] "text snippet".
+${VISION_TEXT_ONLY
+  ? "You get a numbered OUTLINE of the page's block elements (no screenshot — judge the groupings from the geometry, nesting and text)."
+  : 'You get a SCREENSHOT and a numbered OUTLINE of the page\'s block elements.'} Each line: #id <tag.class> [WxH@Ytop, BG=has background, LEAF=carries its own text/media] "text snippet".
 
 Group the blocks into content components. Return STRICT JSON:
 {"components":[{"rootId":<id>,"name":"<short editor-facing name>","kind":"component|container|chrome","children":[{"rootId":<id>,"name":"..."}]}]}
