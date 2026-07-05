@@ -772,6 +772,15 @@ def build(project, site, ns, module=None, overlay=False):
                   f"(key={k})", file=sys.stderr)
         t = lift_or_raw(node["_el"])
         t["parent"] = parent
+        if t.get("type") == "rawHtml":
+            # editorial ORPHAN: rendered verbatim (0-DOM safe) but NOT attributed to a
+            # meaningful type — the deterministic categorization couldn't place it.
+            # Surface it (orphans.json) with the detector's low-confidence guess so an
+            # LLM can arbitrate the attribution at the model gate (Julian, 2026-07-05).
+            t["orphan"] = True
+            t["orphanKey"] = k
+            t["orphanCand"] = lib          # detector's best type guess (may be None)
+            t["orphanConf"] = round(conf, 2)
         insts.append(t)
         tag(node["_el"], t["type"], k)
 
@@ -979,6 +988,27 @@ def main():
     mf_path = os.path.join(mf_dir, "component-manifest.json")
     json.dump(content, open(cl_path, "w"), ensure_ascii=False, indent=1)
     json.dump(manifest, open(mf_path, "w"), ensure_ascii=False, indent=1)
+    # orphans.json — the editorial residue for LLM arbitration at the model gate:
+    # elements rendered verbatim (0-DOM safe) that the deterministic categorization
+    # could NOT attribute to a meaningful type. Each carries context (page, zone,
+    # detector guess, markup snippet) so an LLM can decide the attribution and post
+    # it back as scope-rules. NOT content generation — placement only (Julian).
+    orphans = []
+    for slug, pg in content["pages"].items():
+        for i in pg["instances"]:
+            if not i.get("orphan"):
+                continue
+            html = (i.get("fields", {}) or {}).get("html", "")
+            snip = " ".join(html.split())
+            orphans.append({
+                "page": slug, "zone": i.get("zone"), "key": i.get("orphanKey"),
+                "candidate": i.get("orphanCand"), "confidence": i.get("orphanConf"),
+                "reason": "no liftable fields/text — verbatim rawHtml fallback",
+                "size": len(html), "snippet": snip[:400]})
+    json.dump({"count": len(orphans), "orphans": orphans},
+              open(os.path.join(mf_dir, "orphans.json"), "w"), ensure_ascii=False, indent=1)
+    if orphans:
+        print(f"  -> {len(orphans)} editorial orphan(s) for arbitration -> orphans.json", file=sys.stderr)
     # stamp_zones targets the PROJECT dir (source files live in projects/<project>),
     # NOT the module bundle name (which only shapes the /modules/<module>/ asset URL)
     stamp_zones(os.path.join(REPO, "projects", project), manifest["zones"])

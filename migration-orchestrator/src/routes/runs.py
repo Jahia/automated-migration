@@ -421,6 +421,26 @@ async def run_quality(run_id: str):
     return quality_verdict(run, gate.gate_type if gate else None, workflow_output_dir(run))
 
 
+@router.get("/runs/{run_id}/orphans")
+async def run_orphans(run_id: str):
+    """The editorial RESIDUE for LLM arbitration: DOM elements the deterministic
+    engine could NOT attribute to a meaningful type (rendered verbatim → 0-DOM safe,
+    but editorially undifferentiated). Each carries page/zone/detector-guess/snippet.
+    Analyze them, then post attributions back via
+    POST /runs/{id}/steps/{step}/decide {action:'apply_and_rerun', rules:[...]} —
+    PLACEMENT only, never rewrite content."""
+    import json as _json
+    run = await _resolve_run(run_id)
+    wo = workflow_output_dir(run)
+    p = (wo / "orphans.json") if wo else None
+    if not p or not p.exists():
+        return {"count": 0, "orphans": []}
+    try:
+        return _json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"orphans.json unreadable: {e}")
+
+
 @router.get("/runs/{run_id}/log")
 async def run_log(run_id: str, since: float = 0.0, limit: int = 50):
     """Poll-friendly log tail: recent events (ts > since), active streaming, errors."""

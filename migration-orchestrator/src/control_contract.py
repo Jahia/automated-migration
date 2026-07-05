@@ -36,6 +36,15 @@ CONTROL_CONTRACT = {
         {"call": "POST /runs/{id}/rollback {to_step, reason}", "when": "go back to an earlier step and redo from there"},
         {"call": "POST /runs/{id}/pause | /resume | /abort", "when": "control the loop lifecycle"},
     ],
+    "orphan_arbitration": (
+        "At the model gate, `orphans.json` (also GET /runs/{id}/orphans) lists elements "
+        "the DETERMINISTIC engine could not attribute to a meaningful type — rendered "
+        "verbatim (0-DOM safe) but editorially undifferentiated. YOU (the LLM) analyze "
+        "each (it carries page, zone, the detector's low-confidence guess, and a markup "
+        "snippet) and decide its attribution, then post it back as scope-rules via "
+        "POST .../decide {action:'apply_and_rerun', rules:[...]}. This is PLACEMENT "
+        "arbitration only — never rewrite the element's content (it stays verbatim)."
+    ),
     "decide_actions": {
         "proceed": "accept the gate as-is and continue — the mirror/model/fidelity is good enough",
         "retry": "re-run the step unchanged (a transient failure)",
@@ -64,7 +73,7 @@ CONTROL_CONTRACT = {
 # gate_type → observability artifacts to review (relative to /runs/{id}/artifacts/)
 _GATE_REVIEW = {
     "mirror": ["mirror/mirror-check.json", "local-mirror/mirror.json"],
-    "model": ["zone-review.html", "zone-overlay/index.html", "component-manifest.json"],
+    "model": ["zone-review.html", "zone-overlay/index.html", "component-manifest.json", "orphans.json"],
     "fidelity": ["visual-diff/SUMMARY.md"],
     "groundtruth": ["visual-diff/SUMMARY.md"],
     "contribution": ["review/REVIEW.md"],
