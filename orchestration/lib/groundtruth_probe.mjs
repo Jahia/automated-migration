@@ -96,8 +96,16 @@ if (fs.existsSync(sm)) {
 // AUTHENTICATED EDIT PREVIEW path (workspace=default), NOT the anonymous LIVE
 // page. Prefixed with /cms/render/default/{lang} — the render that reflects the
 // EDIT state Julian will publish (doctrine: no LIVE, no publication in probes).
+// the crawl's HOME page slug is rarely "home" (discoverasr: "en", url ==
+// siteUrl) — same rule as load_content._home_slug / create_pages: that slug
+// renders /sites/<site>/home itself, never /home/<slug> (was a hard 404).
+const inv = JSON.parse(fs.readFileSync(`${wo}/page-inventory.json`, 'utf8'));
+const siteUrl = (inv.siteUrl || '').replace(/\/+$/, '');
+const homeSlug = (inv.pages || []).find(p => (p.url || '').replace(/\/+$/, '') === siteUrl)?.slug
+  || (inv.pages || [])[0]?.slug || 'home';
+
 const previewPath = (slug) => {
-  const base = slug === 'home'
+  const base = (slug === 'home' || slug === homeSlug)
     ? `/sites/${site}/home`
     : `/sites/${site}/home/${slugMap[slug.toLowerCase()] || slug}`;
   return `/cms/render/default/${LANG}${base}.html`;
