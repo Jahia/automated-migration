@@ -486,6 +486,15 @@ def build(project, site, ns, module=None, overlay=False):
         # screenshot probe serves it with assets resolving.
         if overlay and slug in slug2soup:
             soup = slug2soup[slug]
+            # The overlay is a STATIC visualization of the captured post-hydration
+            # DOM (rule 30: content already materialized offline — no site JS needed
+            # to render it). Left in place, the page's own client scripts boot ~0.5s
+            # after load, re-hydrate/re-render the body, and WIPE the injected
+            # data-zk tags + boundary CSS + banner (Julian: "le zonage disparait au
+            # bout de 0.5s"). Strip every <script> so NOTHING re-renders; our own
+            # overlay <script> is appended AFTER this and is the only JS that runs.
+            for _s in soup.find_all("script"):
+                _s.decompose()
             if soup.head is not None:
                 st = soup.new_tag("style")
                 st.string = OVERLAY_CSS
