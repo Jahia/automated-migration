@@ -47,23 +47,55 @@ CONTAINERS = {"section", "gridRow", "cardGrid", "logoWall", "carousel", "tabs", 
 TEXT_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol",
              "dl", "pre", "figcaption"}
 
-# Overlay: draw the detected zone/component boundaries ON the rendered page so a
-# human JUDGES the decomposition granularity (a pixel-diff can't — skeletons are
-# byte-exact source by construction). Colored by category: chrome / container /
-# atom / generic-section / rawHtml. The type name rides a ::before label.
+# Overlay: draw the detected boundaries ON the rendered page so a human JUDGES the
+# decomposition granularity (a pixel-diff can't — skeletons are byte-exact by
+# construction). Colored by ROLE (Julian's scheme): normal content zone = BLUE
+# (data-zone, inset box-shadow so it coexists with a nested component outline),
+# absolute zone/chrome = RED, component = GREEN. The type name rides a ::before
+# label; the zone id rides a ::after label. Hover/click drives the #zx-tip popin
+# (hierarchy breadcrumb + cross-page xref + a "raw HTML" toggle when pinned).
 OVERLAY_CSS = """
-[data-zt]{position:relative!important;outline-offset:-2px!important}
-[data-zc=chrome]{outline:2px dashed #8a8f98!important}
-[data-zc=cont]  {outline:2px solid #0E7A6B!important}
-[data-zc=atom]  {outline:2px solid #4A55C7!important}
-[data-zc=generic]{outline:2px solid #B4590B!important}
-[data-zc=raw]   {outline:2px dotted #C0392B!important}
-[data-zt]::before{content:attr(data-zt);position:absolute;top:0;left:0;z-index:2147483647;
+[data-zr],[data-zone]{position:relative!important}
+[data-zr]{outline-offset:-2px!important}
+[data-zr=absolute]{outline:2px solid #d33a2c!important}
+[data-zr=component]{outline:2px solid #1aa06a!important}
+[data-zone]{box-shadow:inset 0 0 0 3px #1f6fd6!important}
+[data-zx-pin]{outline:3px solid #ffb000!important;outline-offset:-3px!important}
+[data-zt]::before{content:attr(data-zt);position:absolute;top:0;left:0;z-index:2147483645;
  font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;padding:0 4px;pointer-events:none;
  white-space:nowrap;border-bottom-right-radius:4px}
-[data-zc=chrome]::before{background:#8a8f98}[data-zc=cont]::before{background:#0E7A6B}
-[data-zc=atom]::before{background:#4A55C7}[data-zc=generic]::before{background:#B4590B}
-[data-zc=raw]::before{background:#C0392B}
+[data-zr=absolute]::before{background:#d33a2c}[data-zr=component]::before{background:#1aa06a}
+[data-zone]::after{content:"\\25a6 " attr(data-zone);position:absolute;top:0;right:0;z-index:2147483645;
+ font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;background:#1f6fd6;padding:0 4px;
+ pointer-events:none;white-space:nowrap;border-bottom-left-radius:4px}
+#zx-ban{position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#001932;color:#cfe4f5;
+ font:12px/1.4 ui-monospace,Menlo,monospace;padding:6px 12px;border-bottom:2px solid #0077bf}
+#zx-ban b{color:#fff}
+#zx-legend{float:right;font:11px/1.4 -apple-system,sans-serif;color:#9ec5e6}
+#zx-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 12px;vertical-align:-1px}
+#zx-legend i.z{background:#1f6fd6}#zx-legend i.a{background:#d33a2c}#zx-legend i.c{background:#1aa06a}
+body{padding-top:30px!important}
+#zx-tip{position:fixed;z-index:2147483647;max-width:360px;background:#001932;color:#e8f1f9;
+ font:12px/1.45 -apple-system,sans-serif;padding:9px 11px;border-radius:8px;
+ box-shadow:0 6px 22px rgba(0,0,0,.45);pointer-events:none;display:none}
+#zx-tip.pin{border:1px solid #0077bf}
+#zx-tip .hd{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+#zx-tip .ty{font-family:ui-monospace,monospace;font-weight:700}
+#zx-tip .badge{font:700 10px/1.5 -apple-system,sans-serif;color:#fff;padding:0 6px;border-radius:9px}
+#zx-tip .badge.z{background:#1f6fd6}#zx-tip .badge.a{background:#d33a2c}#zx-tip .badge.c{background:#1aa06a}
+#zx-tip #zx-x{margin-left:auto;cursor:pointer;font-size:16px;color:#9ec5e6;padding:0 2px}
+#zx-tip #zx-x:hover{color:#fff}
+#zx-tip .row{margin-top:3px}#zx-tip .p{color:#9ec5e6;margin-top:4px;font-size:11px}
+#zx-tip .hier{margin-top:7px;padding-top:6px;border-top:1px solid #123a5a;font-size:11px;color:#cfe4f5}
+#zx-tip .hier .lbl{display:block;color:#6fa5cf;text-transform:uppercase;letter-spacing:.5px;font-size:9px;margin-bottom:2px}
+#zx-tip .hier .s{color:#5a86ab;margin:0 2px}
+#zx-tip .act{margin-top:8px}
+#zx-tip #zx-raw{cursor:pointer;background:#0d3557;color:#cfe4f5;border:1px solid #1a5183;
+ border-radius:5px;font:600 11px -apple-system,sans-serif;padding:4px 9px}
+#zx-tip #zx-raw:hover{background:#134470}
+#zx-tip #zx-pre{margin-top:7px;max-height:300px;max-width:340px;overflow:auto;background:#00101f;
+ color:#a9d5b6;font:11px/1.4 ui-monospace,monospace;padding:7px;border-radius:5px;
+ white-space:pre-wrap;word-break:break-word}
 """
 
 def _overlay_category(t):
@@ -78,38 +110,87 @@ def _overlay_category(t):
 # the corpus, and WHICH OTHER pages reference the same component (data from agg).
 _OVERLAY_JS = """
 (function(){
- var ZX=%s, SLUG=%s;
- var css=document.createElement('style');
- css.textContent='#zx-ban{position:fixed;top:0;left:0;right:0;z-index:2147483646;'
-  +'background:#001932;color:#cfe4f5;font:12px/1.4 ui-monospace,Menlo,monospace;'
-  +'padding:6px 12px;border-bottom:2px solid #0077bf}'
-  +'#zx-ban b{color:#fff}#zx-tip{position:fixed;z-index:2147483647;max-width:340px;'
-  +'background:#001932;color:#e8f1f9;font:12px/1.45 -apple-system,sans-serif;'
-  +'padding:8px 11px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.4);'
-  +'pointer-events:none;display:none}#zx-tip .t{font-family:ui-monospace,monospace;font-weight:700}'
-  +'#zx-tip .p{color:#9ec5e6;margin-top:5px}body{padding-top:30px!important}';
- document.head.appendChild(css);
+ var ZX=%s, SLUG=%s, Q='[data-zt],[data-zone]';
  var ban=document.createElement('div');ban.id='zx-ban';
  var tmpl=(ZX.pageTemplates||{})[SLUG]||'?';
  var sibs=Object.keys(ZX.pageTemplates||{}).filter(function(s){return ZX.pageTemplates[s]===tmpl&&s!==SLUG;});
  ban.innerHTML='Page <b>'+SLUG+'</b> &middot; Template <b>'+tmpl+'</b> ('+(sibs.length+1)+' page'
-  +(sibs.length?'s':'')+(sibs.length?' &middot; aussi: '+sibs.slice(0,8).join(', ')+(sibs.length>8?' +'+(sibs.length-8):''):'')+')';
+  +(sibs.length?'s':'')+(sibs.length?' &middot; aussi: '+sibs.slice(0,8).join(', ')+(sibs.length>8?' +'+(sibs.length-8):''):'')+')'
+  +'<span id="zx-legend"><i class="z"></i>zone <i class="a"></i>zone absolue <i class="c"></i>composant &middot; clic = épingler</span>';
  document.body.appendChild(ban);
  var tip=document.createElement('div');tip.id='zx-tip';document.body.appendChild(tip);
+ var pinned=null;
+ function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+ function role(el){
+   if(el.getAttribute('data-zr')==='absolute')return{k:'zone absolue',cls:'a'};
+   if(el.hasAttribute('data-zone'))return{k:'zone '+el.getAttribute('data-zone'),cls:'z'};
+   return{k:'composant',cls:'c'};
+ }
+ function crumb(el){
+   var z=el.getAttribute('data-zone'),t=el.getAttribute('data-zt'),r=el.getAttribute('data-zr');
+   if(z&&t)return z+':'+t; if(z)return z;
+   if(r==='absolute')return (t||'chrome')+' (abs)';
+   return t||'?';
+ }
+ function pathOf(el){
+   var chain=[],n=el;
+   while(n&&n!==document.body){
+     if(n.hasAttribute&&(n.hasAttribute('data-zt')||n.hasAttribute('data-zone')))chain.unshift(n);
+     n=n.parentElement;
+   }
+   return chain;
+ }
+ function rawOf(el){
+   var c=el.cloneNode(true),all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
+   all.forEach(function(x){['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-pin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});});
+   Array.prototype.slice.call(c.querySelectorAll('#zx-ban,#zx-tip')).forEach(function(x){x.remove();});
+   return c.outerHTML;
+ }
+ function render(el,pin){
+   var t=el.getAttribute('data-zt')||'',k=el.getAttribute('data-zk'),r=role(el);
+   var info=k?(ZX.xref||{})[k]:null;
+   var bc=pathOf(el).map(function(n){var lab=esc(crumb(n));return n===el?'<b>'+lab+'</b>':lab;})
+     .join(' <span class="s">&rsaquo;</span> ');
+   var h='<div class="hd"><span class="badge '+r.cls+'">'+esc(r.k)+'</span> <span class="ty">'+esc(t||r.k)+'</span>';
+   if(pin)h+='<span id="zx-x" title="fermer">&times;</span>';
+   h+='</div>';
+   if(info)h+='<div class="row"><b>'+info.instances+'</b> instance(s) sur <b>'+(info.pages||[]).length
+     +'</b> page(s) &middot; scope '+esc(info.scope||'?')+' &middot; '+esc(info.tier||'')+'</div>';
+   if(info){var o=(info.pages||[]).filter(function(p){return p!==SLUG;});
+     h+='<div class="p">'+(o.length?'aussi sur: '+o.slice(0,10).map(esc).join(', ')+(o.length>10?' +'+(o.length-10):''):'seulement sur cette page')+'</div>';}
+   h+='<div class="hier"><span class="lbl">Hiérarchie (conteneurs &rsaquo; cet élément)</span>'+(bc||esc(crumb(el)))+'</div>';
+   if(pin)h+='<div class="act"><button id="zx-raw">&lt;/&gt; Voir le HTML brut</button></div><pre id="zx-pre" style="display:none"></pre>';
+   tip.innerHTML=h;
+ }
+ function place(x,y){
+   tip.style.left=Math.min(x+14,window.innerWidth-380)+'px';
+   tip.style.top=Math.min(y+14,window.innerHeight-80)+'px';
+ }
+ function unpin(){
+   if(pinned){pinned.removeAttribute('data-zx-pin');pinned=null;}
+   tip.className='';tip.style.pointerEvents='none';tip.style.display='none';
+ }
+ function pin(el,x,y){
+   unpin();pinned=el;el.setAttribute('data-zx-pin','1');
+   render(el,true);tip.className='pin';tip.style.pointerEvents='auto';tip.style.display='block';place(x,y);
+   var xb=document.getElementById('zx-x');if(xb)xb.onclick=function(ev){ev.stopPropagation();unpin();};
+   var rb=document.getElementById('zx-raw');
+   if(rb)rb.onclick=function(ev){ev.stopPropagation();var pre=document.getElementById('zx-pre');
+     if(pre.style.display==='none'){pre.textContent=rawOf(el);pre.style.display='block';rb.innerHTML='&#9662; Masquer le HTML';}
+     else{pre.style.display='none';rb.innerHTML='&lt;/&gt; Voir le HTML brut';}};
+ }
  document.body.addEventListener('mouseover',function(e){
-   var el=e.target.closest('[data-zk]');if(!el){tip.style.display='none';return;}
-   var k=el.getAttribute('data-zk'),t=el.getAttribute('data-zt'),info=(ZX.xref||{})[k];
-   if(!info){tip.style.display='none';return;}
-   var others=(info.pages||[]).filter(function(p){return p!==SLUG;});
-   tip.innerHTML='<span class="t">'+t+'</span> &middot; scope '+info.scope+' &middot; '+info.tier
-    +'<br><b>'+info.instances+'</b> instance(s) sur <b>'+(info.pages||[]).length+'</b> page(s)'
-    +'<div class="p">'+(others.length?'aussi référencé sur: '+others.slice(0,12).join(', ')
-       +(others.length>12?' +'+(others.length-12):''):'seulement sur cette page')+'</div>';
-   tip.style.display='block';
+   if(pinned)return;
+   var el=e.target.closest(Q);
+   if(!el){tip.style.display='none';return;}
+   render(el,false);tip.style.display='block';place(e.clientX,e.clientY);
  });
- document.body.addEventListener('mousemove',function(e){
-   tip.style.left=Math.min(e.clientX+14,window.innerWidth-350)+'px';
-   tip.style.top=(e.clientY+14)+'px';});
+ document.body.addEventListener('mousemove',function(e){if(!pinned&&tip.style.display==='block')place(e.clientX,e.clientY);});
+ document.body.addEventListener('click',function(e){
+   if(tip.contains(e.target))return;
+   var el=e.target.closest(Q);
+   if(el){e.preventDefault();e.stopPropagation();pin(el,e.clientX,e.clientY);}else unpin();
+ },true);
 })();
 """
 
@@ -382,7 +463,10 @@ def build(project, site, ns, module=None, overlay=False):
         # is captured (str(el) at emit time) so the content-load stays clean.
         if overlay and el is not None:
             el["data-zt"] = t
-            el["data-zc"] = _overlay_category(t)
+            el["data-zc"] = _overlay_category(t)  # category (probe counts)
+            # role drives the 3-color scheme: chrome/ABSOLUTE = red, everything
+            # else = green component; the band-level BLUE zone is data-zone (below)
+            el["data-zr"] = "absolute" if t == "chrome" else "component"
             if key:
                 el["data-zk"] = key
 
@@ -467,6 +551,11 @@ def build(project, site, ns, module=None, overlay=False):
                 band += 1
                 for i in tops:
                     i["zone"] = f"z{band}"
+                # overlay: mark the band's DOM region as a normal content zone
+                # (blue). It coexists with a nested component outline (box-shadow
+                # vs outline) so the zone→component nesting is both visible.
+                if overlay and kid.get("_el") is not None:
+                    kid["_el"]["data-zone"] = f"z{band}"
         max_zones = max(max_zones, band)
         if not insts:  # never emit an empty page
             insts.append(raw_inst(root["_el"], base))

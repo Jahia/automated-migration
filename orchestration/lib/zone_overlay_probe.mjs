@@ -67,8 +67,9 @@ await browser.close();
 srv.close();
 
 // gallery
-const LEG = [['chrome', '#8a8f98', 'chrome (nav/footer)'], ['cont', '#0E7A6B', 'container'],
-  ['atom', '#4A55C7', 'atome'], ['generic', '#B4590B', 'section générique'], ['raw', '#C0392B', 'rawHtml verbatim']];
+// role-based color scheme (matches the overlay): blue zone / red absolute / green component
+const LEG = [['z', '#1f6fd6', 'zone (contenu)'], ['a', '#d33a2c', 'zone absolue (chrome)'],
+  ['c', '#1aa06a', 'composant']];
 const legend = LEG.map(([, c, l]) => `<span style="border-left:14px solid ${c};padding:2px 8px;margin-right:6px">${l}</span>`).join('');
 const cards = done.map((d) => {
   const tot = Object.values(d.counts).reduce((a, b) => a + b, 0);
