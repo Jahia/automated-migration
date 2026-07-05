@@ -30,15 +30,21 @@ def recompose_instance(insts, i, kids):
     sk = x.get("skeleton") or ""
     so = x.get("skeletonOrig")
     f = x.get("fields") or {}
-    if "{{child:" in sk:
+    if x.get("passthrough") or x.get("contentFree") or x.get("nonRendered"):
+        return f.get("html", "") or so or sk
+    if so is not None:
+        # typed node: an UNEDITED node renders byte-exact to its source (rule 22),
+        # and skeletonOrig IS that source. Its item children live in the instance's
+        # `children` FIELD (spliced into {{child:N}} at render) — but skeletonOrig
+        # already contains them inline verbatim, so this is the faithful unedited
+        # render. (Earlier the proxy took the {{child:}} branch and, finding no
+        # PARENT-LINKED kids, dropped typed-container content — false drift.)
+        return so
+    if "{{child:" in sk:  # zone / wrapper container (no skeletonOrig): parent-linked kids
         out = sk
         for n, ci in enumerate(kids.get(i, [])):
             out = out.replace("{{child:%d}}" % n, recompose_instance(insts, ci, kids))
         return out
-    if so is not None:
-        return so
-    if x.get("passthrough") or x.get("contentFree") or x.get("nonRendered"):
-        return f.get("html", "")
     out = sk
     for k, v in f.items():
         if isinstance(v, str):
