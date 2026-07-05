@@ -41,9 +41,12 @@ CONTROL_CONTRACT = {
         "the DETERMINISTIC engine could not attribute to a meaningful type — rendered "
         "verbatim (0-DOM safe) but editorially undifferentiated. YOU (the LLM) analyze "
         "each (it carries page, zone, the detector's low-confidence guess, and a markup "
-        "snippet) and decide its attribution, then post it back as scope-rules via "
-        "POST .../decide {action:'apply_and_rerun', rules:[...]}. This is PLACEMENT "
-        "arbitration only — never rewrite the element's content (it stays verbatim)."
+        "snippet) and decide its attribution, then post it back as a rule via "
+        "POST .../steps/step_zone_bridge/decide {action:'repatch', inputs:{}, "
+        "rules_file:'projects/<proj>/workflow-output/scope-rules.json', rules:[{id, "
+        "match:{signature:<the orphan's `signature`>}, attribution:{type:'X'[,mode:"
+        "'passthrough']|contentFree:true|nonRendered:true}}]} — this appends the rule "
+        "and re-runs the bridge. PLACEMENT/TYPING only; the content stays verbatim."
     ),
     "decide_actions": {
         "proceed": "accept the gate as-is and continue — the mirror/model/fidelity is good enough",

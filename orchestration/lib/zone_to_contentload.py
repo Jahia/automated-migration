@@ -480,8 +480,11 @@ def build(project, site, ns, module=None, overlay=False):
         try:
             for r in (json.load(open(srp)).get("rules") or []):
                 m = r.get("match") or {}
-                if m.get("key") and r.get("attribution"):
-                    attr_rules[m["key"]] = r["attribution"]
+                # match by `signature` = the orphan's detection key (a stable pattern
+                # key, e.g. cmp:page_navigation — NOT a page URL, per the /decide lint)
+                sig = m.get("signature") or m.get("key")
+                if sig and r.get("attribution"):
+                    attr_rules[sig] = r["attribution"]
         except Exception as e:
             print(f"  ! scope-rules read: {e}", file=sys.stderr)
     try:
@@ -1058,6 +1061,10 @@ def main():
             snip = " ".join(html.split())
             orphans.append({
                 "page": slug, "zone": i.get("zone"), "key": i.get("orphanKey"),
+                # `signature` is what to put in the arbitration rule's match (the
+                # /decide lint forbids matching by page URL / key — signature is a
+                # stable pattern key that recurs across pages)
+                "signature": i.get("orphanKey"),
                 "candidate": i.get("orphanCand"), "confidence": i.get("orphanConf"),
                 "reason": "no liftable fields/text — verbatim rawHtml fallback",
                 "size": len(html), "snippet": snip[:400]})
