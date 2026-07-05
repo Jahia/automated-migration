@@ -236,3 +236,43 @@ populates the target through the choicelist flow); the working source link rides
 one-off heros/booking-bars/benefit-lists have no uniform repeater. Grow `richText`/`cardGrid`
 recognizers; consider a direct-area (non-rawHtml-parent) placement so the base-library
 Carousel/Tabs VIEW + island drive LIVE too (composable-interactive LIVE, not just verbatim).
+
+## 9. Full-site completion (2026-07-05) — ASR migrated modularly, verified against reality
+
+P6.3-bis Phase B verified on HOME only ("home loaded, 138 nodes"). A reality query caught
+that the 19 child pages were absent (`create_pages` was not chained after the site recreate).
+Completed:
+- `create_pages discoverasr discoverasr --template basic --locale en` → 20 pages (NB: it
+  PUBLISHED the shells — doctrine-#1 gap, see WORKFLOW-IMPROVEMENTS 1.1).
+- `load_content discoverasr discoverasr --clean --locale en` → **2231 nodes created,
+  EDIT-only, 0 publication**. Warnings (non-fatal): 78 `mirror asset missing`, 19 `j:linkType`
+  ConstraintViolation (the rule-9 limitation on link targets).
+- **Reality-verified (not report):** 20 child pages; 20 `asr:logoWall` + 380 `asr:logo` +
+  16 `asr:carousel` + 20 `asr:tabs` across the whole site (matches the plan). Non-home page
+  `en_citadines`: 19 logos, image weakref set, `j:linkType='external'`, preview renders with
+  source classes (`asr-section-brands-logo`) → composability + skinning generalize beyond home.
+
+**Current composable state (deployed EDIT reality = plan): ratio 18.5% (all-nodes) / 29.3%
+(artifact-excluded), monoliths 53→44, K>8 11→4, 0 publication.**
+
+## 10. P6.4 — the current plan (NEXT, after compaction)
+
+Priority order:
+1. **Grow fidelity-safe recognizers** for the remaining library gaps (data-driven — see the
+   library-gap log): `richText` (clean `<section>` bodies), `cardGrid` (uniform card runs).
+   Salesforce `<form>`s correctly stay rawHtml (rule 29).
+2. **Direct-area placement** — place library containers as DIRECT children of the page area
+   (not parented under a rawHtml `{{child:N}}` splice) so the base-library Carousel/Tabs VIEW
+   + island drive LIVE too → **composable-interactive LIVE**, not just byte-exact verbatim.
+   This is the biggest editorial upgrade left.
+3. **Link-target contribution** (rule-9 limitation): make `j:url`/`j:linknode` settable by an
+   API loader (the mixin is applied by the Content-Editor choicelist flow, not raw JCR —
+   loader must `addMixins jmix:externalLink` then set `j:url` via GraphQL `mutateNode`; verify
+   the exact working path). Until then links are picker-editable, source rides verbatim.
+4. **Reliability backlog** — WORKFLOW-IMPROVEMENTS 1.1 (uniform EDIT-only publish guard, fixes
+   the create_pages leak), 1.3 (site-recreate chains create_pages), 1.4/3.6 (verify-reality
+   primitive), 1.6/3.5 (library-gap telemetry → directs recognizer growth by data).
+5. **Zone/area templates** (MODULARITY-PLAN pillar 3) — per-page-type templates with
+   `<Area allowedNodeTypes>`, page clustering → template set.
+
+**Resume anchor for the whole session: `orchestration/SESSION-2026-07-05.md`.**

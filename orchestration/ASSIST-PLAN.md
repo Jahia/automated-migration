@@ -619,3 +619,14 @@ Key: the P6 rework is at the **pre-Jahia recomposition** (group stage); new **co
 gate** forbids full-page monoliths (K-field cap). Restart-from-0: discoverasr site DELETED;
 old module undeploy + `asr` namespace purge deferred to P6.2 redeploy via `validate-module`
 (rule 13). Upstream capture (mirror/crawl/semantic) PRESERVED.
+
+## 16. Session 2026-07-04→07-05 consolidation (RESUME ANCHOR)
+
+Full consolidation — G2 two-layer root-cause, the EDIT-only + no-test-in-LIVE doctrine, P5.5b
+activation + A3 fixes, and the P6 modular-contribution arc (step1 → P6.1 library → P6.2
+logo-wall proof → P6.3 generic recognizer → P6.3-bis carousel/tabs + full re-migration) —
+lives in **`orchestration/SESSION-2026-07-05.md`**. Current plan / next = **`MODULARITY-PLAN.md`
+§10 (P6.4)** + **`WORKFLOW-IMPROVEMENTS.md`**. Harness pushed clean to `fork/v2-heuristics @
+a70589f` (secrets scrubbed, project data local-only). discoverasr migrated modularly in EDIT
+(local): 20 pages / 2231 nodes / 0 publication / composable 0%→18.5%. **Read
+SESSION-2026-07-05.md first after a compaction.**
