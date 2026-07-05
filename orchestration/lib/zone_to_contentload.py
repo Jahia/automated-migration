@@ -403,8 +403,24 @@ def build(project, site, ns, module=None):
             c["childType"] = {"nodeType": f"{ns}:{CHILD_TYPE.get(lib, 'card')}"}
         comps.append(c)
     chrome_areas = sorted({c["area"] for c in chrome})
+    # editorial honesty for the model gate (_verdict_model): a model dominated by
+    # the GENERIC `section`/`rawHtml` fallbacks is not the "meaningful components"
+    # target even when structurally valid — surface it so the gate verdict is
+    # amber, not falsely green. genericShare = generic instances / all instances.
+    ninst = sum(len(p["instances"]) for p in out.values())
+    ngen = sum(1 for p in out.values() for i in p["instances"]
+               if i["type"] in ("section", "rawHtml"))
+    generic_share = ngen / max(ninst, 1)
+    violations = []
+    if generic_share >= 0.5:
+        violations.append({"nodeType": f"{ns}:section",
+                           "reason": f"{generic_share:.0%} of instances are generic section/rawHtml "
+                                     f"(editorially weak — few meaningful types)"})
+    naming_quality = "poor" if generic_share >= 0.7 else ("mixed" if generic_share >= 0.4 else "good")
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",
                 "components": comps, "zones": max_zones,
+                "namingQuality": naming_quality, "namingViolations": violations,
+                "genericShare": round(generic_share, 3),
                 "crossCutting": [{"coversRole": a, "nodeType": f"{ns}:rawHtml", "area": a}
                                  for a in chrome_areas]}
     return content, manifest, used, stats
