@@ -20,23 +20,33 @@
                 "PROBE: test -s projects/contentful/workflow-output/local-mirror/mirror.json",
                 "PROBE: test -d projects/contentful/workflow-output/local-mirror"
               ],
-              "max_attempts": 1
+              "max_attempts": 1,
+              "inputs": {
+                "project_path": "projects/contentful"
+              }
             },
             {
               "id": "step_mirror",
               "title": "Mirror gate: rend 100% offline + fidélité scrape-vs-live",
               "task_type": "verify",
-              "depends_on": ["step_connect"],
+              "depends_on": [
+                "step_connect"
+              ],
               "acceptance_criteria": [
                 "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/contentful 10"
               ],
-              "max_attempts": 1
+              "max_attempts": 1,
+              "inputs": {
+                "project_path": "projects/contentful"
+              }
             },
             {
               "id": "step_zone_bridge",
               "title": "Fine-signal zone detection + component model + observabilité",
               "task_type": "build",
-              "depends_on": ["step_mirror"],
+              "depends_on": [
+                "step_mirror"
+              ],
               "acceptance_criteria": [
                 "Run: ZONE3_JSON_DIR=projects/contentful/workflow-output python3 orchestration/lib/zone_detect.py contentful",
                 "Run: python3 orchestration/lib/zone_to_contentload.py contentful contentfulv2 --ns ctf2 --module contentful-v2",
@@ -46,18 +56,26 @@
                 "PROBE: test -s orchestration/content/contentful.content-load.json",
                 "PROBE: python3 orchestration/probes/contribution.py contentful"
               ],
-              "max_attempts": 1
+              "max_attempts": 1,
+              "inputs": {
+                "project_path": "projects/contentful"
+              }
             },
             {
               "id": "step_component_model_review",
               "title": "Component model gate (HALT) — revue humaine du zoning + content types",
               "task_type": "verify",
-              "depends_on": ["step_zone_bridge"],
+              "depends_on": [
+                "step_zone_bridge"
+              ],
               "review": true,
               "acceptance_criteria": [
                 "Gate: présenter zone-review.html (zones + content types par page) + namingQuality + fidélité mirror scrape-vs-live. return status halt."
               ],
-              "max_attempts": 1
+              "max_attempts": 1,
+              "inputs": {
+                "project_path": "projects/contentful"
+              }
             }
           ]
         }
