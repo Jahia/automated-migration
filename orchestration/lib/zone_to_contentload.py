@@ -1096,12 +1096,68 @@ def build(project, site, ns, module=None, overlay=False):
                            "reason": f"{generic_share:.0%} of CONTENT instances are generic "
                                      f"section/rawHtml/decoration (editorially weak — few meaningful types)"})
     naming_quality = "poor" if generic_share >= 0.7 else ("mixed" if generic_share >= 0.4 else "good")
+
+    # ── MERGE BACKLOG — the primary piloting/reporting indicator of how well the
+    # FIRST zoning went (Julian, 2026-07-05). Orphans are fidelity-safe (verbatim,
+    # 0-DOM) so the count alone lies (it is padded ~4-5× by inert widget/media/layout
+    # markup that is CORRECTLY verbatim). What matters editorially is the RESIDUE an
+    # editor still cannot reach as a field, expressed as two headline counters:
+    #   signaturesToMerge      = distinct KEYED signatures carrying editable text —
+    #                            one attribution/recognizer rule clears ALL its instances
+    #   editableContentsToMerge= orphan instances carrying real editable text (>=8 chars)
+    # plus a priority worklist (by stranded chars) so the operator/LLM attacks the
+    # biggest editorial gaps first. Keyless editable orphans are tracked apart: they
+    # have no signature to rule on and need parent recognition, not a merge rule.
+    def _vtext(h):
+        try:
+            return " ".join(BeautifulSoup(h or "", "lxml").get_text(" ", strip=True).split())
+        except Exception:
+            return ""
+    def _inst_html(i):
+        return (i.get("fields", {}) or {}).get("html") or i.get("skeletonOrig") or i.get("skeleton") or ""
+    MERGE_MIN_CHARS = 8
+    by_sig, stranded_chars, typed_text = {}, 0, 0
+    editable_contents = keyless_editable = 0
+    for i in content_insts:
+        txt = _vtext(_inst_html(i))
+        if not i.get("orphan"):
+            typed_text += len(txt)
+            continue
+        tl = len(txt)
+        sig = i.get("orphanKey")
+        m = re.match(r"\s*<([a-zA-Z0-9]+)", _inst_html(i))
+        key = sig or ("keyless:" + (m.group(1).lower() if m else "?"))
+        e = by_sig.setdefault(key, {"signature": sig, "keyless": not sig,
+                                    "instances": 0, "strandedChars": 0, "sample": ""})
+        e["instances"] += 1; e["strandedChars"] += tl
+        if not e["sample"] and txt:
+            e["sample"] = txt[:60]
+        if tl >= MERGE_MIN_CHARS:
+            editable_contents += 1
+            stranded_chars += tl
+            if not sig:
+                keyless_editable += 1
+    signatures_to_merge = sum(1 for e in by_sig.values()
+                              if not e["keyless"] and e["strandedChars"] >= MERGE_MIN_CHARS)
+    worklist = sorted((e for e in by_sig.values() if e["strandedChars"] > 0),
+                      key=lambda e: -e["strandedChars"])[:15]
+    merge_backlog = {
+        "signaturesToMerge": signatures_to_merge,
+        "editableContentsToMerge": editable_contents,
+        "strandedChars": stranded_chars,
+        "strandedShare": round(stranded_chars / max(1, stranded_chars + typed_text), 3),
+        "keylessEditable": keyless_editable,
+        "orphansTotal": sum(1 for i in content_insts if i.get("orphan")),
+        "worklist": worklist,
+    }
+
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",
                 "components": comps, "zones": max_zones, "templates": [],
                 "zoneInstances": nzone, "nonRenderedInstances": nnonrender,
                 "contentFreeTypes": sorted(f"{ns}:{c}" for c in cf_types),
                 "namingQuality": naming_quality, "namingViolations": violations,
                 "genericShare": round(generic_share, 3),
+                "mergeBacklog": merge_backlog,
                 "crossCutting": [{"coversRole": a, "nodeType": f"{ns}:rawHtml", "area": a}
                                  for a in chrome_areas]}
     return content, manifest, used, stats
@@ -1169,7 +1225,8 @@ def main():
                 "candidate": i.get("orphanCand"), "confidence": i.get("orphanConf"),
                 "reason": "no liftable fields/text — verbatim rawHtml fallback",
                 "size": len(html), "snippet": snip[:400]})
-    json.dump({"count": len(orphans), "orphans": orphans},
+    backlog = manifest.get("mergeBacklog", {})
+    json.dump({"count": len(orphans), "mergeBacklog": backlog, "orphans": orphans},
               open(os.path.join(mf_dir, "orphans.json"), "w"), ensure_ascii=False, indent=1)
     if orphans:
         print(f"  -> {len(orphans)} editorial orphan(s) for arbitration -> orphans.json", file=sys.stderr)
@@ -1194,6 +1251,11 @@ def main():
           f"text-leaf {stats['textleaf']} | containers {stats['container']} "
           f"(flatten {stats['flatten']}) | media units {nmedia} | links {nlink} | "
           f"item children {nkids} | zones z1..z{nzones}")
+    b = manifest.get("mergeBacklog", {})
+    print(f"  MERGE BACKLOG (zoning quality): {b.get('signaturesToMerge', 0)} signature(s) to merge, "
+          f"{b.get('editableContentsToMerge', 0)} editable content(s) stranded "
+          f"({100 * b.get('strandedShare', 0):.1f}% of editable text; "
+          f"{b.get('keylessEditable', 0)} keyless → need parent recognition)")
     print(f"  -> {cl_path}")
     print(f"  -> {mf_path}")
 

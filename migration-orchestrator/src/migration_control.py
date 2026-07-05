@@ -151,10 +151,29 @@ def _verdict_model(wo: Path) -> dict | None:
     if violations:
         reasons.append(f"naming: {quality} — {len(violations)} editor-hostile type name(s) "
                        f"(e.g. {', '.join(v['nodeType'] for v in violations[:3])})")
+    # MERGE BACKLOG — the primary piloting indicator of how well the first zoning
+    # went (Julian, 2026-07-05). Two headline counters: distinct signatures still to
+    # merge (one attribution rule clears each) and editable contents stranded in
+    # orphans. Orphans are fidelity-safe (verbatim, 0-DOM) so this NEVER hard-fails —
+    # it soft-downgrades an otherwise-green model to amber when a meaningful share of
+    # editable text is not yet reachable as a field, so the operator decides at the
+    # gate (merge more, or proceed knowingly).
+    b = m.get("mergeBacklog") or {}
+    sig, ec = b.get("signaturesToMerge", 0), b.get("editableContentsToMerge", 0)
+    share, keyless = b.get("strandedShare", 0.0), b.get("keylessEditable", 0)
+    if ec:
+        reasons.append(f"merge backlog: {sig} signature(s) to merge, {ec} editable content(s) "
+                       f"stranded ({share:.0%} of editable text; {keyless} keyless → parent recognition)")
+    if verdict == "green" and share >= 0.10:
+        verdict = "amber"
+        reasons.append(f"downgraded: {share:.0%} of editable text stranded in orphans — "
+                       f"first zoning left contributable content unreachable")
     return {"verdict": verdict, "gate": "model", "metrics": {
         "types": len(comps), "templates": len(m.get("templates", [])),
         "crossCutting": len(m.get("crossCutting", [])), "mainResource": mr,
         "namingQuality": quality, "namingViolations": len(violations),
+        "signaturesToMerge": sig, "editableContentsToMerge": ec,
+        "strandedEditableShare": share, "keylessEditable": keyless,
     }, "reasons": reasons}
 
 
