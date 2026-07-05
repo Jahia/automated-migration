@@ -16,7 +16,7 @@ Containers carry decomposed `children` (item nodes) + a manifest `childType`. ED
 loader never publishes. Media DAM-weakref lift is deferred (images render verbatim via
 skeletonOrig) — a follow-up; fidelity holds by construction.
 """
-import sys, os, json
+import sys, os, json, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import zone_detect as ZD
 import semantic_extract as SE
@@ -51,8 +51,18 @@ def content_root(node, chrome):
             break
     return n
 
+_LAZY = re.compile(r'\sdata-(src|srcset|original|lazy-src|bg)=')
+def materialize_lazy(html):
+    """rule 30b: the crawl's below-fold images carry data-src (their JS swap never ran in
+    a static server render) — promote data-src/data-srcset to real src/srcset so images show."""
+    if not html or "data-" not in html:
+        return html
+    html = re.sub(r'\sdata-srcset=(["\'])', r' srcset=\1', html)
+    html = re.sub(r'\sdata-(?:src|original|lazy-src)=(["\'])', r' src=\1', html)
+    return html
+
 def rw(html, base):
-    return EC.rewrite_asset_refs(html, base)
+    return materialize_lazy(EC.rewrite_asset_refs(html, base))
 
 def emit_typed(el, lib, base):
     """A typed library instance carrying its byte-exact source markup in `skeletonOrig`
@@ -82,6 +92,41 @@ def build(project, site, ns, module=None):
         EC.load_runtime_map(project)
     except Exception:
         pass
+    # merge the localizer's FULL url->local-asset map (mirror.json urlMap, ~1600 entries incl.
+    # /content/dam & /etc.clientlibs) so rewrite_asset_refs rewrites EVERY source asset ref to
+    # the module-static copy. Without it only the ~2 runtime-manifest entries are covered and
+    # 800+ property images stay as source /content/dam paths -> 404 -> broken images.
+    try:
+        mj = json.load(open(f"{REPO}/projects/{project}/workflow-output/local-mirror/mirror.json"))
+        for k, v in mj.get("urlMap", {}).items():
+            EC.RUNTIME_URL_MAP[k] = v
+            # urlMap keys carry the host (//www.site.com/content/dam/…) but the markup refs
+            # are host-relative (/content/dam/…) — register the host-stripped variant so the
+            # substring rewrite matches. Both space and %20 forms of the path.
+            m = re.match(r"^(?://|https?://)[^/]+(/.*)$", k)
+            if m:
+                rel = m.group(1)
+                EC.RUNTIME_URL_MAP[rel] = v
+                if " " in rel:
+                    EC.RUNTIME_URL_MAP[rel.replace(" ", "%20")] = v
+    except Exception:
+        pass
+    # Markup source = the LOCALISED mirror (local-mirror/<slug>.html), NOT the raw _crawl cache:
+    # localize_site rewrote every asset ref to a LOCAL `assets/<hash>` path that rewrite_asset_refs
+    # maps to /modules/<m>/static/assets (200). The raw crawl keeps the source's absolute
+    # /content/dam/... paths (404 -> broken images). Structure is identical, so the detection
+    # (scope/keys from analyze on _crawl) still applies. Shell also comes from the localised HTML.
+    from bs4 import BeautifulSoup
+    lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
+    slug2raw, slug2body = {}, {}
+    for slug, _ in pages:
+        lp = os.path.join(lm, f"{slug}.html")
+        if os.path.exists(lp):
+            raw = open(lp, encoding="utf-8", errors="replace").read()
+            slug2raw[slug] = raw
+            b = BeautifulSoup(raw, "lxml").body
+            if b is not None:
+                slug2body[slug] = b
 
     used, out, chrome, chrome_done = set(), {}, [], set()
 
@@ -132,14 +177,21 @@ def build(project, site, ns, module=None):
             else:
                 insts.append(raw_inst(child["_el"], base))
 
-    for slug, body in pages:
+    for slug, crawl_body in pages:
+        body = slug2body.get(slug, crawl_body)  # prefer localised markup (local asset refs)
         ann = ZD.annotate(body, stemdf, keep_el=True)
         root = content_root(ann, site_chrome)
         insts = []
         emit_blocks(root, insts, 0)
         if not insts:  # never emit an empty page
             insts.append(raw_inst(root["_el"], base))
-        out[slug] = {"adapter": "semantic", "instances": insts}
+        shell = None
+        if slug in slug2raw:
+            try:
+                shell = EC.page_shell(materialize_lazy(slug2raw[slug]), base)
+            except Exception:
+                shell = None
+        out[slug] = {"adapter": "semantic", "instances": insts, "shell": shell}
 
     if chrome and out:
         first = next(iter(out))
