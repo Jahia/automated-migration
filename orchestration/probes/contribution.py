@@ -82,8 +82,37 @@ def main():
     rows = []
     for slug, p in sorted(data.get("pages", {}).items()):
         lifted = visible = formtx = 0
-        for inst in p.get("instances", []):
+        # P6.3 library containers that carry a verbatim live-splice skeleton:
+        # their atoms' markup is INSIDE that skeleton (counting both would
+        # double-count the visible text).
+        lib_sk = {i for i, _inst in enumerate(p.get("instances", []))
+                  if _inst.get("libraryPlan") and _inst.get("skeleton")}
+        for idx, inst in enumerate(p.get("instances", [])):
             if inst.get("area"):
+                continue
+            # NOTE: instances tagged chromeNested (vision-classified chrome nested
+            # inline in the content wrapper) stay IN the G1 math for now — on this
+            # site they are well-lifted (~94%), and excluding them exposed a vision
+            # chrome-misclassification on en_asrp (14.5K chars of real content
+            # marked chrome). Metric amendment deferred to a human decision.
+            if inst.get("libraryPlan"):
+                # P6.3 composable container: fields are intentionally empty (the
+                # atoms are separate editable child instances) — never an empty
+                # shell. Its optional skeleton is VERBATIM markup (no markers).
+                sk = inst.get("skeleton") or ""
+                visible += len(text_of(sk))
+                formtx += len(form_text_of(sk))
+                continue
+            if inst.get("libraryAtom"):
+                # the atom's editable visible-text surface is its title/label
+                # (image weakref + link are editable but carry no visible text);
+                # its verbatim markup renders via the container splice when the
+                # container has a skeleton, else via the atom itself.
+                lifted += len(re.sub(r"\s+", " ", inst.get("atomTitle") or "").strip())
+                if inst.get("parent") not in lib_sk:
+                    orig = inst.get("imgOrig") or ""
+                    visible += len(text_of(orig))
+                    formtx += len(form_text_of(orig))
                 continue
             if inst.get("promoted") or inst.get("skeleton"):
                 # typed skeleton instance OR lifted anonymous raw block (P2.5)
@@ -131,7 +160,15 @@ def main():
                             slugp = h.split("?")[0].split("#")[0].strip("/").replace("/", "_") or "home"
                             g5["linkIntResolved" if slugp in data.get("pages", {})
                                else "linkIntUnresolved"] += 1
-                if inst.get("promoted") and not any(
+                # a {{child:N}} container's typed children are SEPARATE
+                # parent-linked instances (emit_container_live) — a container
+                # whose content lives in those children is not an empty shell.
+                child_content = any(
+                    o.get("parent") == idx and (
+                        o.get("fields") or o.get("media") or o.get("link")
+                        or o.get("libraryPlan") or o.get("libraryAtom"))
+                    for o in p.get("instances", []))
+                if inst.get("promoted") and not child_content and not any(
                         pl.get("fields") or pl.get("media") or pl.get("link")
                         for pl in payloads):
                     shells.append((slug, inst["type"]))

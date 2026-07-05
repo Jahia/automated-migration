@@ -681,13 +681,24 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
         if not d["ok"]:
             lift_stats["byteFail"] += 1
             return None
-        if not d["fields"] and not d.get("media") and not d.get("link"):
+        def _has(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        if not _has(d) and not any(_has(ch) for ch in d["children"]):
             return None
+        # decompose can emit {{child:N}} markers even with allow_items=False
+        # (structural non-item children). Dropping d["children"] left those
+        # markers phantom — recompose rendered holes. Carry the child payloads.
         return {"type": "rawHtml", "parent": None, "passthrough": True,
                 "fields": {k: rewrite_asset_refs(v, base)
                            for k, v in d["fields"].items()},
                 "skeleton": rewrite_asset_refs(d["skeleton"], base),
-                "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                "children": [{"fields": {k: rewrite_asset_refs(v, base)
+                                         for k, v in ch["fields"].items()},
+                              "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                              **payload_extras(ch)} for ch in d["children"]],
+                "skeletonSubs": sorted(d["fields"]) + sorted(
+                    k for ch in d["children"] for k in ch["fields"]),
+                "skeletonMissed": [],
                 **payload_extras(d),
                 "images": [], "links": []}
 
@@ -893,12 +904,30 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     from bs4 import BeautifulSoup, NavigableString, Tag
     ov = overrides or {}
     base = ov.get("assetBase") or ""
+    # contribution dial (G1): library kinds listed here skip LR promotion and
+    # fall back to the SKELETON path, whose decompose lifts their text into
+    # editable body fields. Library atoms keep text VERBATIM (title/image/link
+    # only editable) — right for logoWall (no text), wrong for text-heavy
+    # carousels/tabs (observed: 72% of a city page's visible text locked in
+    # carousel verbatim). From overrides `noLibraryKinds` or the
+    # EXTRACT_NO_LIBRARY_KINDS env (comma-separated), e.g. "carousel,tabs".
+    no_lib_kinds = set(ov.get("noLibraryKinds")
+                       or [s.strip() for s in
+                           os.environ.get("EXTRACT_NO_LIBRARY_KINDS", "").split(",")
+                           if s.strip()])
     itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
     container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
                        if c.get("isContainer") and c.get("childType")}
     # P6.3: the project content namespace (asr) — the library recognizer emits
     # ns:logoWall / ns:logo etc. Derived from the manifest passthroughType.
     ns = ((manifest or {}).get("passthroughType") or "ns:x").split(":")[0]
+
+    def lr_recognize(el):
+        """LR.recognize gated by the noLibraryKinds contribution dial."""
+        plan = LR.recognize(el, ns)
+        if plan is not None and plan.get("kind") in no_lib_kinds:
+            return None
+        return plan
 
     def role_for(vision_name):
         # vision name -> role key present in instanceTypeMap (norm_name, the
@@ -988,12 +1017,23 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         if not d["ok"]:
             lift_stats["byteFail"] += 1
             return None
-        if not d["fields"] and not d.get("media") and not d.get("link"):
+        def _has(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        if not _has(d) and not any(_has(ch) for ch in d["children"]):
             return None
+        # same child-marker contract as raw_lifted_instance: decompose can emit
+        # {{child:N}} even with allow_items=False — carry the child payloads or
+        # recompose renders holes (phantom markers).
         return {"type": "rawHtml", "parent": None, "passthrough": True,
                 "fields": {k: rewrite_asset_refs(v, base) for k, v in d["fields"].items()},
                 "skeleton": rewrite_asset_refs(d["skeleton"], base),
-                "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                "children": [{"fields": {k: rewrite_asset_refs(v, base)
+                                         for k, v in ch["fields"].items()},
+                              "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                              **payload_extras(ch)} for ch in d["children"]],
+                "skeletonSubs": sorted(d["fields"]) + sorted(
+                    k for ch in d["children"] for k in ch["fields"]),
+                "skeletonMissed": [],
                 **payload_extras(d), "images": [], "links": []}
 
     def promote_live(vision_name, el):
@@ -1015,7 +1055,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         except Exception:
             _leaves0 = 0
         # P6.3 GENERIC LIBRARY RECOGNIZER — try to map onto the base library.
-        plan = LR.recognize(el, ns)
+        plan = lr_recognize(el)
         if plan is not None:
             emit_library_plan(plan)
             return None, _leaves0
@@ -1139,6 +1179,12 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         for r in inner:
             k = root_kind.get(id(r))
             role_seq.append(role_for(k[1]) if k and k[0] == "component" else "rawHtml")
+        # vision-classified CHROME roots nested inside the wrapper (AEM SPA: header/
+        # footer live in the content container). They load inline (byte-faithful)
+        # but are tagged so contribution math treats them as chrome, not content —
+        # nav/header text is tree-driven in Jahia, never contributor richtext.
+        chrome_seq = [bool((root_kind.get(id(r)) or ("", ""))[0] == "chrome")
+                      for r in inner]
         # P6.3: BEFORE decompose_group_with_items mutates the inner roots, try to
         # map each onto the base library (fidelity-first). A matched root becomes a
         # library-native COMPOSABLE child (logoWall + typed atoms) instead of a
@@ -1147,7 +1193,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         lib_plans = []
         for r in inner:
             k = root_kind.get(id(r))
-            plan = LR.recognize(r, ns) if (k and k[0] == "component") else None
+            plan = lr_recognize(r) if (k and k[0] == "component") else None
             lib_plans.append(plan)
             if plan is None and k and k[0] == "component":
                 library_gaps.append((role_for(k[1]), LR.library_gap_reason(r)))
@@ -1189,8 +1235,14 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 "type": plan["kind"], "nodeType": plan["nodeType"],
                 "parent": cont_idx, "libraryPlan": True, "promoted": True,
                 "atomType": plan["atomType"], "container": plan["container"],
-                # verbatim root markup -> byte-exact {{child:N}} splice on LIVE
-                "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                # verbatim root markup -> byte-exact {{child:N}} splice on LIVE.
+                # ch["skeleton"] is the TEMPLATED skeleton (decompose already moved
+                # the field values into ch["fields"]) — storing it with fields={}
+                # rendered literal {{f:*}} holes. Recompose it back to verbatim.
+                "skeleton": rewrite_asset_refs(
+                    SE.recompose_group(ch["skeleton"], ch.get("fields") or {}, [],
+                                       media=ch.get("media"), link=ch.get("link")),
+                    base),
                 "skeletonSubs": [], "skeletonMissed": [],
                 "fields": {}, "images": [], "links": [],
             })
@@ -1214,6 +1266,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 # skeleton == its verbatim markup, byte-identical on LIVE + EDIT.
                 out.append({
                     "type": "rawHtml", "parent": cont_idx, "passthrough": True,
+                    "chromeNested": (chrome_seq[n] if n < len(chrome_seq) else False),
                     "fields": {}, "skeleton": rewrite_asset_refs(ch["skeleton"], base),
                     "skeletonSubs": [], "skeletonMissed": [],
                     "media": [], "mediaTotal": 0, "link": None, "linkTotal": 0,
@@ -1222,6 +1275,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 continue
             out.append({
                 "type": role, "parent": cont_idx, "promoted": True,
+                "chromeNested": (chrome_seq[n] if n < len(chrome_seq) else False),
                 "fields": rw_fields(ch["fields"]),
                 "skeleton": rewrite_asset_refs(ch["skeleton"], base),
                 **payload_extras(ch),
