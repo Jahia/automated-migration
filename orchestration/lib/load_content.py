@@ -640,6 +640,8 @@ class Loader:
         to the DAM, a write). Deterministic names ({shortType}-{slug}-{idx})
         are what make page-granular reconciliation possible at all."""
         names = []
+        nested = {}           # top-level container name -> [expected child names]
+        names_by_idx = {}     # top-level instance idx -> its node name
         would_create = set()  # instance idx that get created (any parent)
         for idx, inst in enumerate(instances):
             if inst.get("area"):
@@ -661,9 +663,18 @@ class Loader:
             would_create.add(idx)
             pi = inst.get("parent")
             if pi is not None and pi in would_create:
-                continue  # nests under its container — not a main-area child
+                # nests under its container — not a main-area child. Record the
+                # expectation under its TOP-LEVEL container name so reconcile can
+                # verify nested completeness (2026-07-05 lesson: every nested
+                # create failed on a missing CND child definition, yet the page
+                # read "structurally complete" from the top-level count alone).
+                pname = names_by_idx.get(pi)
+                if pname is not None:
+                    nested.setdefault(pname, []).append(f"{nt.split(':')[-1]}-{page}-{idx}")
+                continue
             names.append(f"{nt.split(':')[-1]}-{page}-{idx}")
-        return names
+            names_by_idx[idx] = f"{nt.split(':')[-1]}-{page}-{idx}"
+        return names, nested
 
     def _reconcile_verdict(self, page, pdata, main_area):
         """A2 verdict — confront the ledger with EDIT reality. EDIT-ONLY
@@ -681,7 +692,7 @@ class Loader:
         entry = self.ledger.get(page)
         plan_hash = self._plan_hash(pdata)
         hash_ok = bool(entry) and entry.get("planHash") == plan_hash
-        expected = self._expected_main_children(page, pdata.get("instances", []), main_area)
+        expected, exp_nested = self._expected_main_children(page, pdata.get("instances", []), main_area)
         edit = self._area_children(main_area, "EDIT") or {}
         info = {"expected": len(expected), "edit": len(edit),
                 "hashOk": hash_ok, "bootstrap": entry is None}
@@ -695,6 +706,17 @@ class Loader:
                               f"{len(surplus)} surplus top-level node(s)")
             info["missing"], info["surplus"] = missing[:5], surplus[:5]
             return "REBUILD", info
+        # nested completeness: a container's typed children live UNDER it and are
+        # invisible to the top-level count (2026-07-05: constraint-violated child
+        # creates left childless containers behind an "ALIGNED" verdict forever).
+        for cname, kids in exp_nested.items():
+            got = self._area_children(f"{main_area}/{cname}", "EDIT") or {}
+            kmiss = sorted(set(kids) - set(got))
+            if kmiss:
+                info["reason"] = (f"EDIT incomplete: container {cname} missing "
+                                  f"{len(kmiss)} nested child(ren)")
+                info["missing"] = kmiss[:5]
+                return "REBUILD", info
         info["reason"] = "EDIT structurally complete"
         return "ALIGNED", info
 

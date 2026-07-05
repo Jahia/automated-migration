@@ -1,6 +1,6 @@
 {
   "goal": "Migrate https://www.discoverasr.com/en to a Jahia JS module (project: discoverasr, site: discoverasr, ns: asr) — v2 full loop, fidelity >=99%/page vs local mirror",
-  "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
   "model": "opencode/deepseek-v4-flash",
   "epics": [
     {

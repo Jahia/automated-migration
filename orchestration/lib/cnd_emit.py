@@ -291,6 +291,11 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
         "// mixins (added per node by the loader) + the hidden skeleton.",
         f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
         "  - html (string, textarea)",
+        # a {{child:N}} container IS a rawHtml node holding typed component
+        # children (emit_container_live) — without a child-node definition the
+        # content-editor form builder throws for every nested child
+        # ("Error while building edit form definition", G6 red on 12 nodes).
+        f"  + * ({mixns}:component)",
     ]
     if raw_runs or rs.get("runs") or rs.get("media") or rs.get("link"):
         raw_lines.append("  - skeleton (string, textarea) hidden")
