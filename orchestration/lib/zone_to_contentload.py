@@ -405,22 +405,30 @@ _CF_SPACER = re.compile(r'spacer|spacing|(^|[-_])gap([-_]|$)|blank|whitespace', 
 _NONRENDER_TAGS = {"template", "title", "meta", "link", "base", "script", "style", "noscript"}
 
 def is_hidden_el(el):
-    """Non-rendered element: HTML `hidden`, <template>, head-only tags leaked into
-    the body, or display:none/visibility:hidden inline. Invisible to a visitor
-    (Next.js streaming markers <template id=B:x>/<div hidden id=S:x>, Elastic
-    search metadata data-elastic-name, stray <title>) — never a contributable
-    node/zone (Julian: about-us had 5 bogus zones that were all hidden junk)."""
+    """Non-rendered element that carries no visitor content. TWO tiers, kept
+    deliberately conservative to stay AGNOSTIC (not tuned to one site):
+      1. structurally non-rendered tags (<template>, head-only tags, script/style)
+         — per the HTML spec these NEVER hold visitor content -> always dropped.
+      2. `hidden` / display:none / visibility:hidden -> dropped ONLY when TRIVIAL
+         (no media, < 60 chars of text). This catches framework junk (streaming
+         markers <div hidden id=S:x>, tiny metadata) WITHOUT dropping substantial
+         hidden content (tab panels, accordion bodies, mobile menus) that other
+         sites toggle with JS — those are kept (content-safe by construction; a
+         recognized tabs/accordion component captures its own panels verbatim)."""
     if el is None:
         return True
     if (getattr(el, "name", "") or "").lower() in _NONRENDER_TAGS:
         return True
     try:
-        if el.has_attr("hidden"):
-            return True
+        hidden = el.has_attr("hidden")
     except Exception:
         return False
     style = (el.get("style") or "").replace(" ", "").lower()
-    return "display:none" in style or "visibility:hidden" in style
+    if hidden or "display:none" in style or "visibility:hidden" in style:
+        if el.find(["img", "picture", "video", "iframe", "svg", "canvas", "audio", "object"]):
+            return False
+        return len(" ".join(el.get_text(" ", strip=True).split())) < 60
+    return False
 
 def is_content_free(el):
     """Nothing an editor could contribute: no real text, no media, no links, no
