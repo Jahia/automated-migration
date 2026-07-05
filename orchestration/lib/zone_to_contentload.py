@@ -186,14 +186,25 @@ _OVERLAY_JS = """
  function unpin(){
    if(pinned){pinned.removeAttribute('data-zx-pin');pinned=null;}
    tip.className='';tip.style.pointerEvents='none';tip.style.display='none';
+   tip.style.position='';  // back to CSS position:fixed for the hover tooltip
+ }
+ function placePinned(x,y){
+   // pin in DOCUMENT coords (absolute) so a bottom-of-page popin lives in page
+   // flow and can be scrolled to — not clipped off-screen like position:fixed
+   // would be. Clamp horizontally; then scroll it into view so it's revealed.
+   var sx=window.scrollX||window.pageXOffset||0, sy=window.scrollY||window.pageYOffset||0;
+   tip.style.position='absolute';
+   tip.style.left=(Math.max(4,Math.min(x+14,window.innerWidth-390))+sx)+'px';
+   tip.style.top=(y+14+sy)+'px';
+   tip.scrollIntoView({block:'nearest',inline:'nearest'});
  }
  function pin(el,x,y){
    unpin();pinned=el;el.setAttribute('data-zx-pin','1');
-   render(el,true);tip.className='pin';tip.style.pointerEvents='auto';tip.style.display='block';place(x,y);
+   render(el,true);tip.className='pin';tip.style.pointerEvents='auto';tip.style.display='block';placePinned(x,y);
    var xb=document.getElementById('zx-x');if(xb)xb.onclick=function(ev){ev.stopPropagation();unpin();};
    var rb=document.getElementById('zx-raw');
    if(rb)rb.onclick=function(ev){ev.stopPropagation();var pre=document.getElementById('zx-pre');
-     if(pre.style.display==='none'){pre.textContent=rawOf(el);pre.style.display='block';rb.innerHTML='&#9662; Masquer le HTML';}
+     if(pre.style.display==='none'){pre.textContent=rawOf(el);pre.style.display='block';rb.innerHTML='&#9662; Masquer le HTML';pre.scrollIntoView({block:'nearest'});}
      else{pre.style.display='none';rb.innerHTML='&lt;/&gt; Voir le HTML brut';}};
  }
  document.body.addEventListener('mouseover',function(e){
