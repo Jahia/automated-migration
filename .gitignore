@@ -29,3 +29,11 @@ package-lock.json
 projects/*/workflow-output/
 projects/*/dist/
 orchestration/.cache/
+
+# Project data stays LOCAL — never committed (Julian, 2026-07-05).
+# Site content carries third-party embedded secrets (Google/FB tokens in captured
+# markup); the repo carries the HARNESS only.
+projects/
+orchestration/content/
+orchestration/images/
+orchestration/sitemaps/
