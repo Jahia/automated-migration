@@ -864,6 +864,25 @@ def build(project, site, ns, module=None, overlay=False):
                 stats["wired"] += 1
                 tag(node["_el"], lib, k)
                 return  # prune at the first confident anchor (maximal typed component)
+            # CONFIDENT text atom whose byte-exact lift found nothing to extract: the
+            # source CMS literally named this element (…description / …content / a
+            # heading class), decompose just can't lift from a <div>/<span> (not a
+            # block tag). Rather than strand it as a verbatim orphan, lift its inner
+            # content to {{f:body}} — same mechanism as arbitration text_wrap, run
+            # deterministically. Only for a genuine text LEAF (no typed descendants):
+            # a text-atom container still descends into a zone below. Byte-exact
+            # self-checked, so 0-DOM holds. (Measured: clears ~66% of supercar's
+            # stranded editable text with zero per-site rules.)
+            if lib in _TEXT_ATOM and not subtree_has_typed(node):
+                tw = text_wrap(node["_el"], lib)
+                if tw is not None:
+                    tw["parent"] = parent
+                    insts.append(tw)
+                    used.add(lib)
+                    stats["typed"] += 1
+                    stats["textleaf"] = stats.get("textleaf", 0) + 1
+                    tag(node["_el"], lib, k)
+                    return
         too_big = node["size"] > 300 or len(str(node["_el"])) > CAP
         if depth < 10 and node["kids"] and (subtree_has_typed(node) or too_big):
             ek = extraction_children(node)  # descend transparent single-child wrappers
