@@ -384,6 +384,44 @@ def raw_inst(el, base, area=None):
         inst["area"] = area
     return inst
 
+# ── content-free structural components (Julian, 2026-07-05) ──
+# A recurring element with NOTHING to contribute (divider, spacer, empty grid row)
+# must not be dumped into anonymous `rawHtml` nodes (editorially useless). It becomes
+# a NAMED content-free library component the editor can add/remove/reorder, rendered
+# byte-exact from its skeleton. Recognizer is agnostic: emptiness + a structural name
+# from the element's own class tokens. See memory contentfree-components-decision.
+_CF_CONTENT_TAGS = ["img", "picture", "video", "iframe", "audio", "object", "embed",
+                    "a", "button", "input", "select", "textarea", "form", "canvas"]
+_CF_DIVIDER = re.compile(r'divid|separat|hairline|(^|[-_])rule([-_]|$)|(^|[-_])hr([-_]|$)', re.I)
+_CF_SPACER = re.compile(r'spacer|spacing|(^|[-_])gap([-_]|$)|blank|whitespace', re.I)
+
+def is_content_free(el):
+    """Nothing an editor could contribute: no real text, no media, no links, no
+    interactive controls. Decorative/structural only. SVG is allowed (decorative)."""
+    if el is None:
+        return False
+    if (el.name or "").lower() in _CF_CONTENT_TAGS or el.find(_CF_CONTENT_TAGS):
+        return False
+    return len(" ".join(el.get_text(" ", strip=True).split())) < 3
+
+def content_free_name(el):
+    """Deterministic name from the element's own class tokens / tag (agnostic):
+    divider / spacer, else 'decoration' (anonymous residue whose LABEL S4/DeepSeek
+    can refine — never content)."""
+    toks = []
+    for d in [el] + el.find_all(True):
+        c = d.get("class")
+        if c:
+            toks.append(" ".join(c))
+        if d.name:
+            toks.append(d.name)
+    blob = " ".join(toks)
+    if (el.name or "").lower() == "hr" or _CF_DIVIDER.search(blob):
+        return "divider"
+    if _CF_SPACER.search(blob):
+        return "spacer"
+    return "decoration"
+
 def build(project, site, ns, module=None, overlay=False):
     global MIRROR_ASSETS, STATIC_ASSETS
     MIRROR_ASSETS = f"{REPO}/projects/{project}/workflow-output/local-mirror/assets"
@@ -544,6 +582,22 @@ def build(project, site, ns, module=None, overlay=False):
             if key:
                 el["data-zk"] = key
 
+    CF_MIN_INST, CF_MIN_PAGES = 8, 3
+    cf_types = set()
+    def content_free_type(node):
+        """Return a content-free component name (divider/spacer/decoration) if this
+        node has nothing to contribute and no typed descendant. A RECOGNIZED
+        decoration (divider/spacer) is always promoted; an anonymous empty block
+        only when it RECURS (else it stays rawHtml — never invent a junk type)."""
+        el = node.get("_el")
+        if el is None or subtree_has_typed(node) or not is_content_free(el):
+            return None
+        name = content_free_name(el)
+        e = agg.get(node.get("key") or "", {})
+        recurring = (e.get("inst", 0) >= CF_MIN_INST
+                     and len(e.get("pages", set()) or []) >= CF_MIN_PAGES)
+        return name if (name != "decoration" or recurring) else None
+
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
         Inside a container (parent is not None) every node emits EXACTLY ONE
@@ -598,6 +652,19 @@ def build(project, site, ns, module=None, overlay=False):
                 for kd in node["kids"]:
                     emit_node(kd, insts, depth + 1, parent)
                 return
+        cf = content_free_type(node)
+        if cf is not None:
+            # named content-free component: renders byte-exact (verbatim skeleton),
+            # reusable, zero editable props — NOT anonymous rawHtml (Julian)
+            t = raw_inst(node["_el"], base)
+            t["type"] = cf
+            t["contentFree"] = True
+            t["parent"] = parent
+            insts.append(t)
+            used.add(cf); cf_types.add(cf)
+            stats["contentfree"] = stats.get("contentfree", 0) + 1
+            tag(node["_el"], cf, k)
+            return
         if too_big:  # no silent caps: an irreducible over-cap leaf is REPORTED
             print(f"  ! irreducible verbatim leaf over cap: {len(str(node['_el']))} chars "
                   f"(key={k})", file=sys.stderr)
@@ -689,7 +756,9 @@ def build(project, site, ns, module=None, overlay=False):
     comps = []
     for lib in sorted(used):
         c = {"nodeType": f"{ns}:{lib}"}
-        if lib in CONTAINERS:
+        if lib in cf_types:
+            c["contentFree"] = True  # reusable decorative block, zero editable props
+        elif lib in CONTAINERS:
             c["isContainer"] = True
             c["childType"] = {"nodeType": f"{ns}:{CHILD_TYPE.get(lib, 'card')}"}
         comps.append(c)
@@ -699,8 +768,10 @@ def build(project, site, ns, module=None, overlay=False):
     # target even when structurally valid — surface it so the gate verdict is
     # amber, not falsely green. genericShare = generic instances / all instances.
     ninst = sum(len(p["instances"]) for p in out.values())
+    # `decoration` (anonymous content-free residue) is still generic — it needs an
+    # S4 name; `divider`/`spacer` are recognized so they count as meaningful.
     ngen = sum(1 for p in out.values() for i in p["instances"]
-               if i["type"] in ("section", "rawHtml"))
+               if i["type"] in ("section", "rawHtml", "decoration"))
     generic_share = ngen / max(ninst, 1)
     violations = []
     if generic_share >= 0.5:
@@ -710,6 +781,7 @@ def build(project, site, ns, module=None, overlay=False):
     naming_quality = "poor" if generic_share >= 0.7 else ("mixed" if generic_share >= 0.4 else "good")
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",
                 "components": comps, "zones": max_zones, "templates": [],
+                "contentFreeTypes": sorted(f"{ns}:{c}" for c in cf_types),
                 "namingQuality": naming_quality, "namingViolations": violations,
                 "genericShare": round(generic_share, 3),
                 "crossCutting": [{"coversRole": a, "nodeType": f"{ns}:rawHtml", "area": a}
