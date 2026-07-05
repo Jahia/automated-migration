@@ -59,12 +59,14 @@ OVERLAY_CSS = """
 [data-zr]{outline-offset:-2px!important}
 [data-zr=absolute]{outline:2px solid #d33a2c!important}
 [data-zr=component]{outline:2px solid #1aa06a!important}
+[data-zr=zone]{outline:2px solid #1f6fd6!important}
 [data-zone]{box-shadow:inset 0 0 0 3px #1f6fd6!important}
 [data-zx-pin]{outline:3px solid #ffb000!important;outline-offset:-3px!important}
 [data-zt]::before{content:attr(data-zt);position:absolute;top:0;left:0;z-index:2147483645;
  font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;padding:0 4px;pointer-events:none;
  white-space:nowrap;border-bottom-right-radius:4px}
 [data-zr=absolute]::before{background:#d33a2c}[data-zr=component]::before{background:#1aa06a}
+[data-zr=zone]::before{background:#1f6fd6}
 [data-zone]::after{content:"\\25a6 " attr(data-zone);position:absolute;top:0;right:0;z-index:2147483645;
  font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;background:#1f6fd6;padding:0 4px;
  pointer-events:none;white-space:nowrap;border-bottom-left-radius:4px}
@@ -109,6 +111,8 @@ body{padding-top:30px!important}
 def _overlay_category(t):
     if t == "rawHtml":
         return "raw"
+    if t == "zone":
+        return "zone"
     if t == "section":
         return "generic"
     return "cont" if t in CONTAINERS else "atom"
@@ -132,11 +136,13 @@ _OVERLAY_JS = """
  function role(el){
    if(el.getAttribute('data-zr')==='absolute')return{k:'zone absolue',cls:'a'};
    if(el.hasAttribute('data-zone'))return{k:'zone '+el.getAttribute('data-zone'),cls:'z'};
+   if(el.getAttribute('data-zr')==='zone')return{k:'zone',cls:'z'};
    return{k:'composant',cls:'c'};
  }
  function crumb(el){
    var z=el.getAttribute('data-zone'),t=el.getAttribute('data-zt'),r=el.getAttribute('data-zr');
    if(z&&t)return z+':'+t; if(z)return z;
+   if(r==='zone')return 'zone';
    if(r==='absolute')return (t||'chrome')+' (abs)';
    return t||'?';
  }
@@ -150,6 +156,7 @@ _OVERLAY_JS = """
  }
  function ph(el){
    if(el.hasAttribute('data-zone'))return '[[zone:'+el.getAttribute('data-zone')+(el.getAttribute('data-zt')?':'+el.getAttribute('data-zt'):'')+']]';
+   if(el.getAttribute('data-zr')==='zone')return '[[zone:'+(el.getAttribute('data-zt')||'zone')+']]';
    if(el.getAttribute('data-zr')==='absolute')return '[[absolute:'+(el.getAttribute('data-zt')||'chrome')+']]';
    return '[[component:'+(el.getAttribute('data-zt')||'?')+']]';
  }
@@ -543,15 +550,17 @@ def build(project, site, ns, module=None, overlay=False):
             return t
         return raw_inst(el, base)
 
-    def wrapper_container(node):
-        """Wrapper with typed/deep content -> ONE `section` container: its OWN markup
-        with {{child:N}} replacing each annotate-kid subtree (string surgery on the
-        rewritten markup — recompose is substring re-insertion, byte-exact by
-        construction). Children are emitted as parent-linked instances, so the
-        wrapper markup is PRESERVED: the v1 flatten-descend dropped it and collapsed
-        CSS-grid layouts (measured: destinations 23.8% ground truth)."""
+    def wrapper_container(node, ek):
+        """A content-free container -> ONE structural `zone`: its OWN markup with
+        {{child:N}} replacing each EXTRACTION child (descended through transparent
+        wrappers, so their layout markup stays inline). Recompose is substring
+        re-insertion, byte-exact by construction; children are emitted as
+        parent-linked instances so the wrapper markup is PRESERVED (the v1
+        flatten-descend dropped it and collapsed CSS grids: destinations 23.8% GT).
+        A zone carries NO editorial content (fields:{}) — only sub-components
+        (Julian, 2026-07-05). See memory zone-is-content-free-container."""
         W = rw(str(node["_el"]), base)
-        parts = [rw(str(kd["_el"]), base) for kd in node["kids"]]
+        parts = [rw(str(kd["_el"]), base) for kd in ek]
         skel, rest, ok = "", W, True
         for n, p in enumerate(parts):
             i = rest.find(p)
@@ -565,7 +574,7 @@ def build(project, site, ns, module=None, overlay=False):
             return None
         # no skeletonOrig on containers: the skeleton is exact by construction and
         # duplicating the whole subtree per nesting level would explode the payload
-        return {"type": "section", "parent": None, "promoted": True,
+        return {"type": "zone", "parent": None, "promoted": True, "structural": True,
                 "skeleton": skel, "fields": {}, "media": [], "link": None,
                 "children": []}
 
@@ -576,9 +585,10 @@ def build(project, site, ns, module=None, overlay=False):
         if overlay and el is not None:
             el["data-zt"] = t
             el["data-zc"] = _overlay_category(t)  # category (probe counts)
-            # role drives the 3-color scheme: chrome/ABSOLUTE = red, everything
-            # else = green component; the band-level BLUE zone is data-zone (below)
-            el["data-zr"] = "absolute" if t == "chrome" else "component"
+            # role drives the 3-color scheme: chrome/ABSOLUTE = red, content-free
+            # structural container = blue zone, everything else = green component
+            el["data-zr"] = ("absolute" if t == "chrome"
+                             else "zone" if t == "zone" else "component")
             if key:
                 el["data-zk"] = key
 
@@ -597,6 +607,32 @@ def build(project, site, ns, module=None, overlay=False):
         recurring = (e.get("inst", 0) >= CF_MIN_INST
                      and len(e.get("pages", set()) or []) >= CF_MIN_PAGES)
         return name if (name != "decoration" or recurring) else None
+
+    def _own_text(el):
+        """Text DIRECTLY in el (not inside its element children)."""
+        try:
+            return "".join(el.find_all(string=True, recursive=False)).strip()
+        except Exception:
+            return ""
+
+    def descend_transparent(node):
+        """Descend through single-child pure-layout wrappers (one child, no own text,
+        not a typed component) so their markup stays INLINE in the parent ZONE
+        skeleton instead of each becoming its own nested node. This is what collapses
+        `section > section > section` chains into a flat zone + its meaningful
+        children (Julian: a content-free wrapper is a zone, not a component; a
+        transparent single-child wrapper dissolves)."""
+        n, guard = node, 0
+        while (guard < 12 and len(n["kids"]) == 1 and not is_typed(n)
+               and n.get("_el") is not None and not _own_text(n["_el"])):
+            n = n["kids"][0]
+            guard += 1
+        return n
+
+    def extraction_children(node):
+        """The meaningful children to lift out of a zone: each direct kid descended
+        through transparent wrappers. Order = document order (aligns with {{child:N}})."""
+        return [descend_transparent(kd) for kd in node["kids"]]
 
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
@@ -633,15 +669,16 @@ def build(project, site, ns, module=None, overlay=False):
                 return  # prune at the first confident anchor (maximal typed component)
         too_big = node["size"] > 300 or len(str(node["_el"])) > CAP
         if depth < 10 and node["kids"] and (subtree_has_typed(node) or too_big):
-            w = wrapper_container(node)
+            ek = extraction_children(node)  # descend transparent single-child wrappers
+            w = wrapper_container(node, ek)
             if w is not None:
                 w["parent"] = parent
                 idx = len(insts)
                 insts.append(w)
-                used.add("section")
-                stats["container"] += 1
-                tag(node["_el"], "section", k)
-                for kd in node["kids"]:
+                used.add("zone")
+                stats["zone"] = stats.get("zone", 0) + 1
+                tag(node["_el"], "zone", k)
+                for kd in ek:
                     emit_node(kd, insts, depth + 1, idx)
                 return
             if parent is None:
@@ -756,31 +793,40 @@ def build(project, site, ns, module=None, overlay=False):
     comps = []
     for lib in sorted(used):
         c = {"nodeType": f"{ns}:{lib}"}
-        if lib in cf_types:
+        if lib == "zone":
+            # a zone is a STRUCTURAL content-free container: holds any sub-component,
+            # zero editable props (Julian) — not counted as a content component
+            c["structural"] = True
+            c["isContainer"] = True
+            c["childType"] = {"nodeType": f"{ns}:rawHtml"}
+        elif lib in cf_types:
             c["contentFree"] = True  # reusable decorative block, zero editable props
         elif lib in CONTAINERS:
             c["isContainer"] = True
             c["childType"] = {"nodeType": f"{ns}:{CHILD_TYPE.get(lib, 'card')}"}
         comps.append(c)
     chrome_areas = sorted({c["area"] for c in chrome})
-    # editorial honesty for the model gate (_verdict_model): a model dominated by
-    # the GENERIC `section`/`rawHtml` fallbacks is not the "meaningful components"
-    # target even when structurally valid — surface it so the gate verdict is
-    # amber, not falsely green. genericShare = generic instances / all instances.
-    ninst = sum(len(p["instances"]) for p in out.values())
+    # editorial honesty for the model gate (_verdict_model). Zones are STRUCTURAL
+    # (no editable content) so they are excluded from the content tally entirely;
+    # genericShare = generic CONTENT instances / all content instances.
+    content_insts = [i for p in out.values() for i in p["instances"]
+                     if i.get("type") != "zone"]
+    nzone = sum(len(p["instances"]) for p in out.values()) - len(content_insts)
+    ninst = len(content_insts)
     # `decoration` (anonymous content-free residue) is still generic — it needs an
     # S4 name; `divider`/`spacer` are recognized so they count as meaningful.
-    ngen = sum(1 for p in out.values() for i in p["instances"]
+    ngen = sum(1 for i in content_insts
                if i["type"] in ("section", "rawHtml", "decoration"))
     generic_share = ngen / max(ninst, 1)
     violations = []
     if generic_share >= 0.5:
-        violations.append({"nodeType": f"{ns}:section",
-                           "reason": f"{generic_share:.0%} of instances are generic section/rawHtml "
-                                     f"(editorially weak — few meaningful types)"})
+        violations.append({"nodeType": f"{ns}:rawHtml",
+                           "reason": f"{generic_share:.0%} of CONTENT instances are generic "
+                                     f"section/rawHtml/decoration (editorially weak — few meaningful types)"})
     naming_quality = "poor" if generic_share >= 0.7 else ("mixed" if generic_share >= 0.4 else "good")
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",
                 "components": comps, "zones": max_zones, "templates": [],
+                "zoneInstances": nzone,
                 "contentFreeTypes": sorted(f"{ns}:{c}" for c in cf_types),
                 "namingQuality": naming_quality, "namingViolations": violations,
                 "genericShare": round(generic_share, 3),
