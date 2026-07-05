@@ -158,7 +158,12 @@ export function nodePayload(node: JCRNode): Payload {
   } catch {
     /* not a JCR content node */
   }
-  const media: Media[] = Object.keys(origs).map((name) => {
+  // union of names that have verbatim orig markup (rich promoted types) AND
+  // names that only carry a weakref (media-atom types — card/logo/image — whose
+  // supertype owns `image` so the loader could not add imageOrig without a
+  // double-declaration; the marker still resolves via the weakref, below).
+  const names = new Set<string>([...Object.keys(origs), ...Object.keys(chosen)]);
+  const media: Media[] = [...names].map((name) => {
     const img = chosen[name];
     let edited = false;
     let url: string | null = null;
@@ -170,7 +175,7 @@ export function nodePayload(node: JCRNode): Payload {
     } catch {
       edited = false;
     }
-    return { name, orig: origs[name], url, edited };
+    return { name, orig: origs[name] ?? "", url, edited };
   });
   return { skeleton, values, media,
            linkHref: jUrl || linknodeUrl || linkOrig || null,
@@ -189,9 +194,18 @@ const substitute = (p: Payload): string => {
   let html = p.skeleton;
   for (const m of p.media) {
     const marker = `{{media:${m.name}}}`;
-    if (html.includes(marker)) {
-      html = html.split(marker).join(!m.edited || !m.url ? m.orig : editedMedia(m.orig, m.url));
+    if (!html.includes(marker)) continue;
+    let repl: string;
+    if (m.orig) {
+      // verbatim-default (rule 26): original markup while the weakref still
+      // targets the DAM copy of the original; the picked image wins once changed
+      repl = !m.edited || !m.url ? m.orig : editedMedia(m.orig, m.url);
+    } else {
+      // media-atom type (no imageOrig home) — reconstruct a plain <img> from the
+      // weakref so the marker never renders empty (srcset/wrapper lost, image shown)
+      repl = m.url ? `<img src="${escapeAttr(m.url)}" alt="" />` : "";
     }
+    html = html.split(marker).join(repl);
   }
   if (html.includes("{{link:href}}")) {
     html = html.split("{{link:href}}").join(escapeAttr(p.linkHref ?? ""));

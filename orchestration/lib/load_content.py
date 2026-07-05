@@ -292,6 +292,25 @@ class Loader:
         if payload.get("skeletonOrig"):
             create_props["skeletonOrig"] = payload["skeletonOrig"][:200_000]
         mixins, post = [], {}
+        # A contribX mixin re-declares props (body/image/j:linkType) that a RICH
+        # base-library type ALREADY owns via its supertypes (asrmix:media -> image,
+        # asrmix:cta -> j:linkType, inline body). Adding it to such a node makes
+        # Jackrabbit reject the DOUBLE declaration (measured C4: 1029 `image` +
+        # 68 `j:linkType` ConstraintViolations). So: only add the mixin when the
+        # type does NOT already provide the slot; track availability; set a value
+        # only when its prop has a home. Same guard the jmix:externalLink pattern
+        # applies to j:url — generalized to every slot.
+        avail = set(pdef.get("names") or [])
+
+        def slot(mixin, primary, brings):
+            # ensure the node can carry `primary`; add `mixin` only if the type
+            # doesn't already declare it. Returns True if `primary` is available.
+            if primary in avail:
+                return True
+            mixins.append(mixin)
+            avail.update(brings)
+            return True
+
         if f.get("title"):
             mixins.append("mix:title")
             post["jcr:title"] = f["title"][:250]
@@ -299,31 +318,41 @@ class Loader:
             if not k.startswith("body") or not v:
                 continue
             n = k[len("body"):]
-            mixins.append(f"{mixns}:contribBody{n}")
-            post[k] = v[:200_000]
+            slot(f"{mixns}:contribBody{n}", k, {k})
+            if k in avail:
+                post[k] = v[:200_000]
         for m in payload.get("media") or []:
             nm = m["name"]
             n = nm[len("image"):]
-            mixins.append(f"{mixns}:contribImage{n}")
-            post[nm + "Orig"] = m["orig"][:200_000]
+            slot(f"{mixns}:contribImage{n}", nm, {nm, nm + "Orig", nm + "OrigRef"})
+            # verbatim-default markup rides imageNOrig (rule 26); only when the
+            # slot mixin provides it (a media-atom type has `image` but no Orig →
+            # it renders via its own weakref, no imageOrig needed)
+            if nm + "Orig" in avail:
+                post[nm + "Orig"] = m["orig"][:200_000]
             dam = self.upload_dam(m.get("file"))
             if dam:
-                post[nm + "OrigRef"] = dam["uuid"]
-                m["_dam"] = dam
+                if nm + "OrigRef" in avail:
+                    post[nm + "OrigRef"] = dam["uuid"]
+                if nm in avail:  # weakref target prop must exist
+                    m["_dam"] = dam
         lnk = payload.get("link")
         if lnk:
-            mixins.append(f"{mixns}:contribLink")
-            post["linkOrig"] = lnk["href"][:1000]
+            slot(f"{mixns}:contribLink", "j:linkType", {"j:linkType", "linkLabel", "linkOrig"})
+            if "linkOrig" in avail:
+                post["linkOrig"] = lnk["href"][:1000]
             kind, target = self.resolve_link(lnk["href"])
             lnk["_kind"], lnk["_target"] = kind, target
             if kind == "external":
                 mixins.append("jmix:externalLink")
-                post["j:linkType"] = "external"
+                if "j:linkType" in avail:
+                    post["j:linkType"] = "external"
                 post["j:url"] = lnk["href"][:1000]
             elif kind == "internal":
                 mixins.append("jmix:internalLink")
-                post["j:linkType"] = "internal"
-            if f.get("linkLabel"):
+                if "j:linkType" in avail:
+                    post["j:linkType"] = "internal"
+            if f.get("linkLabel") and "linkLabel" in avail:
                 post["linkLabel"] = f["linkLabel"][:250]
         return create_props, mixins, post
 

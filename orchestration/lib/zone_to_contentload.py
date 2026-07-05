@@ -381,6 +381,13 @@ def build(project, site, ns, module=None):
 
     if chrome and out:
         first = next(iter(out))
+        # prepending chrome SHIFTS every instance index on the first page —
+        # parent refs must shift too, or children nest under the wrong nodes
+        # (caught live by the C0a gate: en/home failures + silent mis-nesting)
+        off = len(chrome)
+        for i in out[first]["instances"]:
+            if i.get("parent") is not None:
+                i["parent"] += off
         out[first]["instances"] = chrome + out[first]["instances"]
 
     content = {"adapter": "semantic", "pages": out}
@@ -439,7 +446,9 @@ def main():
     mf_path = os.path.join(mf_dir, "component-manifest.json")
     json.dump(content, open(cl_path, "w"), ensure_ascii=False, indent=1)
     json.dump(manifest, open(mf_path, "w"), ensure_ascii=False, indent=1)
-    stamp_zones(os.path.join(REPO, "projects", module or project), manifest["zones"])
+    # stamp_zones targets the PROJECT dir (source files live in projects/<project>),
+    # NOT the module bundle name (which only shapes the /modules/<module>/ asset URL)
+    stamp_zones(os.path.join(REPO, "projects", project), manifest["zones"])
     npages = len(content["pages"])
     ninst = sum(len(p["instances"]) for p in content["pages"].values())
     ntyped = sum(1 for p in content["pages"].values() for i in p["instances"]
