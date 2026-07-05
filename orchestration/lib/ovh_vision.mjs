@@ -103,7 +103,13 @@ export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 
   const key = ovhKey();
   const content = [{ type: 'text', text }];
   if (pngBuf && !VISION_TEXT_ONLY) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });
-  const body = JSON.stringify({ model, max_tokens: maxTokens, temperature, messages: [{ role: 'user', content }] });
+  const body = JSON.stringify({
+    model, max_tokens: maxTokens, temperature,
+    // JSON-mode: DeepSeek's v4 models burn the budget in reasoning_content and can
+    // return an EMPTY content (or prose) without it. Prompts already demand JSON.
+    ...(process.env.VISION_JSON === '1' ? { response_format: { type: 'json_object' } } : {}),
+    messages: [{ role: 'user', content }],
+  });
   const project = resolveLedgerProject(ledgerProject);
   const callerName = caller || `ovh_vision:${(process.argv[1] && path.basename(process.argv[1])) || 'unknown'}`;
   const t0 = Date.now();
