@@ -418,7 +418,7 @@ def build(project, site, ns, module=None):
                                      f"(editorially weak — few meaningful types)"})
     naming_quality = "poor" if generic_share >= 0.7 else ("mixed" if generic_share >= 0.4 else "good")
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",
-                "components": comps, "zones": max_zones,
+                "components": comps, "zones": max_zones, "templates": [],
                 "namingQuality": naming_quality, "namingViolations": violations,
                 "genericShare": round(generic_share, 3),
                 "crossCutting": [{"coversRole": a, "nodeType": f"{ns}:rawHtml", "area": a}

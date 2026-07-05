@@ -4,6 +4,7 @@ import RunList from './components/RunList'
 import RunDetail from './components/RunDetail'
 import SchemaViewer from './components/SchemaViewer'
 import TokenCounter from './components/TokenCounter'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // The real light Jahia wordmark (from jahia.com). Falls back to a text wordmark offline.
 const JAHIA_LOGO = 'https://cdfoqfniea.cloudimg.io/https://www.jahia.com/modules/jahiacom/dist/assets/jahia-light-kFJWkPOB.svg'
@@ -38,9 +39,9 @@ export default function App() {
         </nav>
         <main className="mx-auto max-w-7xl px-4 py-6">
           <Routes>
-            <Route path="/" element={<RunList />} />
-            <Route path="/runs/:runId" element={<RunDetail />} />
-            <Route path="/schema" element={<SchemaViewer />} />
+            <Route path="/" element={<ErrorBoundary label="Run list"><RunList /></ErrorBoundary>} />
+            <Route path="/runs/:runId" element={<ErrorBoundary label="Run detail"><RunDetail /></ErrorBoundary>} />
+            <Route path="/schema" element={<ErrorBoundary label="Schema"><SchemaViewer /></ErrorBoundary>} />
           </Routes>
         </main>
       </div>

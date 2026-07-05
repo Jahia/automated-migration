@@ -50,7 +50,7 @@ export function ScopeGate({ runId, onApproved, readOnly }: { runId: string; onAp
   const [showPages, setShowPages] = useState(false)
 
   const pages = inv.data?.pages ?? []
-  const nCand = (cand.data?.components.length ?? 0) + (cand.data?.crossCutting.length ?? 0)
+  const nCand = (cand.data?.components?.length ?? 0) + (cand.data?.crossCutting?.length ?? 0)
   const clusters = tpl.data?.clusters ?? []
   const xcut = cand.data?.crossCutting ?? []
 

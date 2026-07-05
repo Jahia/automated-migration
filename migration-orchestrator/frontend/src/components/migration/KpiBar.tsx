@@ -38,13 +38,16 @@ export function KpiBar({ run }: { run: RunState }) {
   const cost = steps.reduce((a, s) => a + (s.cost || 0), 0)
   const tokensOut = steps.reduce((a, s) => a + (s.tokens_out || 0), 0)
 
-  const types = manifest?.components.length
-  const templates = manifest?.templates.length
-  const xcut = manifest?.crossCutting.length
+  // Optional-chain the NESTED arrays too: a manifest may omit templates (zone
+  // bridge) — `manifest?.templates.length` still crashes because `?.` guards only
+  // `manifest`, not `.templates`. This blanked the whole run UI (ui_smoke.mjs).
+  const types = manifest?.components?.length
+  const templates = manifest?.templates?.length
+  const xcut = manifest?.crossCutting?.length
   // crawled inventory is the honest page count; template-covered pages as fallback
-  const pages = inventory?.pages?.length ?? (manifest ? new Set(manifest.templates.flatMap((t) => t.pages)).size : undefined)
+  const pages = inventory?.pages?.length ?? (manifest ? new Set((manifest.templates ?? []).flatMap((t) => t.pages ?? [])).size : undefined)
 
-  const covPages = recon?.pages.filter((p) => p.contentCoverage != null) ?? []
+  const covPages = recon?.pages?.filter((p) => p.contentCoverage != null) ?? []
   const coverage = covPages.length
     ? covPages.reduce((a, p) => a + (p.contentCoverage ?? 0), 0) / covPages.length
     : undefined

@@ -12,17 +12,24 @@ export function ComponentModelView({ runId }: { runId: string }) {
   if (status === 'loading') return <div className="p-6 text-[#7d8a9a]">Loading component model…</div>
   if (status === 'missing' || !m) return <EmptyArtifact label="Component model not generated yet." />
 
+  // Defensive defaults: a manifest may omit optional arrays (the zone bridge emits
+  // no `templates`). Reading `.length`/`.map` off undefined blanked the whole run
+  // UI (caught by ui_smoke.mjs). Every array access below goes through these.
+  const components = m.components ?? []
+  const templates = m.templates ?? []
+  const crossCutting = m.crossCutting ?? []
+
   return (
     <div className="text-[#001932]">
       <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden bg-[#dae0e7]" style={NOTCH}>
-        <Stat v={m.components.length} l="content types" />
-        <Stat v={m.templates.length} l="templates" />
-        <Stat v={m.crossCutting.length} l="cross-cutting" accent />
+        <Stat v={components.length} l="content types" />
+        <Stat v={templates.length} l="templates" />
+        <Stat v={crossCutting.length} l="cross-cutting" accent />
       </div>
 
       <Section title="Cross-cutting · AbsoluteArea">
         <div className="flex flex-wrap gap-2">
-          {m.crossCutting.map((c) => (
+          {crossCutting.map((c) => (
             <span key={c.nodeType} className="rounded-md border border-[#bcdcef] bg-[#e4f2fb] px-2.5 py-1 font-mono text-xs text-[#0077bf]">
               {c.nodeType} <span className="text-[#7d8a9a]">· {c.area}</span>
             </span>
@@ -30,7 +37,7 @@ export function ComponentModelView({ runId }: { runId: string }) {
         </div>
       </Section>
 
-      <Section title={`Content types (${m.components.length})`}>
+      <Section title={`Content types (${components.length})`}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse font-mono text-[12px]">
             <thead>
@@ -43,7 +50,7 @@ export function ComponentModelView({ runId }: { runId: string }) {
               </tr>
             </thead>
             <tbody>
-              {m.components.map((c) => (
+              {components.map((c) => (
                 <TypeRow key={c.nodeType} c={c} />
               ))}
             </tbody>
@@ -51,13 +58,13 @@ export function ComponentModelView({ runId }: { runId: string }) {
         </div>
       </Section>
 
-      <Section title={`Templates (${m.templates.length})`}>
+      <Section title={`Templates (${templates.length})`}>
         <div className="flex flex-wrap gap-2">
-          {m.templates.map((t, i) => (
+          {templates.map((t, i) => (
             <span key={i} className="rounded-md border border-[#dae0e7] bg-[#f6f9fb] px-2.5 py-1 text-xs">
               <b className="text-[#001932]">{t.name ?? t.kind}</b>{' '}
               <span className="text-[#7d8a9a]">
-                · {t.kind} · {t.pages.length} pages
+                · {t.kind} · {(t.pages ?? []).length} pages
               </span>
             </span>
           ))}
