@@ -1,6 +1,7 @@
 import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { resolveCtaUrl } from "../lib.js";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./chevronLink.module.css";
 
 /**
@@ -10,7 +11,7 @@ import styles from "./chevronLink.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:chevronLink", displayName: "Chevron Link" },
   (
-    props: { ctaLabel?: string; "j:linkType"?: string },
+    props: { ctaLabel?: string; "j:linkType"?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
     const { renderContext } = useServerContext();
@@ -18,6 +19,7 @@ jahiaComponent(
     const url = resolveCtaUrl(props["j:linkType"], currentNode);
 
     if (!url || !label) {
+      if (props.skeletonOrig) return <Verbatim html={props.skeletonOrig} />;
       return renderContext.isEditMode() ? (
         <span className={styles.placeholder}>{label || "Link"}</span>
       ) : null;

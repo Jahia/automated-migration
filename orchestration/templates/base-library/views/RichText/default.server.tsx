@@ -1,4 +1,5 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./richText.module.css";
 
 /**
@@ -7,8 +8,8 @@ import styles from "./richText.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:richText", displayName: "Rich Text" },
-  (props: { body?: string }) => {
-    if (!props.body) return null;
+  (props: { body?: string; skeletonOrig?: string }) => {
+    if (!props.body) return <Verbatim html={props.skeletonOrig} />;
     return (
       <div
         className={styles.richText}

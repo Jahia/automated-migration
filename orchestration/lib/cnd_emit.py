@@ -60,6 +60,7 @@ def base_mixins(mixns):
     (supercar-garage / lesalondelaphoto / sial-paris settings/definitions.cnd)."""
     return [
         f"[{mixns}:component] > jmix:droppableContent, jmix:accessControllableContent mixin",
+        f"  - skeletonOrig (string, textarea) hidden",
         f"[{mixns}:pageComponent] > {mixns}:component mixin",
     ]
 

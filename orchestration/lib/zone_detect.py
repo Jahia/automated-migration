@@ -99,7 +99,10 @@ def stem_docfreq(pagesoups):
     return {s: len(ps) for s, ps in df.items()}
 
 # ---- annotate one page (post-order) ----
-def annotate(el, stemdf):
+def annotate(el, stemdf, keep_el=False):
+    """Post-order annotate to the fine-signal tree. keep_el=True carries the source bs4
+    element as node["_el"] so the content bridge can recover byte-exact outerHTML
+    (str(node["_el"])) — zone_detect makes the boundary decision; the markup is recovered here."""
     tag = el.name.lower()
     if tag in DROP:
         return None
@@ -113,15 +116,18 @@ def annotate(el, stemdf):
             if t:
                 own.append(t)
         else:
-            sub = annotate(c, stemdf)
+            sub = annotate(c, stemdf, keep_el)
             if sub is not None:
                 kids.append(sub)
     text = (" ".join(own) + " " + " ".join(k["text"] for k in kids)).strip().lower()
     tlen = len(text)
     alen = tlen if tag == "a" else sum(k["alen"] for k in kids)
     key, tier = identity(tag, el.attrs, stemdf)
-    return {"tag": tag, "key": key, "tier": tier, "text": text, "tlen": tlen, "alen": alen,
+    node = {"tag": tag, "key": key, "tier": tier, "text": text, "tlen": tlen, "alen": alen,
             "size": 1 + sum(k["size"] for k in kids), "kids": kids}
+    if keep_el:
+        node["_el"] = el
+    return node
 
 def walk(node):
     """Pre-order traversal of an annotated tree (public helper for callers / the content bridge)."""

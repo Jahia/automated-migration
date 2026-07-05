@@ -1,4 +1,6 @@
-import { jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
+import { getChildNodes, jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./section.module.css";
 
 /**
@@ -11,7 +13,17 @@ import styles from "./section.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:section", displayName: "Section" },
-  (props: { heading?: string; bgColor?: string; spacing?: string }) => {
+  (
+    props: { heading?: string; bgColor?: string; spacing?: string; skeletonOrig?: string },
+    { currentNode }: { currentNode: JCRNodeWrapper },
+  ) => {
+    // No editorial children and no heading → verbatim backstop instead of an empty
+    // <section> shell (G1: 0 empty shells).
+    const kids = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
+      n.isNodeType("$NSMIX:component"),
+    );
+    if (kids.length === 0 && !props.heading) return <Verbatim html={props.skeletonOrig} />;
+
     const cls = [
       styles.section,
       props.bgColor ? styles[props.bgColor.replace("-", "_")] : "",

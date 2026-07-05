@@ -1,6 +1,7 @@
 import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { resolveCtaUrl } from "../lib.js";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./button.module.css";
 
 /**
@@ -17,6 +18,7 @@ jahiaComponent(
       theme?: string;
       isSmall?: boolean;
       mainCTA?: boolean;
+      skeletonOrig?: string;
     },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
@@ -26,6 +28,7 @@ jahiaComponent(
 
     // In edit mode, always render a placeholder so the empty atom is clickable.
     if (!url || !label) {
+      if (props.skeletonOrig) return <Verbatim html={props.skeletonOrig} />;
       return renderContext.isEditMode() ? (
         <span className={styles.placeholder}>{label || "CTA"}</span>
       ) : null;

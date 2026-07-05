@@ -1,6 +1,7 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { resolveCtaUrl, resolveImageUrl } from "../lib.js";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./logo.module.css";
 
 /**
@@ -11,11 +12,11 @@ import styles from "./logo.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:logo", displayName: "Logo" },
   (
-    props: { image?: JCRNodeWrapper; imageAltText?: string; "j:linkType"?: string },
+    props: { image?: JCRNodeWrapper; imageAltText?: string; "j:linkType"?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
     const src = resolveImageUrl(props.image);
-    if (!src) return null;
+    if (!src) return <Verbatim html={props.skeletonOrig} />;
     const alt = props.imageAltText ?? "";
     const url = resolveCtaUrl(props["j:linkType"], currentNode);
 

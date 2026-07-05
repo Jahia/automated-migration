@@ -26,6 +26,7 @@
 // (Kept here so the library is self-describing; the installer strips duplicates.)
 
 [$NSMIX:component]     > jmix:droppableContent, jmix:accessControllableContent mixin
+ - skeletonOrig (string, textarea) hidden
 [$NSMIX:pageComponent] > $NSMIX:component mixin
 // section marker: a top-level, page-droppable CONTAINER (LIBRARY-SPEC §1.1)
 [$NSMIX:section]       > $NSMIX:pageComponent mixin

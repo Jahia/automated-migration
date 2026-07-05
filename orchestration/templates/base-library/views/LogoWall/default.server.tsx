@@ -1,5 +1,11 @@
-import { jahiaComponent, RenderChild, RenderChildren } from "@jahia/javascript-modules-library";
+import {
+  getChildNodes,
+  jahiaComponent,
+  RenderChild,
+  RenderChildren,
+} from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./logoWall.module.css";
 
 /**
@@ -15,21 +21,33 @@ import styles from "./logoWall.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:logoWall", displayName: "Logo Wall" },
-  ({ heading }: { heading?: string }) => (
-    <section className={styles.root}>
-      {heading && <h2 className={styles.heading}>{heading}</h2>}
-      <div className={styles.container}>
-        <div className={styles.master}>
-          <RenderChild name="master" />
+  (
+    { heading, skeleton, skeletonOrig }: { heading?: string; skeleton?: string; skeletonOrig?: string },
+    { currentNode }: { currentNode: JCRNodeWrapper },
+  ) => {
+    // No editorial logos and no heading → verbatim backstop (reuse the existing
+    // container `skeleton` skin when present) instead of an empty wall shell.
+    const logos = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
+      n.isNodeType("$NS:logo"),
+    );
+    if (logos.length === 0 && !heading) return <Verbatim html={skeleton ?? skeletonOrig} />;
+
+    return (
+      <section className={styles.root}>
+        {heading && <h2 className={styles.heading}>{heading}</h2>}
+        <div className={styles.container}>
+          <div className={styles.master}>
+            <RenderChild name="master" />
+          </div>
+          <div className={styles.logos}>
+            <RenderChildren
+              filter={(node: JCRNodeWrapper) =>
+                node.isNodeType("$NS:logo") && node.getName() !== "master"
+              }
+            />
+          </div>
         </div>
-        <div className={styles.logos}>
-          <RenderChildren
-            filter={(node: JCRNodeWrapper) =>
-              node.isNodeType("$NS:logo") && node.getName() !== "master"
-            }
-          />
-        </div>
-      </div>
-    </section>
-  ),
+      </section>
+    );
+  },
 );

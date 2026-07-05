@@ -1,4 +1,6 @@
-import { jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
+import { getChildNodes, jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./cardGrid.module.css";
 
 /**
@@ -15,7 +17,20 @@ function parseColumns(raw: unknown): number {
 
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:cardGrid", displayName: "Card Grid" },
-  ({ heading, columns: rawCols }: { heading?: string; columns?: string }) => {
+  (
+    {
+      heading,
+      columns: rawCols,
+      skeletonOrig,
+    }: { heading?: string; columns?: string; skeletonOrig?: string },
+    { currentNode }: { currentNode: JCRNodeWrapper },
+  ) => {
+    // No editorial cards and no heading → verbatim backstop instead of an empty grid.
+    const cards = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
+      n.isNodeType("$NS:card"),
+    );
+    if (cards.length === 0 && !heading) return <Verbatim html={skeletonOrig} />;
+
     const cols = parseColumns(rawCols);
     return (
       <section className={styles.root}>

@@ -6,6 +6,7 @@ import {
   useServerContext,
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { Verbatim } from "../Verbatim.js";
 import { CarouselIsland } from "./CarouselIsland.client.js";
 import styles from "./carousel.module.css";
 
@@ -24,10 +25,22 @@ import styles from "./carousel.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:carousel", displayName: "Carousel" },
   (
-    { autoplay, interval }: { autoplay?: boolean; interval?: number },
+    {
+      autoplay,
+      interval,
+      skeleton,
+      skeletonOrig,
+    }: { autoplay?: boolean; interval?: number; skeleton?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
     const { renderContext } = useServerContext();
+
+    const children = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
+      n.isNodeType("$NSMIX:component"),
+    );
+
+    // No editorial slides → verbatim backstop instead of an empty carousel shell.
+    if (children.length === 0) return <Verbatim html={skeleton ?? skeletonOrig} />;
 
     if (renderContext.isEditMode()) {
       return (
@@ -36,10 +49,6 @@ jahiaComponent(
         </div>
       );
     }
-
-    const children = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
-      n.isNodeType("$NSMIX:component"),
-    );
 
     return (
       <CarouselIsland autoplay={autoplay !== false} intervalMs={interval || 5000}>

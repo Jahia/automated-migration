@@ -1,4 +1,6 @@
-import { jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
+import { getChildNodes, jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./accordion.module.css";
 
 /**
@@ -10,12 +12,23 @@ import styles from "./accordion.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:accordion", displayName: "Accordion" },
-  ({ heading }: { heading?: string }) => (
-    <section className={styles.root}>
-      {heading && <h2 className={styles.heading}>{heading}</h2>}
-      <div className={styles.container}>
-        <RenderChildren filter="$NS:faqItem" />
-      </div>
-    </section>
-  ),
+  (
+    { heading, skeletonOrig }: { heading?: string; skeletonOrig?: string },
+    { currentNode }: { currentNode: JCRNodeWrapper },
+  ) => {
+    // No editorial rows and no heading → verbatim backstop instead of an empty shell.
+    const rows = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
+      n.isNodeType("$NS:faqItem"),
+    );
+    if (rows.length === 0 && !heading) return <Verbatim html={skeletonOrig} />;
+
+    return (
+      <section className={styles.root}>
+        {heading && <h2 className={styles.heading}>{heading}</h2>}
+        <div className={styles.container}>
+          <RenderChildren filter="$NS:faqItem" />
+        </div>
+      </section>
+    );
+  },
 );

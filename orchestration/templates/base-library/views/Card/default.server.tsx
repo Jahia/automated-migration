@@ -2,6 +2,7 @@ import { buildNodeUrl, jahiaComponent, RenderChild } from "@jahia/javascript-mod
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { createElement } from "react";
 import { resolveImageUrl } from "../lib.js";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./card.module.css";
 
 /**
@@ -35,6 +36,7 @@ jahiaComponent(
       slideOrig?: string;
       slideOrigRef?: string;
       slideClass?: string;
+      skeletonOrig?: string;
     },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
@@ -72,6 +74,11 @@ jahiaComponent(
     // ── COMPOSABLE CARD mode ──
     const title = props["jcr:title"];
     const imgSrc = resolveImageUrl(props.image);
+
+    // Universal fidelity backstop: a card with no typed content falls back to the
+    // captured markup rather than an empty <article> shell (G1: 0 empty shells).
+    if (!title && !props.body && !imgSrc && props.skeletonOrig)
+      return <Verbatim html={props.skeletonOrig} />;
 
     const cls = [
       styles.card,

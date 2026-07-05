@@ -7,6 +7,7 @@ import {
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { getProp } from "../lib.js";
+import { Verbatim } from "../Verbatim.js";
 import { TabsIsland } from "./TabsIsland.client.js";
 import styles from "./tabs.module.css";
 
@@ -21,10 +22,21 @@ import styles from "./tabs.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:tabs", displayName: "Tabs" },
   (
-    { heading }: { heading?: string },
+    {
+      heading,
+      skeleton,
+      skeletonOrig,
+    }: { heading?: string; skeleton?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
     const { renderContext } = useServerContext();
+
+    const panes = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
+      n.isNodeType("$NS:tab"),
+    );
+
+    // No editorial panes → verbatim backstop instead of an empty tabs shell.
+    if (panes.length === 0) return <Verbatim html={skeleton ?? skeletonOrig} />;
 
     if (renderContext.isEditMode()) {
       return (
@@ -36,10 +48,6 @@ jahiaComponent(
         </div>
       );
     }
-
-    const panes = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
-      n.isNodeType("$NS:tab"),
-    );
     const labels = panes.map(
       (pane) => getProp(pane as JCRNodeWrapper, "jcr:title") || pane.getName(),
     );

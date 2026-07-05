@@ -1,4 +1,5 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./faqItem.module.css";
 
 /**
@@ -8,9 +9,9 @@ import styles from "./faqItem.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:faqItem", displayName: "FAQ Item" },
-  (props: { "jcr:title"?: string; answer?: string }) => {
+  (props: { "jcr:title"?: string; answer?: string; skeletonOrig?: string }) => {
     const question = props["jcr:title"];
-    if (!question && !props.answer) return null;
+    if (!question && !props.answer) return <Verbatim html={props.skeletonOrig} />;
 
     return (
       <details className={styles.item}>

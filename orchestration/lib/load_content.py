@@ -279,7 +279,13 @@ class Loader:
         only; mixin props are settable AFTER addMixins."""
         mixns = self.mixns
         f = payload.get("fields", {})
-        create_props = {"skeleton": (payload.get("skeleton") or "")[:200_000]}
+        # skeleton set ONLY when present: a skeletonOrig-only typed node (zone bridge MVP) must
+        # not receive an empty `skeleton` prop on a type that does not declare it (ConstraintViolation).
+        create_props = {}
+        if payload.get("skeleton"):
+            create_props["skeleton"] = payload["skeleton"][:200_000]
+        if payload.get("skeletonOrig"):
+            create_props["skeletonOrig"] = payload["skeletonOrig"][:200_000]
         mixins, post = [], {}
         if f.get("title"):
             mixins.append("mix:title")

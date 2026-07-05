@@ -1,5 +1,6 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
 import { createElement } from "react";
+import { Verbatim } from "../Verbatim.js";
 import styles from "./heading.module.css";
 
 /**
@@ -9,11 +10,11 @@ import styles from "./heading.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:heading", displayName: "Heading" },
-  (props: { "jcr:title"?: string; subtitle?: string; level?: string }) => {
+  (props: { "jcr:title"?: string; subtitle?: string; level?: string; skeletonOrig?: string }) => {
     const title = props["jcr:title"];
     const level = props.level && ["h2", "h3", "h4"].includes(props.level) ? props.level : "h2";
 
-    if (!title && !props.subtitle) return null;
+    if (!title && !props.subtitle) return <Verbatim html={props.skeletonOrig} />;
 
     return (
       <div className={styles.root}>
