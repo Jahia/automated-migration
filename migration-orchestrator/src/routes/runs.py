@@ -412,8 +412,12 @@ async def run_status(run_id: str):
 async def run_quality(run_id: str):
     """The green/amber/red quality verdict alone (for the active gate)."""
     run = await _resolve_run(run_id)
+    # a parked review checkpoint (decision_pending) blocks the run exactly like a
+    # halted gate — include it so its gate_type routes the verdict (else a stale
+    # on-disk artifact wins the fallback)
     gate = next((s for e in run.epics for st in e.stories for s in st.steps
-                 if s.status.value in ("halted", "waiting_human") and s.gate_type), None)
+                 if s.status.value in ("halted", "waiting_human", "decision_pending")
+                 and s.gate_type), None)
     return quality_verdict(run, gate.gate_type if gate else None, workflow_output_dir(run))
 
 

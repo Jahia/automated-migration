@@ -287,6 +287,12 @@ async def _park_for_decision(run: RunState, epic: EpicState, story: StoryState, 
     moves the step out of decision_pending (strategy applied via jump machinery,
     or 'proceed' on a review step). Returns False iff the run was aborted."""
     step.status = StepStatus.decision_pending
+    # A parked decision (incl. review checkpoints) MUST carry its gate_type so the
+    # quality panel routes to the right verdict (model/mirror/…) instead of falling
+    # back to the first artifact on disk — a stale reconstruct.json from an earlier
+    # pipeline would otherwise mask a fresh model/mirror verdict (observed live).
+    if not step.gate_type or step.gate_type == "unknown":
+        step.gate_type = _infer_gate_type(step) or "unknown"
     step.completed_at = time.time() * 1000
     if step.started_at:
         step.duration_ms = step.completed_at - step.started_at
