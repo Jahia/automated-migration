@@ -699,6 +699,23 @@ def build(project, site, ns, module=None, overlay=False):
                     chrome.append(raw_inst(node["_el"], base, area_for(k)))
                 tag(node["_el"], "chrome", k)  # tag even the deduped repeats
                 return
+            # site-wide content-free SCAFFOLD (grid overlay, layout rail…): a
+            # content-free element present on ~all pages as a SINGLETON (≈ one per
+            # page) is TEMPLATE-level markup, not per-page content — emit once,
+            # rendered on every page by the template (Julian: "toujours en haut ->
+            # vue du template"). site_chrome misses it because that requires a
+            # content-BEARING container; this catches the empty ubiquitous scaffold.
+            # The singleton test (inst ≈ pages) keeps a REPEATED content-free element
+            # (e.g. the many per-page dividers) OUT — those stay divider components.
+            e = agg.get(k or "", {})
+            pgs = len(e.get("pages", ()) or ())
+            if (k and is_content_free(node["_el"]) and pgs >= 0.9 * len(pages)
+                    and e.get("inst", 0) <= 1.5 * pgs):
+                if k not in chrome_done:
+                    chrome_done.add(k)
+                    chrome.append(raw_inst(node["_el"], base, "scaffold"))
+                tag(node["_el"], "chrome", k)  # site-wide template markup
+                return
             if k and R["is_root_wrapper"](k):
                 for kd in node["kids"]:  # transparent layout root (top level only)
                     emit_node(kd, insts, depth, parent)
