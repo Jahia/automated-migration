@@ -888,6 +888,39 @@ def build(project, site, ns, module=None, overlay=False):
                     return
         too_big = node["size"] > 300 or len(str(node["_el"])) > CAP
         if depth < 10 and node["kids"] and (subtree_has_typed(node) or too_big):
+            # #3 SELECTIVE PARENT RECOGNITION: a KEYLESS container that is a strong
+            # repeated-sibling listing (emit_typed→decompose_group→find_repeated_items
+            # lifts >=3 same-signature content items) is promoted to a typed cardGrid —
+            # its items become card child-nodes with lifted title/body/media/link —
+            # rather than scattered as a structural zone. This only reaches keyless /
+            # low-confidence nodes (a confidently-typed listing already returned in the
+            # typed branch), so it never touches an already-typed cardGrid. emit_typed
+            # self-checks recompose==source byte-for-byte (returns None otherwise), so
+            # 0-DOM holds. Model-elegance upgrade of the #2 flat floor (Julian: #3
+            # selective on strong listing/card patterns — exactly acquia's blog cards).
+            cg = emit_typed(node["_el"], "cardGrid", base)
+            cg_kids = (cg.get("children") if cg else None) or []
+            # a CARD carries >=2 content slots (title/body*/media/link). Requiring a
+            # MAJORITY of items to be card-like keeps genuine cards (title+body+image)
+            # and REFUSES single-atom repeated lists that are NOT card grids — a logo
+            # wall (media-only), a heading list (title-only), a text list (body-only).
+            # Those fall through to the zone path, keeping #3 genuinely SELECTIVE
+            # (Julian) rather than relabelling every repeated sibling group cardGrid.
+            def _slots(ch):
+                f = ch.get("fields") or {}
+                return (("title" in f) + any(kk.startswith("body") for kk in f)
+                        + bool(ch.get("media")) + bool(ch.get("link")))
+            cardlike = sum(1 for ch in cg_kids if _slots(ch) >= 2)
+            if cg is not None and wired(cg) and len(cg_kids) >= 3 \
+                    and cardlike >= max(3, (len(cg_kids) + 1) // 2) \
+                    and inst_weight(cg) <= CAP:
+                cg["parent"] = parent
+                insts.append(cg)
+                used.add("cardGrid")
+                stats["typed"] += 1
+                stats["container"] = stats.get("container", 0) + 1
+                tag(node["_el"], "cardGrid", k)
+                return
             ek = extraction_children(node)  # descend transparent single-child wrappers
             w = wrapper_container(node, ek)
             if w is not None:
@@ -1108,12 +1141,19 @@ def build(project, site, ns, module=None, overlay=False):
                      if i.get("type") != "zone" and not i.get("nonRendered")]
     nzone = sum(1 for i in all_insts if i.get("type") == "zone")
     nnonrender = sum(1 for i in all_insts if i.get("nonRendered"))
+    # FOLD-AWARE denominator: a container's lifted items live in its `children` array,
+    # NOT as separate instances. Counting only top-level instances would make genericShare
+    # RISE when #3 folds typed cards into a cardGrid (the rich items leave the denominator,
+    # inflating the generic ratio) — punishing a BETTER model. Card children are typed
+    # content, so count them in the denominator (never generic): genericShare then reflects
+    # true editorial richness and #3 can only lower it.
+    nchild = sum(len(i.get("children") or []) for i in content_insts)
     ninst = len(content_insts)
     # `decoration` (anonymous content-free residue) is still generic — it needs an
     # S4 name; `divider`/`spacer` are recognized so they count as meaningful.
     ngen = sum(1 for i in content_insts
                if i["type"] in ("section", "rawHtml", "decoration"))
-    generic_share = ngen / max(ninst, 1)
+    generic_share = ngen / max(ninst + nchild, 1)
     violations = []
     if generic_share >= 0.5:
         violations.append({"nodeType": f"{ns}:rawHtml",
