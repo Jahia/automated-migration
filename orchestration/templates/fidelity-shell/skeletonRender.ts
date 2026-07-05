@@ -142,6 +142,7 @@ export function nodePayload(node: JCRNode): Payload {
         else if (name === "jcr:title") values.title = p.getString();
         else if (name === "linkLabel") values.linkLabel = p.getString();
         else if (name === "body" || /^body\d+$/.test(name)) values[name] = p.getString();
+        else if (name === "label" || /^label\d+$/.test(name)) values[name] = p.getString();
         else if (/^image\d*Orig$/.test(name)) origs[name.replace(/Orig$/, "")] = p.getString();
         else if (/^image\d*OrigRef$/.test(name)) origRefs[name.replace(/OrigRef$/, "")] = p.getString();
         else if (/^image\d*$/.test(name)) chosen[name] = p.getNode();
