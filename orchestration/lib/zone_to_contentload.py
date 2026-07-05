@@ -140,8 +140,25 @@ _OVERLAY_JS = """
    }
    return chain;
  }
+ function ph(el){
+   if(el.hasAttribute('data-zone'))return '[[zone:'+el.getAttribute('data-zone')+(el.getAttribute('data-zt')?':'+el.getAttribute('data-zt'):'')+']]';
+   if(el.getAttribute('data-zr')==='absolute')return '[[absolute:'+(el.getAttribute('data-zt')||'chrome')+']]';
+   return '[[component:'+(el.getAttribute('data-zt')||'?')+']]';
+ }
  function rawOf(el){
-   var c=el.cloneNode(true),all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
+   var c=el.cloneNode(true);
+   // collapse each IDENTIFIED sub-component/zone to a placeholder (topmost on each
+   // path; don't recurse into it) so the view shows THIS node's own markup with its
+   // children abstracted — not the whole expanded subtree (Julian's ask).
+   (function collapse(node){
+     Array.prototype.slice.call(node.children).forEach(function(ch){
+       if(ch.hasAttribute&&(ch.hasAttribute('data-zt')||ch.hasAttribute('data-zone')))
+         ch.parentNode.replaceChild(document.createTextNode(ph(ch)),ch);
+       else collapse(ch);
+     });
+   })(c);
+   // strip overlay attrs / injected nodes from what remains (incl. the root)
+   var all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
    all.forEach(function(x){['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-pin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});});
    Array.prototype.slice.call(c.querySelectorAll('#zx-ban,#zx-tip')).forEach(function(x){x.remove();});
    return c.outerHTML;
