@@ -114,6 +114,11 @@ class Loader:
         self._dam = load_json(self._dam_path, {})
         self.wire_stats = {"mediaWired": 0, "mediaFailed": 0,
                            "linkExternal": 0, "linkInternal": 0, "linkUnresolved": 0}
+        # C0a accounting: every page-instance NOT created must land in a named
+        # bucket — a silently dropped instance is the bug class that lost 77%
+        # of discoverasr (rawHtml mistaken for chrome). main() fails the run
+        # on any unexplained gap.
+        self.load_acct = []
         # A2: per-page load ledger (trace of the already-done) + verdict tallies.
         # Bootstrap: absent ledger → verdicts computed from JCR reality alone,
         # then backfilled. Runtime artifact, never written in --dry.
@@ -798,19 +803,36 @@ class Loader:
             self.ensure_area(main_area)
             self.install_shell(page, pdata, page_base)
         if clean and not dry:
-            # Only clean the page's main area; absolute areas (nav/footer/topBar)
-            # are singleton containers whose children should persist across loads.
+            # Only clean the page's own areas (main + its zN zones); absolute areas
+            # (nav/footer/topBar) are singleton containers that persist across loads.
             removed = self.clean_area(main_area)
+            for z in sorted({i["zone"] for i in instances if i.get("zone")}):
+                removed += self.clean_area(f"{page_base}/{z}")
             if removed:
                 print(f"  cleaned {removed} existing node(s) from {page} areas")
         created = published = 0
+        inst_created = failed = 0
+        expected = sum(1 for i in instances if not i.get("area"))
+        skips = {}
+
+        def skip(reason):
+            skips[reason] = skips.get(reason, 0) + 1
         created_path = {}  # instance index -> created JCR path (so children nest under their container)
+
+        ensured_zones = set()
 
         def parent_for(idx, inst, nt):
             # nest under the container instance if it was created; else the area
             pi = inst.get("parent")
             if pi is not None and pi in created_path:
                 return created_path[pi]
+            z = inst.get("zone")
+            if z:  # C1: non-absolute per-page zones (template z1..zK Areas)
+                zp = f"{page_base}/{z}"
+                if zp not in ensured_zones and not dry:
+                    self.ensure_area(zp)
+                    ensured_zones.add(zp)
+                return zp
             return area_for(nt, self.manifest, self.site) or main_area
 
         # process in document order so a container is created before its children
@@ -831,18 +853,23 @@ class Loader:
                     # a library plan whose container failed won't be in created_path;
                     # skip the orphan atom (never create under the area directly)
                     if inst.get("parent") not in created_path:
+                        skip("orphan-atom")
                         continue
                     name = inst.get("slot") or f"item-{idx}"
                     if dry:
                         print(f"  [dry] {parent}/{name} <- {nt} (atom {inst.get('variant')})")
                         created_path[idx] = f"{parent}/{name}"
                         created += 1
+                        inst_created += 1
                         continue
                     apath = self.create_library_atom(parent, inst, name)
                     if apath:
                         created_path[idx] = apath
                         created += 1
+                        inst_created += 1
                         print(f"    + {apath}  (atom {inst.get('variant','')})")
+                    else:
+                        failed += 1
                     continue
                 # library container
                 cprops = self.library_container_props(inst)
@@ -851,6 +878,7 @@ class Loader:
                     print(f"  [dry] {parent}/{name} <- {nt} (library container) props={list(cprops)}")
                     created_path[idx] = f"{parent}/{name}"
                     created += 1
+                    inst_created += 1
                     continue
                 try:
                     r = self.m.create(parent, nt, cprops, name=name, locale=self.locale)
@@ -858,25 +886,37 @@ class Loader:
                 except Exception as e:
                     print(f"  ! library container {name} ({nt}) failed: {str(e)[:140]}",
                           file=sys.stderr)
+                    failed += 1
                     continue
                 if cpath:
                     created_path[idx] = cpath
                     created += 1
+                    inst_created += 1
                     print(f"  + {cpath}  ({nt})")
+                else:
+                    failed += 1
                 continue
 
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
+                skip("unmapped")
                 continue  # unmapped helper
 
             # Absolute area singletons (topBar, mainNav, footer) are global site
             # chrome populated separately; the loader creates page-area content only.
+            # The passthrough type is EXEMPT: zone manifests declare it as the
+            # crossCutting chrome type too, and routing page rawHtml by TYPE here
+            # dropped every verbatim block (C0a: 77% of discoverasr lost). Chrome
+            # instances are area-flagged and already excluded above.
             abs_area = area_for(nt, self.manifest, self.site)
-            if abs_area and abs_area != main_area:
+            if abs_area and abs_area != main_area \
+                    and nt != self.manifest.get("passthroughType"):
+                skip("chrome-typed")
                 continue
 
             pdef = self.props_of(nt)
             if not pdef.get("exists"):
+                skip("type-not-deployed")
                 continue
             mixins, post = [], {}
             if inst.get("promoted") or inst.get("skeleton"):
@@ -888,6 +928,7 @@ class Loader:
                                for c in self.manifest.get("components", []))
             # skip empty leaves, but ALWAYS create containers (they hold children)
             if not props and not is_container:
+                skip("empty")
                 continue
             parent = parent_for(idx, inst, nt)
             name = f"{nt.split(':')[-1]}-{page}-{idx}"
@@ -899,6 +940,7 @@ class Loader:
                       + (f" +{len(kids)} item(s)" if kids else ""))
                 created_path[idx] = f"{parent}/{name}"
                 created += 1
+                inst_created += 1
                 continue
             path = None
             try:
@@ -921,6 +963,7 @@ class Loader:
                 if path:
                     created_path[idx] = path
                     created += 1
+                    inst_created += 1
                     if inst.get("promoted") or inst.get("skeleton"):
                         # P2.5-D: per-node slot mixins, mixin props, weakrefs
                         self.apply_payload(path, mixins, post, inst, nt)
@@ -928,8 +971,11 @@ class Loader:
                     # the single final act (publish_site.sh)
                     label = post.get("jcr:title") or props.get("heading") or nt
                     print(f"  + {path}  ({str(label)[:48]})")
+                else:
+                    failed += 1
             except Exception as e:
                 print(f"  ! create {name} ({nt}) failed: {e}", file=sys.stderr)
+                failed += 1
                 continue
             # P2.5: item child nodes — one per {{child:N}} marker, SAME ORDER
             # (the skeleton view splices child i into marker i)
@@ -968,6 +1014,12 @@ class Loader:
             # no per-parent publish, no area sweep — EDIT-only (Julian
             # 2026-07-04): the single final publication (publish_site.sh,
             # unpublish-first) pushes the complete EDIT state to LIVE at once
+        self.load_acct.append({"page": page, "expected": expected,
+                               "created": inst_created, "failed": failed,
+                               "skipped": skips})
+        if failed or inst_created + sum(skips.values()) < expected:
+            print(f"  !! {page}: {inst_created}/{expected} instance(s) created "
+                  f"(failed={failed}, skipped={skips})", file=sys.stderr)
         if clean and not dry:
             # A2: record the completed (re)load so the next run can skip it.
             # Only in reconcile/force mode — plain append mode stays unchanged.
@@ -1084,6 +1136,22 @@ def main():
     # EDIT-only (Julian 2026-07-04): the load never publishes — publication is
     # the single final act via orchestration/assist/publish_site.sh
     print(f"\nload_content: created {tot_c} node(s) [EDIT-only]{' [dry]' if dry else ''}")
+    # C0a gate: a load that DROPS instances must FAIL, not report success.
+    # Only 'chrome-typed' skips are legitimate (v1 vision manifests route
+    # dedicated chrome types by nodeType; those blocks load via load_chrome).
+    if not dry and not limit:
+        exp = sum(a["expected"] for a in ld.load_acct)
+        got = sum(a["created"] for a in ld.load_acct)
+        bad = sum(a["failed"] for a in ld.load_acct)
+        legit = sum(a["skipped"].get("chrome-typed", 0) for a in ld.load_acct)
+        if bad or got + legit < exp:
+            agg = {}
+            for a in ld.load_acct:
+                for k, v in a["skipped"].items():
+                    agg[k] = agg.get(k, 0) + v
+            print(f"load_content: INCOMPLETE — {got}/{exp} instance(s) created "
+                  f"(failed={bad}, skipped={agg})", file=sys.stderr)
+            sys.exit(4)
     if ld.prop_misses:
         # a lifted value with no CND home = text LOST from the render — this is
         # a build/CND mismatch, never acceptable (G1/G3 will be red)

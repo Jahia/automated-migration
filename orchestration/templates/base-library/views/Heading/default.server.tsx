@@ -1,6 +1,7 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
 import { createElement } from "react";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./heading.module.css";
 
 /**
@@ -11,6 +12,10 @@ import styles from "./heading.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:heading", displayName: "Heading" },
   (props: { "jcr:title"?: string; subtitle?: string; level?: string; skeletonOrig?: string }) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const title = props["jcr:title"];
     const level = props.level && ["h2", "h3", "h4"].includes(props.level) ? props.level : "h2";
 

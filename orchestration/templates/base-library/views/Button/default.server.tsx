@@ -2,6 +2,7 @@ import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-libr
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { resolveCtaUrl } from "../lib.js";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./button.module.css";
 
 /**
@@ -22,6 +23,10 @@ jahiaComponent(
     },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const { renderContext } = useServerContext();
     const label = props.ctaLabel;
     const url = resolveCtaUrl(props["j:linkType"], currentNode);

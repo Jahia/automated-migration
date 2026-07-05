@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { resolveCtaUrl } from "../lib.js";
 import { buildQuery } from "./utils.js";
 import styles from "./jcrQuery.module.css";
+import { useSkeleton } from "../SkeletonBody.js";
 
 /**
  * $NS:jcrQuery — the listing tool every module ships (CLAUDE.md rule 16). Editors
@@ -35,6 +36,10 @@ jahiaComponent(
     },
     { currentNode, renderContext }: { currentNode: JCRNodeWrapper; renderContext: RenderContext },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const { t } = useTranslation();
     const isEdit = renderContext.isEditMode();
     const title = props["jcr:title"];

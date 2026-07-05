@@ -6,6 +6,7 @@ import {
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./logoWall.module.css";
 
 /**
@@ -25,6 +26,10 @@ jahiaComponent(
     { heading, skeleton, skeletonOrig }: { heading?: string; skeleton?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     // No editorial logos and no heading → verbatim backstop (reuse the existing
     // container `skeleton` skin when present) instead of an empty wall shell.
     const logos = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>

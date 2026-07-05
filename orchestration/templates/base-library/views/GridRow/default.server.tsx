@@ -1,6 +1,7 @@
 import { AbsoluteArea, jahiaComponent } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import styles from "./gridRow.module.css";
+import { useSkeleton } from "../SkeletonBody.js";
 
 /**
  * $NS:gridRow — the LAYOUT PRIMITIVE, transcribed verbatim from the DEPLOYED
@@ -22,6 +23,10 @@ function parseColumns(raw: unknown): number {
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:gridRow", displayName: "Grid Row" },
   ({ columns: rawCols }: { columns?: string }, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const cols = parseColumns(rawCols);
     const indices = Array.from({ length: cols }, (_, i) => i);
 

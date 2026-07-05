@@ -1,6 +1,7 @@
 import { getChildNodes, jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./accordion.module.css";
 
 /**
@@ -16,6 +17,10 @@ jahiaComponent(
     { heading, skeletonOrig }: { heading?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     // No editorial rows and no heading → verbatim backstop instead of an empty shell.
     const rows = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
       n.isNodeType("$NS:faqItem"),

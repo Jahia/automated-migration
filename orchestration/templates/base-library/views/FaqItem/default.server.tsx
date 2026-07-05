@@ -1,5 +1,6 @@
 import { jahiaComponent } from "@jahia/javascript-modules-library";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./faqItem.module.css";
 
 /**
@@ -10,6 +11,10 @@ import styles from "./faqItem.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:faqItem", displayName: "FAQ Item" },
   (props: { "jcr:title"?: string; answer?: string; skeletonOrig?: string }) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const question = props["jcr:title"];
     if (!question && !props.answer) return <Verbatim html={props.skeletonOrig} />;
 

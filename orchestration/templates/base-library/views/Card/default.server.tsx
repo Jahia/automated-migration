@@ -3,6 +3,7 @@ import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { createElement } from "react";
 import { resolveImageUrl } from "../lib.js";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./card.module.css";
 
 /**
@@ -40,6 +41,10 @@ jahiaComponent(
     },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     // ── SLIDE mode: verbatim-default source markup (fidelity-first) ──
     if (props.slideOrig) {
       // Only swap the image once the editor picks a DIFFERENT one (UUID differs

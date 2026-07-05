@@ -114,6 +114,7 @@ type Payload = {
   values: Record<string, string>;
   media: Media[];
   linkHref: string | null;
+  rawHtml: string | null;
 };
 
 /** Read a skeleton node's payload through the localized JCR session (i18n
@@ -127,6 +128,7 @@ export function nodePayload(node: JCRNode): Payload {
   let jUrl = "";
   let linkOrig = "";
   let linknodeUrl = "";
+  let rawHtml = "";
   try {
     const it = node.getProperties();
     while (it.hasNext()) {
@@ -139,6 +141,7 @@ export function nodePayload(node: JCRNode): Payload {
       }
       try {
         if (name === "skeleton") skeleton = p.getString();
+        else if (name === "html") rawHtml = p.getString();
         else if (name === "jcr:title") values.title = p.getString();
         else if (name === "linkLabel") values.linkLabel = p.getString();
         else if (name === "body" || /^body\d+$/.test(name)) values[name] = p.getString();
@@ -169,7 +172,9 @@ export function nodePayload(node: JCRNode): Payload {
     }
     return { name, orig: origs[name], url, edited };
   });
-  return { skeleton, values, media, linkHref: jUrl || linknodeUrl || linkOrig || null };
+  return { skeleton, values, media,
+           linkHref: jUrl || linknodeUrl || linkOrig || null,
+           rawHtml: rawHtml || null };
 }
 
 /** Edited media render: the chosen image must win — drop <source>/srcset,
@@ -351,7 +356,12 @@ export function composeNode(node: JCRNode): string {
         const child = it.nextNode();
         if (String(child.getName()).startsWith("j:")) continue; // translations/acl
         const cp = nodePayload(child);
-        if (cp.skeleton) rendered.push(substitute(cp));
+        // RECURSIVE: a child may itself be a container (wrapper-preserving
+        // section) whose skeleton carries {{child:N}} markers; a rawHtml
+        // child composes its verbatim `html` prop (both were dropped before —
+        // nested containers rendered literal marker text, raw children vanished)
+        if (cp.skeleton) rendered.push(composeNode(child));
+        else if (cp.rawHtml) rendered.push(cp.rawHtml);
       }
     } catch {
       /* no readable children */

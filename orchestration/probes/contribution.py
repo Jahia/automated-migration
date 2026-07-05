@@ -131,7 +131,11 @@ def main():
                             slugp = h.split("?")[0].split("#")[0].strip("/").replace("/", "_") or "home"
                             g5["linkIntResolved" if slugp in data.get("pages", {})
                                else "linkIntUnresolved"] += 1
-                if inst.get("promoted") and not any(
+                # a CONTAINER (skeleton splices its JCR children via {{child:N}},
+                # zone-bridge parent-linked instances) is structure, not a shell —
+                # its editable content lives on the child instances themselves
+                if inst.get("promoted") and "{{child:" not in (inst.get("skeleton") or "") \
+                        and not any(
                         pl.get("fields") or pl.get("media") or pl.get("link")
                         for pl in payloads):
                     shells.append((slug, inst["type"]))
@@ -139,6 +143,10 @@ def main():
                     inst.get("skeleton") or "", inst.get("fields") or {},
                     inst.get("children") or [],
                     media=inst.get("media"), link=inst.get("link"))
+                # parent-linked children are separate instances counted on their
+                # own — an unsubstituted {{child:N}} marker is phantom denominator
+                # text, not visible content
+                recomposed = re.sub(r"\{\{child:\d+\}\}", "", recomposed)
                 visible += len(text_of(recomposed))
                 formtx += len(form_text_of(recomposed))
                 for pl in payloads:
@@ -183,7 +191,17 @@ def main():
           f"({link_pct:.1f}%, floor 95) — external {g5['linkExtWired']}, internal "
           f"resolved {g5['linkIntResolved']}, unresolved (verbatim fallback) "
           f"{g5['linkIntUnresolved']}; residue anchors total {g5['linkTotal']}")
-    ok5 = media_pct >= 90.0 and link_pct >= 95.0
+    # vacuous-pass guard (observability plan B): 0/0 media on a site whose markup
+    # carries <img> is a FAIL — wiring was never even attempted (observed live:
+    # the skeletonOrig-only MVP "passed" G5 at 0/0 on three image-heavy sites)
+    has_imgs = any("<img" in (i.get("skeleton") or "") or "<img" in (i.get("skeletonOrig") or "")
+                   or "<img" in ((i.get("fields") or {}).get("html") or "")
+                   for p in data.get("pages", {}).values() for i in p.get("instances", []))
+    vacuous = mt == 0 and has_imgs
+    if vacuous:
+        print("G5: VACUOUS PASS blocked — 0 media units attempted while the source "
+              "markup carries <img>", file=sys.stderr)
+    ok5 = media_pct >= 90.0 and link_pct >= 95.0 and not vacuous
     print(("PASS" if ok5 else "FAIL") + ": G5 media/link wiring gate")
     return 0 if (ok and ok5) else 1
 

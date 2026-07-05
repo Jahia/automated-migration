@@ -2,6 +2,7 @@ import { jahiaComponent } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { resolveImageUrl } from "../lib.js";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./iconWithText.module.css";
 
 /**
@@ -11,6 +12,10 @@ import styles from "./iconWithText.module.css";
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:iconWithText", displayName: "Icon With Text" },
   (props: { icon?: JCRNodeWrapper; iconAlt?: string; label?: string; skeletonOrig?: string }) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const iconSrc = resolveImageUrl(props.icon);
     if (!iconSrc && !props.label) return <Verbatim html={props.skeletonOrig} />;
 

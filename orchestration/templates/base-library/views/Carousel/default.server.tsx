@@ -7,6 +7,7 @@ import {
 } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import { CarouselIsland } from "./CarouselIsland.client.js";
 import styles from "./carousel.module.css";
 
@@ -33,6 +34,10 @@ jahiaComponent(
     }: { autoplay?: boolean; interval?: number; skeleton?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const { renderContext } = useServerContext();
 
     const children = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>

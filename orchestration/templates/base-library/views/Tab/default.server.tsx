@@ -1,5 +1,6 @@
 import { jahiaComponent, RenderChildren } from "@jahia/javascript-modules-library";
 import { createElement } from "react";
+import { useSkeleton } from "../SkeletonBody.js";
 import styles from "./tab.module.css";
 
 /**
@@ -15,16 +16,21 @@ import styles from "./tab.module.css";
  */
 jahiaComponent(
   { componentType: "view", nodeType: "$NS:tab", displayName: "Tab" },
-  ({ panelOrig }: { panelOrig?: string }) => (
-    <div className={styles.tab}>
-      {panelOrig
-        ? createElement("div", {
-            className: "$NS-tab-orig",
-            // eslint-disable-next-line react/no-danger -- verbatim captured panel markup
-            dangerouslySetInnerHTML: { __html: panelOrig },
-          })
-        : null}
-      <RenderChildren />
-    </div>
-  ),
+  ({ panelOrig }: { panelOrig?: string }) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+    return (
+      <div className={styles.tab}>
+        {panelOrig
+          ? createElement("div", {
+              className: "$NS-tab-orig",
+              // eslint-disable-next-line react/no-danger -- verbatim captured panel markup
+              dangerouslySetInnerHTML: { __html: panelOrig },
+            })
+          : null}
+        <RenderChildren />
+      </div>
+    );
+  },
 );

@@ -29,6 +29,10 @@ export type Shell = {
   levels: ShellLevel[];
   innerLevels?: ShellLevel[];
   head?: HeadItem[];
+  // zone-bridge shells carry NO chrome markup in levels (header/nav/footer are
+  // contributed AbsoluteArea blocks) — this flag keeps the areas rendering.
+  // Vision-pipeline shells embed chrome verbatim in levels and omit the flag.
+  chromeAreas?: boolean;
 };
 
 /** Balanced sibling markup, DOM-transparent for layout (display:contents). */
@@ -160,10 +164,10 @@ export const Layout = ({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body {...domAttrs(shell?.bodyAttrs)}>
-        {!shell && <AbsoluteArea name="header" parent={homePage} />}
-        {!shell && <AbsoluteArea name="nav" parent={homePage} />}
+        {(!shell || shell.chromeAreas) && <AbsoluteArea name="header" parent={homePage} />}
+        {(!shell || shell.chromeAreas) && <AbsoluteArea name="nav" parent={homePage} />}
         {body}
-        {!shell && <AbsoluteArea name="footer" parent={homePage} />}
+        {(!shell || shell.chromeAreas) && <AbsoluteArea name="footer" parent={homePage} />}
       </body>
     </html>
   );

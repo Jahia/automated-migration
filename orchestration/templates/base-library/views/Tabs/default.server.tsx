@@ -8,6 +8,7 @@ import {
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { getProp } from "../lib.js";
 import { Verbatim } from "../Verbatim.js";
+import { useSkeleton } from "../SkeletonBody.js";
 import { TabsIsland } from "./TabsIsland.client.js";
 import styles from "./tabs.module.css";
 
@@ -29,6 +30,10 @@ jahiaComponent(
     }: { heading?: string; skeleton?: string; skeletonOrig?: string },
     { currentNode }: { currentNode: JCRNodeWrapper },
   ) => {
+    // skeleton-first: a migrated node renders its captured source markup
+    const skeletal = useSkeleton();
+    if (skeletal) return skeletal;
+
     const { renderContext } = useServerContext();
 
     const panes = getChildNodes(currentNode, -1, 0, (n: JCRNodeWrapper) =>
