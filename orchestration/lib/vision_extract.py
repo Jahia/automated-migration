@@ -351,6 +351,7 @@ def decompose_group_with_items(group, items, lift_titles=True):
         f.update(SE.lift_bodies(scope, banned))
         media, media_total = SE.lift_media(scope, banned)
         link, link_total = SE.lift_link(scope, banned, f)
+        f.update(SE.lift_labels(scope, banned))
         return {"fields": f, "media": media, "mediaTotal": media_total,
                 "link": link, "linkTotal": link_total}
 

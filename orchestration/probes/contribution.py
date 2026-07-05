@@ -36,6 +36,11 @@ def text_of(html):
     if not html:
         return ""
     soup = BeautifulSoup(html, "lxml")
+    # script/style/svg <title>/noscript text is never RENDERED — it must not
+    # inflate the visible denominator (observed: 870 chars of SVG titles +
+    # inline JS counted as "visible" on the home page).
+    for el in soup.find_all(["script", "style", "title", "noscript"]):
+        el.extract()
     return re.sub(r"\s+", " ", soup.get_text(" ", strip=True))
 
 
