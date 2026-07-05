@@ -678,7 +678,16 @@ def build(project, site, ns, module=None, overlay=False):
         ORDER, so the one-instance-per-kid contract is what keeps the container
         recomposition aligned."""
         if is_hidden_el(node.get("_el")):
-            return  # non-rendered (hidden/template/metadata) — never a node/zone
+            # KEEP it rendered VERBATIM — removing markup is NOT visually safe: a body
+            # <style>/<link> still applies CSS (measured: dropping liferay's 53 body
+            # styles changed the render). Flag it nonRendered so it is NEVER a zone
+            # and NEVER painted in the overlay — carried markup, not a contribution
+            # surface (Julian: "je n'y crois pas" to zero-risk removal — correct).
+            t = raw_inst(node["_el"], base)
+            t["nonRendered"] = True
+            t["parent"] = parent
+            insts.append(t)
+            return
         k = node["key"]
         lib, conf, sc = lib_of(node)
         if parent is None:
@@ -759,20 +768,37 @@ def build(project, site, ns, module=None, overlay=False):
         # top-level instances to its own template zone Area (z1..zK) — several
         # non-absolute contribution zones per page; zone order = document order
         band = 0
+        pending = []  # leading non-rendered markup before the first real zone
         for kid in root["kids"]:
             start = len(insts)
             emit_node(kid, insts, 0, None)
             tops = [i for i in insts[start:]
                     if i.get("parent") is None and not i.get("area")]
-            if tops:
+            if not tops:
+                continue
+            real = [i for i in tops if not i.get("nonRendered")]
+            if real:
                 band += 1
-                for i in tops:
-                    i["zone"] = f"z{band}"
+                z = f"z{band}"
+                for i in tops + pending:  # non-rendered markup rides the adjacent real zone
+                    i["zone"] = z
+                pending = []
                 # overlay: mark the band's DOM region as a normal content zone
                 # (blue). It coexists with a nested component outline (box-shadow
                 # vs outline) so the zone→component nesting is both visible.
                 if overlay and kid.get("_el") is not None:
-                    kid["_el"]["data-zone"] = f"z{band}"
+                    kid["_el"]["data-zone"] = z
+            elif band > 0:
+                # only non-rendered markup: fold into the LAST real zone — it still
+                # renders (invisible) but never becomes its own bogus zone
+                for i in tops:
+                    i["zone"] = f"z{band}"
+            else:
+                pending.extend(tops)  # no real zone yet — buffer for the first one
+        if pending:  # degenerate page with only non-rendered top-level markup
+            band = max(band, 1)
+            for i in pending:
+                i["zone"] = "z1"
         max_zones = max(max_zones, band)
         if not insts:  # never emit an empty page
             insts.append(raw_inst(root["_el"], base))
@@ -846,11 +872,13 @@ def build(project, site, ns, module=None, overlay=False):
         comps.append(c)
     chrome_areas = sorted({c["area"] for c in chrome})
     # editorial honesty for the model gate (_verdict_model). Zones are STRUCTURAL
-    # (no editable content) so they are excluded from the content tally entirely;
-    # genericShare = generic CONTENT instances / all content instances.
-    content_insts = [i for p in out.values() for i in p["instances"]
-                     if i.get("type") != "zone"]
-    nzone = sum(len(p["instances"]) for p in out.values()) - len(content_insts)
+    # and nonRendered instances are carried-but-invisible markup — both excluded
+    # from the content tally; genericShare = generic CONTENT / all content.
+    all_insts = [i for p in out.values() for i in p["instances"]]
+    content_insts = [i for i in all_insts
+                     if i.get("type") != "zone" and not i.get("nonRendered")]
+    nzone = sum(1 for i in all_insts if i.get("type") == "zone")
+    nnonrender = sum(1 for i in all_insts if i.get("nonRendered"))
     ninst = len(content_insts)
     # `decoration` (anonymous content-free residue) is still generic — it needs an
     # S4 name; `divider`/`spacer` are recognized so they count as meaningful.
@@ -865,7 +893,7 @@ def build(project, site, ns, module=None, overlay=False):
     naming_quality = "poor" if generic_share >= 0.7 else ("mixed" if generic_share >= 0.4 else "good")
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",
                 "components": comps, "zones": max_zones, "templates": [],
-                "zoneInstances": nzone,
+                "zoneInstances": nzone, "nonRenderedInstances": nnonrender,
                 "contentFreeTypes": sorted(f"{ns}:{c}" for c in cf_types),
                 "namingQuality": naming_quality, "namingViolations": violations,
                 "genericShare": round(generic_share, 3),
