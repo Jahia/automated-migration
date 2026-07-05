@@ -27,6 +27,10 @@
 
 [$NSMIX:component]     > jmix:droppableContent, jmix:accessControllableContent mixin
  - skeletonOrig (string, textarea) hidden
+ // `skeleton` = captured source markup with {{f:*}}/{{media:*}}/{{link:href}}/{{child:N}}
+ // markers (zone bridge). Universal here so EVERY typed node (atom OR container)
+ // renders byte-exact via composeNode (useSkeleton). Declared ONCE — never inline
+ // on a subtype (Jackrabbit rejects the double declaration).
 [$NSMIX:pageComponent] > $NSMIX:component mixin
 // section marker: a top-level, page-droppable CONTAINER (LIBRARY-SPEC §1.1)
 [$NSMIX:section]       > $NSMIX:pageComponent mixin
@@ -82,45 +86,55 @@
 
 // CTA / button — the primary link atom (lsp:ctaButton)
 [$NS:button] > jnt:content, $NSMIX:component, $NSMIX:cta, $NSMIX:theme
+ - skeleton (string, textarea) hidden
  - isSmall (boolean) = false
  - mainCTA (boolean) = false
 
 // chevron / arrow link (jahiacom-v3 chevronButton)
 [$NS:chevronLink] > jnt:content, $NSMIX:component, $NSMIX:cta
+ - skeleton (string, textarea) hidden
 
 // heading / section title (jahiacom-v3 titleSection); title via mix:title supertype
 [$NS:heading] > jnt:content, mix:title, $NSMIX:component
+ - skeleton (string, textarea) hidden
  - subtitle (string) i18n
  - level (string, choicelist[resourceBundle]) = 'h2' autocreated < 'h2', 'h3', 'h4'
 
 // free rich-text block (our addition; migration.md rule 3)
 [$NS:richText] > jnt:content, $NSMIX:component
+ - skeleton (string, textarea) hidden
  - body (string, richtext) i18n
 
 // image atom — image+alt (media) + optional link (cta) (jahiacom-v3 imageItem)
 [$NS:image] > jnt:content, $NSMIX:component, $NSMIX:media, $NSMIX:cta
+ - skeleton (string, textarea) hidden
  - caption (string) i18n
 
 // tag / badge chip (jahiacom-v3 tagItem)
 [$NS:tag] > jnt:content, $NSMIX:component, $NSMIX:badge
+ - skeleton (string, textarea) hidden
  - tagImg (weakreference, picker[type='image']) < jmix:image
  - tagImgAlt (string) hidden
 
 // logo atom — one logo image + link (the discoverasr brand-logo atom, DECOMP-PROTOTYPE)
 [$NS:logo] > jnt:content, $NSMIX:component, $NSMIX:media, $NSMIX:cta
+ - skeleton (string, textarea) hidden
 
 // divider / spacer (our addition)
 [$NS:divider] > jnt:content, $NSMIX:component
+ - skeleton (string, textarea) hidden
  - style (string, choicelist[resourceBundle]) = 'line' autocreated < 'line', 'space'
 
 // icon + text row (jahiacom-v3 iconWithText)
 [$NS:iconWithText] > jnt:content, $NSMIX:component
+ - skeleton (string, textarea) hidden
  - icon (weakreference, picker[type='image']) < jmix:image
  - iconAlt (string) i18n
  - label (string, richtext) i18n
 
 // FAQ / accordion Q-A row (jahiacom-v3 faqItem); question via mix:title
 [$NS:faqItem] > jnt:content, mix:title, $NSMIX:component
+ - skeleton (string, textarea) hidden
  - answer (string, richtext) i18n
 
 // card — the richest atom. Variants are STYLE-MIXIN choices (theme/cornerCut), NOT
@@ -136,6 +150,7 @@
 //   slideOrigRef  DAM uuid of the slide's original first image (verbatim contract)
 //   slideClass    the source slide element class (state tokens stripped)
 [$NS:card] > jnt:content, mix:title, $NSMIX:component, $NSMIX:media, $NSMIX:cta, $NSMIX:cornerCut, $NSMIX:theme
+ - skeleton (string, textarea) hidden
  - body (string, richtext) i18n
  - slideOrig (string, textarea) hidden
  - slideOrigRef (string) hidden
@@ -149,6 +164,7 @@
 // EDIT/PREVIEW (LIVE byte-exact via the container splice). panelOrig is hidden;
 // the open `+ *` palette lets an editor add composable atoms alongside it.
 [$NS:tab] > jnt:content, mix:title, $NSMIX:component
+ - skeleton (string, textarea) hidden
  - panelOrig (string, textarea) hidden
  + * ($NSMIX:component)
 
@@ -158,6 +174,7 @@
 
 // section — open palette of ANY atom (jahiacom-v3 sectionCustom / open <Area>)
 [$NS:section] > jnt:content, $NSMIX:section, $NSMIX:background, $NSMIX:spacing
+ - skeleton (string, textarea) hidden
  - heading (string) i18n
  + * ($NSMIX:component)
 
@@ -165,11 +182,13 @@
 // choicelist + `+ * (jmix:droppableContent)`; the VIEW renders one AbsoluteArea per
 // column (module-real wins over the spec's per-column-Area-vs-open-repeater note).
 [$NS:gridRow] > jnt:content, $NSMIX:pageComponent
+ - skeleton (string, textarea) hidden
  - columns (string, choicelist[resourceBundle]) = '2' autocreated < '1', '2', '3', '4'
  + * (jmix:droppableContent) = jmix:droppableContent
 
 // cardGrid — grid of $NS:card (jahiacom-v3 cardsCustomerCase / fourArticlesRow)
 [$NS:cardGrid] > jnt:content, $NSMIX:section
+ - skeleton (string, textarea) hidden
  - heading (string) i18n
  - columns (string, choicelist[resourceBundle]) = '3' autocreated < '2', '3', '4'
  + * ($NS:card)
@@ -179,27 +198,28 @@
 // so a library container nested under a rawHtml partition renders byte-exact on
 // LIVE via composeNode; EDIT renders the composable children through the view.
 [$NS:logoWall] > jnt:content, $NSMIX:section
- - heading (string) i18n
  - skeleton (string, textarea) hidden
+ - heading (string) i18n
  + master ($NS:logo)
  + * ($NS:logo)
 
 // carousel — slides of any atom (P6.3-bis: promoted from a JS slider, cloned-slide
 // deduped). skeleton = verbatim source markup (LIVE byte-exact splice, fidelity-first).
 [$NS:carousel] > jnt:content, $NSMIX:section
+ - skeleton (string, textarea) hidden
  - autoplay (boolean) = true autocreated
  - interval (long)
- - skeleton (string, textarea) hidden
  + * ($NSMIX:component)
 
 // tabs — container of $NS:tab (P6.3-bis: promoted from a JS tabs widget).
 [$NS:tabs] > jnt:content, $NSMIX:section
- - heading (string) i18n
  - skeleton (string, textarea) hidden
+ - heading (string) i18n
  + * ($NS:tab)
 
 // accordion — Q/A rows (jahiacom-v3 faqSection)
 [$NS:accordion] > jnt:content, $NSMIX:section
+ - skeleton (string, textarea) hidden
  - heading (string) i18n
  + * ($NS:faqItem)
 
@@ -208,6 +228,7 @@
 // discoverasr/supercar; jmix:cache does not exist in Jahia 8.2 (jahia.md rule 12).
 // (lesalondelaphoto's CND uses jmix:cache — an outlier we deliberately do NOT copy.)
 [$NS:jcrQuery] > jnt:content, $NSMIX:pageComponent, jmix:list, mix:title
+ - skeleton (string, textarea) hidden
  - type (string, choicelist[subnodetypes = 'jnt:page,jmix:mainResource', resourceBundle]) indexed=no mandatory
  - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated indexed=no < 'jcr:created', 'jcr:lastModified', 'j:lastPublished'
  - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated indexed=no < 'asc', 'desc'
