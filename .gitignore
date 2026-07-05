@@ -37,3 +37,7 @@ projects/
 orchestration/content/
 orchestration/images/
 orchestration/sitemaps/
+
+# Captured site content stays LOCAL (mhtml + per-project page data); harness .py scripts stay tracked.
+*.mhtml
+orchestration/pages/*/
