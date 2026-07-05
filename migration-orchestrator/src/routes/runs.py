@@ -559,3 +559,29 @@ async def run_rollback(run_id: str, req: Rollback, request: Request):
     if isinstance(result, dict) and result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
     return {"status": "rolled_back", "to_step": req.to_step, "result": result}
+
+
+class Rerun(BaseModel):
+    reason: str = ""
+
+
+@router.post("/runs/{run_id}/steps/{step_id}/rerun")
+async def run_rerun_step(run_id: str, step_id: str, req: Rerun, request: Request):
+    """Re-execute ONE step with the current code, resetting its dependents (the
+    gate after it re-halts on fresh artifacts). Clear verb for the "I fixed this
+    step's code, run it again" flow — same audited machinery as /rollback
+    (jump_to_step) but per-step and self-documenting. Upstream steps are NOT
+    re-run (e.g. the mirror is not re-scraped). Audited as `rerun_step`."""
+    run = await _resolve_run(run_id)
+    await save_event(run_id, "rerun_step", {"step_id": step_id, "reason": req.reason})
+    result = await jump_to_step(
+        run_id, step_id, None, True,
+        client=request.app.state.llm_client,
+        event_listener=request.app.state.event_listener,
+    )
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(status_code=404 if result["error"] == "step not found" else 400,
+                            detail=result["error"])
+    return {"status": "rerunning", "step_id": step_id,
+            "reset_steps": result.get("reset_steps", []),
+            "skipped_steps": result.get("skipped_steps", [])}
