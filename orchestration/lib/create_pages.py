@@ -32,6 +32,18 @@ def main():
     inv_path = f"projects/{project}/workflow-output/page-inventory.json"
     inv = json.load(open(inv_path))
     pages = [p for p in inv.get("pages", []) if p.get("slug")]
+    # the crawl's HOME page slug is rarely "home" (discoverasr: "en", url ==
+    # siteUrl). It must map to /sites/<site>/home itself, never /home/<slug> —
+    # same rule as load_content._home_slug (loader wrote /home/main while a
+    # spurious empty /home/en page failed the integrity belt).
+    site_url = (inv.get("siteUrl") or "").rstrip("/")
+    hs = next((q["slug"] for q in inv.get("pages", [])
+               if (q.get("url") or "").rstrip("/") == site_url), None)
+    if hs is None and inv.get("pages"):
+        hs = inv["pages"][0].get("slug")
+    for q in pages:
+        if q.get("slug") == hs:
+            q["slug"] = "home"
     if limit:
         pages = pages[:limit]
 

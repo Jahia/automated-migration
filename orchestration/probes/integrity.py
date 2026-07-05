@@ -166,7 +166,9 @@ class Jahia:
         """Recursive count of content descendants under a page's /main area.
         Returns None when the /main area node does not exist yet (Jahia lazy-
         creates it) — distinct from 0 (area exists, empty)."""
-        path = f"/sites/{site}/home/{page_name}/main"
+        # "home" = the site home node itself (its main area is /home/main)
+        base = f"/sites/{site}/home" if page_name == "home" else f"/sites/{site}/home/{page_name}"
+        path = f"{base}/main"
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
              'descendants { nodes { name } } } } }' % (workspace, path))
         try:
@@ -187,7 +189,8 @@ class Jahia:
         stale LIVE node keeps its OLD uuid while the reload's EDIT node has a NEW
         one (observed live: 925 EDIT-vs-LIVE uuid mismatches from a silently
         aborted purge)."""
-        path = f"/sites/{site}/home/{page_name}/main"
+        base = f"/sites/{site}/home" if page_name == "home" else f"/sites/{site}/home/{page_name}"
+        path = f"{base}/main"
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
              'children { nodes { name uuid } } } } }' % (workspace, path))
         try:
@@ -229,12 +232,25 @@ def expected_pages(pp: str) -> list[str]:
     "home" which maps to /home itself (no distinct child node)."""
     inv = load_json(os.path.join(REPO_ROOT, pp, "workflow-output", "page-inventory.json"), {})
     names = []
+    hs = home_slug(pp)
     for p in inv.get("pages", []):
         slug = p.get("slug")
-        if not slug or slug == "home":
+        if not slug or slug == "home" or slug == hs:
             continue
         names.append(slug)
     return names
+
+
+def home_slug(pp: str) -> str | None:
+    """The inventory slug that IS the site home (url == siteUrl; fallback: first
+    crawled page) — same rule as load_content._home_slug / create_pages. That
+    slug maps to /sites/<site>/home itself, never /home/<slug>."""
+    inv = load_json(os.path.join(REPO_ROOT, pp, "workflow-output", "page-inventory.json"), {})
+    site_url = (inv.get("siteUrl") or "").rstrip("/")
+    for p in inv.get("pages", []):
+        if (p.get("url") or "").rstrip("/") == site_url:
+            return p.get("slug")
+    return inv["pages"][0].get("slug") if inv.get("pages") else None
 
 
 def expected_instances(project: str) -> dict[str, int]:
@@ -250,6 +266,11 @@ def expected_instances(project: str) -> dict[str, int]:
         top = [i for i in insts if not i.get("area") and i.get("parent") is None]
         child_items = sum(len(i.get("children") or []) for i in insts if not i.get("area"))
         out[slug] = len(top) + child_items
+    # the home slug's content lives under /home/main — remap it to "home" so
+    # every downstream check (which special-cases "home") resolves the path.
+    hs = home_slug(os.path.join("projects", project))
+    if hs and hs != "home" and hs in out:
+        out["home"] = out.pop(hs)
     return out
 
 
