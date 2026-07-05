@@ -405,6 +405,15 @@ LIBRARY_TYPES = {"button", "chevronLink", "heading", "richText", "image", "tag",
                  "divider", "iconWithText", "faqItem", "card", "tab", "section", "gridRow",
                  "cardGrid", "logoWall", "carousel", "tabs", "accordion"}
 
+def _type_from_marker(v):
+    """A component's explicit marker value → a clean camelCase type name.
+    'page_navigation' → 'pageNavigation', 'Hero-Banner' → 'heroBanner'."""
+    parts = [p for p in re.split(r"[^A-Za-z0-9]+", v) if p]
+    if not parts or not parts[0][0].isalpha():
+        return None
+    return parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
+
+
 def library_map(key, tier, scope, sib, has_children):
     """Map a detected identity key to ONE base-library component type + confidence [0,1].
     Deterministic word-matching on the (framework-stripped) key + structure; confidence<0.5 =
@@ -444,6 +453,14 @@ def library_map(key, tier, scope, sib, has_children):
         return ("divider", 0.5)
     if has("icon") and has_children:
         return ("iconWithText", 0.5)
+    # no base-library WORD matched — but if the author EXPLICITLY marked this a
+    # component (data-component/itemtype → `cmp:X`), TRUST that name as the type
+    # with high confidence. The author declared it; deterministic, before any LLM
+    # arbitration. (Residue with NO marker still falls to the weak fallbacks below.)
+    if key.startswith("cmp:"):
+        name = _type_from_marker(k)
+        if name:
+            return (name, 0.85)
     if scope == "RECORD":
         return ("card", 0.4)
     if has("row", "grid", "col", "column"):

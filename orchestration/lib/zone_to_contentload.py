@@ -720,7 +720,10 @@ def build(project, site, ns, module=None, overlay=False):
                 for kd in node["kids"]:  # transparent layout root (top level only)
                     emit_node(kd, insts, depth, parent)
                 return
-        if lib and conf >= 0.5 and lib in ZD.LIBRARY_TYPES:
+        # accept base-library types AND marker-derived types (data-component/itemtype
+        # → the author's own type name, hoisted to high confidence in library_map)
+        marker_typed = bool(k and k.startswith("cmp:"))
+        if lib and conf >= 0.5 and (lib in ZD.LIBRARY_TYPES or marker_typed):
             t = emit_typed(node["_el"], lib, base)
             # a typed node that lifts NOTHING is exactly G1's "empty shell"
             # (typed façade, zero editable content) — demote it (rule 23)
