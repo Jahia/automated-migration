@@ -47,6 +47,9 @@ CONTAINERS = {"section", "gridRow", "cardGrid", "logoWall", "carousel", "tabs", 
 # arbitrated types whose content is a single editable text run — an LLM attribution
 # of one of these lifts the element's inner content into {{f:body}} (text_wrap).
 _TEXT_ATOM = {"richText", "heading", "tag"}
+# #2 keyless-text floor: minimum visible text (chars) for a leaf the typed lift
+# couldn't reach to be lifted to editable richText rather than left an opaque orphan.
+_TEXT_FLOOR = 8
 TEXT_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol",
              "dl", "pre", "figcaption"}
 
@@ -933,6 +936,27 @@ def build(project, site, ns, module=None, overlay=False):
         t = lift_or_raw(node["_el"])
         t["parent"] = parent
         if t.get("type") == "rawHtml":
+            # #2 KEYLESS-TEXT FLOOR (deterministic — NO LLM → ZERO arbitrations at scale):
+            # what lift_or_raw could NOT lift richly (section-lift + text-leaf both
+            # failed) is about to be stranded as an opaque orphan. If it is a genuine
+            # text LEAF (no typed descendants) carrying >= _TEXT_FLOOR chars, lift its
+            # text to editable richText instead — keyless inline <span>/<a>, or a
+            # keyed elt with no confident type. text_wrap keeps the wrapper VERBATIM
+            # (href/attrs intact) and is byte-exact self-checked → 0-DOM holds. This
+            # runs AFTER lift_or_raw so it never preempts the richer `section`/text-leaf
+            # lift. "Editable-but-FLAT"; #3 (parent recognition) upgrades repeated
+            # flats into card fields (Julian: #2 floor everywhere + #3 selective).
+            if not subtree_has_typed(node) and \
+                    len(node["_el"].get_text(" ", strip=True)) >= _TEXT_FLOOR:
+                tw = text_wrap(node["_el"], "richText")
+                if tw is not None:
+                    tw["parent"] = parent
+                    insts.append(tw)
+                    used.add("richText")
+                    stats["textleaf"] = stats.get("textleaf", 0) + 1
+                    stats["flatlift"] = stats.get("flatlift", 0) + 1
+                    tag(node["_el"], "richText", k)
+                    return
             # editorial ORPHAN: rendered verbatim (0-DOM safe) but NOT attributed to a
             # meaningful type — the deterministic categorization couldn't place it.
             # Surface it (orphans.json) with the detector's low-confidence guess so an
