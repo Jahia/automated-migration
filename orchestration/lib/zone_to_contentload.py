@@ -779,7 +779,26 @@ def build(project, site, ns, module=None, overlay=False):
     for slug, crawl_body in pages:
         body = slug2body.get(slug, crawl_body)  # prefer localised markup (local asset refs)
         ann = ZD.annotate(body, stemdf, keep_el=True)
-        root = content_root(ann, site_chrome)
+        # UNIFY the content-root with the SHELL (verbatim-first, 0-DOM): page_shell
+        # owns <body>→<main>→wrappers verbatim and places the content Area at the
+        # SAME content-root SE.main_content_root() computes. Zones MUST therefore be
+        # THAT content-root's children — else <main>/wrappers double-render (measured:
+        # <main> ×2). Empty siblings (grid overlay, spacers) sit ABOVE the content-root
+        # and are carried by the shell's innerLevels before/after — never zones.
+        root = content_root(ann, site_chrome)  # fallback
+        if hasattr(body, "find"):  # localised bs4 body (annotate kept _el in this soup)
+            try:
+                croot_el, _chain = SE.main_content_root(body.find("main") or body)
+                elmap = {}
+                def _walk(nd):
+                    elmap[id(nd.get("_el"))] = nd
+                    for kd in nd["kids"]:
+                        _walk(kd)
+                _walk(ann)
+                if id(croot_el) in elmap:
+                    root = elmap[id(croot_el)]
+            except Exception as ex:
+                print(f"  ! content-root unify {slug}: {ex}", file=sys.stderr)
         insts = []
         # C1 zones: each top-level band (content-root direct child) routes its
         # top-level instances to its own template zone Area (z1..zK) — several
