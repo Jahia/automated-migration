@@ -402,6 +402,26 @@ _CF_CONTENT_TAGS = ["img", "picture", "video", "iframe", "audio", "object", "emb
 _CF_DIVIDER = re.compile(r'divid|separat|hairline|(^|[-_])rule([-_]|$)|(^|[-_])hr([-_]|$)', re.I)
 _CF_SPACER = re.compile(r'spacer|spacing|(^|[-_])gap([-_]|$)|blank|whitespace', re.I)
 
+_NONRENDER_TAGS = {"template", "title", "meta", "link", "base", "script", "style", "noscript"}
+
+def is_hidden_el(el):
+    """Non-rendered element: HTML `hidden`, <template>, head-only tags leaked into
+    the body, or display:none/visibility:hidden inline. Invisible to a visitor
+    (Next.js streaming markers <template id=B:x>/<div hidden id=S:x>, Elastic
+    search metadata data-elastic-name, stray <title>) — never a contributable
+    node/zone (Julian: about-us had 5 bogus zones that were all hidden junk)."""
+    if el is None:
+        return True
+    if (getattr(el, "name", "") or "").lower() in _NONRENDER_TAGS:
+        return True
+    try:
+        if el.has_attr("hidden"):
+            return True
+    except Exception:
+        return False
+    style = (el.get("style") or "").replace(" ", "").lower()
+    return "display:none" in style or "visibility:hidden" in style
+
 def is_content_free(el):
     """Nothing an editor could contribute: no real text, no media, no links, no
     interactive controls. Decorative/structural only. SVG is allowed (decorative)."""
@@ -631,8 +651,17 @@ def build(project, site, ns, module=None, overlay=False):
 
     def extraction_children(node):
         """The meaningful children to lift out of a zone: each direct kid descended
-        through transparent wrappers. Order = document order (aligns with {{child:N}})."""
-        return [descend_transparent(kd) for kd in node["kids"]]
+        through transparent wrappers. Order = document order (aligns with {{child:N}}).
+        Hidden/non-rendered kids are dropped — their markup stays INLINE in the zone
+        skeleton (byte-exact) but they never become a node/zone."""
+        out = []
+        for kd in node["kids"]:
+            if is_hidden_el(kd.get("_el")):
+                continue
+            d = descend_transparent(kd)
+            if not is_hidden_el(d.get("_el")):
+                out.append(d)
+        return out
 
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
@@ -640,6 +669,8 @@ def build(project, site, ns, module=None, overlay=False):
         direct child instance — the {{child:N}} markers splice JCR children by
         ORDER, so the one-instance-per-kid contract is what keeps the container
         recomposition aligned."""
+        if is_hidden_el(node.get("_el")):
+            return  # non-rendered (hidden/template/metadata) — never a node/zone
         k = node["key"]
         lib, conf, sc = lib_of(node)
         if parent is None:
