@@ -40,6 +40,17 @@ _VOLATILE_ATTR = re.compile(
 _EPHEMERAL_ID = re.compile(r"^[BSPF]:[0-9]+$|^:[rR][0-9a-z]+:$")
 
 
+# asset-URL attributes: the migration rewrites host/path (cdn|assets/X ->
+# /modules/<mod>/static/assets/X) — an INTENDED, tested transform, NOT a DOM
+# change. Normalise these to basename so the gate measures real structure only.
+_ASSET_ATTR = {"src", "poster", "data-src", "data-original"}
+_SRCSET_ATTR = {"srcset", "data-srcset"}
+
+
+def _basename(u):
+    return u.split("?")[0].split("#")[0].rstrip("/").rsplit("/", 1)[-1]
+
+
 def _norm_attrs(el):
     out = []
     for k, v in sorted(el.attrs.items()):
@@ -50,9 +61,12 @@ def _norm_attrs(el):
             v = " ".join(v)
         if kl == "id" and _EPHEMERAL_ID.match(v or ""):
             continue
-        # collapse whitespace inside attribute values so re-serialization noise
-        # (which is NOT a structural change) doesn't read as a diff
         v = " ".join((v or "").split())
+        if kl in _ASSET_ATTR:
+            v = _basename(v)
+        elif kl in _SRCSET_ATTR:
+            v = ", ".join(" ".join([_basename(b.split()[0])] + b.split()[1:])
+                          for b in (s.strip() for s in v.split(",")) if b)
         out.append(f"{kl}={v}")
     return out
 
