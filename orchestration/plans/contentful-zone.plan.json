@@ -5,10 +5,12 @@
     {
       "id": "epic_zone_identify",
       "title": "Zone & content-type identification (halt for review)",
+      "goal": "Depuis le mirror local de contentful : vérifier le rendu offline + la fidélité scrape-vs-live, détecter les zones (fine-signal) et émettre le component model (content types), puis S'ARRÊTER au gate model pour revue humaine. Aucun deploy/load/pixel.",
       "stories": [
         {
           "id": "story_identify",
           "title": "Identifier les zones et content types depuis le mirror local",
+          "description": "connect (mirror présent) -> mirror gate (offline + scrape-vs-live) -> zone_detect + zone_to_contentload + artefact observabilité -> HALT au gate model.",
           "steps": [
             {
               "id": "step_connect",
