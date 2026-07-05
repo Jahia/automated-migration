@@ -72,6 +72,60 @@ def _overlay_category(t):
     if t == "section":
         return "generic"
     return "cont" if t in CONTAINERS else "atom"
+
+# S3 cross-page observability: a fixed template banner + a hover tooltip on every
+# tagged element showing its type/scope, HOW MANY instances were detected across
+# the corpus, and WHICH OTHER pages reference the same component (data from agg).
+_OVERLAY_JS = """
+(function(){
+ var ZX=%s, SLUG=%s;
+ var css=document.createElement('style');
+ css.textContent='#zx-ban{position:fixed;top:0;left:0;right:0;z-index:2147483646;'
+  +'background:#001932;color:#cfe4f5;font:12px/1.4 ui-monospace,Menlo,monospace;'
+  +'padding:6px 12px;border-bottom:2px solid #0077bf}'
+  +'#zx-ban b{color:#fff}#zx-tip{position:fixed;z-index:2147483647;max-width:340px;'
+  +'background:#001932;color:#e8f1f9;font:12px/1.45 -apple-system,sans-serif;'
+  +'padding:8px 11px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.4);'
+  +'pointer-events:none;display:none}#zx-tip .t{font-family:ui-monospace,monospace;font-weight:700}'
+  +'#zx-tip .p{color:#9ec5e6;margin-top:5px}body{padding-top:30px!important}';
+ document.head.appendChild(css);
+ var ban=document.createElement('div');ban.id='zx-ban';
+ var tmpl=(ZX.pageTemplates||{})[SLUG]||'?';
+ var sibs=Object.keys(ZX.pageTemplates||{}).filter(function(s){return ZX.pageTemplates[s]===tmpl&&s!==SLUG;});
+ ban.innerHTML='Page <b>'+SLUG+'</b> &middot; Template <b>'+tmpl+'</b> ('+(sibs.length+1)+' page'
+  +(sibs.length?'s':'')+(sibs.length?' &middot; aussi: '+sibs.slice(0,8).join(', ')+(sibs.length>8?' +'+(sibs.length-8):''):'')+')';
+ document.body.appendChild(ban);
+ var tip=document.createElement('div');tip.id='zx-tip';document.body.appendChild(tip);
+ document.body.addEventListener('mouseover',function(e){
+   var el=e.target.closest('[data-zk]');if(!el){tip.style.display='none';return;}
+   var k=el.getAttribute('data-zk'),t=el.getAttribute('data-zt'),info=(ZX.xref||{})[k];
+   if(!info){tip.style.display='none';return;}
+   var others=(info.pages||[]).filter(function(p){return p!==SLUG;});
+   tip.innerHTML='<span class="t">'+t+'</span> &middot; scope '+info.scope+' &middot; '+info.tier
+    +'<br><b>'+info.instances+'</b> instance(s) sur <b>'+(info.pages||[]).length+'</b> page(s)'
+    +'<div class="p">'+(others.length?'aussi référencé sur: '+others.slice(0,12).join(', ')
+       +(others.length>12?' +'+(others.length-12):''):'seulement sur cette page')+'</div>';
+   tip.style.display='block';
+ });
+ document.body.addEventListener('mousemove',function(e){
+   tip.style.left=Math.min(e.clientX+14,window.innerWidth-350)+'px';
+   tip.style.top=(e.clientY+14)+'px';});
+})();
+"""
+
+def build_xref(agg, isa, page_cl, slug_by_pi):
+    """Cross-page reference data for the S3 overlay tooltip: per detection key ->
+    scope/tier/instance-count/pages; per page -> template cluster id."""
+    xref = {}
+    for k, e in agg.items():
+        if not isa(k):
+            continue
+        pgs = sorted({slug_by_pi[pi] for pi in e.get("pages", set()) if pi < len(slug_by_pi)})
+        xref[k] = {"scope": e.get("scope"), "tier": e.get("tier"),
+                   "instances": e.get("inst", 0), "pages": pgs}
+    page_templates = {slug_by_pi[pi]: f"T{ci}" for pi, ci in page_cl.items()
+                      if pi < len(slug_by_pi)}
+    return {"xref": xref, "pageTemplates": page_templates}
 CHILD_TYPE = {"carousel": "card", "logoWall": "logo", "tabs": "tab", "cardGrid": "card",
               "accordion": "faqItem", "section": "card", "gridRow": "card"}
 
@@ -229,6 +283,13 @@ def build(project, site, ns, module=None, overlay=False):
                 slug2soup[slug] = soup  # kept so the overlay serializes the FULL styled doc
 
     used, out, chrome, chrome_done = set(), {}, [], set()
+    # S3 cross-page observability data (built once from the detection model)
+    xref_data = None
+    if overlay:
+        slug_by_pi = [s for s, _ in pages]
+        xref_data = build_xref(agg, isa, R["page_cl"], slug_by_pi)
+        json.dump(xref_data, open(f"{REPO}/projects/{project}/workflow-output/zone-xref.json", "w"),
+                  ensure_ascii=False, indent=1)
 
     def lib_of(node):
         k = node["key"]
@@ -315,13 +376,15 @@ def build(project, site, ns, module=None, overlay=False):
                 "skeleton": skel, "fields": {}, "media": [], "link": None,
                 "children": []}
 
-    def tag(el, t):
-        # overlay: mark the SOURCE element with the type it was emitted as, so the
-        # screenshot probe can draw its boundary. Set AFTER skeletonOrig is captured
-        # (str(el) at emit time) so the content-load stays clean of these attrs.
+    def tag(el, t, key=None):
+        # overlay: mark the SOURCE element with the type it was emitted as (+ its
+        # detection KEY for the cross-page tooltip lookup). Set AFTER skeletonOrig
+        # is captured (str(el) at emit time) so the content-load stays clean.
         if overlay and el is not None:
             el["data-zt"] = t
             el["data-zc"] = _overlay_category(t)
+            if key:
+                el["data-zk"] = key
 
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
@@ -338,7 +401,7 @@ def build(project, site, ns, module=None, overlay=False):
                 if k not in chrome_done:
                     chrome_done.add(k)
                     chrome.append(raw_inst(node["_el"], base, area_for(k)))
-                tag(node["_el"], "chrome")  # tag even the deduped repeats
+                tag(node["_el"], "chrome", k)  # tag even the deduped repeats
                 return
             if k and R["is_root_wrapper"](k):
                 for kd in node["kids"]:  # transparent layout root (top level only)
@@ -354,7 +417,7 @@ def build(project, site, ns, module=None, overlay=False):
                 used.add(lib)
                 stats["typed"] += 1
                 stats["wired"] += 1
-                tag(node["_el"], lib)
+                tag(node["_el"], lib, k)
                 return  # prune at the first confident anchor (maximal typed component)
         too_big = node["size"] > 300 or len(str(node["_el"])) > CAP
         if depth < 10 and node["kids"] and (subtree_has_typed(node) or too_big):
@@ -365,7 +428,7 @@ def build(project, site, ns, module=None, overlay=False):
                 insts.append(w)
                 used.add("section")
                 stats["container"] += 1
-                tag(node["_el"], "section")
+                tag(node["_el"], "section", k)
                 for kd in node["kids"]:
                     emit_node(kd, insts, depth + 1, idx)
                 return
@@ -383,7 +446,7 @@ def build(project, site, ns, module=None, overlay=False):
         t = lift_or_raw(node["_el"])
         t["parent"] = parent
         insts.append(t)
-        tag(node["_el"], t["type"])
+        tag(node["_el"], t["type"], k)
 
     max_zones = 0
     for slug, crawl_body in pages:
@@ -427,6 +490,11 @@ def build(project, site, ns, module=None, overlay=False):
                 st = soup.new_tag("style")
                 st.string = OVERLAY_CSS
                 soup.head.append(st)
+            if soup.body is not None and xref_data is not None:
+                sc = soup.new_tag("script")
+                sc.string = _OVERLAY_JS % (json.dumps(xref_data, ensure_ascii=False),
+                                           json.dumps(slug))
+                soup.body.append(sc)
             with open(os.path.join(lm, f"{slug}.overlay.html"), "w", encoding="utf-8") as f:
                 f.write(str(soup))
 

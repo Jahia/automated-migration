@@ -74,15 +74,20 @@ const cards = done.map((d) => {
   const tot = Object.values(d.counts).reduce((a, b) => a + b, 0);
   const gen = (d.counts.generic || 0) + (d.counts.raw || 0);
   const pct = tot ? Math.round((100 * gen) / tot) : 0;
+  // link the thumbnail to the INTERACTIVE overlay (hover → instance count + other
+  // pages + template banner) — served alongside from the mirror dir.
+  const live = `../local-mirror/${d.slug}.overlay.html`;
   return `<section style="margin:26px 0"><h2 style="font:600 15px monospace">${d.slug}
-    <span style="color:#697386;font-weight:400"> · ${tot} blocs · ${pct}% génériques</span></h2>
-    <img src="${d.slug}.png" style="max-width:100%;border:1px solid #ddd"/></section>`;
+    <span style="color:#697386;font-weight:400"> · ${tot} blocs · ${pct}% génériques</span>
+    <a href="${live}" target="_blank" style="font:400 12px sans-serif;color:#0077bf;margin-left:8px">▶ interactif (survol) ↗</a></h2>
+    <a href="${live}" target="_blank"><img src="${d.slug}.png" style="max-width:100%;border:1px solid #ddd"/></a></section>`;
 }).join('');
 fs.writeFileSync(`${outDir}/index.html`,
   `<!doctype html><meta charset=utf-8><title>Zone overlay — ${path.basename(proj)}</title>
    <body style="font-family:-apple-system,sans-serif;max-width:1100px;margin:0 auto;padding:24px">
    <h1>Cartes de zonage — ${path.basename(proj)}</h1>
-   <div style="position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #eee;font-size:13px">${legend}</div>
+   <p style="color:#697386;font-size:13px">Vignette = aperçu des frontières. <b>Clique une page pour la version interactive</b> : bandeau <b>Template</b> en haut, et au <b>survol</b> d'un composant → nombre d'instances + autres pages qui le référencent.</p>
+   <div style="position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #eee;font-size:13px;z-index:9">${legend}</div>
    ${cards}</body>`);
 console.error(`\n  zone-overlay: ${done.length}/${slugs.length} page(s) -> ${outDir}/index.html`);
 process.exit(done.length ? 0 : 1);
