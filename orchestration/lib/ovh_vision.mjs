@@ -18,6 +18,9 @@ const VISION_URL = process.env.VISION_BASE_URL
   : 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions';
 export const OVH_VISION_MODEL = process.env.VISION_MODEL || 'Qwen2.5-VL-72B-Instruct';
 export const VISION_TEXT_ONLY = process.env.VISION_TEXT_ONLY === '1';
+// Per-call abort. 180s fits OVH vision; a text-only endpoint emitting the full
+// components JSON for a 400+ block outline can legitimately run longer.
+const VISION_TIMEOUT_MS = Number(process.env.VISION_TIMEOUT_MS) || 180000;
 const VISION_PROVIDER = !process.env.VISION_BASE_URL ? 'ovh'
   : VISION_URL.includes('deepseek') ? 'deepseek-direct' : 'custom';
 
@@ -108,7 +111,7 @@ export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body,
-    signal: AbortSignal.timeout(180000),
+    signal: AbortSignal.timeout(VISION_TIMEOUT_MS),
   });
   // Ledger EVERY call that produced a response — success AND failed-with-response
   // (the call was billed regardless). Only a thrown network error (no response)
