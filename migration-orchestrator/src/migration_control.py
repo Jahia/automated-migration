@@ -22,6 +22,7 @@ from pathlib import Path
 from statistics import mean
 
 from .models import RunState, StepState
+from .control_contract import gate_review, rich_actions
 
 # Mirrors the frontend MIGRATION_PHASES (migration/types.ts) — keep in sync.
 PHASES: list[tuple[str, str, list[str]]] = [
@@ -268,6 +269,14 @@ def compact_status(run: RunState, wo: Path | None) -> dict:
         "last_error": _last_error(steps),
         "updated_at": run.updated_at,
         "next_actions": actions,
+        # self-describing control block: HOW + WHEN to act now, for any LLM driver.
+        # `docs` = the static contract; `review` = artifacts to open before deciding;
+        # `actions` = the concrete calls available at this state (verb+path+when).
+        "control": {
+            "docs": "/control",
+            "review": gate_review(run.run_id, (gate or decision).gate_type if (gate or decision) else None),
+            "actions": rich_actions(run.run_id, actions, gate or decision),
+        },
     }
 
 

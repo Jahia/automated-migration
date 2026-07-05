@@ -561,6 +561,15 @@ async def run_rollback(run_id: str, req: Rollback, request: Request):
     return {"status": "rolled_back", "to_step": req.to_step, "result": result}
 
 
+@router.get("/control")
+async def control_contract_endpoint():
+    """The self-describing control contract: how + when any LLM drives a run via
+    this API — the control loop, endpoint catalog, decision protocol, boundaries.
+    Read this ONCE, then loop on GET /runs/{id} following its `control` block."""
+    from ..control_contract import CONTROL_CONTRACT
+    return CONTROL_CONTRACT
+
+
 class Rerun(BaseModel):
     reason: str = ""
 
