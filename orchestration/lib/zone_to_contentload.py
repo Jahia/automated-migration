@@ -44,6 +44,9 @@ def area_for(key):
         return "nav"
     return "header"  # top-bar, header, search, dialog, chatbot, announcement, booking …
 CONTAINERS = {"section", "gridRow", "cardGrid", "logoWall", "carousel", "tabs", "accordion"}
+# arbitrated types whose content is a single editable text run — an LLM attribution
+# of one of these lifts the element's inner content into {{f:body}} (text_wrap).
+_TEXT_ATOM = {"richText", "heading", "tag"}
 TEXT_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol",
              "dl", "pre", "figcaption"}
 
@@ -596,6 +599,68 @@ def build(project, site, ns, module=None, overlay=False):
             return t
         return raw_inst(el, base)
 
+    def media_leaf(el):
+        """A STANDALONE media element (<img>/<picture>) that reached the leaf
+        fallback — no component absorbed it (media INSIDE a component is already a
+        {{media:N}} marker in its skeleton). Type it `image`: a DAM weakref slot
+        with the source markup as the verbatim default (rule 26 media contract).
+        Recompose replaces {{media:image0}} with the exact source markup, so an
+        UNEDITED node renders byte-identical (0-DOM safe); once an editor picks a DAM
+        image it wins. Deterministic + generic — media atoms are universal; fires
+        ONLY for a lone media leaf, never for already-lifted media, and only AFTER
+        the content-free recognizer (a spacer/divider is caught first)."""
+        try:
+            name = (el.name or "").lower()
+        except Exception:
+            return None
+        if name not in ("img", "picture"):
+            return None
+        img = el if name == "img" else el.find("img")
+        src = ((img.get("src") if img else "") or "").split("?", 1)[0]
+        if not src or src.startswith("data:"):
+            return None
+        html = rw(str(el), base)
+        if len(html) > CAP:
+            return None
+        unit = {"name": "image0", "orig": html, "src": rw(src, base),
+                "alt": (img.get("alt", "") if img else "") or ""}
+        fn = os.path.basename(unit["src"].split("?", 1)[0])
+        if fn and MIRROR_ASSETS and os.path.isfile(os.path.join(MIRROR_ASSETS, fn)):
+            unit["file"] = fn
+        return {"type": "image", "parent": None, "promoted": True,
+                "skeleton": "{{media:image0}}", "skeletonOrig": html,
+                "fields": {}, "media": [unit], "mediaTotal": 1,
+                "link": None, "linkTotal": 0, "children": []}
+
+    def text_wrap(el, typ):
+        """Arbitrated TEXT atom on an element the standard lift can't reach (inline
+        <span>, custom tag): keep the wrapper VERBATIM, lift its inner content into
+        {{f:body}}. Recompose splices body raw → byte-exact when unedited (self-
+        checked); an edit reflows into the SAME wrapper (0-DOM safe). The LLM
+        asserted this is editable text, so the text becomes the field. Refuses to
+        swallow widgets/media."""
+        try:
+            inner = el.decode_contents()
+        except Exception:
+            return None
+        if not (inner or "").strip():
+            return None
+        if el.find(["form", "script", "style", "iframe", "select", "input",
+                    "textarea", "video", "button", "img", "picture", "svg"]):
+            return None
+        outer = rw(str(el), base)
+        inner_rw = rw(inner, base)
+        i = outer.find(inner_rw)
+        if i < 0 or len(outer) > CAP:
+            return None
+        skel = outer[:i] + "{{f:body}}" + outer[i + len(inner_rw):]
+        if skel.replace("{{f:body}}", inner_rw) != outer:  # byte-exact or nothing
+            return None
+        return {"type": typ, "parent": None, "promoted": True,
+                "skeleton": skel, "skeletonOrig": outer,
+                "fields": {"body": inner_rw}, "media": [], "mediaTotal": 0,
+                "link": None, "linkTotal": 0, "children": []}
+
     def wrapper_container(node, ek):
         """A content-free container -> ONE structural `zone`: its OWN markup with
         {{child:N}} replacing each EXTRACTION child (descended through transparent
@@ -715,6 +780,14 @@ def build(project, site, ns, module=None, overlay=False):
                 if t is not None and wired(t) and inst_weight(t) <= CAP:
                     t["parent"] = parent; insts.append(t); used.add(typ)
                     stats["typed"] += 1; tag(el, typ, k); return True
+                # text-atom arbitration the standard lift can't reach (inline <span>,
+                # custom tag): lift the wrapper's inner content into {{f:body}} —
+                # genuinely editable, wrapper verbatim, byte-exact when unedited.
+                if typ in _TEXT_ATOM:
+                    t = text_wrap(el, typ)
+                    if t is not None:
+                        t["parent"] = parent; insts.append(t); used.add(typ)
+                        stats["typed"] += 1; tag(el, typ, k); return True
             t = raw_inst(el, base); t["type"] = typ; t["parent"] = parent
             insts.append(t); used.add(typ); tag(el, typ, k)
             stats["arbitrated"] = stats.get("arbitrated", 0) + 1
@@ -829,6 +902,15 @@ def build(project, site, ns, module=None, overlay=False):
         if too_big:  # no silent caps: an irreducible over-cap leaf is REPORTED
             print(f"  ! irreducible verbatim leaf over cap: {len(str(node['_el']))} chars "
                   f"(key={k})", file=sys.stderr)
+        m = media_leaf(node["_el"])  # lone <img>/<picture> → editable DAM slot (verbatim default)
+        if m is not None:
+            m["parent"] = parent
+            insts.append(m)
+            used.add("image")
+            stats["typed"] += 1
+            stats["wired"] += 1
+            tag(node["_el"], "image", k)
+            return
         t = lift_or_raw(node["_el"])
         t["parent"] = parent
         if t.get("type") == "rawHtml":
