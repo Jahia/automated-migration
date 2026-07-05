@@ -161,6 +161,14 @@ def contrib_mixins(mixns, stats):
         out.append(f"[{mixns}:{nm}] mixin")
         out.extend(_media_lines(i + 1)[3 * i:])  # just the i-th unit's 3 lines
         out.append("")
+    max_labels = max([0] + [max(e.get("labels", 0), e.get("childLabels", 0))
+                            for e in stats.values()])
+    for i in range(max_labels):
+        nm = "contribLabel" if i == 0 else f"contribLabel{i + 1}"
+        fld = "label" if i == 0 else f"label{i + 1}"
+        out.append(f"[{mixns}:{nm}] mixin")
+        out.append(f"  - {fld} (string) i18n")
+        out.append("")
     if any_link:
         out.append(f"[{mixns}:contribLink] mixin")
         out.extend(link_lines())
@@ -259,6 +267,8 @@ def run_stats_from_content_load(path, manifest):
                                    "link": False, "childLink": False})
             e["runs"] = max(e["runs"], sum(1 for k in inst.get("fields", {})
                                            if k.startswith("body")))
+            e["labels"] = max(e.get("labels", 0), sum(1 for k in inst.get("fields", {})
+                                                      if k.startswith("label")))
             e["titles"] |= "title" in inst.get("fields", {})
             e["media"] = max(e["media"], len(inst.get("media") or []))
             e["link"] |= bool(inst.get("link"))
@@ -266,6 +276,9 @@ def run_stats_from_content_load(path, manifest):
                 e["childRuns"] = max(e["childRuns"],
                                      sum(1 for k in ch.get("fields", {})
                                          if k.startswith("body")))
+                e["childLabels"] = max(e.get("childLabels", 0),
+                                       sum(1 for k in ch.get("fields", {})
+                                           if k.startswith("label")))
                 e["childTitles"] |= "title" in ch.get("fields", {})
                 e["childMedia"] = max(e["childMedia"], len(ch.get("media") or []))
                 e["childLink"] |= bool(ch.get("link"))

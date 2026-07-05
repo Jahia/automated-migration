@@ -290,6 +290,15 @@ class Loader:
             n = k[len("body"):]
             mixins.append(f"{mixns}:contribBody{n}")
             post[k] = v[:200_000]
+        for k, v in f.items():
+            # lift_labels plain-text fields (label, label2, ...) — same per-node
+            # mixin pattern as bodies; unmapped they were silently DROPPED and
+            # every {{f:labelN}} skeleton marker rendered empty (ground-truth red).
+            if not k.startswith("label") or not v:
+                continue
+            n = k[len("label"):]
+            mixins.append(f"{mixns}:contribLabel{n}")
+            post[k] = v[:1000]
         for m in payload.get("media") or []:
             nm = m["name"]
             n = nm[len("image"):]
