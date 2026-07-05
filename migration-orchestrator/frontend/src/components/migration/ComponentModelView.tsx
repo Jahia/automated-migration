@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { EmptyArtifact } from './GateShell'
 import { useJsonArtifact } from './useArtifact'
+import { artifactUrl } from '../fidelity/api'
 import type { ComponentManifest, ComponentType } from './types'
 
 const NOTCH = { clipPath: 'polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%)' } as const
@@ -18,9 +19,25 @@ export function ComponentModelView({ runId }: { runId: string }) {
   const components = m.components ?? []
   const templates = m.templates ?? []
   const crossCutting = m.crossCutting ?? []
+  const generic = m.genericShare != null ? Math.round(m.genericShare * 100) : null
 
   return (
     <div className="text-[#001932]">
+      {/* the VISUAL judge of the zoning: boundaries drawn on every rendered page
+          (a pixel-diff can't judge granularity — skeletons are byte-exact). */}
+      <a
+        href={artifactUrl(runId, 'zone-overlay/index.html')}
+        target="_blank"
+        rel="noreferrer"
+        className="mb-4 flex items-center justify-between rounded-md border border-[#0077bf] bg-[#e4f2fb] px-4 py-3 text-[#0077bf] transition hover:bg-[#d6ebfa]"
+      >
+        <span className="font-semibold">🗺 Carte de zonage — frontières des composants sur chaque page ↗</span>
+        {generic != null && (
+          <span className="font-mono text-xs">
+            {generic}% génériques · qualité: {m.namingQuality ?? '—'}
+          </span>
+        )}
+      </a>
       <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden bg-[#dae0e7]" style={NOTCH}>
         <Stat v={components.length} l="content types" />
         <Stat v={templates.length} l="templates" />

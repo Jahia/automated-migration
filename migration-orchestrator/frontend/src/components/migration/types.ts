@@ -29,7 +29,10 @@ export interface CrossCuttingType {
 export interface ComponentManifest {
   crossCutting: CrossCuttingType[]
   components: ComponentType[]
-  templates: { name?: string; kind: string; pages: string[] }[]
+  templates?: { name?: string; kind: string; pages: string[] }[]
+  namingQuality?: 'good' | 'mixed' | 'poor'
+  namingViolations?: { nodeType: string; reason?: string }[]
+  genericShare?: number
 }
 
 // ── the fixed migration pipeline (migration profile) ──
