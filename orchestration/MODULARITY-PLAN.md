@@ -275,4 +275,20 @@ Priority order:
 5. **Zone/area templates** (MODULARITY-PLAN pillar 3) — per-page-type templates with
    `<Area allowedNodeTypes>`, page clustering → template set.
 
+## §11 — P6.4 zone detection reworked FINE-SIGNAL-FIRST (2026-07-05, spike-proven, verified)
+
+After Julian's critique that a synthetic structural hash is a noisy instrument, the zone/component
+*identification* method was reworked and proven on 5 corpora. Full synthesis + measurements:
+**`ZONE-DETECTION-APPROACH.md`**. Headline: read the DOM's own signals strongest-first (L0 explicit
+markers → L1 ARIA landmark → L2 framework class stem → L3 recurring stem → L4 structural fallback);
+recurrence + DOM nesting give absolute-zone→template-zone→component→sub-component + records. Proven:
+identity + containment + records are deterministic; **cost scales with the component vocabulary
+(~50–150 types, saturates by ~page 16), not page count** → DeepSeek naming is O(#types), flat in
+pages. DeepSeek = name anonymous components + map to library types + tie-break + pre-digest (P5.6
+bright line). Observability = the zoning-map artifact reviewed BEFORE build. An adversarial DOM
+cross-check found the first cut's SCOPE classification wrong (body-as-chrome, real footer/nav
+hidden) and drove 6 fixes; ABSOLUTE now = real chrome on all 5 sites. Residual hard part = template
+clustering (a mature CMS reuses one palette, so arrangement/URL — not component-set — separates
+templates); it does NOT block absolute-zones/components.
+
 **Resume anchor for the whole session: `orchestration/SESSION-2026-07-05.md`.**
