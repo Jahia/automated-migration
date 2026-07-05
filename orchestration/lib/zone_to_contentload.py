@@ -469,6 +469,21 @@ def build(project, site, ns, module=None, overlay=False):
     base = f"/modules/{module}/static/"
     stats = {"typed": 0, "wired": 0, "container": 0, "flatten": 0, "anon": 0,
              "textleaf": 0}
+    # LLM ORPHAN ARBITRATION (Julian): attribution rules the LLM posted via
+    # /decide {apply_and_rerun, rules} land in scope-rules.json. Each is
+    # {match:{key}, attribution:{type[,mode:passthrough]|contentFree|nonRendered}}.
+    # The bridge applies them to force a decided attribution for an element the
+    # deterministic engine left as an orphan. PLACEMENT/TYPING only — content verbatim.
+    attr_rules = {}
+    srp = f"{REPO}/projects/{project}/workflow-output/scope-rules.json"
+    if os.path.exists(srp):
+        try:
+            for r in (json.load(open(srp)).get("rules") or []):
+                m = r.get("match") or {}
+                if m.get("key") and r.get("attribution"):
+                    attr_rules[m["key"]] = r["attribution"]
+        except Exception as e:
+            print(f"  ! scope-rules read: {e}", file=sys.stderr)
     try:
         EC.load_runtime_map(project)
     except Exception:
@@ -671,6 +686,38 @@ def build(project, site, ns, module=None, overlay=False):
                 out.append(d)
         return out
 
+    def apply_attribution(node, rule, parent, insts):
+        """Apply one LLM attribution to an orphan (placement/typing only, verbatim
+        content). Returns True if it consumed the node. Rule shapes:
+          {nonRendered:true}            -> carried verbatim, never a zone/component
+          {contentFree:true[,type]}     -> content-free block (divider/decoration-like)
+          {type:X, mode:'passthrough'}  -> NAMED verbatim component (undecomposable widget)
+          {type:X}                      -> try emit_typed(X); fall back to passthrough X"""
+        el = node.get("_el")
+        if el is None:
+            return False
+        k = node.get("key")
+        if rule.get("nonRendered"):
+            t = raw_inst(el, base); t["nonRendered"] = True; t["parent"] = parent
+            insts.append(t); return True
+        if rule.get("contentFree"):
+            name = rule.get("type") or content_free_name(el)
+            t = raw_inst(el, base); t["type"] = name; t["contentFree"] = True
+            t["parent"] = parent; insts.append(t); used.add(name); cf_types.add(name)
+            tag(el, name, k); return True
+        typ = rule.get("type")
+        if typ:
+            if rule.get("mode") != "passthrough":
+                t = emit_typed(el, typ, base)
+                if t is not None and wired(t) and inst_weight(t) <= CAP:
+                    t["parent"] = parent; insts.append(t); used.add(typ)
+                    stats["typed"] += 1; tag(el, typ, k); return True
+            t = raw_inst(el, base); t["type"] = typ; t["parent"] = parent
+            insts.append(t); used.add(typ); tag(el, typ, k)
+            stats["arbitrated"] = stats.get("arbitrated", 0) + 1
+            return True
+        return False
+
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
         Inside a container (parent is not None) every node emits EXACTLY ONE
@@ -690,6 +737,12 @@ def build(project, site, ns, module=None, overlay=False):
             return
         k = node["key"]
         lib, conf, sc = lib_of(node)
+        # LLM arbitration wins over deterministic categorization: if the LLM posted
+        # an attribution for this element's key, apply it (typing/placement only —
+        # the content stays verbatim).
+        rule = attr_rules.get(k) if k else None
+        if rule is not None and apply_attribution(node, rule, parent, insts):
+            return
         if parent is None:
             # chrome: emit each DISTINCT chrome block once (dedup by key), routed to
             # a template AbsoluteArea (header/nav/footer); prune the subtree
