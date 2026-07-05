@@ -1,0 +1,51 @@
+{
+  "goal": "Orchestrator-driven demo: analyze discoverasr (holdout SPA) through the real engine",
+  "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_analyze",
+      "title": "Analyze (engine-driven)",
+      "goal": "Prove the engine drives steps via opencode agents, gates on PROBEs, and HALTs at a review gate on the holdout SPA.",
+      "stories": [
+        {
+          "id": "story_analyze",
+          "title": "Analyze discoverasr",
+          "description": "Run the deterministic analyze steps on the discoverasr holdout (render-crawled mirror already present). Each step's Run:/PROBE: lines are the contract; the mirror gate halts for human review.",
+          "steps": [
+            {
+              "id": "step_connect",
+              "title": "Env + Jahia reachable",
+              "task_type": "verify",
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/connect.sh projects/discoverasr"
+              ],
+              "max_attempts": 2
+            },
+            {
+              "id": "step_semantic",
+              "title": "Deterministic candidates + partitions",
+              "task_type": "build",
+              "depends_on": ["step_connect"],
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/semantic_extract.py projects/discoverasr",
+                "PROBE: test -s projects/discoverasr/workflow-output/semantic-candidates.json"
+              ],
+              "max_attempts": 2
+            },
+            {
+              "id": "step_mirror_gate",
+              "title": "Mirror gate (HALT: human reviews the offline render)",
+              "task_type": "verify",
+              "depends_on": ["step_semantic"],
+              "acceptance_criteria": [
+                "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/discoverasr 5 --no-live",
+                "Gate: report the offline mirror result, then return status halt for human review."
+              ],
+              "max_attempts": 2
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

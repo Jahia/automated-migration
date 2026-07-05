@@ -1,0 +1,50 @@
+/* library-tokens.css — :root token DEFAULTS the base-library component CSS reads.
+ *
+ * Load this FIRST (before component styles) so every var(--token) resolves. At
+ * migration time the extractor overwrites these values with tokens lifted from
+ * the SOURCE site's CSS (LIBRARY-SPEC §5), so a promoted library component
+ * reproduces the source's colours/fonts/spacing without a frozen skeleton.
+ * An editor can further re-theme per-site via the $NSMIX:siteTheme :root
+ * overrides injected inline by Layout.tsx (the lspmix:siteTheme pattern).
+ *
+ * These are conservative neutral defaults — a library component is usable even
+ * before any source skin is applied. */
+:root {
+  /* colour */
+  --color-primary: #1a1a1a;
+  --color-on-primary: #ffffff;
+  --color-secondary: #444444;
+  --color-accent: #e4002b;
+  --color-text: #111111;
+  --color-text-muted: #555555;
+  --color-bg: #ffffff;
+  --color-card-bg: #ffffff;
+  --color-grey: #f5f5f5;
+  --color-border: #dddddd;
+  --color-info: #1c5fd6;
+  --color-info-bg: #e7f0ff;
+  --color-success: #197b3c;
+  --color-success-bg: #e6f6ec;
+  --color-warning: #a35b00;
+  --color-warning-bg: #fff4e0;
+
+  /* typography */
+  --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* geometry */
+  --radius-button: 4px;
+  --radius-card: 8px;
+  --radius-badge: 999px;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+  /* layout & spacing */
+  --width-container: 1200px;
+  --space-gutter: 1rem;
+  --space-grid-gap: 1.5rem;
+  --space-logo-gap: 2rem;
+  --space-card: 1.25rem;
+  --space-divider: 2rem;
+  --space-heading: 1.5rem 1rem;
+  --size-icon: 2.5rem;
+}

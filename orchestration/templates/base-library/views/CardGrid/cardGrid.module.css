@@ -1,0 +1,21 @@
+.root {
+  width: 100%;
+}
+
+.heading {
+  font-family: var(--font-heading, inherit);
+  color: var(--color-text, #111);
+  margin: 0 0 1.5rem;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-grid-gap, 1.5rem);
+  align-items: stretch;
+}
+
+@media (max-width: 767px) {
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+}

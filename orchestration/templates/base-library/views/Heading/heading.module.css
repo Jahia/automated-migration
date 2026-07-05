@@ -1,0 +1,16 @@
+.root {
+  margin-block: var(--space-heading, 1.5rem 1rem);
+}
+
+.title {
+  font-family: var(--font-heading, inherit);
+  color: var(--color-text, #111);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.subtitle {
+  font-family: var(--font-body, inherit);
+  color: var(--color-text-muted, #555);
+  margin: 0.35rem 0 0;
+}

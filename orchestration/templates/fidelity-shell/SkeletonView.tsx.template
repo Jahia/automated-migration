@@ -1,0 +1,121 @@
+import { jahiaComponent, useServerContext, Render } from "@jahia/javascript-modules-library";
+import { createElement, type ReactNode } from "react";
+import { splitRoot, rootProps } from "$RELROOT/rawRoot.js";
+import {
+  composeNode,
+  nodePayload,
+  substitutePayload,
+  childNodesOf,
+  chunkTopLevel,
+} from "$RELROOT/skeletonRender.js";
+
+/**
+ * Skeleton view for $NODETYPE (generated — QUALITY-PLAN P2.5/C/E).
+ *
+ * LIVE: composeNode() — string composition, byte-identical to the captured
+ * source when unedited (the ground-truth invariant).
+ *
+ * EDIT/PREVIEW with item children: the items are rendered through Jahia's
+ * pipeline (<Render node/>) so each card gets its own EDIT FRAME in Page
+ * Builder — a correct Content Editor form that cannot be reached by clicking
+ * is not editable in any practical sense (G6, observed live). Edit-mode DOM
+ * wraps chunks in display:contents divs; pixel-exactness is a LIVE contract.
+ */
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "$NODETYPE",
+    name: "default",
+    displayName: "$DISPLAYNAME",
+  },
+  () => {
+    const { currentNode, renderContext } = useServerContext();
+    const node = currentNode as never;
+    let editMode = false;
+    try {
+      editMode = (renderContext as { isEditMode: () => boolean }).isEditMode();
+    } catch {
+      editMode = false;
+    }
+
+    if (editMode) {
+      const p = nodePayload(node);
+      const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+      if (html.includes("{{child:")) {
+        const kids = childNodesOf(node);
+        const placed = new Set<number>();
+        let maxIdx = -1;
+        for (const m of html.matchAll(/\{\{child:(\d+)\}\}/g)) {
+          maxIdx = Math.max(maxIdx, Number(m[1]));
+        }
+        const compose = (fragment: string): ReactNode[] =>
+          chunkTopLevel(fragment).map((c, i) => {
+            if (c.kind === "child") {
+              placed.add(c.idx);
+              const kid = kids[c.idx];
+              return createElement(
+                "div",
+                { key: `c${i}`, style: { display: "contents" } },
+                kid ? createElement(Render as never, { node: kid }) : null,
+              );
+            }
+            if (c.html.includes("{{child:")) {
+              const root = splitRoot(c.html);
+              if (root) {
+                return createElement(
+                  root.tag,
+                  { ...rootProps(root.attrs), key: `e${i}` },
+                  compose(root.inner),
+                );
+              }
+              // marker-bearing but not single-root: recurse on the raw
+              // fragment so deeply/awkwardly nested {{child}} still resolve
+              return createElement(
+                "div",
+                { key: `w${i}`, style: { display: "contents" } },
+                compose(c.html),
+              );
+            }
+            return createElement("div", {
+              key: `h${i}`,
+              style: { display: "contents" },
+              dangerouslySetInnerHTML: { __html: c.html },
+            });
+          });
+        const body = compose(html);
+        // reachability guarantee (G6): ANY item the recursive placement missed
+        // (deeply nested markers, awkward wrappers) is still rendered through
+        // the pipeline so it gets an edit frame — editors can always reach it.
+        // Edit-mode visual position is not the fidelity contract (LIVE is).
+        const missed = kids
+          .map((k, i) => [k, i] as const)
+          .filter(([, i]) => !placed.has(i));
+        return createElement(
+          "div",
+          { style: { display: "contents" } },
+          body,
+          missed.map(([k, i]) =>
+            createElement(Render as never, { key: `m${i}`, node: k })),
+        );
+      }
+      // no items: fall through to the exact composition (still selectable —
+      // the node itself is rendered through the pipeline by its Area)
+    }
+
+    const html = composeNode(node);
+    // render the fragment's REAL root element — child/sibling CSS selectors
+    // (section spacing rules) must keep matching (display:contents does not
+    // participate in selector matching)
+    const root = splitRoot(html);
+    if (root) {
+      return createElement(root.tag, {
+        ...rootProps(root.attrs),
+        dangerouslySetInnerHTML: { __html: root.inner },
+      });
+    }
+    return createElement("div", {
+      style: { display: "contents" },
+      dangerouslySetInnerHTML: { __html: html },
+    });
+  },
+);

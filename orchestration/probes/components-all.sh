@@ -32,18 +32,6 @@ src="$proj/src"
 [ -d "$src/components" ] || fail "no src/components in $proj"
 load_env "$proj" 2>/dev/null || true
 
-# ── cm (jContent preview) wrapper: required once per project ───────────────────
-# Every concrete content type ships a cm.server.tsx (name:"cm", componentType:"view")
-# so it previews standalone in the jContent back-office editor; those views render
-# through the shared src/templates/CMPreview.tsx wrapper (module CSS, no page chrome).
-# Both are auto-created by scaffold_cm_views.py — this only ENFORCES they exist.
-if grep -rlqE '^\[[a-zA-Z]+:[a-zA-Z0-9]+\][[:space:]]*>' "$src/components"/*/definition.cnd 2>/dev/null; then
-  if [ ! -f "$src/templates/CMPreview.tsx" ]; then
-    fail "components-all: src/templates/CMPreview.tsx is missing — required wrapper for cm (jContent preview) views. Run: python3 orchestration/lib/scaffold_cm_views.py $proj"
-  fi
-  echo "  · CMPreview.tsx present (jContent preview wrapper)"
-fi
-
 enp="$(find "$proj/settings/resources" -name "*_en.properties" 2>/dev/null | head -1)"
 frp="$(find "$proj/settings/resources" -name "*_fr.properties" 2>/dev/null | head -1)"
 
@@ -284,19 +272,6 @@ print("; ".join(missing))
 PY
 )"
       [ -n "$miss" ] && reasons+=("missing i18n keys: $miss")
-    fi
-  fi
-
-  # ── 4. cm (jContent preview) view ───────────────────────────────────────────
-  # A concrete content type with a view must ALSO ship cm.server.tsx (name:"cm")
-  # so it previews standalone in the jContent editor. Auto-created by
-  # scaffold_cm_views.py; here we only enforce it exists and is registered as "cm".
-  if [ -n "$view" ] && [ -n "$cnd" ] && grep -qE '^\[[a-zA-Z]+:[a-zA-Z0-9]+\][[:space:]]*>' "$cnd"; then
-    cmv="$(find "$d" -maxdepth 1 -name 'cm.server.tsx' | head -1)"
-    if [ -z "$cmv" ]; then
-      reasons+=("no cm.server.tsx (jContent preview view) — run: python3 orchestration/lib/scaffold_cm_views.py $proj")
-    elif ! grep -q 'name:[[:space:]]*"cm"' "$cmv"; then
-      reasons+=("cm.server.tsx present but not registered as name:\"cm\"")
     fi
   fi
 

@@ -57,12 +57,33 @@ SCHEMA = {
                                                 "id": {"type": "string", "description": "Identifiant unique de la step (ex: story_001_step_1)"},
                                                 "title": {"type": "string", "description": "Titre de la step"},
                                                 "task_type": {"type": "string", "default": "general", "description": "Type de tâche (ex: analyze, implement, review, test, refactor, security_check)"},
-                                                "agent": {"type": "string", "description": "Nom de l'agent OpenCode à utiliser (défaut: code). Voir GET /agents pour la liste."},
+                                                "agent": {"type": "string", "description": "Nom logique de l'agent (défaut: code). Cosmétique — le moteur exécute désormais via l'API LLM directe."},
                                                 "depends_on": {"type": "array", "items": {"type": "string"}, "default": [], "description": "IDs des steps dont celle-ci dépend"},
                                                 "inputs": {"type": "object", "default": {}, "description": "Données d'entrée pour la step"},
                                                 "expected_outputs": {"type": "object", "default": {}, "description": "Sorties attendues"},
                                                 "acceptance_criteria": {"type": "array", "items": {"type": "string"}, "default": []},
                                                 "max_attempts": {"type": "integer", "default": 3},
+                                                "review": {"type": "boolean", "default": False, "description": "Checkpoint de revue: jamais envoyée à un agent — devient decision_pending et attend POST /runs/{id}/steps/{id}/decide (action: proceed)."},
+                                                "strategies": {
+                                                    "type": "array",
+                                                    "default": [],
+                                                    "description": "Stratégies pré-enregistrées, proposées quand les retries sont épuisés (decision_pending). Chaque stratégie est single-shot.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "required": ["id"],
+                                                        "properties": {
+                                                            "id": {"type": "string"},
+                                                            "title": {"type": "string"},
+                                                            "when": {"type": "string", "default": "on_retries_exhausted"},
+                                                            "order": {"type": "integer", "default": 0},
+                                                            "arm_swap": {"type": "boolean", "default": False, "description": "Swap d'arm complet émis par le générateur — exempté du lint de préservation des lignes PROBE."},
+                                                            "halt": {"type": "boolean", "default": False, "description": "Convertit la décision en gate halted (gate_type segmentation) au lieu de patch+rerun."},
+                                                            "patches": {"type": "array", "default": [], "items": {"type": "object", "required": ["step_id"], "properties": {"step_id": {"type": "string"}, "inputs": {"type": "object"}, "acceptance_criteria": {"type": "array", "items": {"type": "string"}}}}, "description": "Remplacement complet des champs fournis sur la step cible. Les lignes PROBE de la step d'origine doivent être préservées mot pour mot (sauf arm_swap)."},
+                                                            "skip": {"type": "array", "items": {"type": "string"}, "default": [], "description": "Steps marquées done sans exécution (ex: arm swap qui saute step_segment)."},
+                                                            "notes": {"type": "string"},
+                                                        },
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -84,7 +105,7 @@ SCHEMA = {
         },
     },
     "agents": {
-        "description": "Le champ 'agent' dans chaque step est un libre. Le planificateur décide quels agents utiliser. Le serveur passe le nom à opencode run --agent <name>. Défaut: 'code' si omis.",
+        "description": "Le champ 'agent' dans chaque step est un libellé libre et cosmétique. Le moteur exécute toutes les steps via l'API LLM directe (rôle réparateur in-engine). Défaut: 'code' si omis.",
     },
     "workflow": {
         "description": "Le serveur orchestre l'exécution. Pour chaque epic: exécute les stories (chacune avec ses steps), puis lance une étape de review de l'epic. Si le review propose des rectifications, elles sont soumises à approbation humaine.",
@@ -93,7 +114,7 @@ SCHEMA = {
             "run": ["running", "paused", "completed", "failed", "aborted"],
             "epic": ["pending", "running", "reviewing", "waiting_approval", "approved", "failed"],
             "story": ["pending", "running", "approved", "failed"],
-            "step": ["pending", "ready", "running", "verifying", "done", "failed", "blocked", "waiting_human"],
+            "step": ["pending", "ready", "running", "verifying", "done", "failed", "blocked", "waiting_human", "halted", "rejected", "decision_pending"],
         },
     },
     "events": {
@@ -223,7 +244,7 @@ RÈGLES:
 2. Chaque story contient ses propres steps avec des task_type et des agents
 3. Les steps sont exécutées dans l'ordre de dépendance (DAG)
 4. Chaque step est atomique et a des acceptance_criteria mesurables
-5. Le champ agent permet de choisir l'agent OpenCode (défaut: code)
+5. Le champ agent est un libellé cosmétique (défaut: code) — exécution via l'API LLM directe
 6. Les dépendances entre stories et entre steps forment des DAG (pas de cycles)
 7. Le serveur gère les boucles automatiquement: si une step retourne {status: failed, loop_to: step_id}, la step cible et les suivantes sont ré-exécutées
 """

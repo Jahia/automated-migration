@@ -1,8 +1,8 @@
 {
   "_README": "Migration run for Ultimate Supercar Garage. Generated from orchestration/plan-template.json. project=supercar-garage, namespace=usg, mixNamespace=usgmix, siteKey=supercar-garage, language=fr. Page tree in orchestration/sitemaps/supercar-garage.txt. Run: ORCH_URL=http://localhost:8001 bash orchestration/run.sh orchestration/plans/supercar-garage.plan.json --watch. Prereq: projects/supercar-garage/.env defines JAHIA_USER, JAHIA_HOST, JAHIA_MCP_TOKEN. Keep PROBE: lines verbatim.",
   "goal": "Migrate https://www.ultimate-supercar-garage.com/fr-FR to a Jahia JS module (project: supercar-garage, namespace usg, siteKey supercar-garage, language fr). Each step is proven by its PROBE command; a step is done only when the probe exits 0.",
-  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
-  "model": "deepseek/deepseek-v4-pro",
+  "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
+  "model": "deepseek/deepseek-v4-flash",
   "github_repo": "smonier/jahiaMigration",
   "epics": [
     {
@@ -40,8 +40,8 @@
               "max_attempts": 2
             },
             {
-              "id": "step_analyze",
-              "title": "Analyze -> manifest (Gate 1: HALT)",
+              "id": "step_crawl",
+              "title": "Crawl & inventory all pages + assets",
               "task_type": "analyze",
               "agent": "code",
               "depends_on": [
@@ -53,25 +53,201 @@
                 "siteUrl": "https://www.ultimate-supercar-garage.com/fr-FR",
                 "namespace": "usg",
                 "mixNamespace": "usgmix",
+                "maxPages": 0,
+                "depth": 3,
                 "skill": ".agents/skills/01-analyze-website/SKILL.md"
               },
               "acceptance_criteria": [
-                "Use the namespace provided in inputs (usg / usgmix) for EVERY nodeType in component-manifest.json — do NOT invent a different prefix.",
-                "News articles (actualites/*) and press releases (presse/communique-de-presse/*) are jmix:mainResource detail content types: set needsMainResource:true with both a default (card) and fullPage view. They are NOT pure SXA-search listings.",
-                "BROWSER-FIRST CAPTURE (anti-hallucination): the site is JS/WAF — the wget cache is only the static shell. Per .agents/skills/capture-reference/SKILL.md, capture via the browser (Chrome MCP) each page's real rendered text, the COMPLETE item list (e.g. ALL news articles, not the 2 the cache has), real image URLs, and facet/taxonomy values + counts, into projects/supercar-garage/.reference/captured/. Build content-data.json from this captured truth — never fabricate summaries/titles/taxonomy/images.",
-                "Write ALL 4 SKILL Step 8 outputs: analysis.md, component-manifest.json, content-data.json, asset-inventory.json.",
-                "If the source is Sitecore SXA (.component / .component-content / field-* in the cached DOM), components are DECLARED in the markup — do NOT eyeball-discover them. Per .agents/skills/sitecore-sxa/SKILL.md, run the deterministic extractor (python3 orchestration/lib/sxa-extract.py projects/<p>/.reference/cache > projects/<p>/.reference/sxa-components.json) and account for EVERY extracted component in component-manifest.json: each Jahia type carries sxaSource:[...]; deliberately-skipped generics go in a top-level sxaIgnored:[...]. No silent drops.",
-                "PROBE: bash orchestration/probes/sxa-coverage.sh projects/supercar-garage",
-                "PROBE: bash orchestration/probes/analyze.sh projects/supercar-garage",
-                "Gate 1: present section map + field splits, return status halt.",
-                "PROBE: bash orchestration/probes/contract.sh projects/supercar-garage step_analyze"
+                "Run: python3 orchestration/lib/crawl-site.py projects/supercar-garage https://www.ultimate-supercar-garage.com/fr-FR --max-pages 0 --depth 3",
+                "Downloads HTML pages AND referenced assets (CSS, JS, images, fonts) into .reference/cache/.",
+                "Rewrites HTML to reference local asset paths (no live CDN calls during later steps).",
+                "For JS/WAF sites that block the crawler, capture remaining pages via browser (capture-reference skill).",
+                "Write workflow-output/page-inventory.json with URL, slug, title, httpStatus, cachedAt, contentLength for every page.",
+                "PROBE: bash orchestration/probes/crawl.sh projects/supercar-garage"
               ],
               "max_attempts": 3,
               "expected_outputs": {
-                "artifact_0": "projects/supercar-garage/workflow-output/component-manifest.json",
-                "artifact_1": "projects/supercar-garage/workflow-output/content-data.json",
-                "artifact_2": "projects/supercar-garage/workflow-output/asset-inventory.json",
-                "artifact_3": "projects/supercar-garage/workflow-output/analysis.md"
+                "artifact_0": "projects/supercar-garage/workflow-output/page-inventory.json"
+              }
+            },
+            {
+              "id": "step_extract_blocks",
+              "title": "Extract HTML blocks (deterministic, agnostic)",
+              "task_type": "extract",
+              "agent": "code",
+              "depends_on": [
+                "step_crawl"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "skill": ".agents/skills/01-analyze-website/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/extract-blocks.py projects/supercar-garage",
+                "Extracts ALL structural blocks from every crawled HTML page — purely deterministic, no decisions.",
+                "Write workflow-output/html-blocks.json.",
+                "PROBE: bash orchestration/probes/extract-blocks.sh projects/supercar-garage"
+              ],
+              "max_attempts": 2,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/html-blocks.json"
+              }
+            },
+            {
+              "id": "step_template_cluster",
+              "title": "Group pages by shared template (LLM analysis)",
+              "task_type": "analyze",
+              "agent": "code",
+              "depends_on": [
+                "step_extract_blocks"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "skill": ".agents/skills/01-analyze-website/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Read workflow-output/html-blocks.json — the extracted blocks are your source of truth.",
+                "Analyze the STRUCTURAL SKELETON of each page (header, footer, nav, main content regions) to identify shared templates.",
+                "Do NOT use hardcoded CSS class patterns. Use semantic analysis: what blocks are in <header>? in <footer>? in <main>? What's the content structure?",
+                "Identify cross-cutting regions (header, footer, nav) that appear on ALL pages.",
+                "Write workflow-output/template-clusters.json with clusters, crossCutting, unclustered.",
+                "Every page from page-inventory.json must belong to exactly 1 cluster OR crossCutting.",
+                "PROBE: bash orchestration/probes/template-cluster.sh projects/supercar-garage"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/template-clusters.json"
+              }
+            },
+            {
+              "id": "step_component_discover",
+              "title": "Discover reusable components (LLM analysis)",
+              "task_type": "analyze",
+              "agent": "code",
+              "depends_on": [
+                "step_template_cluster"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "skill": ".agents/skills/01-analyze-website/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Read workflow-output/html-blocks.json — the extracted blocks are your source of truth.",
+                "Cluster blocks by DATA SHAPE (same fields = same type, even if CSS/markup differs).",
+                "Do NOT use hardcoded component name patterns. Analyze the actual content: what fields does each block have? What's its role?",
+                "Identify cross-cutting components (nav, footer, topbar) — blocks that appear on ALL pages with the same structure.",
+                "Identify jmix:mainResource components — blocks that represent content with its own navigable URL (news articles, events, products).",
+                "Write workflow-output/component-candidates.json with frequency, dataShape, isCrossCutting, isMainResource.",
+                "PROBE: bash orchestration/probes/component-discover.sh projects/supercar-garage"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/component-candidates.json"
+              }
+            },
+            {
+              "id": "step_component_model",
+              "title": "Model CND types + views (Gate 1: HALT)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_component_discover"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "namespace": "usg",
+                "mixNamespace": "usgmix",
+                "skill": ".agents/skills/04-define-content-types/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Use the namespace from inputs (usg / usgmix) for EVERY nodeType — do NOT invent a different prefix.",
+                "Map each candidate to a CND type with fields, views, areaType. jmix:mainResource MUST have default + fullPage views.",
+                "No two types may share the same property shape (dup-shapes.sh). Prefer views over new types.",
+                "Account for every SXA component (sxaSource or sxaIgnored).",
+                "Write workflow-output/component-manifest.json.",
+                "PROBE: bash orchestration/probes/component-model.sh projects/supercar-garage usg",
+                "PROBE: bash orchestration/probes/sxa-coverage.sh projects/supercar-garage",
+                "Gate 1: present manifest + field splits, return status halt."
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/component-manifest.json"
+              }
+            },
+            {
+              "id": "step_html_fragments",
+              "title": "Extract canonical HTML fragments",
+              "task_type": "analyze",
+              "agent": "code",
+              "depends_on": [
+                "step_component_model"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "skill": ".agents/skills/01-analyze-website/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "For each component/view in component-manifest.json, extract the verbatim HTML from the cached pages.",
+                "Write workflow-output/html-fragments/<ComponentName>.<viewName>.html — one file per component/view.",
+                "Fragments must contain real CSS classes (not simplified). Replace only dynamic text with {placeholders}.",
+                "PROBE: bash orchestration/probes/html-fragments.sh projects/supercar-garage"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/html-fragments/"
+              }
+            },
+            {
+              "id": "step_content_extract",
+              "title": "Extract content data (deterministic)",
+              "task_type": "extract",
+              "agent": "code",
+              "depends_on": [
+                "step_component_model"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "skill": ".agents/skills/source-extract/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Run deterministic extractors: source_detect.py + extract_content.py from orchestration/lib/.",
+                "Write workflow-output/content-data.json with REAL field values per component instance (not placeholders).",
+                "Home page must have instances with real text. Total extracted text > 500 chars.",
+                "PROBE: bash orchestration/probes/content-extract.sh projects/supercar-garage"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/content-data.json"
+              }
+            },
+            {
+              "id": "step_asset_inventory",
+              "title": "Catalogue all source images",
+              "task_type": "extract",
+              "agent": "code",
+              "depends_on": [
+                "step_component_model"
+              ],
+              "inputs": {
+                "project": "supercar-garage",
+                "project_path": "projects/supercar-garage",
+                "skill": ".agents/skills/source-extract/SKILL.md"
+              },
+              "acceptance_criteria": [
+                "Run extract_media.py from orchestration/lib/.",
+                "Write workflow-output/asset-inventory.json with every image per page.",
+                "Home page must have at least 1 image.",
+                "PROBE: bash orchestration/probes/asset-inventory.sh projects/supercar-garage"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/supercar-garage/workflow-output/asset-inventory.json"
               }
             }
           ]
@@ -107,7 +283,7 @@
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_analyze"
+                "step_asset_inventory"
               ],
               "inputs": {
                 "project": "supercar-garage",

@@ -6,9 +6,27 @@
 # step only passes when every command exits 0. These scripts encode the
 # verification probes the in-repo Conductor used to run by hand.
 
+# _env_defaults <file>
+# Exports KEY=VALUE lines from <file> for keys NOT already set — the repo-root
+# .env.local provides defaults, it never overrides the caller's environment or
+# a project .env. Comments and blank lines are ignored.
+_env_defaults() {
+  local f="$1" line key
+  [ -f "$f" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"
+    case "$key" in ''|*[!A-Za-z0-9_]*) continue ;; esac
+    [ -n "${!key:-}" ] || export "$key=${line#*=}"
+  done < "$f"
+}
+
 # load_env <project_path>
-# Loads JAHIA_USER / JAHIA_HOST from <project_path>/.env if present, else
-# falls back to local-dev defaults. Mirrors how `yarn jahia-deploy` reads .env.
+# Loads JAHIA_* from <project_path>/.env if present, then fills the gaps from
+# the repo-root .env.local (copy .env.example), then local-dev defaults.
+# Exports JAHIA_HOST (= JAHIA_URL) and the combined JAHIA_USER=user:pass form
+# the probes pass to curl -u. Mirrors how `yarn jahia-deploy` reads .env.
 load_env() {
   local proj="${1:-}"
   if [ -n "$proj" ] && [ -f "$proj/.env" ]; then
@@ -17,9 +35,15 @@ load_env() {
     . "$proj/.env"
     set +a
   fi
+  _env_defaults "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/.env.local"
+  : "${JAHIA_URL:=${JAHIA_HOST:-http://localhost:8080}}"
+  : "${JAHIA_HOST:=$JAHIA_URL}"
+  if [ -n "${JAHIA_PASS:-}" ] && [[ "${JAHIA_USER:-root}" != *:* ]]; then
+    JAHIA_USER="${JAHIA_USER:-root}:$JAHIA_PASS"
+  fi
   : "${JAHIA_USER:=root:root}"
-  : "${JAHIA_HOST:=http://localhost:8080}"
-  export JAHIA_USER JAHIA_HOST
+  : "${JAHIA_TOOLS_ORIGIN:=$JAHIA_URL}"
+  export JAHIA_URL JAHIA_HOST JAHIA_USER JAHIA_TOOLS_ORIGIN
 }
 
 fail() { echo "FAIL: $*" >&2; exit 1; }

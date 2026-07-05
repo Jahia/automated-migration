@@ -30,6 +30,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/_lib.sh"
 
 url="${1:?page URL required}"
+load_env ""
 edit_flag=""
 shot=""
 shift || true
@@ -71,7 +72,7 @@ fi
 # / JCR errors into the markup, sometimes inside HTML COMMENTS — invisible to a
 # DOM/visual check, yet proof the page is broken. The agent flagged exactly this
 # ("error visible in HTML" for an unprefixed JCR-SQL2 type); this enforces it.
-raw="$(curl -s --max-time 30 ${JAHIA_USER:+-u "$JAHIA_USER"} -H "Origin: ${JAHIA_HOST:-http://localhost:8080}" "$url" 2>/dev/null)"
+raw="$(curl -s --max-time 30 ${JAHIA_USER:+-u "$JAHIA_USER"} -H "Origin: $JAHIA_HOST" "$url" 2>/dev/null)"
 if [ -n "$raw" ]; then
   errln="$(printf '%s' "$raw" | grep -ioE '(node type does not exist|invalidqueryexception|repositoryexception|pathnotfoundexception|itemnotfoundexception|javax\.jcr\.[A-Za-z]+exception|org\.jahia\.[A-Za-z.]*exception|error rendering [^<]{0,60})[^<]{0,90}' | head -3)"
   if [ -n "$errln" ]; then

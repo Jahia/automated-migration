@@ -16,8 +16,10 @@ Exit 0 only if every check passes.
 """
 import base64, json, os, sys, glob, urllib.request
 
-HOST = os.environ.get("JAHIA_HOST", "http://localhost:8080").rstrip("/")
+HOST = os.environ.get("JAHIA_URL", os.environ.get("JAHIA_HOST", "http://localhost:8080")).rstrip("/")
 USER = os.environ.get("JAHIA_USER", "root:root")
+if ":" not in USER:
+    USER = f"{USER}:{os.environ.get('JAHIA_PASS', 'root')}"
 if len(sys.argv) < 3:
     sys.exit("usage: content-fidelity.py <siteKey> <project_path> [langs-csv]")
 SITE, PROJ = sys.argv[1], sys.argv[2]

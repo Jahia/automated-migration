@@ -84,6 +84,13 @@ class RunAuditLogger:
     def epic_review_result(self, epic_id: str, round: int, action: str, diagnosis: str = "") -> None:
         self._write("epic_review", {"epic_id": epic_id, "round": round, "action": action, "diagnosis": diagnosis[:500]})
 
+    def epic_approved(self, epic_id: str, verdicts: list[dict]) -> None:
+        """Deterministic epic approval (P5.5b): the LLM reviewer is gone. Every
+        story approved AND every step done with a passing verification → approved.
+        `verdicts` is the per-step evidence (id, status, checks/errors counts) that
+        justified the approval — the audit record of what the deterministic gate saw."""
+        self._write("epic_approved", {"epic_id": epic_id, "verdicts": verdicts})
+
     # ── Story lifecycle ───────────────────────────────
 
     def story_started(self, epic_id: str, story_id: str, title: str, steps_count: int) -> None:
@@ -149,6 +156,24 @@ class RunAuditLogger:
             "passed": exit_code == 0,
         })
 
+    def command_executed(self, epic_id: str, story_id: str, step_id: str,
+                         command: str, exit_code: int, stdout: str, stderr: str, duration_ms: float) -> None:
+        """A `Run: <cmd>` line the ENGINE executed itself (P5 doctrine: a command
+        known at plan time needs no LLM to run). Mirrors probe_executed so the
+        audit trail treats an engine-run command exactly like a probe — same
+        command / exit_code / truncated streams / duration / passed shape — but
+        under its own event type so a post-mortem can tell the deterministic
+        Run: phase apart from the acceptance PROBEs. stdout truncated ~500c."""
+        self._write("command_executed", {
+            "epic_id": epic_id, "story_id": story_id, "step_id": step_id,
+            "command": command[:200],
+            "exit_code": exit_code,
+            "stdout": stdout[:500],
+            "stderr": stderr[:500],
+            "duration_ms": duration_ms,
+            "passed": exit_code == 0,
+        })
+
     def verification_result(self, epic_id: str, story_id: str, step_id: str,
                             passed: bool, checks: list[str], errors: list[str]) -> None:
         self._write("verification_result", {
@@ -166,6 +191,17 @@ class RunAuditLogger:
 
     def human_answer_received(self, step_id: str, answer: str) -> None:
         self._write("human_answer", {"step_id": step_id, "answer": answer[:500]})
+
+    # ── Decision points (ASSIST-PLAN §3) ──────────────
+
+    def decision(self, epic_id: str, story_id: str, step_id: str, payload: dict) -> None:
+        """A decision-point decision (POST /steps/{id}/decide). Mirrors the
+        SQLite 'decision' event into the JSONL audit trail so GET
+        /runs/{id}/audit?event_type=decision surfaces it (§3 A3 audit contract)."""
+        self._write("decision", {
+            "epic_id": epic_id, "story_id": story_id, "step_id": step_id,
+            **payload,
+        })
 
     # ── Token/cost summary ────────────────────────────
 

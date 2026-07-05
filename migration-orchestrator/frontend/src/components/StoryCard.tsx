@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import StepCard from './StepCard'
-import { restartStory } from '../api'
 import type { StoryState } from '../types'
 
 interface Props {
@@ -24,25 +23,14 @@ const statusIcons: Record<string, string> = {
   failed: '❌',
 }
 
-export default function StoryCard({ story, runId, epicId, index }: Props) {
+export default function StoryCard({ story, runId, index }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const [restarting, setRestarting] = useState(false)
 
   useEffect(() => {
     if (story.status === 'running') {
       setExpanded(true)
     }
   }, [story.status])
-
-  const onRestart = async () => {
-    if (!confirm(`Restart Story ${index + 1} "${story.title}"?\n\nThis resets the story (and any stories depending on it) to pending and re-runs them; the epic re-reviews afterward. Approved sibling stories are kept.`)) return
-    setRestarting(true)
-    try {
-      await restartStory(runId, epicId, story.id)
-    } finally {
-      setRestarting(false)
-    }
-  }
 
   return (
     <div className="border border-gray-800 rounded-lg bg-gray-900/30">
@@ -57,16 +45,6 @@ export default function StoryCard({ story, runId, epicId, index }: Props) {
         <span className={`px-2 py-0.5 rounded text-xs ${statusBadges[story.status] || ''}`}>
           {story.status}
         </span>
-        {story.status !== 'pending' && (
-          <button
-            onClick={onRestart}
-            disabled={restarting}
-            title="Reset this story (and its dependents) to pending and re-run"
-            className="px-2 py-0.5 rounded text-xs bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-          >
-            {restarting ? '…' : '↻'}
-          </button>
-        )}
       </div>
 
       {expanded && (

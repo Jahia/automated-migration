@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchRuns, startRun, restartRun, deleteRun, pruneRuns } from '../api'
+import { fetchRuns, deleteRun, pruneRuns } from '../api'
 
 interface RunSummary {
   run_id: string
@@ -43,34 +43,6 @@ export default function RunList() {
     const interval = setInterval(load, 15000)
     return () => clearInterval(interval)
   }, [load])
-
-  const handleStart = async (e: React.MouseEvent, runId: string) => {
-    e.preventDefault()
-    setActionLoading(runId)
-    setError(null)
-    try {
-      await startRun(runId)
-      await load()
-    } catch (e) {
-      setError(`Erreur démarrage: ${e}`)
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  const handleRestart = async (e: React.MouseEvent, runId: string) => {
-    e.preventDefault()
-    setActionLoading(runId)
-    setError(null)
-    try {
-      await restartRun(runId)
-      await load()
-    } catch (e) {
-      setError(`Erreur relance: ${e}`)
-    } finally {
-      setActionLoading(null)
-    }
-  }
 
   const handleDelete = async (e: React.MouseEvent, runId: string) => {
     e.preventDefault()
@@ -130,7 +102,9 @@ export default function RunList() {
       )}
 
       {runs.length === 0 ? (
-        <p className="text-gray-500">Aucun run. Créez-en un via <code>POST /runs</code>.</p>
+        <p className="text-gray-500">
+          Aucun run. Les runs sont pilotés via l'API (CONTROL-LOOP.md).
+        </p>
       ) : (
         <div className="space-y-3">
           {runs.map((run) => (
@@ -144,24 +118,6 @@ export default function RunList() {
                 <span className="font-mono text-sm text-gray-400">{run.run_id}</span>
                 <span className="text-gray-300 flex-1 truncate">{run.goal}</span>
                 <span className="text-xs text-gray-500">{run.status}</span>
-                {run.status === 'created' && (
-                  <button
-                    onClick={(e) => handleStart(e, run.run_id)}
-                    disabled={actionLoading === run.run_id}
-                    className="px-3 py-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 rounded text-xs"
-                  >
-                    {actionLoading === run.run_id ? '...' : 'Démarrer'}
-                  </button>
-                )}
-                {['failed', 'completed', 'aborted'].includes(run.status) && (
-                  <button
-                    onClick={(e) => handleRestart(e, run.run_id)}
-                    disabled={actionLoading === run.run_id}
-                    className="px-3 py-1 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 rounded text-xs"
-                  >
-                    {actionLoading === run.run_id ? '...' : 'Relancer'}
-                  </button>
-                )}
                 {['failed', 'completed', 'aborted', 'created'].includes(run.status) && (
                   <button
                     onClick={(e) => handleDelete(e, run.run_id)}

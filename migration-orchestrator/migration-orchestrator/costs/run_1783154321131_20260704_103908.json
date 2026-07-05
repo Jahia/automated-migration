@@ -1,0 +1,42 @@
+{
+  "run_id": "run_1783154321131",
+  "model": "anthropic/claude-sonnet-4-5",
+  "timestamp": "2026-07-04T08:39:08Z",
+  "total": {
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "tokens_cache": 0,
+    "cost_input": 0.0,
+    "cost_output": 0.0,
+    "cost_cache": 0.0,
+    "cost_total": 0.0,
+    "model": "anthropic/claude-sonnet-4-5",
+    "pricing": {
+      "input_per_1m": 3.0,
+      "output_per_1m": 15.0,
+      "cache_read_per_1m": 0.3
+    }
+  },
+  "steps": [
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "anthropic/claude-sonnet-4-5",
+      "pricing": {
+        "input_per_1m": 3.0,
+        "output_per_1m": 15.0,
+        "cache_read_per_1m": 0.3
+      },
+      "step_id": "step_script_smoke",
+      "story_id": "story_t",
+      "epic_id": "epic_t",
+      "duration_ms": 117.190185546875
+    }
+  ],
+  "step_count": 1
+}

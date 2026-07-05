@@ -19,14 +19,19 @@ class MCP:
 
     @staticmethod
     def _env(project):
-        u, h, tok = "root:root", "http://localhost:8080", ""
-        envp = f"projects/{project}/.env"
-        if os.path.exists(envp):
+        u, h, pw, tok = "root:root", "http://localhost:8080", "", ""
+        root_env = os.path.join(os.path.dirname(__file__), "..", "..", ".env.local")
+        for envp in (root_env, f"projects/{project}/.env"):
+            if not os.path.exists(envp):
+                continue
             for line in open(envp):
                 line = line.strip()
                 if line.startswith("JAHIA_USER="): u = line.split("=", 1)[1]
-                elif line.startswith("JAHIA_HOST="): h = line.split("=", 1)[1]
+                elif line.startswith("JAHIA_PASS="): pw = line.split("=", 1)[1]
+                elif line.startswith(("JAHIA_URL=", "JAHIA_HOST=")): h = line.split("=", 1)[1]
                 elif line.startswith("JAHIA_MCP_TOKEN="): tok = line.split("=", 1)[1]
+        if ":" not in u:
+            u = f"{u}:{pw or 'root'}"
         return u, h.rstrip("/"), tok
 
     def _headers(self):
@@ -37,13 +42,33 @@ class MCP:
             h["Authorization"] = "Basic " + base64.b64encode(self.user.encode()).decode()
         return h
 
+    @staticmethod
+    def _urlopen_retry(req, timeout=60, tries=5):
+        """Transport-level retry for TRANSIENT network faults — the MCP server
+        drops connections under sustained write load (observed live: a 384-media
+        site → 'Connection reset by peer' cascading into lost content). HTTP
+        error responses (4xx/5xx) are NOT retried here; they carry tool errors
+        the caller must see."""
+        import socket
+        import time
+        last = None
+        for i in range(tries):
+            try:
+                return urllib.request.urlopen(req, timeout=timeout).read()
+            except urllib.error.HTTPError:
+                raise  # real HTTP status — surface it
+            except (ConnectionResetError, ConnectionError, socket.timeout,
+                    urllib.error.URLError, OSError) as e:
+                last = e
+                time.sleep(1.5 * (i + 1))
+        raise last
+
     def call(self, tool, arguments):
         """Invoke an MCP tool. Returns the parsed result payload (dict) or raises."""
         body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                            "params": {"name": tool, "arguments": arguments}}).encode()
         req = urllib.request.Request(self.host + "/modules/mcp", body, self._headers())
-        with urllib.request.urlopen(req, timeout=60) as r:
-            resp = json.load(r)
+        resp = json.loads(self._urlopen_retry(req, timeout=60))
         if "error" in resp:
             raise RuntimeError(f"MCP {tool} error: {resp['error']}")
         result = resp.get("result", {})
@@ -87,8 +112,43 @@ class MCP:
         """Wire an image/link weakreference to an imported DAM node (by absolute path)."""
         return self.update(path, {prop: target_path}, locale=locale)
 
+    def gql(self, query):
+        """Direct GraphQL (rule 3/6: Origin header MUST match JAHIA_URL). Used
+        where the MCP tools have no working path — e.g. deleting a published
+        node from EDIT (the MCP delete guard blocks it; mark-for-deletion +
+        publish proved unreliable for skeleton nodes, observed live P2.5)."""
+        body = json.dumps({"query": query}).encode()
+        h = self._headers()
+        h["Origin"] = self.host
+        req = urllib.request.Request(self.host + "/modules/graphql", body, h)
+        out = json.loads(self._urlopen_retry(req, timeout=60).decode())
+        if out.get("errors"):
+            raise RuntimeError(f"GraphQL error: {out['errors'][:2]}")
+        return out.get("data")
+
+    def delete_edit(self, path):
+        """Delete a node from the EDIT workspace regardless of publication
+        state. The caller MUST unpublish() the parent afterwards to purge the
+        LIVE copy — NOT publish(): on corrupted publication metadata a publish
+        no-ops in 1 ms and leaves LIVE stale (measured live, see unpublish)."""
+        q = 'mutation { jcr(workspace: EDIT) { deleteNode(pathOrId: "%s") } }' % path
+        return self.gql(q)
+
     def publish(self, path, languages=("fr", "en")):
-        return self.call("publication.publish", {"path": path, "languages": list(languages)})
+        return self.call("publication.publish", {"path": path, "languages": list(languages), "includeSubTree": True})
+
+    def unpublish(self, path, languages=("fr", "en")):
+        """Remove the LIVE copy of a subtree. THE reliable LIVE purge/reset:
+        on areas whose EDIT-side publication metadata is corrupted (aggregated
+        publication info claims PUBLISHED while LIVE is stale or absent),
+        publish() NO-OPS in 1 ms — a SUCCESSFUL scheduler job that publishes
+        NOTHING (measured live on discoverasr: durationMs:1, 18 005 jobs on
+        the counter; even includeSubTree:true changes nothing). unpublish
+        ignores that state, purges LIVE instantly (<1 s measured), and resets
+        the metadata so the NEXT publish actually runs."""
+        return self.call("publication.unpublish",
+                         {"path": path, "languages": list(languages),
+                          "includeSubTree": True})
 
     def search(self, query):
         return self.call("content.search", {"query": query})

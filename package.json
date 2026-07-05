@@ -1,0 +1,25 @@
+{
+  "name": "jahiamigration",
+  "version": "1.0.0",
+  "description": "Agentic harness for migrating existing websites to Jahia JavaScript modules.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smonier/jahiaMigration.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/smonier/jahiaMigration/issues"
+  },
+  "homepage": "https://github.com/smonier/jahiaMigration#readme",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "playwright": "^1.61.1"
+  }
+}

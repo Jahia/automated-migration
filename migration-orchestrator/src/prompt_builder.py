@@ -13,6 +13,7 @@ def build_step_prompt(
     story: StoryState,
     epic: EpicState,
     run: RunState,
+    run_failure: str | None = None,
 ) -> str:
     task_type = step.task_type
     agent = step.agent
@@ -20,7 +21,12 @@ def build_step_prompt(
     github_block = _format_github_issues(story.github_issues_content)
     previous = _format_previous_stories(epic, story)
     loop_block = _format_loop_context(step)
-    retry_block = _format_retry_feedback(step)
+    answer_block = _format_human_answer(step)
+    # P5 engine-executes-Run: when the engine already ran this step's Run: lines
+    # and one FAILED, the agent is opened as a REPAIRER — the failure context
+    # (command, exit code, stderr/stdout tail) is prepended so the LLM fixes the
+    # cause instead of re-discovering the command from scratch.
+    repair_block = _format_run_failure(run_failure)
 
     inputs_block = ""
     if step.inputs:
@@ -42,7 +48,7 @@ Ce fichier contient les conventions, le contexte et les règles du projet.
 Respecte ses instructions tout au long de ton travail.
 
 Tu es dans la tâche "{task_type}" de la story "{story.title}".
-{loop_block}{retry_block}
+{repair_block}{loop_block}{answer_block}
 STORY:
 - Titre: {story.title}
 - Description: {story.description}
@@ -79,60 +85,6 @@ Retourne EXCLUSIVEMENT ce JSON (sans markdown):
 
 Utilise "halt" si tu détectes un problème grave nécessitant une intervention humaine (données corrompues, conflit critique, ambiguïté irrésolue, risque de perte de données). Le plan sera mis en pause jusqu'à intervention humaine.
 """
-
-
-def build_review_epic_prompt(epic: EpicState, run: RunState) -> str:
-    stories_block = _format_all_stories(epic)
-    history_block = _format_review_history(epic)
-
-    return f"""Tu es un agent de revue d'architecture.
-Tu évalues le travail réalisé dans un epic.
-
-OBJECTIF DE L'EPIC:
-{epic.goal}
-
-CRITÈRES D'ACCEPTATION:
-{_format_criteria(epic.review_config.review_criteria)}
-
-{stories_block}
-
-{history_block}
-
-Retourne EXCLUSIVEMENT un JSON (sans markdown):
-{{
-  "action": "approved | rectify",
-  // si approved:
-  "summary": "...",
-  "confidence": 0.9,
-  "remaining_concerns": ["..."]
-  // si rectify:
-  "diagnosis": "...",
-  "target_after_story_id": "story_XXX ou null pour ajouter à la fin",
-  "new_stories": [
-    {{
-      "id": "...",
-      "title": "...",
-      "description": "...",
-      "acceptance_criteria": ["..."],
-      "depends_on": [],
-      "github_issues": [],
-      "reason": "...",
-      "steps": [
-        {{
-          "id": "...",
-          "title": "...",
-          "task_type": "...",
-          "agent": "code",
-          "depends_on": [],
-          "inputs": {{}},
-          "expected_outputs": {{}},
-          "acceptance_criteria": ["..."],
-          "reason": "..."
-        }}
-      ]
-    }}
-  ]
-}}"""
 
 
 def _format_criteria(criteria: list[str]) -> str:
@@ -177,38 +129,27 @@ def _format_previous_stories(epic: EpicState, current: StoryState) -> str:
     return "\n".join(lines)
 
 
-def _format_retry_feedback(step: StepState) -> str:
-    """On a retry (attempt > 0), inject the PREVIOUS attempt's failure so the
-    agent does not retry blind: the verification errors (probe output) are the
-    training signal that tells it exactly what to fix. If the operator answered
-    an escalation, their instructions ride along with highest priority."""
-    human = ""
-    if step.human_answer and step.human_answer.strip().lower() != "skip":
-        human = (f"\nINSTRUCTIONS DE L'OPÉRATEUR (après échec des tentatives précédentes — "
-                 f"priorité ABSOLUE):\n{step.human_answer.strip()[:1000]}\n")
-    if step.attempt <= 0 or not step.verification or step.verification.passed:
-        return human
-    lines = [human] if human else []
-    lines += [f"\nÉCHEC DE LA TENTATIVE PRÉCÉDENTE (tentative {step.attempt}/{step.max_attempts}):"]
-    if step.timed_out:
-        lines.append(
-            "⏱ La session précédente a été COUPÉE par la deadline de temps — le travail a été "
-            "interrompu en cours de route, pas rejeté. Tout ce qui a été créé/déployé est conservé "
-            "(le travail est idempotent). NE recommence PAS de zéro: vérifie l'état actuel avec les "
-            "PROBEs, puis reprends UNIQUEMENT ce qui manque. Va à l'essentiel."
-        )
-    if step.agent_result and step.agent_result.summary:
-        lines.append(f"Résumé précédent: {step.agent_result.summary[:300]}")
-    lines.append("Erreurs de vérification (à corriger — ne refais PAS la même chose):")
-    budget = 3000
-    for err in step.verification.errors[:6]:
-        chunk = str(err)[:900]
-        lines.append(f"  ✗ {chunk}")
-        budget -= len(chunk)
-        if budget <= 0:
-            break
-    lines.append("Analyse ces erreurs, corrige la cause, puis re-vérifie avec les mêmes PROBEs.\n")
-    return "\n".join(lines)
+def _format_human_answer(step: StepState) -> str:
+    """G-D fix: a step re-executed after POST /steps/{id}/answer must SEE the
+    answer — without this block the step just re-executes blind."""
+    if not step.human_answer:
+        return ""
+    text = "\nRÉPONSE HUMAINE — Cette étape avait posé une question; un humain a répondu.\n"
+    if step.question:
+        text += f"Ta question précédente: {step.question.question}\n"
+    text += f"Réponse humaine à ta question précédente: {step.human_answer}\n"
+    text += "Prends cette réponse en compte et NE repose PAS la même question.\n"
+    return text
+
+
+def _format_run_failure(run_failure: str | None) -> str:
+    """P5 repair block: the engine ran this step's deterministic Run: line(s)
+    itself and one failed. The block is placed high in the prompt so the LLM
+    treats itself as a repairer of a known-failing command, not as the executant
+    of a fresh instruction."""
+    if not run_failure:
+        return ""
+    return "\n" + run_failure.strip() + "\n"
 
 
 def _format_loop_context(step: StepState) -> str:
@@ -220,41 +161,3 @@ def _format_loop_context(step: StepState) -> str:
     if diagnosis:
         text += f"Diagnostic complet:\n{diagnosis}\n"
     return text
-
-
-def _format_all_stories(epic: EpicState) -> str:
-    lines = ["PLAN ET RÉSULTATS:"]
-    for story in epic.stories:
-        lines.append(f"\n### {story.id} — {story.title} [{story.status.value}]")
-        lines.append(f"Description: {story.description}")
-        lines.append(f"Critères: {', '.join(story.acceptance_criteria)}")
-        for step in story.steps:
-            status_icon = {"done": "✅", "running": "🔄", "pending": "⏳", "failed": "❌"}.get(step.status.value, "❓")
-            lines.append(f"  {status_icon} {step.task_type} [{step.status.value}] (agent: {step.agent})")
-            if step.agent_result:
-                lines.append(f"    Résumé: {step.agent_result.summary[:200]}")
-                if step.agent_result.modified_files:
-                    lines.append(f"    Fichiers: {', '.join(step.agent_result.modified_files[:10])}")
-                if step.agent_result.risks:
-                    lines.append(f"    Risques: {', '.join(step.agent_result.risks[:3])}")
-            if step.verification:
-                v = "✅ PASSÉE" if step.verification.passed else "❌ ÉCHOUÉE"
-                lines.append(f"    Vérification: {v}")
-    return "\n".join(lines)
-
-
-def _format_review_history(epic: EpicState) -> str:
-    if not epic.review_history:
-        return ""
-    lines = ["HISTORIQUE DES REVIEWS:"]
-    for entry in epic.review_history:
-        r = entry.get("result", {})
-        action = r.get("action", "unknown")
-        lines.append(f"\nRound {entry.get('round', '?')}: {action}")
-        if action == "rectify":
-            lines.append(f"  Diagnosis: {r.get('diagnosis', '')[:300]}")
-            for s in r.get("new_stories", []):
-                lines.append(f"  → {s.get('id', '?')}: {s.get('title', '')}")
-        elif action == "approved":
-            lines.append(f"  Summary: {r.get('summary', '')[:200]}")
-    return "\n".join(lines)

@@ -1,0 +1,13 @@
+.root {
+  width: 100%;
+}
+
+.heading {
+  font-family: var(--font-heading, inherit);
+  color: var(--color-text, #111);
+  margin: 0 0 1rem;
+}
+
+.container {
+  border-top: 1px solid var(--color-border, #ddd);
+}

@@ -1,0 +1,374 @@
+# Verifiable analyze pipeline (v2) — component & template identification
+
+Canonical reference for the reworked **analyze phase**: turn a source website into a
+Jahia component + template model that is **verifiable, agnostic, right-grained,
+and fidelity-verified before templatization**. "Verifiable", not "deterministic":
+the LLM steps (DeepSeek grouping, and the prototype OVH vision segmentation)
+produce free output that must pass deterministic gates before anything downstream
+consumes it; the deterministic layers (extraction, assemble, cnd_emit, probes,
+mirror) remain deterministic. Supersedes the block-explosion of
+`extract-blocks.py` (256 raw blocks / 10 pages) and the orphaned `hybrid-identify.py`
+(clustered by structure, found 0 cross-cutting).
+
+> **Quality & reliability roadmap:** phases, pre-registered thresholds, and the
+> ground-truth gate plan live in [`QUALITY-PLAN.md`](QUALITY-PLAN.md).
+
+> **North star:** reconstruct sample pages from ONLY the extracted elements and prove
+> they render identically to the source — *before* adding Jahia's complexity. If the
+> reconstruction matches, extraction is complete; the diff localises exactly what the
+> template + asset-import must supply.
+
+---
+
+## 1. Where the boundary sits (the thesis)
+
+Not "heuristics *or* LLM" — a layered pipeline where the LLM only makes the one
+irreducible semantic judgment, bounded and gate-verified:
+
+| Stage | Who | Guarantee |
+|---|---|---|
+| Crawl | deterministic | cache-first |
+| Localize (self-contained local mirror) | deterministic | **offline-render gate** (0 external static assets) |
+| Candidate extraction (altitude + data-shape + frequency + cross-cutting) | deterministic | **byte-stable across runs** |
+| Grouping (which candidates = one Jahia type) | **LLM, bounded** (partition of candidate ids only, temp 0, self-correcting) | gate-verified |
+| Assemble (names, fields, child types, layout props) | deterministic | **naming variance = 0** |
+| Gates (partition, dup-shape sanitizer, stability, fidelity) | deterministic | non-zero exit blocks |
+
+Measured: deterministic layer 3× byte-identical; grouping stability 95–99% (naming-
+invariant); cross-cutting 100%; every DeepSeek run passed the partition gate on the
+first attempt (0 hallucination / 0 omission).
+
+---
+
+## 2. The tools (`orchestration/lib/`)
+
+| Tool | Purpose | Usage |
+|---|---|---|
+| `crawl-site.py` | cached, rate-limited crawl + assets → `page-inventory.json`. (urllib — **no JS render**; fine for server-rendered SXA/Drupal, a gap for JS-hydrated sites.) | `python3 crawl-site.py <proj> <url> --max-pages N --depth D` |
+| `localize_site.py` | **build a TRULY-LOCAL mirror** from the crawl cache: discover every asset (HTML refs **+ recursion into CSS** `@import`/`url()`/`@font-face`), download the missing (cache-first, WAF-aware), rewrite ALL refs (HTML+CSS) to hash-named local paths → `workflow-output/local-mirror/<slug>.html` + `assets/` + `mirror.json` (residue + localizable %). Injects `<meta charset="utf-8">` FIRST in `<head>` (rewritten `<link>` tags can push the original meta past the browser's 1024-byte sniff window → Latin-1 mojibake; this cost supercar ~9 fidelity points before the fix). Deterministic. | `python3 localize_site.py <proj> [--max-asset-size MB]` |
+| `mirror_probe.mjs` | **the local-mirror gate.** Serves the mirror from an ephemeral 127.0.0.1 server and renders each page with **every other origin blocked**. GATE = zero blocked *static-asset* requests (css/font/image/script/media) that aren't a known tracker/residue (runtime beacons/xhr are ignorable) + **zero local-404s**; asserts stylesheets applied. **Runtime repair to fixpoint:** URLs composed by JS at render time (Liferay AMD/combo loader, Next.js chunk maps) are invisible to static discovery — on a miss the probe fetches the asset ONCE from the live origin into `local-mirror/runtime-assets/` (ledger: `runtime-manifest.json`), re-renders, and loops (≤5 rounds — repaired modules import further modules in waves). Un-fetchable refs (404 live / oversize) become explicit residue. Also pixel-diffs offline-vs-live → **mirror-fidelity %**. Writes `mirror/mirror-review.html`. | `node mirror_probe.mjs <proj> [maxPages] [--pages a,b] [--all] [--no-live] [--no-repair]` |
+| `mirror_net.mjs` | **shared offline-serving module** (mirror_probe + reconstruct_probe): manifest-aware ephemeral server (exact path+query lookup for combo/loader URLs, then plain files), `offlineRoute()` (local → continue; manifest-captured cross-origin → fulfilled from disk; rest → abort), `fetchRuntimeAsset()`. Text MIME types get explicit `; charset=utf-8`. The tracker-host blocklist includes consent managers (osano, onetrust…) **and `canarytokens.com` — contentful embeds scrape-detection canaries that exfiltrate the local URL; they must never be repaired/fetched.** | imported by the two probes |
+| `semantic_extract.py` | **deterministic candidates.** SXA fast-path (`class="component"`) + agnostic recursive **altitude finder** (descend single-block wrappers → first multi-block "component row" → stop; titled sections kept whole). Data-shape signatures, cross-page frequency, **cross-cutting by ubiquity+position**, template clusters. | `python3 semantic_extract.py <proj>` → `semantic-candidates.json`, `semantic-templates.json` |
+| `grouping-prompt.md` | the site-**agnostic** grouping prompt (feature-driven, no site/CMS names). Merge liberally by shape; the sanitizer splits bad merges. | consumed by `group_llm.py` |
+| `group_llm.py` | **the single bounded LLM step.** Calls DeepSeek V4 Flash (temp 0) with the compact candidate set; self-corrects on the partition gate. | `python3 group_llm.py <proj> --model deepseek-v4-flash --ns <ns>` → `grouping.json` |
+| `assemble_manifest.py` | **deterministic** manifest: computes nodeType/fields/child from the grouping; partition gate (no-new-types + coverage); `sanitize_groups()` splits shape-incompatible LLM grab-bags; `--consensus` fuses N runs. | `python3 assemble_manifest.py <cand> --group <grouping> --ns <ns> --out <manifest>` |
+| `stability_gate.py` | count + **naming-invariant grouping stability** (role-pair co-membership) + cross-cutting + gates over N runs. | `python3 stability_gate.py <adj-dir> <cand>` |
+| `cnd_emit.py` | **deterministic** CND + view plan from the manifest (mix:title for titles, j:linkType, picker[type='image'], mainResource→default+fullPage, container→child+card view). | `python3 cnd_emit.py <manifest> --ns <ns> --mixns <mixns> --project <p> --out-cnd … --out-views …` |
+| `coverage_probe.mjs` | pre-templatization gap analysis in a **real browser**: JS-render delta, CSS rules/tokens/@media/bg-images/fonts, JS libs+behaviours, all asset requests, fixed/sticky chrome. | `node coverage_probe.mjs <proj> [maxPages]` |
+| `reconstruct_probe.mjs` | **the fidelity gate.** Renders **from the local mirror (offline, deterministic — no live/WAF dependency)** when one exists, else the live source; masks everything not in a detected component (visibility:hidden preserves layout), pixel-diffs (pixelmatch), writes a self-contained **`review.html`** (drag-slider source↔reconstruction + diff) AND an interactive **`<slug>.recon.html`** (masked DOM + `<base>` so the site's own CSS/JS load — responsive + hover menus work live; open via the artifact route or `python3 -m http.server`) AND a **`<slug>.overlay.html`** component map (source screenshot + one hover-labelled box per detected component, labelled with the manifest nodeType). GATE = content coverage; pixelSim + diff PNGs = the template/asset gap. | `node reconstruct_probe.mjs <proj> [maxPages] [threshold] [--pages a,b] [--all]` → `reconstruct/{review.html, *.recon.html, *.overlay.html, *.png, reconstruct.json}` |
+| `../run_local.py` | **deterministic plan executor** — runs a plan's `Run:`/`PROBE:` lines in dep order, a step passes iff all probes exit 0 (the orchestrator's contract, no agent layer). `--halt-after <step>` = human review gate. | `python3 orchestration/run_local.py <plan> --from <step> --halt-after <step>` |
+
+Plan template: `orchestration/plans/acquia-analyze.plan.json` (crawl → **localize (offline mirror gate)** → semantic → group → cnd → **reconstruct gate**).
+
+### 2b. v2→downstream artifact bridge (QUALITY-PLAN P1.1, shipped 2026-07-03)
+
+What the downstream (scaffold→components→content) consumes from the analyze phase, and where it
+comes from — all deterministic, validated 100 % instance→type resolution on acquia-drupal (263/263):
+
+| Artifact | Producer | Consumer |
+|---|---|---|
+| `workflow-output/html-fragments/<role>.html` (+ `.item.html` for repeated children) | `semantic_extract.py` — representative source markup per candidate, path recorded as `htmlFragment` on the candidate | `/5-components` (exact-HTML rule), passthrough layer (P1.2) |
+| `component-manifest.json` → `instanceTypeMap` (role → nodeType, incl. cross-cutting + nested-part→childType), per-component `needsFullPage` (alias of `needsMainResource`), `interactive` (Islands hint from DOM signals: forms/media/JS-widget classes), `htmlFragments` | `assemble_manifest.py` | `load_content.build_type_map()` (v2 contract; v1 `sxaSource` still honoured), `cnd_emit`, templatization |
+| `orchestration/content/<project>.content-load.json` (`adapter: "semantic"`) | `extract_content.py` **semantic adapter**: reuses `semantic_extract.extract_page()` so instance `type` = the same role the manifest keys on; parents precede children; slugs come from `page-inventory.json` (not path-derived) | `load_content.py` → MCP create+publish |
+
+Loader v2 routing: cross-cutting nodeTypes resolve to absolute areas (`/home/<header|footer|nav>`)
+via the manifest's `crossCutting[].area` — chrome is populated once, never per page (rule 16).
+
+### 2c. Passthrough layer + hard partition gate (QUALITY-PLAN P1.2, shipped 2026-07-03)
+
+The ≥99 % fidelity invariant's mechanism: `semantic_extract.partition_main()` produces a
+document-ordered TOTAL partition of each page's `<main>` — every child routes to exactly one
+bucket (component region | descend-into-wrapper | passthrough region); accounting unit =
+content leaves (non-empty text nodes + media tags). The semantic adapter emits main-region
+instances in document order, uncovered regions as `rawHtml` passthrough instances
+(`fields.html` = verbatim source markup, loaded untruncated up to 200 k chars). `cnd_emit`
+always ships `ns:rawHtml` (+ view plan: render `html` verbatim server-side); the manifest
+carries `passthroughType` and maps `rawhtml` in `instanceTypeMap`.
+
+**Gate:** `orchestration/probes/partition.py <project> [--min-semantic-share PCT]` — fails if
+any page's partition is not total (leaves covered ≠ leaves total), if the payload's passthrough
+instances disagree with the partition summary, or (P2+) if the semantic share drops below the
+floor. P1 measures the share without a floor (§5). Baseline acquia-drupal: partition total on
+18/18 pages, semantic leaf share min 94 % / avg 99 %, 11 passthrough instances; supercar SXA
+100 % semantic, 0 passthrough. `semantic-templates.json` gains `pagePartitions` (per-page
+accounting) for the cockpit KPI.
+
+### 2d. Module bridge + full-loop plan (QUALITY-PLAN P1.3/1.4, shipped 2026-07-03)
+
+| Tool | Purpose |
+|---|---|
+| `lib/scaffold_module.sh <project> [module]` | **headless scaffold** — replicates `@jahia/create-module`'s exact copy+templating from the pinned official npm package (cached in `orchestration/.cache/`). No TTY, byte-identical to the interactive tool, lands inside `projects/<p>/`. Writes module `.env` from the repo env truth. Requires corepack (modules pin yarn 4). |
+| `lib/merge_cnd.py <project> --ns X --mixns Xmix` | installs `workflow-output/definitions.cnd` into the module + generates rule-18 resource bundles (every field key + `.ui.tooltip`, en+fr, self-checked) + fixes the placeholder mixin icon |
+| `probes/namespace-check.sh <prefix> <uri>` | **scripted Jackrabbit registry gate** (rule 13) — drives the tools Groovy console over POST; PASS free-or-matching, FAIL on prefix/URI conflict |
+| `lib/create_site.sh <siteKey> <title> <templateSet> [langs]` | provisioning-API `createSite` (never GraphQL addNode — rule 19) + full invariant verification (languages as YAML LIST — csv silently drops extra langs); idempotent |
+| `lib/gen_plan.py --project P --url U --ns N --site S [--segmentation vision\|heuristic]` | parameterized **v2 full-loop plan** generator: analyze (mirror gate → segmentation → partition/contribution gates → fidelity HALT) → module (namespace gate → scaffold → assets → CND merge → skeleton views → deploy gate) → site+content (create_site → MCP load → publish parity → edit frame → G6 → G2) → ground-truth HALT. **`--segmentation vision` (default) is the P2 A/B winner** — replaces `group_llm` with `segment_probe` + `segment2manifest`. Output passes the engine plan lint. |
+| `lib/segment_probe.mjs <proj>` | **vision segmentation** — OVH Qwen2.5-VL over cluster representatives; gate = parse + real ids + coverage ≥50% + stability N=2 (Jaccard ≥0.8); dumps `segment/<slug>.dom.html` (data-seg annotated) for deterministic re-extraction. |
+| `lib/segment2manifest.py <proj> --ns N` | vision naming authority → manifest: cross-page aggregation, field re-extraction on `[data-seg]` roots, heuristic-role bridge; emits `component-manifest.json` + `promote-roles.json`. |
+| `lib/make_overrides.py <proj> --module M` | deterministic `passthrough-overrides.json` (the fidelity/contribution dial) from `promote-roles.json`. |
+| `lib/install_shell_templates.py <proj> --ns N --manifest M` | installs the agnostic fidelity-shell set (Layout, basic template, RawHtml, `skeletonRender.ts`, `rawRoot.ts`) + one skeleton view per promoted type AND its item child type. |
+| `lib/run_plan.py <plan> [--from S] [--until S]` | generic sequential plan executor (successor to `run_local.py` for full-loop plans): runs every `Run:`/`PROBE:` line in order, stops at first failure. Does NOT export `.env.local` (probes self-load; jahia-deploy dotenv must not be overridden). |
+| `probes/contribution.py <proj>` | G1 (editable-text coverage) + G5 (media/link wiring). |
+| `probes/editor-surface.py <proj> <site>` + `.mjs` | G6 (forms.editForm completeness + Page Builder item frames). |
+| `probes/roundtrip.py <proj> <site>` | G2 (sentinel-edit round-trip: text/media/link). |
+
+---
+
+## 3. The gates (what makes it trustworthy)
+
+1. **Partition gate** (`assemble_manifest`): every group member must be a known candidate id, and every candidate covered exactly once → **hallucination and omission are impossible to pass**.
+2. **dup-shape sanitizer** (`assemble_manifest`): within an LLM group, split members whose data-shapes are incompatible (or containers with disjoint child-shapes) → **no grab-bag types**. dup-shape across *distinct roles* is a review WARN, not a hard fail (real sites reuse shapes: Breadcrumb vs CTA).
+3. **Stability gate** (`stability_gate`): naming-invariant grouping agreement + cross-cutting presence across N runs.
+4. **Mirror gate** (`mirror_probe`, runs BEFORE the fidelity gate): every sample page renders **fully offline** — 0 blocked static-asset requests (only runtime trackers blocked) + 0 local-404s + stylesheets applied, **after the runtime-repair fixpoint**. So the local render is *truly* local, not silently pulling from the source. Mirror-fidelity (offline vs live) reported alongside (acquia 99.97–99.98%, supercar 99.95–100%, contentful 99.91–99.99%, liferay 86–90% — hero `<video>` webm residue). **A pure client-rendered SPA whose MAIN content loads via runtime XHR (thin `<main>` text + high `data-xhr`, e.g. discoverasr) will stay stuck at ~5% mirror-fidelity no matter what assets are captured — the content isn't in the HTML. The gate correctly REFUSES it; that is the anti-overfit boundary, not a bug to force past.**
+5. **Fidelity gate** (`reconstruct_probe`): content coverage ≥ threshold; renders from the local mirror (offline/deterministic); the visual review (`review.html`) is the human approval before templatization. Script-rendered pages (real orphan text < 300 chars) are judged on pixels alone.
+6. **Contribution gate G1** (`probes/contribution.py`): editable-text coverage ≥ 60% min / 85% avg per page (forms/widgets excluded), and **0 dead props, 0 phantom markers, 0 empty shells**. Pixel fidelity never proves editability — this measures what an editor can actually change (see migration.md §22-29).
+7. **Media/link gate G5** (`probes/contribution.py`): ≥90% of media units wired to DAM weakrefs; ≥95% of link-bearing nodes have a `j:linkType`.
+8. **Editor-surface gate G6** (`probes/editor-surface.py`): G6a — every wired prop is a read-write field in an activated `forms.editForm` fieldSet (Content Editor's own form source); G6b — every item child node has a `[path]` edit frame in the Page Builder (Playwright). This is the gate that catches "the JCR is perfect but I can't edit the block".
+9. **Round-trip gate G2** (`probes/roundtrip.py`): sentinel edits to sampled props (text, media weakref swap, `j:url`) must appear in the LIVE render and then restore cleanly (publication is async → the probe polls). The dynamic proof that G1's props are not dead.
+10. **Ground-truth gate G3** (`probes/groundtruth.sh`): DEPLOYED Jahia pages pixel-diffed vs the certified mirror, ≥99%/page — the LIVE side under the SAME offline resolution as the reference (jahia.md §26). Output caches flushed first.
+
+> **Honest scope of the fidelity metrics (adversarial review, 2026-07-02):** the "reconstruction"
+> is the SAME live DOM with non-component regions masked (`visibility:hidden`) — it measures
+> **segmentation coverage** (is every visible box inside a detected component?), NOT a rebuild
+> from the extracted data. Consequences: (1) pixelSim is anti-correlated with decomposition
+> quality at the coarse end — a whole-page grab-bag type (liferay's `lfr:div`) scores high
+> *because* it is coarse; always read pixelSim **together with the model's naming/type quality**;
+> (2) coverage is character-based and chrome (header/footer) inflates the denominator;
+> (3) both screenshots come from the same offline render, so mirror gaps are invisible to this
+> gate (that's the mirror gate's job). A *true* reconstruction — rendering from the extracted
+> field values — is the step-4 templatization check, not this gate.
+
+---
+
+## 4. Agnosticism — SXA fast-path + agnostic fallback
+
+`class="component"` (SXA) is a strong deterministic signal and gets a fast-path. For
+non-SXA sites the **recursive altitude finder** carries it: chrome = `<header>/<footer>/<nav>`
++ `region--*` (Drupal); content = the first multi-block row below `<main>`/`region--content`,
+stopping at that altitude (deeper nesting = fields/child items). **Titled section = ONE
+component** (title + intro + items) — a node carrying its own heading is emitted whole
+(`_own_heading`), so section titles are never dropped.
+
+**Hard lesson:** a 3-page hand fixture passed, but real Drupal (acquia.com) exposed a
+**BEM-explosion** (2816 instances, 0/3 cross-cutting) because deep `ss-flex-header__…`
+nesting made every titled div a "component". The altitude finder fixed it (→ 300
+instances, 3/3 cross-cutting). **Always validate agnosticism on a real non-SXA site,
+never a toy fixture. The fidelity gate is what catches these gaps.**
+
+### Platform fingerprints (measured on the 5 reference sites)
+
+What each source platform does to the pipeline — read this before running a new site:
+
+| Platform | Mirror | Model quality |
+|---|---|---|
+| **Sitecore SXA** (supercar) | clean static discovery; fontawesome-pro webfonts 404 on source (residue) | **excellent** — semantic classes → clean names (`usg:richText`, `usg:contentBlock`) |
+| **Drupal** (acquia) | clean; trustarc + theme icons residue | good (21 types) after the altitude-finder fix |
+| **Next.js** (contentful) | ~110 runtime chunks/fonts per page (`/_next/static/*` composed by JS) → **repair pass is mandatory**; embeds **canarytokens** scrape detectors (never fetch) | good structure (21 types) but **hash-suffixed names** (`callToActionCard9pqm4`) + leaked layout classes (`lgColSpan8`) — naming needs a quality gate |
+| **Liferay DXP** (liferay.com) | AMD/combo loader loads JS in waves (`/o/…/__liferay__/*.js`, `/combo/?…`) → repair needs the **fixpoint loop** (3 rounds on home); hero webm videos > size cap → residue → mirror-fidelity stuck at 86–90% | **poor/anemic** — 7 types incl. `lfr:div`, `lfr:lfrLayoutStructureItemSection`: non-semantic nested layout divs defeat both the altitude finder and the LLM naming. Needs a naming-quality gate + altitude tuning for layout-engine markup |
+| **AEM SPA** (discoverasr — P3 holdout) | main content client-rendered via XHR — **now captured by the render-crawl** (post-hydration DOM); Incapsula WAF beacons excused; lazy `data-src` materialised. Mirror gate: 0 ext-miss / 0 local-404 on every page (was blocked at 5.6%). | **ACCEPTED** — the render-crawl (`render_page.mjs`, uniform, no SPA branch) removed the blocker. Generalises to unseen SPAs (vercel +44%, notion +82% visible text vs raw HTTP). |
+
+### P3 full-loop verdicts (2026-07-03, 20 pages/site, vision profile)
+
+| Site | Stack | Ground truth ≥99% | GT avg | G1 (min/avg) | G5 media/links | Dominant residual |
+|---|---|---|---|---|---|---|
+| acquia (ref) | Drupal | 18/18 | 100% | 88/98% | 97% / 100% | — fully green |
+| supercar | SXA | 15/20 | 96.6% | 76/98% | 100% / 100% | homepage-variant ~8% drift: `<Area>` dropped inside a grid `div.row` → columns stack (see §6 open item) |
+| contentful | Next.js | 2/20 | 94.1% | 99/99.6% | 98% / 100% | 18/20 ≥90%, text pages green; case-study image-grid pages held ~77-96% by **next/image srcset-variant selection** — the live Jahia render and the mirror reference pick DIFFERENT responsive crops of the SAME (correctly localized) image → pixel diff. Images present + editable; residual is variant selection, not capture. |
+| discoverasr | AEM SPA | — | — | — | — | mirror gate blocks (client-rendered main) |
+
+Two distinct image residuals, both now understood: (1) **lazy `data-src` / all-URL-form CDN refs the crawl didn't materialise** — a real capture gap, FIXED in `localize_site.py` + `extract_content.py` (discoverasr 10→52 images). (2) **next/image srcset-variant selection** — the image IS captured and correct, but the live Jahia render and the mirror reference pick different responsive crops → pixel diff (contentful case-study grids); this is NOT a capture gap and needs viewport/DPR alignment between the two renders, or pinning a single `<img src>` variant. Text, layout, contribution model, and editor surface generalise cleanly to every stack.
+
+## 6. Known open item — grid-row Area altitude
+
+`main_content_root` descends through single-content-child wrappers so the `<Area>` sits at section altitude. On a page whose content root is a multi-column grid `div.row` (Bootstrap-style), it descends INTO the row and drops the Area there → the row's column children render as stacked block instances instead of flowing as grid columns (~8% cumulative vertical drift; supercar homepage variants). The fix is to STOP the descent at a horizontal layout row (class matches `row`/grid + multiple content-bearing children) — but it must not regress the 15/20 supercar pages + acquia + contentful that pass, so validate broadly before changing `main_content_root`.
+
+---
+
+## 5. DeepSeek V4 Flash
+
+- Endpoint `https://api.deepseek.com/v1`, models `deepseek-v4-flash` / `deepseek-v4-pro` (real). Key + opencode config in `~/.config/opencode/opencode.jsonc`.
+- **It is a REASONING model:** ~13k reasoning tokens before the answer → `max_tokens` must be ≥ 16000 or `content` comes back empty. (`group_llm.py` sets 16000.)
+- The `migration-orchestrator` engine sends **no model/temperature/seed** to opencode (`opencode_client.send_prompt_async`) — the plan `model` field is decorative; the real model is the opencode config. Reproducibility must come from the **content** (deterministic layer + gates), not the engine. `run_local.py` is the fully-deterministic executor.
+
+---
+
+## 6. Orchestrator specialization (migration profile)
+
+Turn the generic Run→Epic→Story→Step engine into a **migration cockpit** — see
+`migration-orchestrator/frontend/MIGRATION_PROFILE.md`. Shipped this session:
+- Backend: `gate_type` on `StepState` (set at HALT via `_infer_gate_type`, pushed in SSE); `GET /runs/{id}/artifacts/{path}` (serves `workflow-output`); `POST /runs/{id}/fidelity/rerun`.
+- Frontend (React/Tailwind, `tsc`-clean): `components/fidelity/FidelityGate.tsx` (+ `BeforeAfterSlider`), `components/migration/PipelineRail.tsx`, `ComponentModelView.tsx`; wired into `RunDetail.tsx` for migration runs.
+- Visual identity pinned to jahia.com: navy `#001932`, azure `#0077bf` / cyan `#00a1e3`, light `#eef2f6`, Plus Jakarta Sans, uppercase+`›` buttons, notched cards. Magenta `#d6217d` reserved for the pixel-diff motif only.
+
+---
+
+## 7. Results (two reference sites)
+
+| | supercar-garage (SXA, 22p) | acquia.com (real Drupal, 18p) |
+|---|---|---|
+| candidates | 29 content + 3 x-cut | 46 content + 3 x-cut |
+| model | 25 types + 3 x-cut + 4 templates | 21 types + 3 x-cut + 5 templates |
+| grouping stability | 99% | 95% |
+| cross-cutting | 3/3 (top-bar, header-nav, footer) | 3/3 (header, nav, footer) |
+| reconstruction (content coverage) | 100% | 99–100% (only orphan = cookie-consent + a11y chrome) |
+| pixel fidelity (components-only) | 91–95% | 73–99% (rest = section backgrounds / hero = template job) |
+| mainResource / detail pages | — | `acq:article` from `blog_*` cluster (listing `blog` ✓); detail pages: content 100%, pixel 98.5–98.9% |
+
+### 7b. 3-site orchestrated batch (2026-07-02, 20 pages each, via the cockpit engine)
+
+Full pipeline through the engine (OpenCode/DeepSeek agents + engine-enforced PROBEs),
+all three runs halted GREEN at the fidelity gate:
+
+| | supercar (SXA) | contentful (Next.js) | liferay (Liferay DXP) |
+|---|---|---|---|
+| mirror localized | 94.3% | 99.8% | 98.6% |
+| runtime repair | 0 needed | 124 chunks (home: 111) | 20 AMD modules, 3 fixpoint rounds |
+| mirror gate / fidelity vs live | GREEN / 99.95–100% | GREEN / 99.91–99.99% | GREEN / 86–90% (hero webm residue) |
+| model | 16 types + 3 x-cut + 5 tpl | 21 types + 3 x-cut + 6 tpl | **7 types** + 1 x-cut + 6 tpl |
+| naming quality | clean | hashed suffixes + layout leaks | poor (`lfr:div`) |
+| fidelity gate | GREEN 100% / 99.9% | GREEN 98% / 99.5% (4 real orphans: announcement bar + CTA band) | GREEN 96% / 98.5% (21 orphans) |
+| cost (DeepSeek) | $0.03 | $0.02 | ~$0.03 |
+
+---
+
+## 8. `mainResource` / detail-page detection — ✅ SHIPPED
+
+Detail pages (blog article, product sheet…) render the **entity node itself** via a
+`jmix:mainResource` fullPage template — not a dropped component. Missed, the article
+body is modeled as ordinary components and the page can never be pixel-perfect.
+Detection is deterministic + agnostic (structure, not vocabulary):
+
+1. **Detail cluster** (`semantic_extract.detect_detail_templates`): a template cluster
+   whose pages share a parent path segment `P` (slug depth > 1); **high confidence** if
+   `P` is itself a crawled page (the listing/index) → a list/detail pair.
+2. **Entity** = a main-position role that is cluster-exclusive (`pages ⊆ cluster`) and
+   singular (~one instance per page); its facet family = the shared role stem. CMS
+   content-type prefixes are stripped (`ct-article` → `article`) so the bare entity node
+   is chosen over its wrappers. Emitted as `detailTemplates[]` in `semantic-candidates.json`.
+3. **`assemble_manifest.isolate_main_resources`**: a deterministic lever — the entity
+   role becomes its **own** type even if the LLM/shape-sanitizer merged it into a
+   grab-bag (e.g. `article` merged with image-containers on a shared hero image). The
+   type gets `needsMainResource=true` + a `kind:"detail"` template.
+4. `cnd_emit` already turns `needsMainResource` into `jmix:mainResource` supertype +
+   `fullPage.server.tsx` view.
+
+Verified on acquia (blog): `tpl_01` → entity `article`, listing `blog` ✓, confidence high
+→ `acq:article` (mainResource) + `blogDetail` template. Reconstruction fidelity on blog
+detail pages: **content 100%, pixelSim 98.5–98.9%, GATE GREEN**. Byte-stable across runs.
+
+**Entity enrichment (✅):** `assemble_manifest` folds the scalar-content facet shapes
+(title / body-richtext / image / link) into the entity's own fields — so `acq:article`
+carries `mix:title` + `image` + rich `text` + CTA link itself, not just an image. Container
+facets (FAQ, related-content lists) stay separate components placed in the detail template.
+
+## 9. Recommendations — shipped 2026-07-02 (commit after the 3-site batch review)
+
+All five fronts from the batch's adversarial review were implemented, then a SECOND
+adversarial review (17 agents) caught 7 regressions in the implementation itself, all
+fixed before commit. What shipped:
+
+1. ✅ **Naming-quality gate** (`semantic_extract.clean_token` + `assemble_manifest.naming_violations`):
+   CSS-module hashes stripped at extraction (`blockName_local__9Pqm4` → `local`); a
+   deterministic gate flags any surviving hash (density scan — no camelCase false
+   positives), bare tags (`div`), and leaked layout/framework fragments, writing
+   `namingViolations` + `namingQuality` (good/mixed/poor) into the manifest. The engine's
+   model verdict goes amber/red on hostile names. **Measured: contentful 21/21 hostile →
+   1/19; liferay layout-div leakage removed; supercar GOOD.** (Layout regex scoped to real
+   Clay/Tailwind/Liferay tokens — NOT a bare `c-.*`, which would eat BEMIT `c-hero`.)
+2. ✅ **CND generator** (`cnd_emit.py`): always emits `ns:jcrQuery` (`jmix:list` only — NOT
+   renderableList) + `ns:gridRow` (rule 16); image weakrefs carry `< jmix:image`. **Link
+   convention MATCHES the deployed reference modules: `j:linkType` inline on the type, NO
+   linkTo mixin, `j:url`/`j:linknode` NEVER declared** (Jahia injects them at runtime —
+   the migration.md-9 "declare them" wording was unverified and contradicted every working
+   module; resolved in favor of the empirical reference). i18n defaults are a view guard,
+   not a CND default.
+3. ✅ **Mirror-gate hardening** (`mirror_net.mjs` + `mirror_probe.mjs`): soft-404 guard
+   (an HTML body for a script/font/image request → residue, not a poisoned manifest
+   entry); tracker list split into **analytics** (excused, invisible) vs **embed**
+   (youtube/hubspot/vimeo — surfaced as `embedBlocked`, not silently excused) — Google
+   Fonts (`fonts.gstatic.com`) stays HARD-GATED; same-origin `xhr`/`json` reported as
+   `dataMiss`; `offlineRendered` requires real DOM content (text OR elements OR image),
+   closing the blank-page loophole without false-failing a sparse form page; verdict shows
+   "GREEN with N excused" + residue listed in the review HTML. CMS **edit-mode chrome**
+   (Liferay management_toolbar, AEM cq/editor…) excused by path — authoring UI, not visitor
+   content. Media repair cap raised to 50 MB.
+4. ✅ **Runtime-repair robustness**: a **settle pass** re-renders any page that still has a
+   miss after the batch, once the shared runtime-module graph (AMD/combo, Next.js chunks)
+   is fully captured — so the gate verdict no longer depends on cluster order.
+5. ✅ **Orphan scan visibility filter** (`reconstruct_probe.identify()`): skips non-render
+   tags (`<title>`, hydration `<template>`); buckets display:none / zero-box text as
+   `hiddenChars` (NOT realOrphans) — but keeps opacity:0 scroll-reveal content as real (it
+   still has a box). Row signature + role now use the same layout-aware, hash-stripped
+   first-token as `semantic_extract`.
+6. ✅ **Gate sampling by template cluster** (`mirror_net.clusterSample`): one representative
+   page PER cluster first (diverse layouts), then leftover budget filled from the biggest
+   clusters — not the first N, which on supercar had been fr-FR + home + en (one layout,
+   two locales). Plan `recon_max` = `min(10, max_pages)` (default cap 10); pass `--all` to
+   either probe to verify EVERY crawled page instead of the sample. This immediately
+   surfaced real weak pages the old sampling hid (liferay `capabilities_*`, supercar
+   `fr-FR_exposer` form). NB: the gate is a per-TEMPLATE check — pages sharing a cluster's
+   layout are covered by their representative; the model + mirror still process all pages.
+
+7. ✅ **Non-semantic heading detection** (`semantic_extract._is_heading` + the same in
+   `reconstruct_probe`): the "a titled section = one component" rule keyed only on
+   `<h1>`–`<h6>`. Design-system / Next.js sites (Contentful) render visual headings as
+   `<p class="typography_heading__…">` / ARIA `role="heading"` — so titled promo bands
+   were over-decomposed and their title + CTA orphaned (the "Introducing: Palmata by
+   Contentful" home banner). Now heading detection also matches `role="heading"`,
+   `aria-level`, and a `heading`/`headline` typography class (NOT bare `title`, which
+   would over-merge card sub-titles). **Measured: contentful home 98%→99% coverage
+   (101→37 orphan chars — the Palmata title is now a component; only two CTA button
+   labels remain); blog_a-new-chapter 96%→100%. supercar/liferay roles unchanged (no
+   regression — they use real hN).**
+
+8. ✅ **Background-bearing wrapper = one component** (`semantic_extract._has_visual_bg` +
+   the probe's `hasBg`): the altitude finder descended THROUGH a hero/banner wrapper and
+   captured only its inner text/image wrapper, so the coloured band's background sat on an
+   un-captured ancestor and never painted in the components-only render — the dominant
+   pixel gap on contentful careers/case-studies. Now a wrapper carrying its own visible
+   background (distinct inline colour/image, or a hero/banner/promo/cta class) is emitted
+   whole, like a titled section. Static signal only (inline style + class) so the model and
+   the fidelity probe agree. **Measured: careers 97.1%→99.9%, case-studies 94.6%→100% pixel;
+   supercar (SXA) + liferay roles unchanged (no regression).** Diagnosed via the
+   diff-PNG analysis: `100 − pixelSim` on a page = section backgrounds + full-bleed hero
+   imagery + template dividers + `<img>`/asset fills that fall OUTSIDE a captured component
+   (masked to visibility:hidden) — the template + asset-import layer's job, quantified.
+
+### 🧪 Generic LLM segmentation (prototype, replaces accumulating heuristics)
+
+The altitude heuristics (heading class, bg keyword, ≥3 row, filter-bar, …) overfit the
+test sites — every new site breaks one. `segment_probe.mjs` + `ovh_vision.mjs` are a
+prototype of the generic alternative: render the page, hand a **vision LLM**
+(OVH `Qwen2.5-VL-72B-Instruct` — DeepSeek has no vision) a numbered DOM outline + the
+screenshot, and let it decide the component segmentation AND hierarchy
+(component/container/children/chrome) the way an editor would — no site rules.
+Two invariants keep it safe & lossless:
+- **partition gate** (deterministic): the model may only reference block ids that
+  exist; every content LEAF ends up in a chosen subtree OR in an explicit
+  **passthrough** block → nothing is ever dropped (the pixel-perfect invariant).
+- **per template cluster**, temp 0, cacheable → cheap even at thousands of pages.
+
+First result on contentful/blog (gate GREEN, 0 hallucinated ids, ~88% leaf coverage,
+rest passthrough): it captured the **CTA as a container**, the **category filter bar as
+a first-class component**, header/footer as chrome — the exact cases the fixed
+heuristics got wrong — with editorial names and no hardcoding. Output:
+`workflow-output/segment/<slug>.segmentation.json` + `<slug>.segmap.html` (overlay
+coloured by kind, passthrough shown not hidden). NEXT: add per-cluster caching +
+gate-retry for reproducibility; wire the segmentation into assemble/cnd; build the
+deterministic **passthrough layer** so the migrated module renders every uncaptured
+region as raw HTML (pixel-perfect by construction, `RIEN supprimé`).
+
+### Still open (not regressions — genuine next work)
+- **Metric honesty stands**: reconstruct pixelSim is segmentation coverage of a masked DOM,
+  not a rebuild from extracted data (see the §3 note). A true from-extraction reconstruction
+  is the step-4 templatization check.
+- Junk low-freq roles survive on non-SXA (`ul`, `div`, `js-form-item`) — light noise filter.
+- Liferay-class layout-div markup still yields an anemic model (few semantic types) — needs
+  altitude tuning for layout-engine markup, beyond the naming gate that now flags it.
+- Crawler has **no JS render** — add Playwright render for JS-hydrated sites (runtime-repair
+  handles assets, not client-rendered CONTENT).
+- Then: templatization (step 4) using the diff PNGs as the spec.
+
+## 10. Security
+
+- ✅ **In-code secret removed** — `hybrid-identify.py` no longer hardcodes the OVH key; it now reads `os.environ.get("OVH_API_KEY", "")` (`:173`). Set `OVH_API_KEY` in the environment.
+- ⚠️ Live DeepSeek/Xiaomi/OVH keys still live in `~/.config/opencode/opencode.jsonc` (user config, **not** committed to this repo). If any of these keys were ever exposed, rotate them; keep opencode config out of version control.

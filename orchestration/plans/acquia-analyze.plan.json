@@ -1,0 +1,78 @@
+{
+  "_README": "Analyze-phase plan for acquia.com (real Drupal, non-SXA agnostic test). Deterministic pipeline: crawl -> semantic_extract -> group_llm(DeepSeek V4 Flash) -> assemble+partition-gate -> CND+views. Every step proven by a PROBE exiting 0. Run deterministically: python3 orchestration/run_local.py orchestration/plans/acquia-analyze.plan.json --from step_semantic  (crawl already cached). ns=acq mixns=acqmix.",
+  "goal": "Analyze https://www.acquia.com into a stable Jahia component + template model (project acquia-drupal, namespace acq), CND-ready.",
+  "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
+  "model": "deepseek/deepseek-v4-flash",
+  "epics": [
+    {
+      "id": "epic_analyze",
+      "title": "Deterministic analyze",
+      "goal": "Crawl, extract candidates deterministically, group via DeepSeek (gate-verified), assemble manifest + CND.",
+      "stories": [
+        {
+          "id": "story_analyze",
+          "title": "Analyze",
+          "steps": [
+            {
+              "id": "step_crawl",
+              "title": "Crawl + inventory (cache-first)",
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/crawl-site.py projects/acquia-drupal https://www.acquia.com --max-pages 18 --depth 2 --rate-delay 2 --max-asset-size 1",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/page-inventory.json"
+              ]
+            },
+            {
+              "id": "step_localize",
+              "title": "Localize assets -> self-contained local mirror (truly offline render, before the fidelity gate)",
+              "depends_on": ["step_crawl"],
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/localize_site.py projects/acquia-drupal --max-asset-size 15",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/local-mirror/mirror.json",
+                "PROBE: node orchestration/lib/mirror_probe.mjs projects/acquia-drupal 10"
+              ]
+            },
+            {
+              "id": "step_semantic",
+              "title": "Deterministic candidate extraction",
+              "depends_on": ["step_crawl"],
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/semantic_extract.py projects/acquia-drupal",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/semantic-candidates.json",
+                "PROBE: python3 -c \"import json;d=json.load(open('projects/acquia-drupal/workflow-output/semantic-candidates.json'));assert len(d['crossCutting'])>=2 and len(d['components'])>=1\""
+              ]
+            },
+            {
+              "id": "step_group",
+              "title": "Bounded LLM grouping via DeepSeek V4 Flash (self-correcting, gate-clean)",
+              "depends_on": ["step_semantic"],
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/group_llm.py projects/acquia-drupal --model deepseek-v4-flash --ns acq --out projects/acquia-drupal/workflow-output/grouping.json --retries 4",
+                "PROBE: python3 orchestration/lib/assemble_manifest.py projects/acquia-drupal/workflow-output/semantic-candidates.json --group projects/acquia-drupal/workflow-output/grouping.json --ns acq --out projects/acquia-drupal/workflow-output/component-manifest.json"
+              ]
+            },
+            {
+              "id": "step_cnd",
+              "title": "Emit CND + view plan (deterministic)",
+              "depends_on": ["step_group"],
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/cnd_emit.py projects/acquia-drupal/workflow-output/component-manifest.json --ns acq --mixns acqmix --project acquia-drupal --out-cnd projects/acquia-drupal/workflow-output/definitions.cnd --out-views projects/acquia-drupal/workflow-output/views.json",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/definitions.cnd",
+                "PROBE: grep -q \"acq = \" projects/acquia-drupal/workflow-output/definitions.cnd",
+                "PROBE: test -s projects/acquia-drupal/workflow-output/views.json"
+              ]
+            },
+            {
+              "id": "step_reconstruct_gate",
+              "title": "Round-trip fidelity gate: reconstruct sample pages from extracted components and pixel-diff vs source (BEFORE templatization)",
+              "depends_on": ["step_cnd", "step_localize"],
+              "acceptance_criteria": [
+                "Reconstructs YOUR chosen sample pages from ONLY the extracted component nodes, renders in a real browser, pixel-diffs against the live source, and writes a self-contained visual review at workflow-output/reconstruct/review.html (drag-slider source vs reconstruction + diff heatmap per page). GATE = content coverage (all editable text captured). Edit --pages to pick your sample (or use --all).",
+                "PROBE: node orchestration/lib/reconstruct_probe.mjs projects/acquia-drupal 10 95"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

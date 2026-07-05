@@ -19,6 +19,10 @@ class StepStatus(str, Enum):
     blocked = "blocked"
     waiting_human = "waiting_human"
     halted = "halted"
+    rejected = "rejected"
+    # Decision point (ASSIST-PLAN §3): retries exhausted with strategies left, or a
+    # review checkpoint reached. Decided ONLY via POST /runs/{id}/steps/{id}/decide.
+    decision_pending = "decision_pending"
 
 
 class StoryStatus(str, Enum):
@@ -46,6 +50,31 @@ class RunStatus(str, Enum):
     aborted = "aborted"
 
 
+# ── Strategies (pre-registered decision options, ASSIST-PLAN §3-4) ────
+
+
+class StrategyPatch(BaseModel):
+    """Full replacement of the provided fields on the target step."""
+    step_id: str
+    inputs: dict | None = None
+    acceptance_criteria: list[str] | None = None
+
+
+class Strategy(BaseModel):
+    id: str
+    title: str = ""
+    when: str = "on_retries_exhausted"
+    order: int = 0
+    # arm_swap=True: whole generator-emitted arm swap — exempt from the
+    # PROBE-preservation lint. halt=True: converts the decision into a halted
+    # gate (gate_type "segmentation") instead of patch+rerun.
+    arm_swap: bool = False
+    halt: bool = False
+    patches: list[StrategyPatch] = []
+    skip: list[str] = []
+    notes: str = ""
+
+
 # ── Input (POST /runs) ────────────────────────────────
 
 
@@ -59,6 +88,10 @@ class StepInput(BaseModel):
     expected_outputs: dict = {}
     acceptance_criteria: list[str] = []
     max_attempts: int = 3
+    strategies: list[Strategy] = []
+    # review=True: scheduled decision checkpoint — the engine NEVER sends it to
+    # an agent; when selected it becomes decision_pending and the run pauses.
+    review: bool = False
 
 
 class StoryInput(BaseModel):
@@ -166,7 +199,16 @@ class StepState(BaseModel):
     status: StepStatus = StepStatus.pending
     attempt: int = 0
     max_attempts: int = 3
+    # Legacy field (compat-read only): kept so persisted run blobs and the frontend
+    # types still deserialize. P5.5 dropped opencode; P5.5b removed the last engine
+    # writer of it (restart no longer clears it). The engine NEVER sets it now.
     opencode_session_id: str | None = None
+    # Failure context (P5.5b): when a step's Run: line fails or its probes fail and
+    # retries are exhausted, the last failure block (command, exit code, stderr/stdout
+    # tails) is stashed here so GET /runs/{id}/decisions carries it into the bundle.
+    # DeepSeek is out of the control loop — a failed step becomes decision_pending
+    # with this context instead of opening a repair agent.
+    failure_context: str | None = None
     agent_result: AgentResult | None = None
     verification: VerificationResult | None = None
     question: HumanQuestion | None = None
@@ -181,9 +223,14 @@ class StepState(BaseModel):
     completed_at: float | None = None
     duration_ms: float | None = None
     prompt_text: str | None = None
-    # True when the LAST attempt's opencode session hit the wall-clock deadline
-    # and was harvested mid-work; surfaced in the next attempt's retry feedback.
-    timed_out: bool = False
+    # Migration profile: when a step HALTs for human review, which domain panel
+    # the frontend should render (scope|model|fidelity|content|golive). Null = generic.
+    gate_type: str | None = None
+    # Decision protocol (ASSIST-PLAN §3): pre-registered strategies, review flag,
+    # and the ids of strategies already consumed (each strategy is single-shot).
+    strategies: list[Strategy] = Field(default_factory=list)
+    review: bool = False
+    strategies_applied: list[str] = Field(default_factory=list)
 
 
 class StoryState(BaseModel):
@@ -265,6 +312,10 @@ class EpicState(BaseModel):
     review_config: ReviewConfig = Field(default_factory=ReviewConfig)
     review_round: int = 0
     review_history: list[dict] = []
+    # Legacy fields (compat-read only): the LLM epic reviewer was removed in P5.5b
+    # (epic approval is now a deterministic rule in the orchestrator). pending_proposal
+    # / review_history stay on the model so persisted run blobs deserialize and the
+    # frontend types are unchanged; the engine no longer writes a proposal.
     pending_proposal: RectificationProposal | None = None
     opencode_session_id: str | None = None
 
@@ -287,6 +338,10 @@ class RunState(BaseModel):
     created_at: float
     updated_at: float
     forced_next_step: str | None = None
+    # Migration profile: how an LLM/agent drives this run's quality gates.
+    # manual = human approves every gate; assisted = agent auto-approves green gates
+    # and escalates amber/red; autonomous = agent decides all, human on failure only.
+    autonomy: str = "assisted"
 
 
 # ── Agent discovery ───────────────────────────────────

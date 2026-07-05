@@ -1,4 +1,4 @@
-export type StepStatus = 'pending' | 'ready' | 'running' | 'verifying' | 'done' | 'failed' | 'blocked' | 'waiting_human' | 'halted'
+export type StepStatus = 'pending' | 'ready' | 'running' | 'verifying' | 'done' | 'failed' | 'blocked' | 'waiting_human' | 'halted' | 'rejected'
 
 export type StoryStatus = 'pending' | 'running' | 'approved' | 'failed'
 
@@ -55,6 +55,7 @@ export interface StepState {
   tokens_out: number
   tokens_cache: number
   cost: number
+  gate_type?: string | null
 }
 
 export interface GitHubIssue {
@@ -151,6 +152,30 @@ export interface RunState {
   current_step_id?: string | null
   created_at: number
   updated_at: number
+}
+
+/** One tick written by orchestration/assist/content_watch.sh per integrity pass. */
+export interface ContentTick {
+  ts: string
+  expected: number
+  created: number
+  pct: number | null
+  pagesStarted: number
+  pagesTotal: number
+  media: number
+}
+
+/** GET /projects/{project}/content-progress — read-only ticker + belt summary. */
+export interface ContentProgress {
+  project: string
+  ticks: ContentTick[]
+  latest: ContentTick | null
+  report: {
+    ranAt?: string | null
+    phase?: string | null
+    mismatchCount: number
+    pages?: { expectedCount?: number; actualCount?: number; missing?: string[] } | null
+  } | null
 }
 
 export interface SSEEvent {

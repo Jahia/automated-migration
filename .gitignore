@@ -3,6 +3,8 @@
 **/.mcp.json
 .env
 **/.env
+.env.local
+**/.env.local
 
 # Reference scraping: raw cached pages/assets (durable per-run cache, not source).
 # Distilled blueprints under .reference/<section>/*.md ARE committed.
@@ -21,4 +23,21 @@ projects/**/.reference/captured/
 projects/**/.yarn/
 __pycache__/
 *.pyc
-projects/*/workflow-output/pixel/
+node_modules/
+.DS_Store
+package-lock.json
+projects/*/workflow-output/
+projects/*/dist/
+orchestration/.cache/
+
+# Project data stays LOCAL — never committed (Julian, 2026-07-05).
+# Site content carries third-party embedded secrets (Google/FB tokens in captured
+# markup); the repo carries the HARNESS only.
+projects/
+orchestration/content/
+orchestration/images/
+orchestration/sitemaps/
+
+# Captured site content stays LOCAL (mhtml + per-project page data); harness .py scripts stay tracked.
+*.mhtml
+orchestration/pages/*/

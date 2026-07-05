@@ -26,5 +26,36 @@ if [ -d "$proj/settings/content-types-icons" ]; then
 fi
 
 require_node 20
+# The @jahia/vite-plugin jahia-deploy CLI reads JAHIA_USER as "user:password" and
+# JAHIA_HOST as the base URL, via dotenv.config() which never OVERRIDES existing env.
+# The engine injects .env.local into probe env (verifier.py), whose plain
+# JAHIA_USER=root shadows the module's .env -> deploy authenticates as guest -> 401
+# on /modules/api/provisioning (found live, M4 deploy attempt 1). Recompose the
+# CLI's expected forms from the canonical vars so manual AND engine runs both work.
+case "${JAHIA_USER:-}" in
+  *:*) : ;;
+  *) export JAHIA_USER="${JAHIA_USER:-root}:${JAHIA_PASS:?JAHIA_PASS required to compose jahia-deploy credentials}" ;;
+esac
+export JAHIA_HOST="${JAHIA_HOST:-${JAHIA_URL:?JAHIA_URL required}}"
 ( cd "$proj" && yarn build && yarn jahia-deploy )
-pass "build + jahia-deploy succeeded for $proj"
+
+# rule 14: 'Operation successful' is NOT 'bundle started' — an unresolvable
+# nodetype requirement (a view registered for an undeclared type) leaves the
+# module INSTALLED but never ACTIVE, silently (observed live:
+# scg:keyFiguresItem). Verify a module type actually exists; module start is
+# async, so poll briefly.
+HOST="${JAHIA_URL:-${JAHIA_HOST:-http://localhost:8080}}"; HOST="${HOST%/}"
+UP="${JAHIA_USER:-root}"; [[ "$UP" == *:* ]] || UP="$UP:${JAHIA_PASS:-root}"
+ns="$(grep -oE '^\[[a-zA-Z][a-zA-Z0-9]*:rawHtml\]' "$proj/settings/definitions.cnd" 2>/dev/null | head -1 | tr -d '[]' | cut -d: -f1)"
+if [ -n "$ns" ] && grep -q "\[$ns:rawHtml\]" "$proj/settings/definitions.cnd" 2>/dev/null; then
+  ok=""
+  for _i in $(seq 1 45); do
+    if curl -sf -u "$UP" -H "Origin: $HOST" -H 'Content-Type: application/json' \
+        -X POST "$HOST/modules/graphql" \
+        -d "{\"query\":\"{ jcr { nodeTypesByNames(names: [\\\"$ns:rawHtml\\\"]) { name } } }\"}" \
+        2>/dev/null | grep -q "\"$ns:rawHtml\""; then ok=1; break; fi
+    sleep 4
+  done
+  [ -n "$ok" ] || fail "module deployed but type $ns:rawHtml never appeared — bundle did NOT start (check Jahia logs for unresolved requirements)"
+fi
+pass "build + jahia-deploy succeeded for $proj${ns:+ (types live: $ns)}"

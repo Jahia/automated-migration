@@ -1,0 +1,54 @@
+/* $NS:button — parametric styling driven by :root tokens (skinned per-site via
+   $NSMIX:siteTheme). Fallbacks keep the atom usable before any skin is applied. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-button, 4px);
+  font-family: var(--font-body, inherit);
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.main {
+  background: var(--color-primary, #1a1a1a);
+  color: var(--color-on-primary, #fff);
+}
+
+.secondary {
+  background: transparent;
+  color: var(--color-primary, #1a1a1a);
+  border: 1px solid var(--color-primary, #1a1a1a);
+}
+
+.small {
+  padding: 0.4rem 1rem;
+  font-size: 0.875rem;
+}
+
+.theme_dark {
+  background: var(--color-text, #111);
+  color: var(--color-bg, #fff);
+}
+
+.theme_brand {
+  background: var(--color-accent, #e4002b);
+  color: var(--color-on-primary, #fff);
+}
+
+.placeholder {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px dashed var(--color-primary, #888);
+  color: var(--color-primary, #888);
+  border-radius: var(--radius-button, 4px);
+  font-size: 0.875rem;
+}

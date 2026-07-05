@@ -2,7 +2,6 @@ import { useState } from 'react'
 import StoryCard from './StoryCard'
 import RectificationPanel from './RectificationPanel'
 import ReviewHistory from './ReviewHistory'
-import { restartEpic } from '../api'
 import type { EpicState } from '../types'
 
 interface Props {
@@ -31,17 +30,6 @@ const statusBadges: Record<string, string> = {
 
 export default function EpicCard({ epic, runId, index }: Props) {
   const [expanded, setExpanded] = useState(true)
-  const [restarting, setRestarting] = useState(false)
-
-  const onRestart = async () => {
-    if (!confirm(`Restart Epic ${index + 1} "${epic.title}"?\n\nThis resets the epic and ALL its stories/steps to pending and re-runs them. Earlier approved epics are untouched.`)) return
-    setRestarting(true)
-    try {
-      await restartEpic(runId, epic.id)
-    } finally {
-      setRestarting(false)
-    }
-  }
 
   return (
     <div className={`border rounded-lg ${statusColors[epic.status] || 'border-gray-700'}`}>
@@ -56,16 +44,6 @@ export default function EpicCard({ epic, runId, index }: Props) {
           {epic.status}
           {epic.review_round > 0 && ` (round ${epic.review_round})`}
         </span>
-        {epic.status !== 'pending' && (
-          <button
-            onClick={onRestart}
-            disabled={restarting}
-            title="Reset this epic and all its stories to pending and re-run"
-            className="px-2 py-0.5 rounded text-xs bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
-          >
-            {restarting ? '…' : '↻ Restart'}
-          </button>
-        )}
       </div>
 
       {expanded && (
