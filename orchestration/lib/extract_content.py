@@ -318,6 +318,40 @@ def detect_sxa(htmltext):
 
 _ASSET_REF_RE = re.compile(r'(?<![\w/-])(\.?/?)((?:runtime-)?assets/)')
 
+# ── giant inline data-URIs -> materialized static assets (2026-07-06) ──
+# A skeleton holding a multi-MB base64 image blows the loader's 200_000-char
+# JCR write cap: the property is silently TRUNCATED and the image + all
+# trailing markup vanish from the render (observed: chelseafc 1.1MB + 2.6MB
+# skeletons -> two missing card images, whole-page pixel cascade). Decode any
+# data-URI >= 64KB to a sha1-named file in the mirror assets dir (the same dir
+# import_assets copies to module static) and reference it like any other asset.
+_DATA_URI_DIR = None   # set by main(): <proj>/workflow-output/local-mirror/assets
+_DATA_URI_RE = re.compile(
+    r'(src=["\'])(data:image/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]{65536,}))(["\'])')
+_DATA_URI_EXT = {"png": "png", "jpeg": "jpg", "jpg": "jpg", "gif": "gif",
+                 "webp": "webp", "svg+xml": "svg"}
+
+
+def _materialize_data_uris(html, base):
+    if not _DATA_URI_DIR or "data:image" not in html:
+        return html
+    import base64 as _b64
+    import hashlib as _hl
+
+    def sub(m):
+        try:
+            data = _b64.b64decode(m.group(4))
+        except Exception:
+            return m.group(0)
+        name = _hl.sha1(data).hexdigest()[:16] + "." + _DATA_URI_EXT[m.group(3)]
+        dest = os.path.join(_DATA_URI_DIR, name)
+        if not os.path.isfile(dest):
+            with open(dest, "wb") as f:
+                f.write(data)
+        return m.group(1) + base + "assets/" + name + m.group(5)
+
+    return _DATA_URI_RE.sub(sub, html)
+
 # runtime-manifest URL map (P3): source URLs the mirror serves from its local
 # runtime-assets copies (Sitecore /-/media/..., JS-composed CDN paths). The
 # LIVE page has no offline resolver — every mapped URL must point at the
@@ -358,6 +392,7 @@ def rewrite_asset_refs(html, base):
     (absolute source paths) are rewritten too, raw and attr-escaped forms."""
     if not base or not html:
         return html
+    html = _materialize_data_uris(html, base)
     html = _ASSET_REF_RE.sub(lambda m: base + m.group(2), html)
     for k in sorted(RUNTIME_URL_MAP, key=len, reverse=True):
         if k in html or k.replace("&", "&amp;") in html:
@@ -1388,6 +1423,10 @@ def main():
     # reference modules only.
     force_sxa = "--adapter" in sys.argv and "sxa" in sys.argv
     proj = f"projects/{project}"
+    global _DATA_URI_DIR
+    _DATA_URI_DIR = os.path.join(proj, "workflow-output", "local-mirror", "assets")
+    if not os.path.isdir(_DATA_URI_DIR):
+        _DATA_URI_DIR = None
     pages = captured_pages(proj)
     if not pages:
         sys.exit(f"extract_content: no captured pages under {proj}/.reference")
