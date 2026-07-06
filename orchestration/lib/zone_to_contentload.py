@@ -600,23 +600,31 @@ _MANUAL_JS = """
    Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e)e.classList.add('zm-dec-'+DEC[sel].action);}catch(_){}});
  }
  function loadDecisions(){
-   return api(API+'decisions?page='+encodeURIComponent(SLUG)).then(function(r){
-     DEC={};if(r&&r.decisions)r.decisions.forEach(function(d){DEC[d.selector.value]=d;});
+   // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
+   // so a decision made on another page shows up here too wherever the component recurs.
+   return api(API+'decisions').then(function(r){
+     DEC={};if(r&&r.decisions)r.decisions.forEach(function(d){if(d.selector&&d.selector.value)DEC[d.selector.value]=d;});
      markAll();drawBan();
    });
  }
  var ban=document.createElement('div');ban.id='zm-ban';document.body.appendChild(ban);
  function drawBan(){
-   var n=Object.keys(DEC).length;
+   var here=Object.keys(DEC).filter(function(s){try{return !!document.querySelector(s);}catch(e){return false;}}).length;
+   var tot=Object.keys(DEC).length;
    ban.innerHTML='<b>Mode manuel</b> &middot; page <b>'+esc(SLUG)+'</b> &middot; survole, clique pour décider'
-     +' <button class="zm-clear">Vider la page ('+n+')</button>';
+     +' &middot; <span style="color:#7fd1ff">'+here+' ici / '+tot+' sur le site</span>'
+     +' <button class="zm-clear">Vider la page ('+here+')</button>';
    var c=ban.querySelector('.zm-clear');if(c)c.onclick=clearPage;
  }
  function clearPage(){
-   var n=Object.keys(DEC).length;
-   if(!n){alert('Aucune décision sur cette page.');return;}
-   if(!confirm('Vider TOUT le zoning manuel de la page \"'+SLUG+'\" ? ('+n+' décision(s)) — irréversible.'))return;
-   api(API+'clear',{page:SLUG}).then(function(){DEC={};markAll();drawBan();pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;});
+   // decisions are site-wide -> clear the ones VISIBLE on this page (by id, sequential to
+   // avoid clobbering the shared file); removal takes effect on every page they matched.
+   var ids=Object.keys(DEC).filter(function(s){try{return !!document.querySelector(s);}catch(e){return false;}})
+     .map(function(s){return DEC[s].id;}).filter(Boolean);
+   if(!ids.length){alert('Aucune décision sur cette page.');return;}
+   if(!confirm('Retirer '+ids.length+' décision(s) visible(s) sur cette page ? (effet site-wide, irréversible)'))return;
+   ids.reduce(function(pr,id){return pr.then(function(){return api(API+'delete',{id:id});});},Promise.resolve())
+     .then(function(){DEC={};loadDecisions();pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;});
  }
  var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
  var hov=null;
@@ -1032,14 +1040,17 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
     # safe) and applied in emit_node ahead of the deterministic path. `component` → a named
     # typed node (via apply_attribution's byte-exact emit_typed+fallback); area/absoluteArea
     # are recorded and applied in a later pass (Phase 2b).
-    manual_decisions, decide_map = {}, {}
-    dec_stats = {"component": 0, "area": 0, "absoluteArea": 0, "unmatched": 0}
+    # SITE-scoped by default: a flat list, each decision's selector tried on EVERY page
+    # (a component recurs across pages — decide once, applies everywhere it matches).
+    # A decision may opt into {"scope":"page"} to stay on its own page.
+    manual_decisions, decide_map = [], {}
+    dec_stats = {"component": 0, "area": 0, "absoluteArea": 0, "pages": 0, "unmatched": 0}
     stats["manual"] = dec_stats  # surfaced to main() for the summary (mutated in place)
+    _dec_matched, _dec_pages = set(), set()  # decision ids that matched >=1 page; slugs touched
     mdp = f"{REPO}/projects/{project}/workflow-output/manual-decisions.json"
     if os.path.exists(mdp):
         try:
-            for d in (json.load(open(mdp)).get("decisions") or []):
-                manual_decisions.setdefault(d.get("page"), []).append(d)
+            manual_decisions = json.load(open(mdp)).get("decisions") or []
         except Exception as e:
             print(f"  ! manual-decisions read: {e}", file=sys.stderr)
     try:
@@ -1715,7 +1726,9 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         body = slug2body.get(slug, crawl_body)  # prefer localised markup (local asset refs)
         # resolve this page's manual decisions to elements (id()-keyed, no markup change)
         decide_map.clear()
-        for _dd in manual_decisions.get(slug, []):
+        for _dd in manual_decisions:   # SITE-scoped: every decision is tried on every page
+            if _dd.get("scope") == "page" and _dd.get("page") != slug:
+                continue               # a page-scoped decision only applies to its own page
             _sel = (_dd.get("selector") or {}).get("value")
             _el = None
             if _sel:
@@ -1724,11 +1737,12 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
                 except Exception:
                     _el = None
             if _el is None:
-                dec_stats["unmatched"] += 1
-                continue
+                continue               # this component simply isn't on this page (NOT an error)
             decide_map[id(_el)] = _dd
             _a = _dd.get("action")
             dec_stats[_a] = dec_stats.get(_a, 0) + 1
+            _dec_matched.add(_dd.get("id"))
+            _dec_pages.add(slug)
         ann = ZD.annotate(body, stemdf, keep_el=True)
         # UNIFY the content-root with the SHELL (verbatim-first, 0-DOM): page_shell
         # owns <body>→<main>→wrappers verbatim and places the content Area at the
@@ -1856,6 +1870,10 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
                 msoup.body.append(sc)
             with open(os.path.join(lm, f"{slug}.manual.html"), "w", encoding="utf-8") as f:
                 f.write(str(msoup))
+
+    # finalize manual-decision stats (site-scoped → counted across all pages)
+    dec_stats["pages"] = len(_dec_pages)
+    dec_stats["unmatched"] = sum(1 for _d in manual_decisions if _d.get("id") not in _dec_matched)
 
     if chrome and out:
         first = next(iter(out))
@@ -2099,9 +2117,9 @@ def main():
           f"item children {nkids} | zones z1..z{nzones}")
     md = stats.get("manual") or {}
     if any(md.get(x) for x in ("component", "area", "absoluteArea", "unmatched")):
-        print(f"  MANUAL decisions applied: {md.get('component', 0)} component | "
-              f"{md.get('area', 0)} area | {md.get('absoluteArea', 0)} absoluteArea | "
-              f"{md.get('unmatched', 0)} unmatched selector(s)")
+        print(f"  MANUAL decisions applied (site-scoped): {md.get('component', 0)} component | "
+              f"{md.get('area', 0)} area | {md.get('absoluteArea', 0)} absoluteArea instance(s) "
+              f"across {md.get('pages', 0)} page(s) | {md.get('unmatched', 0)} decision(s) matched nothing")
     b = manifest.get("mergeBacklog", {})
     print(f"  MERGE BACKLOG (zoning quality): {b.get('signaturesToMerge', 0)} signature(s) to merge, "
           f"{b.get('editableContentsToMerge', 0)} editable content(s) stranded "
