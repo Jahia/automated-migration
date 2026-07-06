@@ -98,6 +98,65 @@ def _try_layout_section(skeleton):
         return {"open": prefix, "close": suffix, "gaps": mids, "areas": 1}
     return None                              # real heterogeneous markup -> keep verbatim zone
 
+
+def fuse_single_child_layouts(insts):
+    """A2 depth/profusion: fuse a single-child layoutSection->layoutSection CHAIN into ONE
+    layoutSection. A wrapper whose ONLY child is another wrapper adds a nesting level with no
+    editorial value; collapsing them cuts depth + component count. BYTE-EXACT: P wraps C, so
+    the fused skin is P.open+C.open ... C.close+P.close and inherits C's cell/gap structure
+    (C holds the real children, which re-parent onto P). Only layoutSection->layoutSection is
+    fused — a real component child (carousel/card/section-with-content) is never dissolved.
+    Iterates so P>C>D collapses fully. Returns a compacted list with parent indices remapped."""
+    if not insts:
+        return insts
+    dead = set()
+    changed = True
+    while changed:
+        changed = False
+        kids = {}
+        for j, y in enumerate(insts):
+            if j in dead:
+                continue
+            p = y.get("parent")
+            if p is not None:
+                kids.setdefault(p, []).append(j)
+        for i, x in enumerate(insts):
+            if i in dead or x.get("type") != "layoutSection" or not isinstance(x.get("layout"), dict):
+                continue
+            ch = kids.get(i, [])
+            if len(ch) != 1:
+                continue
+            cj = ch[0]
+            c = insts[cj]
+            if cj in dead or c.get("type") != "layoutSection" or not isinstance(c.get("layout"), dict):
+                continue
+            lp, lc = x["layout"], c["layout"]
+            merged = {"open": (lp.get("open") or "") + (lc.get("open") or ""),
+                      "close": (lc.get("close") or "") + (lp.get("close") or ""),
+                      "areas": lc.get("areas", 1)}
+            if lc.get("cellOpen") is not None:
+                merged["cellOpen"], merged["cellClose"] = lc["cellOpen"], lc.get("cellClose", "")
+            if lc.get("gaps") is not None:
+                merged["gaps"] = lc["gaps"]
+            x["layout"] = merged
+            x["sourceClasses"] = ((x.get("sourceClasses") or []) + (c.get("sourceClasses") or [])) or None
+            for y in insts:                              # re-parent C's children onto P
+                if y.get("parent") == cj:
+                    y["parent"] = i
+            dead.add(cj)
+            changed = True
+    if not dead:
+        return insts
+    survivors = [j for j in range(len(insts)) if j not in dead]
+    remap = {old: new for new, old in enumerate(survivors)}
+    out = []
+    for old in survivors:
+        x = insts[old]
+        if x.get("parent") is not None:
+            x["parent"] = remap[x["parent"]]             # parent always survives (never a fused child)
+        out.append(x)
+    return out
+
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # set per-project by build(): where extracted/looked-up assets live
 MIRROR_ASSETS = STATIC_ASSETS = None
@@ -1300,6 +1359,8 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
             # zone shells carry no chrome markup (levels stop at body) — the
             # Layout must keep rendering the contributed AbsoluteAreas (C0b)
             shell["chromeAreas"] = True
+        # A2: collapse single-child layoutSection chains (byte-exact wrapper-noise removal)
+        insts = fuse_single_child_layouts(insts)
         out[slug] = {"adapter": "semantic", "instances": insts, "shell": shell}
         # overlay: emit_node tagged the source elements in slug2soup's body; inject
         # the boundary CSS and write the full styled doc next to the mirror so the
