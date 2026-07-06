@@ -46,6 +46,7 @@ export default function Zoning() {
   const [width, setWidth] = useState<number | null>(null) // page width (px) inside the iframe; null = full
   const [tree, setTree] = useState<TreeNode[] | null>(null)
   const [gap, setGap] = useState<{ node: TreeNode; x: number; y: number } | null>(null)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set()) // tree paths whose children are hidden
   const frameRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function Zoning() {
   useEffect(() => {
     setTree(null)
     setGap(null)
+    setCollapsed(new Set())
   }, [slug, frame])
 
   function requestTree() {
@@ -93,6 +95,15 @@ export default function Zoning() {
     if (uid == null) return
     frameRef.current?.contentWindow?.postMessage({ zmFocus: uid }, '*')
   }
+  function toggleCollapse(path: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      next.has(path) ? next.delete(path) : next.add(path)
+      return next
+    })
+  }
+  const collapseAll = () => setCollapsed(new Set(branchPaths(tree ?? [], '')))
+  const expandAll = () => setCollapsed(new Set())
 
   async function onApply() {
     setApplying(true)
@@ -172,8 +183,26 @@ export default function Zoning() {
           <div className="flex gap-3">
             {/* LEFT: structural tree of zones & components */}
             <aside className="flex h-[84vh] w-[340px] shrink-0 flex-col rounded border border-[#0a3252] bg-[#001526]">
-              <div className="border-b border-[#0a3252] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#5e88ad]">
-                Arbre — zones &amp; composants
+              <div className="flex items-center gap-2 border-b border-[#0a3252] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#5e88ad]">
+                <span>Arbre — zones &amp; composants</span>
+                {tree && tree.length > 0 && (
+                  <span className="ml-auto flex gap-1 normal-case tracking-normal">
+                    <button
+                      onClick={collapseAll}
+                      title="Tout replier"
+                      className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]"
+                    >
+                      ▸ replier
+                    </button>
+                    <button
+                      onClick={expandAll}
+                      title="Tout déplier"
+                      className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]"
+                    >
+                      ▾ déplier
+                    </button>
+                  </span>
+                )}
               </div>
               <div className="min-h-0 flex-1 overflow-auto px-1 py-2">
                 {tree == null ? (
@@ -184,6 +213,9 @@ export default function Zoning() {
                   <TreeRows
                     nodes={tree}
                     depth={0}
+                    path=""
+                    collapsed={collapsed}
+                    onToggle={toggleCollapse}
                     onFocus={focusNode}
                     onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
                     onGapLeave={() => setGap(null)}
@@ -275,16 +307,36 @@ export default function Zoning() {
   )
 }
 
-/** Recursive tree rows. A ⚠ gap sits between components wherever code is not yet componentized. */
+/** All node paths that have children — used by "Tout replier". Path = dash-joined sibling indices. */
+function branchPaths(nodes: TreeNode[], prefix: string): string[] {
+  const out: string[] = []
+  nodes.forEach((n, i) => {
+    const p = prefix ? `${prefix}-${i}` : `${i}`
+    if (n.children && n.children.length) {
+      out.push(p)
+      out.push(...branchPaths(n.children, p))
+    }
+  })
+  return out
+}
+
+/** Recursive tree rows. A ⚠ gap sits between components wherever code is not yet componentized.
+ * Nodes with children carry a ▸/▾ chevron (collapse/expand); the label click focuses in the page. */
 function TreeRows({
   nodes,
   depth,
+  path,
+  collapsed,
+  onToggle,
   onFocus,
   onGapEnter,
   onGapLeave,
 }: {
   nodes: TreeNode[]
   depth: number
+  path: string
+  collapsed: Set<string>
+  onToggle: (path: string) => void
   onFocus: (uid?: number | null) => void
   onGapEnter: (node: TreeNode, e: React.MouseEvent) => void
   onGapLeave: () => void
@@ -292,37 +344,60 @@ function TreeRows({
   return (
     <ul className="text-[13px]">
       {nodes.map((n, i) => {
+        const p = path ? `${path}-${i}` : `${i}`
         const meta = KIND[n.k]
         const dot = n.k === 'component' && n.color ? n.color : meta.color
         const isGap = n.k === 'gap'
+        const hasKids = !!(n.children && n.children.length)
+        const isCollapsed = collapsed.has(p)
         return (
-          <li key={i}>
-            <button
-              onClick={() => onFocus(n.uid)}
-              onMouseEnter={isGap ? (e) => onGapEnter(n, e) : undefined}
-              onMouseLeave={isGap ? onGapLeave : undefined}
-              className={`flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-[#0a2942] ${isGap ? 'text-amber-300' : 'text-gray-200'}`}
-              style={{ paddingLeft: 6 + depth * 14 }}
-              title={isGap ? 'Survole pour voir le code · clic pour le localiser' : n.name || meta.label}
-            >
-              <span style={{ color: dot }} className="shrink-0 text-[11px]">
-                {meta.icon}
-              </span>
-              {isGap ? (
-                <span className="truncate">
-                  {n.chars} car. non assigné
-                </span>
+          <li key={p}>
+            <div className="flex items-stretch" style={{ marginLeft: depth * 12 }}>
+              {hasKids ? (
+                <button
+                  onClick={() => onToggle(p)}
+                  title={isCollapsed ? 'Déplier' : 'Replier'}
+                  className="w-4 shrink-0 text-[10px] text-[#5e88ad] hover:text-white"
+                >
+                  {isCollapsed ? '▸' : '▾'}
+                </button>
               ) : (
-                <>
-                  <span className="truncate font-medium">{n.name || meta.label}</span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">{meta.label}</span>
-                </>
+                <span className="w-4 shrink-0" />
               )}
-            </button>
-            {n.children && n.children.length > 0 && (
+              <button
+                onClick={() => onFocus(n.uid)}
+                onMouseEnter={isGap ? (e) => onGapEnter(n, e) : undefined}
+                onMouseLeave={isGap ? onGapLeave : undefined}
+                className={`flex flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-[#0a2942] ${isGap ? 'text-amber-300' : 'text-gray-200'}`}
+                title={isGap ? 'Survole pour voir le code · clic pour le localiser' : n.name || meta.label}
+              >
+                <span style={{ color: dot }} className="shrink-0 text-[11px]">
+                  {meta.icon}
+                </span>
+                {isGap ? (
+                  <span className="truncate">{n.chars} car. non assigné</span>
+                ) : (
+                  <>
+                    <span className="truncate font-medium">{n.name || meta.label}</span>
+                    {hasKids && isCollapsed && (
+                      <span className="shrink-0 text-[10px] text-[#5e88ad]">
+                        {n.children!.length}
+                      </span>
+                    )}
+                    <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">
+                      {meta.label}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+            {hasKids && !isCollapsed && (
               <TreeRows
-                nodes={n.children}
+                nodes={n.children!}
                 depth={depth + 1}
+                path={p}
+                collapsed={collapsed}
+                onToggle={onToggle}
                 onFocus={onFocus}
                 onGapEnter={onGapEnter}
                 onGapLeave={onGapLeave}
