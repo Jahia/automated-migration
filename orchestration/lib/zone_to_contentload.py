@@ -663,8 +663,60 @@ _MANUAL_JS = """
  function markAll(){
    Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');x.removeAttribute('data-zm-label');});
    Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e){e.classList.add('zm-dec-'+DEC[sel].action);e.setAttribute('data-zm-label',DEC[sel].name||DEC[sel].action);}}catch(_){}});
-   updateCoverage();
+   updateCoverage();postTree();
  }
+ // ---- structural TREE for the cockpit panel (Julian): only zones / absolute-areas /
+ // components (wrappers are transparent). A bare Area/AbsoluteArea carries NO code, so ANY
+ // code sitting inside a container but NOT wrapped by a component would be LOST on recompose
+ // → we emit a ⚠ gap for it (byte-exact guarantee). Inside a component, code is owned (no gap).
+ var CONTSEL='[data-zone],[data-zr="zone"],[data-zr="absolute"],[data-zr="layout"],.zm-dec-area,.zm-dec-absoluteArea';
+ var BSEL=COMPSEL+','+CONTSEL;
+ var UIDMAP=[];
+ function _uid(el){UIDMAP.push(el);return UIDMAP.length-1;}
+ function _isB(el){return el.nodeType===1&&el.matches&&el.matches(BSEL);}
+ function _hasB(el){return el.nodeType===1&&el.querySelector&&!!el.querySelector(BSEL);}
+ function _code(n){return n.nodeType===3?/\\S/.test(n.nodeValue||''):(n.nodeType===1&&!(n.id&&/^zm-/.test(n.id)));}
+ function _contKind(el){
+   if(el.matches('[data-zr="absolute"],.zm-dec-absoluteArea'))return 'absolute';
+   if(el.matches('[data-zr="layout"]'))return 'layout';
+   return 'zone';
+ }
+ function _cname(el){return el.getAttribute('data-zm-label')||el.getAttribute('data-zt')||el.getAttribute('data-zone')||'';}
+ function _walk(el,inComp){
+   var out=[],buf=[];
+   function flush(){
+     if(buf.length&&!inComp&&buf.some(_code)){
+       var html=buf.map(function(n){return n.nodeType===1?n.outerHTML:(n.nodeValue||'');}).join('');
+       var fe=null,i;for(i=0;i<buf.length;i++){if(buf[i].nodeType===1){fe=buf[i];break;}}
+       out.push({k:'gap',chars:html.replace(/\\s+/g,'').length,html:html.slice(0,6000),uid:fe?_uid(fe):null});
+     }
+     buf=[];
+   }
+   Array.prototype.forEach.call(el.childNodes,function(c){
+     if(c.nodeType===1&&c.id&&/^zm-/.test(c.id))return;                 // our own UI chrome
+     if(_isB(c)){flush();out.push(_node(c));}
+     else if(c.nodeType===1&&_hasB(c)){flush();out=out.concat(_walk(c,inComp));} // transparent wrapper
+     else buf.push(c);                                                  // candidate unassigned code
+   });
+   flush();
+   return out;
+ }
+ function _node(el){
+   if(el.matches(COMPSEL))
+     return {k:'component',name:compName(el),color:compColor(compKey(el)),uid:_uid(el),children:_walk(el,true)};
+   var kind=_contKind(el);
+   return {k:kind,name:_cname(el)||kind,uid:_uid(el),children:_walk(el,false)};
+ }
+ function postTree(){
+   try{UIDMAP=[];var t=_walk(document.body,false);window.ZMTREE=t;
+     if(window.parent&&window.parent!==window)window.parent.postMessage({zmTree:true,slug:SLUG,tree:t},'*');
+   }catch(e){}
+ }
+ window.addEventListener('message',function(e){
+   var d=e.data||{};
+   if(d&&d.zmReq)postTree();
+   if(d&&typeof d.zmFocus==='number'){var el=UIDMAP[d.zmFocus];if(el)focusEl(el);}
+ },false);
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
    // so a decision made on another page shows up here too wherever the component recurs.
