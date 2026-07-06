@@ -24,6 +24,27 @@ import semantic_extract as SE
 import extract_content as EC
 import library_recognize as LR
 
+
+def _try_layout_section(skeleton):
+    """Phase 1b: derive a byte-parity SINGLE-Area layoutSection skin from a zone
+    skeleton. A pure wrapper `[open]{{child:0}}..{{child:N}}[close]` whose inter-child
+    segments are whitespace-only (children contiguous) and whose wrapper carries no own
+    text is reproducible as open + <Area(children)> + close — byte-parity with the zone
+    render, but the wrapper markup lives STRUCTURED (open/close), not as an HTML blob in
+    the node (P1 fix). Returns {"open","close","areas":1} or None (celled/complex/impure
+    -> keep the verbatim zone; columns[N] deferred to Phase 1c)."""
+    if "{{f:" in skeleton or "{{media:" in skeleton or "{{link:" in skeleton:
+        return None                          # not a pure structural wrapper
+    parts = re.split(r"\{\{child:\d+\}\}", skeleton)
+    if len(parts) < 3:                       # need >=2 child slots
+        return None
+    prefix, mids, suffix = parts[0], parts[1:-1], parts[-1]
+    if any(m.strip() for m in mids):         # tags/text between children -> celled/complex
+        return None
+    if re.sub(r"<[^>]+>", "", prefix + suffix).strip():   # wrapper carries own text
+        return None
+    return {"open": prefix, "close": suffix, "areas": 1}
+
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # set per-project by build(): where extracted/looked-up assets live
 MIRROR_ASSETS = STATIC_ASSETS = None
@@ -1016,22 +1037,33 @@ def build(project, site, ns, module=None, overlay=False):
             ek = extraction_children(node)  # descend transparent single-child wrappers
             w = wrapper_container(node, ek)
             if w is not None:
-                w["parent"] = parent
                 idx = len(insts)
-                insts.append(w)
-                used.add("zone")
-                stats["zone"] = stats.get("zone", 0) + 1
-                # CHIFFRAGE (Phase 1b, non-destructive): would the generic layout
-                # recognizer convert this pure-wrapper zone to a byte-exact <Area>
-                # component? Runs on the REAL source node; COUNT-ONLY (emit unchanged,
-                # fidelity untouched). Promotes to real conversion once views/CND ship.
+                # Phase 1b: a pure single-Area wrapper -> byte-parity layoutSection (skin
+                # stored STRUCTURED as open/close, children in an <Area>, NO HTML blob in
+                # the node — the P1 fix). Gated by the layout recognizer (pure, >=2 slots,
+                # not a text run) AND _try_layout_section (contiguous children). Celled /
+                # impure wrappers keep the verbatim zone (fidelity-first). layoutConvertible
+                # = recognizer ceiling; layoutSectionEmit = actual single-Area conversions.
                 try:
                     _lp = LR._recognize_layout(node["_el"], ns)
                 except Exception:
                     _lp = None
                 if _lp is not None:
                     stats["layoutConvertible"] = stats.get("layoutConvertible", 0) + 1
-                tag(node["_el"], "zone", k)
+                lay = _try_layout_section(w.get("skeleton") or "") if _lp is not None else None
+                if lay is not None:
+                    insts.append({"type": "layoutSection", "parent": parent,
+                                  "promoted": True, "layout": lay,
+                                  "sourceClasses": _lp.get("sourceClasses")})
+                    used.add("layoutSection")
+                    stats["layoutSectionEmit"] = stats.get("layoutSectionEmit", 0) + 1
+                    tag(node["_el"], "layoutSection", k)
+                else:
+                    w["parent"] = parent
+                    insts.append(w)
+                    used.add("zone")
+                    stats["zone"] = stats.get("zone", 0) + 1
+                    tag(node["_el"], "zone", k)
                 for kd in ek:
                     emit_node(kd, insts, depth + 1, idx)
                 return
@@ -1240,8 +1272,9 @@ def build(project, site, ns, module=None, overlay=False):
     # from the content tally; genericShare = generic CONTENT / all content.
     all_insts = [i for p in out.values() for i in p["instances"]]
     content_insts = [i for i in all_insts
-                     if i.get("type") != "zone" and not i.get("nonRendered")]
-    nzone = sum(1 for i in all_insts if i.get("type") == "zone")
+                     if i.get("type") not in ("zone", "layoutSection")
+                     and not i.get("nonRendered")]
+    nzone = sum(1 for i in all_insts if i.get("type") in ("zone", "layoutSection"))
     nnonrender = sum(1 for i in all_insts if i.get("nonRendered"))
     # FOLD-AWARE denominator: a container's lifted items live in its `children` array,
     # NOT as separate instances. Counting only top-level instances would make genericShare
@@ -1325,6 +1358,7 @@ def build(project, site, ns, module=None, overlay=False):
         # Phase 1b real-pipeline chiffrage: zones the generic layout recognizer would
         # convert to byte-exact <Area> components (count-only; emit still skeleton).
         "layoutConvertible": stats.get("layoutConvertible", 0),
+        "layoutSectionEmit": stats.get("layoutSectionEmit", 0),
         "zoneInstances": stats.get("zone", 0),
     }
 

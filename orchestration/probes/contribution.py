@@ -132,9 +132,11 @@ def main():
                             g5["linkIntResolved" if slugp in data.get("pages", {})
                                else "linkIntUnresolved"] += 1
                 # a CONTAINER (skeleton splices its JCR children via {{child:N}},
-                # zone-bridge parent-linked instances) is structure, not a shell —
-                # its editable content lives on the child instances themselves
+                # zone-bridge parent-linked instances; OR a Phase-1b layoutSection whose
+                # `layout` skin wraps an <Area> of parent-linked children) is structure,
+                # not a shell — its editable content lives on the child instances.
                 if inst.get("promoted") and "{{child:" not in (inst.get("skeleton") or "") \
+                        and not inst.get("layout") \
                         and not any(
                         pl.get("fields") or pl.get("media") or pl.get("link")
                         for pl in payloads):
