@@ -1417,7 +1417,17 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
                     if i.get("parent") is None and not i.get("area")]
             if not tops:
                 continue
-            real = [i for i in tops if not i.get("nonRendered")]
+            # A content zone must hold contributable content. Three kinds of top-level
+            # instance RIDE the adjacent zone instead of minting their own (all stay
+            # placed in the reconstruction — fidelity-safe):
+            #   - nonRendered : carried-but-invisible markup (styles/templates);
+            #   - chromeBand  : nav/footer Absolute Area rendered verbatim in place;
+            #   - contentFree : a lone divider/spacer/decoration (zero editable props)
+            #                   — a dashed line is not a page zone (Julian: ~2 clean
+            #                   content zones, not one-zone-per-decoration).
+            real = [i for i in tops
+                    if not i.get("nonRendered") and not i.get("chromeBand")
+                    and not i.get("contentFree")]
             if real:
                 band += 1
                 z = f"z{band}"
