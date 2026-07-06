@@ -245,6 +245,15 @@ OVERLAY_CSS = """
 #zx-legend{float:right;font:11px/1.4 -apple-system,sans-serif;color:#9ec5e6}
 #zx-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 12px;vertical-align:-1px}
 #zx-legend i.z{background:#1f6fd6}#zx-legend i.a{background:#d33a2c}#zx-legend i.c{background:#1aa06a}#zx-legend i.l{background:#14b8a6}
+#zx-legend .zx-f{cursor:pointer;padding:1px 5px;border-radius:4px;font-weight:400;white-space:nowrap}
+#zx-legend .zx-f:hover{background:rgba(255,255,255,.14)}
+#zx-legend .zx-f.on{background:rgba(255,255,255,.30);font-weight:700}
+/* category highlight wash (legend toggle) — translucent fill via inset box-shadow, no
+   positioning needed so it never disturbs the page layout */
+body.zx-hl-z [data-zone]{box-shadow:inset 0 0 0 3px #1f6fd6,inset 0 0 0 9999px rgba(31,111,214,.32)!important}
+body.zx-hl-l [data-zr=layout]{box-shadow:inset 0 0 0 9999px rgba(20,184,166,.34)!important}
+body.zx-hl-c [data-zr=component]{box-shadow:inset 0 0 0 9999px rgba(26,160,106,.34)!important}
+body.zx-hl-a [data-zr=absolute]{box-shadow:inset 0 0 0 9999px rgba(211,58,44,.32)!important}
 body{padding-top:30px!important}
 #zx-tip{position:fixed;z-index:2147483647;max-width:360px;background:#001932;color:#e8f1f9;
  font:12px/1.45 -apple-system,sans-serif;padding:9px 11px;border-radius:8px;
@@ -300,8 +309,21 @@ _OVERLAY_JS = """
  var sibs=Object.keys(ZX.pageTemplates||{}).filter(function(s){return ZX.pageTemplates[s]===tmpl&&s!==SLUG;});
  ban.innerHTML='Page <b>'+SLUG+'</b> &middot; Template <b>'+tmpl+'</b> ('+(sibs.length+1)+' page'
   +(sibs.length?'s':'')+(sibs.length?' &middot; aussi: '+sibs.slice(0,8).join(', ')+(sibs.length>8?' +'+(sibs.length-8):''):'')+')'
-  +'<span id="zx-legend"><i class="z"></i>zone (Area) <i class="l"></i>composant layout <i class="c"></i>composant <i class="a"></i>Absolute Area &middot; clic = épingler</span>';
+  +'<span id="zx-legend">'
+  +'<b class="zx-f" data-zf="z"><i class="z"></i>zone (Area)</b> '
+  +'<b class="zx-f" data-zf="l"><i class="l"></i>composant layout</b> '
+  +'<b class="zx-f" data-zf="c"><i class="c"></i>composant</b> '
+  +'<b class="zx-f" data-zf="a"><i class="a"></i>Absolute Area</b>'
+  +' &middot; clic = surligner la catégorie</span>';
  document.body.appendChild(ban);
+ // legend buttons: toggle a translucent color wash over every element of that category
+ // (body.zx-hl-<cat> in OVERLAY_CSS). Click again to clear. Independent per category.
+ ban.querySelector('#zx-legend').addEventListener('click',function(e){
+   var f=e.target.closest('.zx-f'); if(!f)return;
+   var c=f.getAttribute('data-zf');
+   var on=document.body.classList.toggle('zx-hl-'+c);
+   f.classList.toggle('on',on);
+ });
  var tip=document.createElement('div');tip.id='zx-tip';document.body.appendChild(tip);
  var pinned=null;
  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
