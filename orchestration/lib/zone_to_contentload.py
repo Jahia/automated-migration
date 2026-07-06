@@ -500,7 +500,9 @@ MANUAL_CSS = """
 .zm-sc,.zm-pg{color:#666;font-size:12px;}
 .zm-prop{margin-top:4px;color:#0a7a4b;font-size:12px;}
 .zm-nav{margin-bottom:6px;}
-.zm-up{width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #ccc;border-radius:6px;padding:5px 8px;font:inherit;}
+.zm-back{display:inline-block;cursor:pointer;background:#eef2ff;border:1px solid #cdd8f0;border-radius:6px;padding:4px 10px;font:inherit;margin-bottom:4px;}
+.zm-back:hover{background:#dde6fb;}
+.zm-up{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #ccc;border-radius:6px;padding:5px 8px;font:inherit;word-break:break-all;}
 .zm-up:hover{background:#f0f0f0;}
 .zm-kids{margin-bottom:8px;}
 .zm-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:6px 0 3px;}
@@ -516,10 +518,14 @@ _MANUAL_JS = """
  var TOTAL=Object.keys(TMPL).length||1;
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
  function isUI(el){return !el||!el.closest||el.closest('#zm-pop,#zm-ban');}
+ function cls(el){return ((el.getAttribute&&el.getAttribute('class'))||'').split(/\\s+/).filter(function(x){return x&&x.indexOf('zm-')!==0;});}
  function desc(el){
-   var t=(el.tagName||'').toLowerCase();
-   var c=((el.getAttribute&&el.getAttribute('class'))||'').split(/\\s+/).filter(function(x){return x&&x.indexOf('zm-')!==0;}).slice(0,3).join('.');
-   return t+(c?'.'+c:'');
+   var t=(el.tagName||'').toLowerCase(),id=(el.id?'#'+el.id:''),c=cls(el).slice(0,3).join('.');
+   return t+id+(c?'.'+c:'');
+ }
+ function descFull(el){ // tag + #id + ALL classes — for the parent button (disambiguate divs)
+   var t=(el.tagName||'').toLowerCase(),id=(el.id?'#'+el.id:''),c=cls(el).join('.');
+   return t+id+(c?'.'+c:'');
  }
  // clean source HTML for the preview: drop our injected zoning attrs + hover/focus classes
  function cleanHTML(el){
@@ -555,14 +561,16 @@ _MANUAL_JS = """
    if(isUI(e.target))return;
    e.preventDefault();e.stopPropagation();focusEl(e.target);
  },true);
- var foc=null;
- function focusEl(el){
+ var foc=null, hist=[];
+ function focusEl(el,fromBack){
    if(!el||el===document.body||el===document.documentElement)return;
+   if(foc&&foc!==el&&!fromBack)hist.push(foc); // record where we came from (Back stack)
    if(foc)foc.classList.remove('zm-focus');
    foc=el;el.classList.add('zm-focus');
    try{el.scrollIntoView({block:'center'});}catch(_){}
    renderPop(el);
  }
+ function back(){ if(hist.length)focusEl(hist.pop(),true); }
  function statBlock(el){
    var k=el.getAttribute&&el.getAttribute('data-zk');
    var info=k?XREF[k]:null;
@@ -590,7 +598,8 @@ _MANUAL_JS = """
    h+='<div class="zm-el">'+esc(desc(el))+'</div>';
    h+=statBlock(el);
    h+='<div class="zm-nav">';
-   if(par&&par!==document.body)h+='<button class="zm-up">&uarr; Parent : '+esc(desc(par))+'</button>';
+   if(hist.length)h+='<button class="zm-back">&larr; Back ('+hist.length+')</button>';
+   if(par&&par!==document.body)h+='<button class="zm-up">&uarr; Parent : '+esc(descFull(par))+'</button>';
    h+='</div>';
    if(kids.length){
      h+='<div class="zm-kids"><div class="zm-lbl">'+kids.length+' enfant(s) &mdash; clique pour cibler</div>';
@@ -601,7 +610,8 @@ _MANUAL_JS = """
    } else h+='<div class="zm-kids"><div class="zm-lbl">Aucun element enfant (feuille)</div></div>';
    h+='<div class="zm-lbl">HTML du bloc</div><pre class="zm-mk">'+esc(full.slice(0,700))+(full.length>700?'\\n\\u2026':'')+'</pre>';
    pop.innerHTML=h;pop.style.display='block';
-   var x=pop.querySelector('#zm-x');if(x)x.onclick=function(){pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;};
+   var x=pop.querySelector('#zm-x');if(x)x.onclick=function(){pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;hist=[];};
+   var bk=pop.querySelector('.zm-back');if(bk)bk.onclick=back;
    var up=pop.querySelector('.zm-up');if(up)up.onclick=function(){focusEl(par);};
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
  }
