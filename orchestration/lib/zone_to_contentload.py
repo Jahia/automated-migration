@@ -18,46 +18,85 @@ skeletonOrig) — a follow-up; fidelity holds by construction.
 """
 import sys, os, json, re, hashlib, base64, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 import zone_detect as ZD
 import semantic_extract as SE
 import extract_content as EC
 import library_recognize as LR
 
 
+# A wrapper's inline <style>/<script> BODY (CSS/JS text) and comment text is SKIN, not
+# editorial content — it must not count as the wrapper's "own text" (else a container with
+# an inline stylesheet is wrongly kept as a verbatim zone). Framework-agnostic.
+_SKIN_TEXT = re.compile(r"<(style|script)\b[^>]*>.*?</\1>|<!--.*?-->", re.S | re.I)
+# Elements that carry visible/contributable content even when they hold no text (an
+# inter-child segment containing one is NOT invisible glue -> keep the verbatim zone).
+_GLUE_VISIBLE = ["img", "picture", "video", "audio", "iframe", "svg", "canvas",
+                 "object", "embed", "input", "button", "select", "textarea"]
+_DISPLAY_NONE = re.compile(r"display:\s*none", re.I)
+
+
+def _de_glue(seg):
+    """Return the inter-child segment's VISIBLE, contributable markup — empty when the
+    segment is only INVISIBLE GLUE (comments, display:none subtrees, empty structural
+    elements). bs4-based so it handles NESTED hidden elements (a regex cannot balance
+    tags: `<div style=display:none><div/></div>` needs a real parse). Geometric — never
+    keyed on a framework class. Glue is preserved VERBATIM in the layoutSection gap, so a
+    mis-call can only keep a byte-exact zone, never corrupt the render."""
+    if not seg.strip():
+        return ""
+    soup = BeautifulSoup(seg, "html.parser")
+    for c in soup.find_all(string=lambda t: isinstance(t, Comment)):
+        c.extract()
+    for el in soup.find_all(lambda t: t.has_attr("style") and _DISPLAY_NONE.search(t["style"] or "")):
+        el.decompose()
+    if soup.get_text(strip=True):
+        return "x"                           # real visible text -> not glue
+    if soup.find(_GLUE_VISIBLE):
+        return "x"                           # visible media/interactive -> not glue
+    return ""                                # only comments/hidden/empty -> glue
+
+
 def _try_layout_section(skeleton):
     """Derive a byte-parity layoutSection skin from a zone skeleton (a pure structural
-    wrapper `[open]{{child:0}}..{{child:N}}[close]`, no own text). Two shapes:
+    wrapper `[open]{{child:0}}..{{child:N}}[close]`, no editorial own text). Shapes:
       Phase 1b — SINGLE Area: inter-child segments whitespace-only (children contiguous)
         -> {"open","close","areas":1}; view = open + <Area(children)> + close.
       Phase 1c — UNIFORM columns: all inter-child segments identical and non-empty (each
         child sits in an identical sibling cell) -> {"open","cellOpen","cellClose","close",
         "areas":N}; view = open + N x (cellOpen + <Area(child)> + cellClose) + close.
-    Both are BYTE-PARITY with the zone render but store the wrapper STRUCTURED, not as an
-    HTML blob (P1 fix). Returns None for impure/asymmetric-celled wrappers (irreducible
-    glue -> keep the verbatim zone)."""
+      Phase 1d — GLUE single Area: inter-child segments carry only INVISIBLE glue (hidden/
+        empty els, comments), not real markup -> {"open","close","gaps":[...],"areas":1};
+        view = open + child0 + gaps[0] + child1 + ... + close. Each gap preserved VERBATIM
+        so the render is byte-identical to the verbatim zone, but the node now holds a
+        structured skin + <Area> children (P1: a zone must contain sub-components, not HTML).
+    All shapes are BYTE-PARITY with the zone render but store the wrapper STRUCTURED, not as
+    an HTML blob. Returns None only when a wrapper carries editorial own text or a gap holds
+    real (visible, contributable) markup -> keep the verbatim zone (fidelity-first)."""
     if "{{f:" in skeleton or "{{media:" in skeleton or "{{link:" in skeleton:
         return None                          # not a pure structural wrapper
     parts = re.split(r"\{\{child:\d+\}\}", skeleton)
     if len(parts) < 2:                       # need >=1 child slot (1 -> single-Area chain)
         return None
     prefix, mids, suffix = parts[0], parts[1:-1], parts[-1]
-    if re.sub(r"<[^>]+>", "", "".join(parts)).strip():    # wrapper carries own text
-        return None
+    # own-text test: CSS/JS/comment bodies are skin, not editorial content — strip them
+    # before checking, else an inline <style> blocks a genuinely pure wrapper.
+    if re.sub(r"<[^>]+>", "", _SKIN_TEXT.sub("", "".join(parts))).strip():
+        return None                          # wrapper carries editorial own text
     if all(not m.strip() for m in mids):                  # 1b: contiguous -> single Area
         return {"open": prefix, "close": suffix, "areas": 1}
     if len(set(mids)) == 1:                                # 1c: uniform columns
         mid = mids[0]
         m = re.match(r"^((?:\s*</[^>]+>)+)(\s*<.*)$", mid, re.S)  # cellClose + cellOpen
-        if not m:
-            return None
-        cell_close, cell_open = m.group(1), m.group(2)
-        if not prefix.endswith(cell_open) or not suffix.startswith(cell_close):
-            return None                      # first/last cell not uniform -> keep zone
-        return {"open": prefix[:len(prefix) - len(cell_open)],
-                "cellOpen": cell_open, "cellClose": cell_close,
-                "close": suffix[len(cell_close):], "areas": len(mids) + 1}
-    return None                              # asymmetric celled -> keep verbatim zone
+        if m:
+            cell_close, cell_open = m.group(1), m.group(2)
+            if prefix.endswith(cell_open) and suffix.startswith(cell_close):
+                return {"open": prefix[:len(prefix) - len(cell_open)],
+                        "cellOpen": cell_open, "cellClose": cell_close,
+                        "close": suffix[len(cell_close):], "areas": len(mids) + 1}
+    if all(not _de_glue(m).strip() for m in mids):        # 1d: glue-only gaps -> single Area
+        return {"open": prefix, "close": suffix, "gaps": mids, "areas": 1}
+    return None                              # real heterogeneous markup -> keep verbatim zone
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # set per-project by build(): where extracted/looked-up assets live
@@ -97,7 +136,6 @@ TEXT_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol",
 # label; the zone id rides a ::after label. Hover/click drives the #zx-tip popin
 # (hierarchy breadcrumb + cross-page xref + a "raw HTML" toggle when pinned).
 OVERLAY_CSS = """
-[data-zr],[data-zone]{position:relative!important}
 [data-zr]{outline-offset:-2px!important}
 [data-zr=absolute]{outline:2px solid #d33a2c!important}
 [data-zr=component]{outline:2px solid #1aa06a!important}
@@ -588,7 +626,7 @@ def content_free_name(el):
         return "spacer"
     return "decoration"
 
-def build(project, site, ns, module=None, overlay=False):
+def build(project, site, ns, module=None, overlay=False, overlay_src=None):
     global MIRROR_ASSETS, STATIC_ASSETS
     MIRROR_ASSETS = f"{REPO}/projects/{project}/workflow-output/local-mirror/assets"
     STATIC_ASSETS = f"{REPO}/projects/{project}/static/assets"
@@ -650,6 +688,16 @@ def build(project, site, ns, module=None, overlay=False):
     slug2raw, slug2body, slug2soup = {}, {}, {}
     for slug, _ in pages:
         lp = os.path.join(lm, f"{slug}.html")
+        # overlay_src (e.g. "frozen"): re-render the overlay from a JS-revealed FROZEN
+        # capture (freeze_page.mjs) instead of the raw mirror — for SPAs whose content is
+        # revealed by client JS, the script-stripped mirror renders blank; the frozen DOM
+        # renders faithfully with NO site JS. Falls back to the mirror when no frozen page
+        # exists. Used with overlay-only runs (main() skips writing the content-load), so
+        # the CANONICAL content-load (deterministic, from the mirror) is never touched.
+        if overlay_src:
+            fp = os.path.join(lm, f"{slug}.{overlay_src}.html")
+            if os.path.exists(fp):
+                lp = fp
         if os.path.exists(lp):
             raw = open(lp, encoding="utf-8", errors="replace").read()
             slug2raw[slug] = raw
@@ -1095,6 +1143,9 @@ def build(project, site, ns, module=None, overlay=False):
                     if lay.get("cellOpen") is not None:
                         skin_disp = (f'{lay["open"]}  ⟨{lay["areas"]}× cellule '
                                      f'{lay["cellOpen"]}…{lay["cellClose"]} · Area⟩  {lay["close"]}')
+                    elif lay.get("gaps") is not None:
+                        skin_disp = (f'{lay["open"]}  ⟨Area · {len(ek)} sous-composant(s), '
+                                     f'{len(lay["gaps"])} glu invisible préservée⟩  {lay["close"]}')
                     else:
                         skin_disp = (f'{lay["open"]}  ⟨Area · {len(ek)} sous-composant(s)⟩  '
                                      f'{lay["close"]}')
@@ -1445,11 +1496,19 @@ def main():
         ns = sys.argv[sys.argv.index("--ns") + 1]
     module = sys.argv[sys.argv.index("--module") + 1] if "--module" in sys.argv else None
     overlay = "--overlay" in sys.argv
-    content, manifest, used, stats = build(project, site, ns, module, overlay=overlay)
+    overlay_src = sys.argv[sys.argv.index("--overlay-src") + 1] if "--overlay-src" in sys.argv else None
+    content, manifest, used, stats = build(project, site, ns, module, overlay=overlay,
+                                           overlay_src=overlay_src)
     if overlay:
         lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
         n = len([f for f in os.listdir(lm) if f.endswith(".overlay.html")]) if os.path.isdir(lm) else 0
         print(f"  -> {n} zone-overlay page(s) written to {lm}/<slug>.overlay.html")
+    if overlay_src:
+        # overlay-only run (re-render overlays from a JS-revealed source, e.g. frozen):
+        # do NOT rewrite the canonical content-load / manifest / orphans — they stay
+        # deterministic from the mirror. The overlays were already written inside build().
+        print(f"  -> overlay-src={overlay_src}: content-load left untouched (overlay-only run)")
+        return
     cl_path = os.path.join(REPO, "orchestration", "content", f"{project}.content-load.json")
     mf_dir = os.path.join(REPO, "projects", project, "workflow-output")
     os.makedirs(mf_dir, exist_ok=True)

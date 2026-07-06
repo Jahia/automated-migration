@@ -37,6 +37,9 @@ def recompose_instance(insts, i, kids):
         ch = [recompose_instance(insts, ci, kids) for ci in kids.get(i, [])]
         if lay.get("cellOpen") is not None:   # 1c columns: each child in an identical cell
             body = "".join(lay["cellOpen"] + c + lay["cellClose"] for c in ch)
+        elif lay.get("gaps") is not None:     # 1d glue: preserve each inter-child gap verbatim
+            gaps = lay["gaps"]
+            body = "".join(c + (gaps[gi] if gi < len(gaps) else "") for gi, c in enumerate(ch))
         else:                                 # 1b single Area: children contiguous
             body = "".join(ch)
         return lay.get("open", "") + body + lay.get("close", "")
