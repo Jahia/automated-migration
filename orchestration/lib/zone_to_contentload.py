@@ -39,7 +39,7 @@ def _try_layout_section(skeleton):
     if "{{f:" in skeleton or "{{media:" in skeleton or "{{link:" in skeleton:
         return None                          # not a pure structural wrapper
     parts = re.split(r"\{\{child:\d+\}\}", skeleton)
-    if len(parts) < 3:                       # need >=2 child slots
+    if len(parts) < 2:                       # need >=1 child slot (1 -> single-Area chain)
         return None
     prefix, mids, suffix = parts[0], parts[1:-1], parts[-1]
     if re.sub(r"<[^>]+>", "", "".join(parts)).strip():    # wrapper carries own text
@@ -1081,11 +1081,15 @@ def build(project, site, ns, module=None, overlay=False):
                     _lp = None
                 if _lp is not None:
                     stats["layoutConvertible"] = stats.get("layoutConvertible", 0) + 1
-                lay = _try_layout_section(w.get("skeleton") or "") if _lp is not None else None
+                # _try_layout_section is the byte-parity-safe operative gate (pure wrapper,
+                # >=1 contiguous/columns child, no field markers); a single-child chain now
+                # becomes a 1-Area layoutSection instead of a verbatim zone. Not gated on
+                # the recognizer (which descends past a lone leaf to 0 children).
+                lay = _try_layout_section(w.get("skeleton") or "")
                 if lay is not None:
                     insts.append({"type": "layoutSection", "parent": parent,
                                   "promoted": True, "layout": lay,
-                                  "sourceClasses": _lp.get("sourceClasses")})
+                                  "sourceClasses": (_lp.get("sourceClasses") if _lp else None)})
                     used.add("layoutSection")
                     stats["layoutSectionEmit"] = stats.get("layoutSectionEmit", 0) + 1
                     if lay.get("cellOpen") is not None:
