@@ -484,7 +484,14 @@ _OVERLAY_JS = """
 # str.replace (NOT %-format) so literal % in the JS needs no escaping.
 MANUAL_CSS = """
 .zm-hover{outline:2px solid #ff6a00 !important;outline-offset:-2px;cursor:pointer !important;}
-.zm-focus.zm-focus{outline:3px solid #7c3aed !important;outline-offset:-3px;box-shadow:inset 0 0 0 9999px rgba(124,58,237,.34) !important;}
+/* focus = translucent wash (see the CONTENT through it) + strong outline marking the FULL
+   footprint of the block; colored by nature (Julian: zone bleue, composant vert, absolute rouge). */
+.zm-focus.zm-focus{outline:3px solid #7c3aed !important;outline-offset:-3px;box-shadow:inset 0 0 0 9999px rgba(124,58,237,.16) !important;}
+.zm-focus.zm-focus-z{outline-color:#1f6fd6 !important;box-shadow:inset 0 0 0 9999px rgba(31,111,214,.16) !important;}
+.zm-focus.zm-focus-c{outline-color:#1aa06a !important;box-shadow:inset 0 0 0 9999px rgba(26,160,106,.16) !important;}
+.zm-focus.zm-focus-a{outline-color:#d33a2c !important;box-shadow:inset 0 0 0 9999px rgba(211,58,44,.16) !important;}
+.zm-focus.zm-focus-l{outline-color:#14b8a6 !important;box-shadow:inset 0 0 0 9999px rgba(20,184,166,.16) !important;}
+.zm-focus.zm-focus-n{outline-color:#7c3aed !important;box-shadow:inset 0 0 0 9999px rgba(124,58,237,.16) !important;}
 #zm-ban{position:fixed;left:0;bottom:0;z-index:2147483646;background:rgba(17,17,17,.92);color:#fff;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:5px 12px;border-top-right-radius:6px;}
 #zm-ban b{color:#7fd1ff;}
 #zm-pop{position:fixed;top:12px;right:12px;width:400px;max-height:92vh;overflow:auto;z-index:2147483647;background:#fff;color:#1a1a1a;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.28);font:13px/1.55 system-ui,-apple-system,sans-serif;display:none;padding:10px 12px;}
@@ -502,8 +509,12 @@ MANUAL_CSS = """
 .zm-nav{margin-bottom:6px;}
 .zm-back{display:inline-block;cursor:pointer;background:#eef2ff;border:1px solid #cdd8f0;border-radius:6px;padding:4px 10px;font:inherit;margin-bottom:4px;}
 .zm-back:hover{background:#dde6fb;}
-.zm-up{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #ccc;border-radius:6px;padding:5px 8px;font:inherit;word-break:break-all;}
-.zm-up:hover{background:#f0f0f0;}
+.zm-ancs{margin-bottom:8px;max-height:230px;overflow:auto;}
+.zm-anc{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #e2e2e2;border-left:5px solid transparent;border-radius:6px;padding:4px 7px;margin:3px 0;font:inherit;word-break:break-all;}
+.zm-anc:hover{background:#f0f7ff;border-color:#b8d6f5;}
+.zm-own{display:inline-block;padding:0 6px;border-radius:8px;color:#fff;font-size:11px;font-weight:600;margin-right:5px;}
+#zm-flag{position:fixed;z-index:2147483647;background:#111;color:#fff;font:600 12px/1.4 system-ui,-apple-system,sans-serif;padding:3px 9px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:none;display:none;max-width:280px;}
+.zm-anc-hl.zm-anc-hl{outline:3px dashed #111 !important;outline-offset:-3px;box-shadow:inset 0 0 0 9999px rgba(17,17,17,.10) !important;}
 .zm-kids{margin-bottom:8px;}
 .zm-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:6px 0 3px;}
 .zm-kid{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:4px 7px;margin:3px 0;font:inherit;}
@@ -608,6 +619,24 @@ _MANUAL_JS = """
  }
  function selectorOf(el){return {value:cssPath(el), key:(el.getAttribute&&el.getAttribute('data-zk'))||null};}
  function suggestName(el){return cls(el)[0]||(el.getAttribute&&el.getAttribute('data-zt'))||(el.tagName||'x').toLowerCase();}
+ // OWNING COMPONENT (Julian): only real components carry code — NOT zones/absolute-areas/layouts
+ // (those are bare containers to be FILLED). So an ancestor "belongs to" the nearest enclosing
+ // component; the colored chain BREAKS at each component boundary (a sub-component owns itself).
+ var COMPSEL='[data-zr="component"],.zm-dec-component';
+ function owningComp(el){return (el&&el.closest)?el.closest(COMPSEL):null;}
+ function compName(c){return (c&&(c.getAttribute('data-zm-label')||c.getAttribute('data-zt')))||'composant';}
+ function compKey(c){return compName(c)+'|'+((c&&c.getAttribute('data-zt'))||'');}
+ function compColor(k){var h=0;for(var i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))>>>0;return 'hsl('+(h%360)+',58%,48%)';}
+ // nature for the focus wash color — a DECISION wins over the engine tag (Julian: area bleue,
+ // absolute rouge), so focusing something you decided shows the color you chose it to be.
+ function natureCls(el){
+   if(el.classList){
+     if(el.classList.contains('zm-dec-component'))return 'c';
+     if(el.classList.contains('zm-dec-absoluteArea'))return 'a';
+     if(el.classList.contains('zm-dec-area'))return 'z';
+   }
+   return attr(el).cls;
+ }
  function api(path,body){
    var opt=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
    return fetch(path,opt).then(function(r){return r.json();}).catch(function(){return null;});
@@ -668,9 +697,21 @@ _MANUAL_JS = """
    if(!ids.length){alert('Aucune décision sur cette page.');return;}
    if(!confirm('Retirer '+ids.length+' décision(s) visible(s) sur cette page ? (effet site-wide, irréversible)'))return;
    ids.reduce(function(pr,id){return pr.then(function(){return api(API+'delete',{id:id});});},Promise.resolve())
-     .then(function(){DEC={};loadDecisions();pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;});
+     .then(function(){DEC={};loadDecisions();pop.style.display='none';dropFoc();ancHiOff();foc=null;});
  }
  var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
+ // floating label shown over an ancestor when hovering its row in the parent chain
+ var flag=document.createElement('div');flag.id='zm-flag';document.body.appendChild(flag);
+ var ancHl=null;
+ function ancHiOff(){if(ancHl){ancHl.classList.remove('zm-anc-hl');ancHl=null;}flag.style.display='none';}
+ function ancHi(anc){
+   ancHiOff();ancHl=anc;anc.classList.add('zm-anc-hl');
+   var oc=owningComp(anc),r=anc.getBoundingClientRect();
+   flag.textContent=oc?('◆ '+compName(oc)):'non assigné à un composant';
+   flag.style.background=oc?compColor(compKey(oc)):'#666';
+   flag.style.display='block';
+   flag.style.top=Math.max(4,r.top-26)+'px';flag.style.left=Math.max(4,r.left)+'px';
+ }
  var hov=null;
  document.addEventListener('mouseover',function(e){
    if(isUI(e.target))return;
@@ -683,11 +724,13 @@ _MANUAL_JS = """
    e.preventDefault();e.stopPropagation();focusEl(e.target);
  },true);
  var foc=null, hist=[];
+ var FOCCLS=['zm-focus','zm-focus-z','zm-focus-c','zm-focus-a','zm-focus-l','zm-focus-n'];
+ function dropFoc(){if(foc)FOCCLS.forEach(function(c){foc.classList.remove(c);});}
  function focusEl(el,fromBack){
    if(!el||el===document.body||el===document.documentElement)return;
    if(foc&&foc!==el&&!fromBack)hist.push(foc); // record where we came from (Back stack)
-   if(foc)foc.classList.remove('zm-focus');
-   foc=el;el.classList.add('zm-focus');pending=null;
+   dropFoc();ancHiOff();
+   foc=el;el.classList.add('zm-focus','zm-focus-'+natureCls(el));pending=null; // wash tinted by nature (decision wins)
    try{el.scrollIntoView({block:'center'});}catch(_){}
    renderPop(el);
  }
@@ -746,7 +789,6 @@ _MANUAL_JS = """
  function renderPop(el){
    var a=attr(el);
    var kids=Array.prototype.filter.call(el.children||[],function(c){return c.nodeType===1;});
-   var par=el.parentElement;
    var full=cleanHTML(el);
    var h='<div class="zm-hd"><span class="zm-badge '+a.cls+'">'+esc(a.lab)+'</span>'
      +(a.ty?' <span class="zm-ty">'+esc(a.ty)+'</span>':'')+'<span id="zm-x" title="fermer">&times;</span></div>';
@@ -755,8 +797,19 @@ _MANUAL_JS = """
    h+=actionForm(el);
    h+='<div class="zm-nav">';
    if(hist.length)h+='<button class="zm-back">&larr; Back ('+hist.length+')</button>';
-   if(par&&par!==document.body)h+='<button class="zm-up">&uarr; Parent : '+esc(descFull(par))+'</button>';
    h+='</div>';
+   // FULL ancestor chain up to <body>, each row colored by its owning component (same
+   // component ⇒ same color; the chain breaks where an ancestor is itself a component).
+   var chain=[];{var _p=el.parentElement;while(_p&&_p!==document.body&&_p!==document.documentElement){chain.push(_p);_p=_p.parentElement;}}
+   if(chain.length){
+     h+='<div class="zm-lbl">Parents ('+chain.length+') &mdash; couleur = composant propriétaire &middot; survol = voir dans la page</div><div class="zm-ancs">';
+     chain.forEach(function(anc,i){
+       var oc=owningComp(anc),color=oc?compColor(compKey(oc)):'',stl=color?(' style="border-left-color:'+color+'"'):'';
+       var chip=oc?('<span class="zm-own" style="background:'+color+'">'+esc(compName(oc))+'</span>'):'';
+       h+='<button class="zm-anc" data-i="'+i+'"'+stl+'>'+chip+esc(descFull(anc))+'</button>';
+     });
+     h+='</div>';
+   }
    if(kids.length){
      h+='<div class="zm-kids"><div class="zm-lbl">'+kids.length+' enfant(s) &mdash; clique pour cibler</div>';
      kids.slice(0,40).forEach(function(c,i){var ca=attr(c);
@@ -766,9 +819,14 @@ _MANUAL_JS = """
    } else h+='<div class="zm-kids"><div class="zm-lbl">Aucun element enfant (feuille)</div></div>';
    h+='<div class="zm-lbl">HTML du bloc</div><pre class="zm-mk">'+esc(full.slice(0,700))+(full.length>700?'\\n\\u2026':'')+'</pre>';
    pop.innerHTML=h;pop.style.display='block';
-   var x=pop.querySelector('#zm-x');if(x)x.onclick=function(){pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;hist=[];};
+   var x=pop.querySelector('#zm-x');if(x)x.onclick=function(){pop.style.display='none';dropFoc();ancHiOff();foc=null;hist=[];};
    var bk=pop.querySelector('.zm-back');if(bk)bk.onclick=back;
-   var up=pop.querySelector('.zm-up');if(up)up.onclick=function(){focusEl(par);};
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-anc'),function(b){
+     var anc=chain[+b.getAttribute('data-i')];
+     b.onclick=function(){ancHiOff();focusEl(anc);};
+     b.onmouseenter=function(){ancHi(anc);};
+     b.onmouseleave=ancHiOff;
+   });
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);renderPop(el);};});
    var sv=pop.querySelector('.zm-save');if(sv)sv.onclick=function(){saveDecision(el);};
