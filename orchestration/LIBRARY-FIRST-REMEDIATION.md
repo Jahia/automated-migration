@@ -61,9 +61,47 @@ taxonomy + composition mechanics; we go **one open composition `<Area>`** (the d
 2. **41% LIBRARY + 12% content-free could become authored library components now**, and
    **32% structural zones become `<Area>`**. **~13% rawHtml** is the honest irreducible tail
    (AEM/Liferay widgets).
-3. **The real gap is wiring, not design:** `library_recognize.py` exists (returns a
-   `LibraryPlan` or `None`→skeleton) but is **never called by `zone_to_contentload.py`**.
-   The library is specified + recognisable but disconnected from the migration output.
+3. **The real gap is wiring + recognizer coverage, not taxonomy:** `library_recognize.py`
+   exists and IS wired via `extract_content.py` (`recognize()` at lines 1018/1150), but it
+   ships only 3 container recognizers (logoWall / carousel / tabs). No `section`, `cardGrid`
+   (as a recognizer), or generic-layout recognizer — the big buckets stay skeleton.
+
+---
+
+## 2bis. Measured chiffrage (2026-07-06)
+
+**(a) Wiring the existing recognizer AS-IS = ~5%.** Over all 2621 container instances
+(skeleton + `{{child}}`), `recognize()` converts only 139 (5%): carousel×85, logoWall×32,
+tabs×22. Per stack: contentful 38%, acquia 6%, liferay 3%, discoverasr 2%, supercar 2%.
+Reason: only 3 recognizers ship; the untapped buckets are `zone` (~2026), `section` (~407),
+`cardGrid` (~126, incl. contentful 84 — the bridge *names* them cardGrid but there is no
+cardGrid recognizer).
+
+**(b) Generic LAYOUT recognizer (`_recognize_layout`, prototyped + wired count-only).** A
+PURE structural wrapper (no own text) with ≥2 block child slots → source-class chain + open
+`<Area>`. Real-pipeline measurement (run over actual source nodes, not the skeleton):
+
+| stack | zones | layout-convertible | rate |
+|---|---|---|---|
+| discoverasr | 1325 | 1319 | **99%** |
+| contentful | 130 | 127 | **97%** |
+
+Skeleton simulation (over post-extraction skeletons) was more conservative — authored-
+container% 2%→76% (discoverasr), 63%→81% (contentful), 57-72% on acquia/liferay/supercar —
+but both agree the layout recognizer is the dominant lever.
+
+**KEY FINDING — the layout recognizer is BYTE-EXACT, OUTSIDE the §3 trade.** A pure wrapper's
+only content is its children (in order) + structural tags; an `<Area>` rendering the same
+children wrapped in the captured source-class chain reproduces the source byte-for-byte. So
+**converting `zone`→`<Area>` fixes P1 (zone carries HTML) with NO fidelity cost.** The pixel
+trade in §3 applies only to atom/section library views (card/hero with *imposed* markup), NOT
+to the generic layout container. Refusals (own text / single-child / text-run) stay skeleton.
+
+**Caveats:** (1) depth is NOT reduced — nesting becomes nested Areas (P1 fix, not P2); depth
+needs chrome→AbsoluteArea + single-child collapse + fusion. (2) Celled/column layouts need a
+`columns[N]` view (N Areas), still byte-exact, a Phase-3 view detail. (3) 99%/97% is the
+recognizer-acceptance ceiling; real conversion also needs the view + CND + `extract_content`
+plan-handling for the `layoutSection` kind (the emit step, staged after this measurement).
 
 ---
 
@@ -77,8 +115,12 @@ An authored library view produces the **library's** markup, not the source's exa
 Library-first ⇒ trade byte-exact for editability, arbitrated **per section by a pixel gate**
 (not a byte gate): confident library match + rendered within a pixel threshold of the source
 → library component; else → skeleton (byte-exact). **0-DOM stops being a global invariant and
-becomes a per-section choice** (MODULARITY-PLAN §3 tension made explicit). This is the one
-decision that must be made before Phase 1 ships.
+becomes a per-section choice** (MODULARITY-PLAN §3 tension made explicit).
+
+**Scope (refined by §2bis):** this trade applies ONLY to atom/section library views with
+*imposed* markup (card/hero). The **generic layout container** (`zone`→`<Area>`, ~99% of
+zones, byte-exact by construction) needs **no trade** — ship it unconditionally. So the
+pixel-gate decision gates Phase 1c (atom/section views), not the layout conversion.
 
 ---
 
@@ -99,15 +141,17 @@ decision that must be made before Phase 1 ships.
 
 | Phase | Action | Existing asset |
 |---|---|---|
-| **0** | Telemetry: emit per-stack `library% / struct% / cfree% / rawHtml%` + over-zoning (zones/page, depth, zones÷components) to the manifest = frozen baseline + gap KPI | add to `mergeBacklog` |
-| **1** | **Wire `library_recognize` into the bridge**: per candidate section, call the recognizer; if it returns a plan AND the library view passes the **pixel gate** → emit the library component (typed props + child nodes/Areas); else skeleton | recognizer **already written**, to connect |
+| **0** | Telemetry: emit per-stack `library% / struct% / cfree% / rawHtml% / layoutConvertible` + over-zoning (zones/page, depth, zones÷components) to the manifest = frozen baseline + gap KPI | **done** (`mergeBacklog.layoutConvertible/zoneInstances`) |
+| **1a** | Wire the 3 existing recognizers as-is (logoWall/carousel/tabs) | already via `extract_content` — **~5%**, marginal |
+| **1b** | **Generic LAYOUT recognizer → `zone` = byte-exact `<Area>`** — the dominant lever (**99%/97% of zones**), NO fidelity trade. `_recognize_layout` prototyped + wired count-only; emit-conversion needs the view + CND + `extract_content` `layoutSection` handling | recognizer **written** (`library_recognize._recognize_layout`) |
+| **1c** | Author `cardGrid` + `section`/atom recognizers/views with *imposed* markup — **pixel-gated (§3 trade)** | base-library template |
 | **2** | **Chrome → AbsoluteArea** (navbar/footer), like `MainLayout.jsx` → kills discoverasr's 76% chrome-per-page | known pattern (jahia.md r.15) |
-| **3** | **Author/complete the library VIEWS** (jahiacom-v3-style, `<Area>`+`<RenderChildren>`) + **zone→`<Area>`** for surviving structural zones | base-library template exists; views to finish |
-| **4** | Collapse residual structural nesting (fusion + content-free wall absorption) — now for the **skeleton tail only** | design done (SESSION-2026-07-05) |
+| **3** | **Author/complete the library VIEWS** (jahiacom-v3-style, `<Area>`+`<RenderChildren>`) + wire the layoutSection emit | base-library template exists; views to finish |
+| **4** | Collapse residual structural nesting (fusion + content-free wall absorption) — the **skeleton tail + depth (P2)** | design done (SESSION-2026-07-05) |
 
-**Order (value/risk):** 0 (measure) → 2 (chrome, big gain, no fidelity trade) → 1 (wire
-recognizer, pixel-gated) → 3 (views) → 4 (tail). Phases 0-2 do not engage the fidelity
-trade; Phase 1 does — hence the §3 go is required before it.
+**Order (value/risk):** 0 (measure, done) → 2 (chrome, big gain, no trade) → **1b (layout→Area,
+byte-exact, no trade — the dominant lever)** → 3 (views) → 1c (atom/section views, pixel-gated)
+→ 4 (tail + depth). The §3 pixel-gate go is required only before **1c** — 1b needs no trade.
 
 ---
 
