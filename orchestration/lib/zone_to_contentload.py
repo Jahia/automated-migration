@@ -300,7 +300,7 @@ _OVERLAY_JS = """
  var sibs=Object.keys(ZX.pageTemplates||{}).filter(function(s){return ZX.pageTemplates[s]===tmpl&&s!==SLUG;});
  ban.innerHTML='Page <b>'+SLUG+'</b> &middot; Template <b>'+tmpl+'</b> ('+(sibs.length+1)+' page'
   +(sibs.length?'s':'')+(sibs.length?' &middot; aussi: '+sibs.slice(0,8).join(', ')+(sibs.length>8?' +'+(sibs.length-8):''):'')+')'
-  +'<span id="zx-legend"><i class="z"></i>zone (Area) <i class="l"></i>composant layout <i class="c"></i>composant <i class="a"></i>chrome &middot; clic = épingler</span>';
+  +'<span id="zx-legend"><i class="z"></i>zone (Area) <i class="l"></i>composant layout <i class="c"></i>composant <i class="a"></i>Absolute Area &middot; clic = épingler</span>';
  document.body.appendChild(ban);
  var tip=document.createElement('div');tip.id='zx-tip';document.body.appendChild(tip);
  var pinned=null;
@@ -309,7 +309,7 @@ _OVERLAY_JS = """
    // the element's TRUE nature (data-zr) wins over the content band (data-zone): a
    // layoutSection is a content-free LAYOUT COMPONENT, never a "zone" (Julian).
    var r=el.getAttribute('data-zr');
-   if(r==='absolute')return{k:'chrome (absolute)',cls:'a'};
+   if(r==='absolute')return{k:'Absolute Area',cls:'a'};
    if(r==='layout')return{k:'composant layout',cls:'l'};
    if(r==='component')return{k:'composant',cls:'c'};
    if(el.hasAttribute('data-zone'))return{k:'zone '+el.getAttribute('data-zone'),cls:'z'};
@@ -320,7 +320,7 @@ _OVERLAY_JS = """
    var z=el.getAttribute('data-zone'),t=el.getAttribute('data-zt'),r=el.getAttribute('data-zr');
    if(z&&t)return z+':'+t; if(z)return z;
    if(r==='zone')return 'zone';
-   if(r==='absolute')return (t||'chrome')+' (abs)';
+   if(r==='absolute')return 'Absolute Area';
    return t||'?';
  }
  function pathOf(el){
@@ -335,7 +335,7 @@ _OVERLAY_JS = """
    if(el.getAttribute('data-zr')==='layout')return '[[layout:'+(el.getAttribute('data-zt')||'layoutSection')+']]';
    if(el.hasAttribute('data-zone'))return '[[zone:'+el.getAttribute('data-zone')+(el.getAttribute('data-zt')?':'+el.getAttribute('data-zt'):'')+']]';
    if(el.getAttribute('data-zr')==='zone')return '[[zone:'+(el.getAttribute('data-zt')||'zone')+']]';
-   if(el.getAttribute('data-zr')==='absolute')return '[[absolute:'+(el.getAttribute('data-zt')||'chrome')+']]';
+   if(el.getAttribute('data-zr')==='absolute')return '[[absolute:'+(el.getAttribute('data-zt')||'AbsoluteArea')+']]';
    return '[[component:'+(el.getAttribute('data-zt')||'?')+']]';
  }
  function rawOf(el){
@@ -968,7 +968,9 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
         # `skin` (layoutSection only) = a readable render of the STRUCTURED skin the
         # node actually stores, so the popin shows the stored model, not the source blob.
         if overlay and el is not None:
-            el["data-zt"] = t
+            # display name: chrome (header/nav/footer) IS an Absolute Area (Julian: same
+            # notion) — show "AbsoluteArea" while the internal type stays "chrome".
+            el["data-zt"] = "AbsoluteArea" if t == "chrome" else t
             el["data-zc"] = _overlay_category(t)  # category (probe counts)
             if skin:
                 el["data-zx-skin"] = skin
