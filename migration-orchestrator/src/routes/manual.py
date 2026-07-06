@@ -77,6 +77,21 @@ def _require(project: str) -> None:
         raise HTTPException(status_code=400, detail="invalid project name")
 
 
+@router.get("/zoning/projects")
+async def zoning_projects() -> dict:
+    """Projects that have generated manual inspector pages (a local-mirror with *.manual.html)."""
+    root = _harness_root() / "projects"
+    out: list[dict] = []
+    if root.is_dir():
+        for d in sorted(p for p in root.iterdir() if p.is_dir()):
+            md = d / "workflow-output" / "local-mirror"
+            if md.is_dir():
+                n = len(list(md.glob("*.manual.html")))
+                if n:
+                    out.append({"project": d.name, "pages": n})
+    return {"projects": out}
+
+
 @router.get("/projects/{project}/zoning/pages")
 async def zoning_pages(project: str) -> dict:
     """List the slugs that have a generated <slug>.manual.html, with their decision count."""

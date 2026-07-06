@@ -3,6 +3,7 @@ import { useState } from 'react'
 import RunList from './components/RunList'
 import RunDetail from './components/RunDetail'
 import SchemaViewer from './components/SchemaViewer'
+import Zoning from './components/Zoning'
 import TokenCounter from './components/TokenCounter'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
@@ -32,6 +33,7 @@ export default function App() {
           </Link>
           <span className="h-5 w-px bg-[#0a3252]" />
           <NavLink to="/" end className={navClass}>Runs</NavLink>
+          <NavLink to="/zoning" className={navClass}>Zoning</NavLink>
           <NavLink to="/schema" className={navClass}>API Schema</NavLink>
           <div className="ml-auto">
             <TokenCounter />
@@ -41,6 +43,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<ErrorBoundary label="Run list"><RunList /></ErrorBoundary>} />
             <Route path="/runs/:runId" element={<ErrorBoundary label="Run detail"><RunDetail /></ErrorBoundary>} />
+            <Route path="/zoning" element={<ErrorBoundary label="Zoning"><Zoning /></ErrorBoundary>} />
             <Route path="/schema" element={<ErrorBoundary label="Schema"><SchemaViewer /></ErrorBoundary>} />
           </Routes>
         </main>

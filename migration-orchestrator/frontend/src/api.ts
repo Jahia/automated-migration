@@ -29,6 +29,28 @@ export async function fetchSchema(): Promise<Record<string, unknown>> {
   return resp.json()
 }
 
+// ── Manual zoning inspector (project-scoped; served by src/routes/manual.py) ──
+export interface ZoningPage { slug: string; decisions: number }
+
+export async function fetchZoningProjects(): Promise<{ project: string; pages: number }[]> {
+  const resp = await fetch(`${BASE}/zoning/projects`)
+  if (!resp.ok) throw new Error(`zoning projects unavailable (${resp.status})`)
+  return (await resp.json()).projects
+}
+
+export async function fetchZoningPages(project: string): Promise<ZoningPage[]> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/pages`)
+  if (!resp.ok) throw new Error(`zoning pages unavailable (${resp.status})`)
+  return (await resp.json()).pages
+}
+
+/** Re-run the deterministic engine so manual decisions land in the content-load. */
+export async function applyZoning(project: string): Promise<{ ok: boolean; summary: string | null; head: string | null }> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/apply`, { method: 'POST' })
+  if (!resp.ok) throw new Error(`apply failed (${resp.status})`)
+  return resp.json()
+}
+
 // NOTE: launch/relaunch of runs is intentionally NOT exposed here. The cockpit
 // is observability-only — runs are created, started, and restarted exclusively
 // via the REST API (POST /migrations, /runs/{id}/start, /runs/{id}/restart,
