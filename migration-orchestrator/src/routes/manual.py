@@ -23,6 +23,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -65,9 +67,31 @@ def _load(project: str) -> list[dict]:
     return []
 
 
+def _backup(p: Path) -> None:
+    """Copy the current decisions file to a timestamped .bak BEFORE overwriting, so a
+    decision can never be lost to a clobber (Julian, 2026-07-06 — after a test overwrote
+    real decisions). Only backs up a NON-empty file; keeps the last 30 backups."""
+    if not p.is_file():
+        return
+    try:
+        if not json.load(open(p, encoding="utf-8")).get("decisions"):
+            return  # empty → nothing worth preserving
+    except (OSError, ValueError):
+        return
+    bdir = p.parent / "manual-decisions-backups"
+    try:
+        bdir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(p, bdir / f"manual-decisions.{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.json")
+        for old in sorted(bdir.glob("manual-decisions.*.json"))[:-30]:
+            old.unlink()
+    except OSError as e:
+        log.warning(f"manual-decisions backup failed: {e}")
+
+
 def _save(project: str, decisions: list[dict]) -> None:
     p = _decisions_path(project)
     p.parent.mkdir(parents=True, exist_ok=True)
+    _backup(p)  # snapshot the pre-write state → any clobber is recoverable
     json.dump({"project": project, "decisions": decisions},
               open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 

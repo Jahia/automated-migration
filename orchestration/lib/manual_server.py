@@ -18,9 +18,12 @@ These decisions are OVERRIDES the deterministic engine will consume LATER (Phase
 scope-rules / segmentation-plan); this server only persists them. Read-only if unreachable
 (the inspector still works without persistence).
 """
+import glob
 import json
 import os
+import shutil
 import sys
+from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -41,9 +44,33 @@ def load_decisions(project):
     return []
 
 
+def _backup(p):
+    """Snapshot a NON-empty decisions file before overwriting (recoverable clobber);
+    keeps the last 30 backups in a manual-decisions-backups/ sibling dir."""
+    if not os.path.isfile(p):
+        return
+    try:
+        if not json.load(open(p, encoding="utf-8")).get("decisions"):
+            return
+    except (OSError, ValueError):
+        return
+    bdir = os.path.join(os.path.dirname(p), "manual-decisions-backups")
+    try:
+        os.makedirs(bdir, exist_ok=True)
+        shutil.copy2(p, os.path.join(bdir, f"manual-decisions.{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.json"))
+        for old in sorted(glob.glob(os.path.join(bdir, "manual-decisions.*.json")))[:-30]:
+            try:
+                os.unlink(old)
+            except OSError:
+                pass
+    except OSError:
+        pass
+
+
 def save_decisions(project, decisions):
     p = decisions_path(project)
     os.makedirs(os.path.dirname(p), exist_ok=True)
+    _backup(p)  # snapshot the pre-write state → any clobber is recoverable
     json.dump({"project": project, "decisions": decisions},
               open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
