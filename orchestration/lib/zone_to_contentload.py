@@ -876,17 +876,21 @@ def build(project, site, ns, module=None, overlay=False):
         return n
 
     def extraction_children(node):
-        """The meaningful children to lift out of a zone: each direct kid descended
-        through transparent wrappers. Order = document order (aligns with {{child:N}}).
-        Hidden/non-rendered kids are dropped — their markup stays INLINE in the zone
-        skeleton (byte-exact) but they never become a node/zone."""
+        """The meaningful children to lift out of a container. Phase 4 (re-nesting):
+        descend THE NODE through its OWN single-child transparent chain to the
+        composition point (so that chain becomes THIS node's skin), then return the
+        composition point's DIRECT kids UNDESCENDED. Each kid recurses via emit_node
+        into its own nested container — so an asymmetric-celled parent (children at
+        different depths, e.g. a nested chain beside a rawHtml sibling) becomes a CLEAN
+        layoutSection, and each kid's chain lives in ITS OWN node instead of being
+        flattened into the parent skeleton. Order = document order (aligns with
+        {{child:N}}). Hidden kids drop (markup stays inline, byte-exact)."""
+        comp = descend_transparent(node)
         out = []
-        for kd in node["kids"]:
+        for kd in comp["kids"]:
             if is_hidden_el(kd.get("_el")):
                 continue
-            d = descend_transparent(kd)
-            if not is_hidden_el(d.get("_el")):
-                out.append(d)
+            out.append(kd)
         return out
 
     def apply_attribution(node, rule, parent, insts):
@@ -1058,7 +1062,10 @@ def build(project, site, ns, module=None, overlay=False):
                 # through to wrapper_container/zone — children re-emit as their own nodes.
                 stats["cardGridRefused"] = stats.get("cardGridRefused", 0) + 1
             ek = extraction_children(node)  # descend transparent single-child wrappers
-            w = wrapper_container(node, ek)
+            # empty container (Phase 4: composition had no liftable kids) -> NOT a promoted
+            # zone (that is the empty-shell G1 failure); fall through to content-free /
+            # verbatim rawHtml, which renders byte-exact and carries no editable props.
+            w = wrapper_container(node, ek) if ek else None
             if w is not None:
                 idx = len(insts)
                 # Phase 1b/1c: a pure wrapper -> byte-parity layoutSection (skin stored
