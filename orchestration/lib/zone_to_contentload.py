@@ -614,20 +614,23 @@ _MANUAL_JS = """
  }
  var covTot=0;  // % of page content already inside a component (decided or engine-typed)
  function updateCoverage(){
-   // top-most component boundaries (content components + chrome + decisions; NOT bare
-   // structural zones/layouts — their loose children must still count as "not encapsulated")
-   var SELB='[data-zr="component"],[data-zr="layout"],[data-zr="absolute"],.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea';
-   var all=Array.prototype.slice.call(document.querySelectorAll(SELB)), inTxt=0;
+   // COMPONENTS ONLY (Julian): content components + chrome, decided or engine-typed. NOT
+   // zones (data-zr=zone / decided area) nor layoutSections (data-zr=layout) — those are
+   // structural containers with no contributable content of their own; hiding/counting them
+   // would swallow loose children that are NOT yet in a component ("le reste" must stay).
+   var SELB='[data-zr="component"],[data-zr="absolute"],.zm-dec-component,.zm-dec-absoluteArea';
+   var all=Array.prototype.slice.call(document.querySelectorAll(SELB)), tops=[];
    all.forEach(function(e){e.classList.remove('zm-integrated-top');});
-   all.forEach(function(e){
-     if(!e.parentElement||!e.parentElement.closest(SELB)){   // top-most only (no double count)
-       e.classList.add('zm-integrated-top');
-       inTxt+=(''+(e.textContent||'')).replace(/\\s+/g,'').length;
-     }
+   all.forEach(function(e){   // stamp top-most component boundaries (ALWAYS — the hide toggle needs them)
+     if(!e.parentElement||!e.parentElement.closest(SELB)){e.classList.add('zm-integrated-top');tops.push(e);}
    });
-   var bodyTxt=(''+(document.body.textContent||'')).replace(/\\s+/g,'').length;
-   var uiTxt=((((ban&&ban.textContent)||'')+((pop&&pop.textContent)||''))).replace(/\\s+/g,'').length;
-   covTot=Math.max(0,Math.min(100,Math.round(100*inTxt/Math.max(1,bodyTxt-uiTxt))));
+   // % over VISIBLE text (innerText skips display:none menus/modals — else the huge hidden
+   // mega-menu inflates "libre"). Meaningful only while regions are SHOWN; when hidden keep
+   // the last value (innerText would read them as 0).
+   if(document.body.classList.contains('zm-hide-integrated'))return;
+   var vis=function(el){return (''+((el&&el.innerText)||'')).replace(/\\s+/g,'').length;};
+   var inTxt=0; tops.forEach(function(e){inTxt+=vis(e);});
+   covTot=Math.max(0,Math.min(100,Math.round(100*inTxt/Math.max(1,vis(document.body)-vis(ban)-vis(pop)))));
  }
  function markAll(){
    Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');x.removeAttribute('data-zm-label');});
@@ -655,7 +658,8 @@ _MANUAL_JS = """
    var c=ban.querySelector('.zm-clear');if(c)c.onclick=clearPage;
    var t=ban.querySelector('.zm-toggle');if(t)t.onclick=function(){
      var on=document.body.classList.toggle('zm-hide-integrated');
-     t.classList.toggle('on',on);t.textContent=on?'Réafficher intégré':'Masquer intégré';
+     if(!on)updateCoverage();   // regions shown again -> recompute the visible %
+     drawBan();                 // re-render banner (label + refreshed %); re-wires the button
    };
  }
  function clearPage(){
