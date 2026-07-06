@@ -475,6 +475,139 @@ _OVERLAY_JS = """
 })();
 """
 
+# ── MANUAL zoning tool — Phase 0 (read-only inspector, Julian 2026-07-06) ──
+# A DIFFERENT interaction from the overlay: NO persistent boxes. Hover ANY element
+# (recognized or not) → highlight; click → focus + popin. The popin shows the engine's
+# current attribution, the CROSS-PAGE stats (from zone-xref: same-signature page count),
+# and lets you walk PARENT ↑ / CHILDREN ↓ (focus-switch). No save, no actions yet — those
+# are Phase 1 (buttons → AbsoluteArea/Area/component → scope-rules/seg-plan). Injected via
+# str.replace (NOT %-format) so literal % in the JS needs no escaping.
+MANUAL_CSS = """
+.zm-hover{outline:2px solid #ff6a00 !important;outline-offset:-2px;cursor:pointer !important;}
+.zm-focus{outline:3px solid #1f6fd6 !important;outline-offset:-3px;}
+#zm-ban{position:fixed;left:0;bottom:0;z-index:2147483646;background:rgba(17,17,17,.92);color:#fff;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:5px 12px;border-top-right-radius:6px;}
+#zm-ban b{color:#7fd1ff;}
+#zm-pop{position:fixed;top:12px;right:12px;width:400px;max-height:92vh;overflow:auto;z-index:2147483647;background:#fff;color:#1a1a1a;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.28);font:13px/1.55 system-ui,-apple-system,sans-serif;display:none;padding:10px 12px;}
+#zm-pop .zm-hd{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+#zm-pop #zm-x{margin-left:auto;cursor:pointer;font-size:20px;line-height:1;color:#888;}
+#zm-pop #zm-x:hover{color:#111;}
+.zm-badge{display:inline-block;padding:1px 7px;border-radius:10px;color:#fff;font-size:11px;font-weight:600;}
+.zm-badge.a{background:#d33a2c;}.zm-badge.c{background:#1aa06a;}.zm-badge.l{background:#14b8a6;}.zm-badge.z{background:#1f6fd6;}.zm-badge.n{background:#999;}
+#zm-pop .zm-ty{font-family:ui-monospace,monospace;font-size:12px;color:#555;}
+#zm-pop .zm-el{font-family:ui-monospace,monospace;font-size:12px;color:#333;background:#f4f4f5;padding:4px 6px;border-radius:5px;margin-bottom:8px;word-break:break-all;}
+.zm-stat{background:#f0f7ff;border:1px solid #d6e6fb;border-radius:6px;padding:6px 8px;margin-bottom:8px;}
+.zm-stat.zm-none{background:#f7f7f7;border-color:#e2e2e2;color:#777;}
+.zm-sc,.zm-pg{color:#666;font-size:12px;}
+.zm-prop{margin-top:4px;color:#0a7a4b;font-size:12px;}
+.zm-nav{margin-bottom:6px;}
+.zm-up{width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #ccc;border-radius:6px;padding:5px 8px;font:inherit;}
+.zm-up:hover{background:#f0f0f0;}
+.zm-kids{margin-bottom:8px;}
+.zm-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:6px 0 3px;}
+.zm-kid{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:4px 7px;margin:3px 0;font:inherit;}
+.zm-kid:hover{background:#eef6ff;border-color:#b8d6f5;}
+.zm-mk{background:#1e1e1e;color:#d4d4d4;font-family:ui-monospace,monospace;font-size:11px;padding:8px;border-radius:6px;overflow:auto;max-height:220px;white-space:pre-wrap;word-break:break-word;}
+"""
+
+_MANUAL_JS = """
+(function(){
+ var ZX=__ZX__, SLUG=__SLUG__;
+ var XREF=ZX.xref||{}, TMPL=ZX.pageTemplates||{};
+ var TOTAL=Object.keys(TMPL).length||1;
+ function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
+ function isUI(el){return !el||!el.closest||el.closest('#zm-pop,#zm-ban');}
+ function desc(el){
+   var t=(el.tagName||'').toLowerCase();
+   var c=((el.getAttribute&&el.getAttribute('class'))||'').split(/\\s+/).filter(function(x){return x&&x.indexOf('zm-')!==0;}).slice(0,3).join('.');
+   return t+(c?'.'+c:'');
+ }
+ // clean source HTML for the preview: drop our injected zoning attrs + hover/focus classes
+ function cleanHTML(el){
+   var c=el.cloneNode(true);
+   var all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
+   all.forEach(function(x){
+     ['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-skin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});
+     if(x.classList){x.classList.remove('zm-hover');x.classList.remove('zm-focus');if(!x.getAttribute('class'))x.removeAttribute('class');}
+   });
+   return c.outerHTML||'';
+ }
+ function attr(el){
+   var zt=el.getAttribute&&el.getAttribute('data-zt');
+   var zr=el.getAttribute&&el.getAttribute('data-zr');
+   if(zr==='absolute')return{lab:'Absolute Area',cls:'a',ty:zt||''};
+   if(zr==='layout')return{lab:'composant layout',cls:'l',ty:zt||'layoutSection'};
+   if(el.getAttribute&&el.getAttribute('data-zone'))return{lab:'zone '+el.getAttribute('data-zone'),cls:'z',ty:zt||''};
+   if(zt)return{lab:'composant',cls:'c',ty:zt};
+   return{lab:'non zoné',cls:'n',ty:''};
+ }
+ var ban=document.createElement('div');ban.id='zm-ban';
+ ban.innerHTML='<b>Mode manuel</b> &middot; page <b>'+esc(SLUG)+'</b> &middot; survole un bloc, clique pour inspecter';
+ document.body.appendChild(ban);
+ var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
+ var hov=null;
+ document.addEventListener('mouseover',function(e){
+   if(isUI(e.target))return;
+   if(hov&&hov!==e.target)hov.classList.remove('zm-hover');
+   hov=e.target;hov.classList.add('zm-hover');
+ },true);
+ document.addEventListener('mouseout',function(e){if(hov)hov.classList.remove('zm-hover');},true);
+ document.addEventListener('click',function(e){
+   if(isUI(e.target))return;
+   e.preventDefault();e.stopPropagation();focusEl(e.target);
+ },true);
+ var foc=null;
+ function focusEl(el){
+   if(!el||el===document.body||el===document.documentElement)return;
+   if(foc)foc.classList.remove('zm-focus');
+   foc=el;el.classList.add('zm-focus');
+   try{el.scrollIntoView({block:'center'});}catch(_){}
+   renderPop(el);
+ }
+ function statBlock(el){
+   var k=el.getAttribute&&el.getAttribute('data-zk');
+   var info=k?XREF[k]:null;
+   if(!info)return '<div class="zm-stat zm-none">Pas de donnee cross-page (bloc non reconnu par le moteur).</div>';
+   var np=(info.pages||[]).length, pct=Math.round(100*np/TOTAL);
+   var others=(info.pages||[]).filter(function(p){return p!==SLUG;});
+   var prop;
+   if(np>=0.9*TOTAL&&info.instances<=1.3*np)prop='quasi toutes les pages, ~1 par page -> candidat <b>Absolute Area</b> (chrome site-wide)';
+   else if(info.instances>1.5*np)prop='repete plusieurs fois par page -> candidat <b>composant reutilisable</b>';
+   else if(np<=1)prop='seulement ici -> <b>zone / composant local</b>';
+   else prop='sur '+np+' pages -> <b>composant partage</b>';
+   return '<div class="zm-stat">'
+     +'<div><b>'+info.instances+'</b> instance(s) &middot; <b>'+np+'/'+TOTAL+'</b> pages (<b>'+pct+'%</b>) &middot; meme structure</div>'
+     +'<div class="zm-sc">scope '+esc(info.scope||'?')+' &middot; '+esc(info.tier||'')+'</div>'
+     +'<div class="zm-pg">'+(others.length?'aussi: '+others.slice(0,8).map(esc).join(', ')+(others.length>8?' +'+(others.length-8):''):'seulement cette page')+'</div>'
+     +'<div class="zm-prop">&#128161; '+prop+'</div></div>';
+ }
+ function renderPop(el){
+   var a=attr(el);
+   var kids=Array.prototype.filter.call(el.children||[],function(c){return c.nodeType===1;});
+   var par=el.parentElement;
+   var full=cleanHTML(el);
+   var h='<div class="zm-hd"><span class="zm-badge '+a.cls+'">'+esc(a.lab)+'</span>'
+     +(a.ty?' <span class="zm-ty">'+esc(a.ty)+'</span>':'')+'<span id="zm-x" title="fermer">&times;</span></div>';
+   h+='<div class="zm-el">'+esc(desc(el))+'</div>';
+   h+=statBlock(el);
+   h+='<div class="zm-nav">';
+   if(par&&par!==document.body)h+='<button class="zm-up">&uarr; Parent : '+esc(desc(par))+'</button>';
+   h+='</div>';
+   if(kids.length){
+     h+='<div class="zm-kids"><div class="zm-lbl">'+kids.length+' enfant(s) &mdash; clique pour cibler</div>';
+     kids.slice(0,40).forEach(function(c,i){var ca=attr(c);
+       h+='<button class="zm-kid" data-i="'+i+'"><span class="zm-badge '+ca.cls+'">'+esc(ca.lab)+'</span> '+esc(desc(c))+'</button>';});
+     if(kids.length>40)h+='<div class="zm-lbl">&hellip; +'+(kids.length-40)+'</div>';
+     h+='</div>';
+   } else h+='<div class="zm-kids"><div class="zm-lbl">Aucun element enfant (feuille)</div></div>';
+   h+='<div class="zm-lbl">HTML du bloc</div><pre class="zm-mk">'+esc(full.slice(0,700))+(full.length>700?'\\n\\u2026':'')+'</pre>';
+   pop.innerHTML=h;pop.style.display='block';
+   var x=pop.querySelector('#zm-x');if(x)x.onclick=function(){pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;};
+   var up=pop.querySelector('.zm-up');if(up)up.onclick=function(){focusEl(par);};
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
+ }
+})();
+"""
+
 def build_xref(agg, isa, page_cl, slug_by_pi):
     """Cross-page reference data for the S3 overlay tooltip: per detection key ->
     scope/tier/instance-count/pages; per page -> template cluster id."""
@@ -744,7 +877,7 @@ def content_free_name(el):
         return "spacer"
     return "decoration"
 
-def build(project, site, ns, module=None, overlay=False, overlay_src=None):
+def build(project, site, ns, module=None, overlay=False, overlay_src=None, manual=False):
     global MIRROR_ASSETS, STATIC_ASSETS
     MIRROR_ASSETS = f"{REPO}/projects/{project}/workflow-output/local-mirror/assets"
     STATIC_ASSETS = f"{REPO}/projects/{project}/static/assets"
@@ -828,7 +961,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
     used, out, chrome, chrome_done = set(), {}, [], set()
     # S3 cross-page observability data (built once from the detection model)
     xref_data = None
-    if overlay:
+    if overlay or manual:
         slug_by_pi = [s for s, _ in pages]
         xref_data = build_xref(agg, isa, R["page_cl"], slug_by_pi)
         json.dump(xref_data, open(f"{REPO}/projects/{project}/workflow-output/zone-xref.json", "w"),
@@ -989,7 +1122,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
         # is captured (str(el) at emit time) so the content-load stays clean.
         # `skin` (layoutSection only) = a readable render of the STRUCTURED skin the
         # node actually stores, so the popin shows the stored model, not the source blob.
-        if overlay and el is not None:
+        if (overlay or manual) and el is not None:
             # display name: chrome (header/nav/footer) IS an Absolute Area (Julian: same
             # notion) — show "AbsoluteArea" while the internal type stays "chrome".
             el["data-zt"] = "AbsoluteArea" if t == "chrome" else t
@@ -1491,6 +1624,25 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
                 soup.body.append(sc)
             with open(os.path.join(lm, f"{slug}.overlay.html"), "w", encoding="utf-8") as f:
                 f.write(str(soup))
+        # MANUAL mode (Phase 0): same tagged DOM, but the read-only inspector JS instead
+        # of the box overlay. Deep-copy the soup (re-parse) so an overlay run in the same
+        # process is unaffected; strip scripts so the SPA can't re-hydrate and wipe tags.
+        if manual and slug in slug2soup and xref_data is not None:
+            msoup = BeautifulSoup(str(slug2soup[slug]), "lxml")
+            for _s in msoup.find_all("script"):
+                _s.decompose()
+            if msoup.head is not None:
+                st = msoup.new_tag("style")
+                st.string = MANUAL_CSS
+                msoup.head.append(st)
+            if msoup.body is not None:
+                sc = msoup.new_tag("script")
+                sc.string = (_MANUAL_JS
+                             .replace("__ZX__", json.dumps(xref_data, ensure_ascii=False))
+                             .replace("__SLUG__", json.dumps(slug)))
+                msoup.body.append(sc)
+            with open(os.path.join(lm, f"{slug}.manual.html"), "w", encoding="utf-8") as f:
+                f.write(str(msoup))
 
     if chrome and out:
         first = next(iter(out))
@@ -1662,17 +1814,22 @@ def main():
     module = sys.argv[sys.argv.index("--module") + 1] if "--module" in sys.argv else None
     overlay = "--overlay" in sys.argv
     overlay_src = sys.argv[sys.argv.index("--overlay-src") + 1] if "--overlay-src" in sys.argv else None
+    manual = "--manual" in sys.argv
     content, manifest, used, stats = build(project, site, ns, module, overlay=overlay,
-                                           overlay_src=overlay_src)
+                                           overlay_src=overlay_src, manual=manual)
     if overlay:
         lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
         n = len([f for f in os.listdir(lm) if f.endswith(".overlay.html")]) if os.path.isdir(lm) else 0
         print(f"  -> {n} zone-overlay page(s) written to {lm}/<slug>.overlay.html")
-    if overlay_src:
-        # overlay-only run (re-render overlays from a JS-revealed source, e.g. frozen):
+    if manual:
+        lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
+        n = len([f for f in os.listdir(lm) if f.endswith(".manual.html")]) if os.path.isdir(lm) else 0
+        print(f"  -> {n} manual-inspector page(s) written to {lm}/<slug>.manual.html")
+    if overlay_src or manual:
+        # viz-only run (manual inspector, or overlay re-rendered from a JS-revealed source):
         # do NOT rewrite the canonical content-load / manifest / orphans — they stay
-        # deterministic from the mirror. The overlays were already written inside build().
-        print(f"  -> overlay-src={overlay_src}: content-load left untouched (overlay-only run)")
+        # deterministic from the mirror. The viz files were already written inside build().
+        print("  -> viz-only run (manual/overlay-src): content-load left untouched")
         return
     cl_path = os.path.join(REPO, "orchestration", "content", f"{project}.content-load.json")
     mf_dir = os.path.join(REPO, "projects", project, "workflow-output")
