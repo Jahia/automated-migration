@@ -117,6 +117,17 @@ export const Layout = ({
     <html lang={lang}>
       <head>
         <meta charSet="utf-8" />
+        {/* consent-framework locator iframes (__tcfapiLocator/__uspapiLocator)
+            are injected in-flow by the source site's consent JS; the consent
+            platform's own (external, offline-blocked) CSS normally hides them.
+            Without it they render as ~304x154 white boxes that shift the whole
+            page (ground-truth Δh). display:none removes them from flow. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html:
+              'iframe[name="__tcfapiLocator"],iframe[name="__uspapiLocator"]{display:none !important}',
+          }}
+        />
         {shell?.head
           ? // per-page source head, in source order (Drupal aggregates per page;
             // drupalSettings JSON + behaviors init live here)
