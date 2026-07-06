@@ -149,6 +149,43 @@ async def zoning_mirror(project: str, path: str):
     return FileResponse(str(target))
 
 
+def _workflow_dir(project: str) -> Path:
+    return _harness_root() / "projects" / project / "workflow-output"
+
+
+@router.get("/projects/{project}/zoning/nodetypes")
+async def zoning_nodetypes(project: str) -> dict:
+    """The single-source component model (component-model.json), seeded by the engine — the
+    editable list of nodetypes + their views. Returns seeded=false if the engine hasn't run
+    yet (the cockpit then tells the user to Appliquer once)."""
+    _require(project)
+    p = _workflow_dir(project) / "component-model.json"
+    if not p.is_file():
+        return {"entries": [], "seeded": False}
+    try:
+        m = json.load(open(p, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"entries": [], "seeded": False}
+    return {"entries": m.get("entries", []), "namespace": m.get("namespace"), "seeded": True}
+
+
+@router.get("/projects/{project}/zoning/view")
+async def zoning_view(project: str, file: str) -> dict:
+    """A component view's captured skeleton HTML (the 'code' at this pre-module stage). `file`
+    is a component-model/<type>/<view>.html path from the model; resolved and confined under
+    the project's component-model dir (traversal-guarded)."""
+    _require(project)
+    base = (_workflow_dir(project) / "component-model").resolve()
+    target = (_workflow_dir(project) / file).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="path escapes component-model")
+    if not target.is_file() or target.suffix != ".html":
+        raise HTTPException(status_code=404, detail="view not found")
+    return {"file": file, "code": target.read_text(encoding="utf-8", errors="replace")}
+
+
 @router.get("/projects/{project}/zoning/decisions")
 async def zoning_decisions(project: str, page: str | None = None) -> dict:
     _require(project)

@@ -51,6 +51,58 @@ export async function applyZoning(project: string): Promise<{ ok: boolean; summa
   return resp.json()
 }
 
+// ── Single-source component model (Nodetypes tab; seeded by the engine) ──
+export interface NodeTypeView { name: string; file: string; instances: number; chars: number }
+export interface NodeTypeEntry {
+  id: string
+  name: string
+  kind: 'component' | 'container' | 'zone' | 'absolute' | 'passthrough'
+  contentFree: boolean
+  isContainer: boolean
+  childType: string | null
+  instances: number
+  pages: string[]
+  pageCount: number
+  views: NodeTypeView[]
+  variantsTotal: number
+  origin: string
+}
+
+export async function fetchNodetypes(project: string): Promise<{ entries: NodeTypeEntry[]; seeded: boolean }> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/nodetypes`)
+  if (!resp.ok) throw new Error(`nodetypes unavailable (${resp.status})`)
+  return resp.json()
+}
+
+export async function fetchViewCode(project: string, file: string): Promise<{ file: string; code: string }> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/view?file=${encodeURIComponent(file)}`)
+  if (!resp.ok) throw new Error(`view unavailable (${resp.status})`)
+  return resp.json()
+}
+
+export async function fetchDecisions(project: string): Promise<Array<Record<string, unknown>>> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/decisions`)
+  if (!resp.ok) return []
+  return (await resp.json()).decisions || []
+}
+
+/** Delete a nodetype site-wide = a suppress decision (id keyed on the nodeType). */
+export async function suppressNodeType(project: string, nodeType: string, name: string): Promise<void> {
+  await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/decide`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision: { action: 'suppress', nodeType, type: name, id: `suppress|${nodeType}` } }),
+  })
+}
+
+export async function unsuppressNodeType(project: string, nodeType: string): Promise<void> {
+  await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: `suppress|${nodeType}` }),
+  })
+}
+
 // NOTE: launch/relaunch of runs is intentionally NOT exposed here. The cockpit
 // is observability-only — runs are created, started, and restarted exclusively
 // via the REST API (POST /migrations, /runs/{id}/start, /runs/{id}/restart,

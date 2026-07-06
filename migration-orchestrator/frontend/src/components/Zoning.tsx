@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchZoningProjects, fetchZoningPages, applyZoning, type ZoningPage } from '../api'
+import {
+  fetchZoningProjects, fetchZoningPages, applyZoning, fetchNodetypes, fetchViewCode,
+  fetchDecisions, suppressNodeType, type ZoningPage, type NodeTypeEntry, type NodeTypeView,
+} from '../api'
 
 /**
  * Zoning — the manual zoning inspector, embedded in the cockpit.
@@ -47,6 +50,12 @@ export default function Zoning() {
   const [tree, setTree] = useState<TreeNode[] | null>(null)
   const [gap, setGap] = useState<{ node: TreeNode; x: number; y: number } | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set()) // tree paths whose children are hidden
+  const [tab, setTab] = useState<'nodetypes' | 'tree'>('tree')
+  const [nodetypes, setNodetypes] = useState<{ entries: NodeTypeEntry[]; seeded: boolean } | null>(null)
+  const [ntOpen, setNtOpen] = useState<Set<string>>(new Set())   // expanded nodetype rows (views shown)
+  const [supNT, setSupNT] = useState<Set<string>>(new Set())     // suppressed nodeType ids (asr:x)
+  const [supShort, setSupShort] = useState<Set<string>>(new Set()) // suppressed short type names (lc)
+  const [viewCode, setViewCode] = useState<{ title: string; code: string } | null>(null)
   const frameRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -71,15 +80,41 @@ export default function Zoning() {
       .catch((e) => setErr(String(e)))
   }, [project])
 
-  // the inspector (same-origin iframe) posts its structural tree here
+  // the inspector (same-origin iframe) posts its structural tree — and notifies us when it
+  // suppressed a type from inside the popin, so the Nodetypes tab stays in sync.
   useEffect(() => {
     function onMsg(e: MessageEvent) {
       const d = e.data
       if (d && d.zmTree && Array.isArray(d.tree)) setTree(d.tree)
+      if (d && d.zmChanged) loadModelAndSuppressed()
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project])
+
+  // load the single-source model + which types are currently suppressed (for the Nodetypes tab)
+  const loadModelAndSuppressed = () => {
+    if (!project) return
+    fetchNodetypes(project).then(setNodetypes).catch(() => setNodetypes({ entries: [], seeded: false }))
+    fetchDecisions(project)
+      .then((ds) => {
+        const nt = new Set<string>(), sh = new Set<string>()
+        ds.forEach((d) => {
+          if (d.action === 'suppress') {
+            if (d.nodeType) nt.add(String(d.nodeType))
+            if (d.type) sh.add(String(d.type).toLowerCase())
+          }
+        })
+        setSupNT(nt); setSupShort(sh)
+      })
+      .catch(() => {})
+  }
+  useEffect(() => {
+    setNodetypes(null); setNtOpen(new Set())
+    loadModelAndSuppressed()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project])
 
   // a new page → drop the stale tree until the fresh iframe re-posts
   useEffect(() => {
@@ -112,11 +147,33 @@ export default function Zoning() {
       const r = await applyZoning(project)
       setApplyMsg(r.summary || (r.ok ? 'Appliqué (aucune décision).' : 'Échec.'))
       fetchZoningPages(project).then(setPages).catch(() => {})
+      loadModelAndSuppressed() // the engine re-seeded component-model.json
       setFrame((f) => f + 1)
     } catch (e) {
       setApplyMsg(`Erreur: ${e}`)
     } finally {
       setApplying(false)
+    }
+  }
+
+  const isSuppressed = (e: NodeTypeEntry) => supNT.has(e.id) || supShort.has(e.name.toLowerCase())
+
+  async function onDeleteNodetype(e: NodeTypeEntry) {
+    if (!confirm(
+      `Supprimer le composant « ${e.name} » ?\n${e.instances} instance(s) sur ${e.pageCount} page(s) ` +
+      `seront désassignées (rendues verbatim, byte-exact). Irréversible via l'outil.`)) return
+    await suppressNodeType(project, e.id, e.name)
+    setSupNT((p) => new Set(p).add(e.id))
+    setSupShort((p) => new Set(p).add(e.name.toLowerCase()))
+    frameRef.current?.contentWindow?.postMessage({ zmReload: true }, '*') // sync the tree/overlay
+  }
+
+  async function onViewCode(e: NodeTypeEntry, v: NodeTypeView) {
+    try {
+      const r = await fetchViewCode(project, v.file)
+      setViewCode({ title: `${e.name} · ${v.name}`, code: r.code })
+    } catch (err) {
+      setViewCode({ title: `${e.name} · ${v.name}`, code: `// ${err}` })
     }
   }
 
@@ -182,46 +239,66 @@ export default function Zoning() {
         <div className="relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen px-4">
           <div className="flex gap-3">
             {/* LEFT: structural tree of zones & components */}
-            <aside className="flex h-[84vh] w-[340px] shrink-0 flex-col rounded border border-[#0a3252] bg-[#001526]">
-              <div className="flex items-center gap-2 border-b border-[#0a3252] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[#5e88ad]">
-                <span>Arbre — zones &amp; composants</span>
-                {tree && tree.length > 0 && (
-                  <span className="ml-auto flex gap-1 normal-case tracking-normal">
-                    <button
-                      onClick={collapseAll}
-                      title="Tout replier"
-                      className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]"
-                    >
-                      ▸ replier
-                    </button>
-                    <button
-                      onClick={expandAll}
-                      title="Tout déplier"
-                      className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]"
-                    >
-                      ▾ déplier
-                    </button>
-                  </span>
-                )}
+            <aside className="flex h-[84vh] w-[360px] shrink-0 flex-col rounded border border-[#0a3252] bg-[#001526]">
+              <div className="flex border-b border-[#0a3252] text-xs font-semibold">
+                <button
+                  onClick={() => setTab('nodetypes')}
+                  className={`flex-1 px-3 py-2 ${tab === 'nodetypes' ? 'bg-[#0a2942] text-white' : 'text-[#5e88ad] hover:text-white'}`}
+                >
+                  Nodetypes
+                </button>
+                <button
+                  onClick={() => setTab('tree')}
+                  className={`flex-1 px-3 py-2 ${tab === 'tree' ? 'bg-[#0a2942] text-white' : 'text-[#5e88ad] hover:text-white'}`}
+                >
+                  Component tree
+                </button>
               </div>
-              <div className="min-h-0 flex-1 overflow-auto px-1 py-2">
-                {tree == null ? (
-                  <div className="px-2 py-3 text-xs text-[#5e88ad]">Chargement de l'arbre…</div>
-                ) : tree.length === 0 ? (
-                  <div className="px-2 py-3 text-xs text-[#5e88ad]">Aucune zone / composant détecté sur cette page.</div>
-                ) : (
-                  <TreeRows
-                    nodes={tree}
-                    depth={0}
-                    path=""
-                    collapsed={collapsed}
-                    onToggle={toggleCollapse}
-                    onFocus={focusNode}
-                    onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
-                    onGapLeave={() => setGap(null)}
+
+              {tab === 'tree' && (
+                <>
+                  <div className="flex items-center gap-2 border-b border-[#0a3252] px-3 py-1.5 text-[11px] uppercase tracking-wide text-[#5e88ad]">
+                    <span>zones &amp; composants</span>
+                    {tree && tree.length > 0 && (
+                      <span className="ml-auto flex gap-1 normal-case tracking-normal">
+                        <button onClick={collapseAll} title="Tout replier" className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]">▸ replier</button>
+                        <button onClick={expandAll} title="Tout déplier" className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]">▾ déplier</button>
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-auto px-1 py-2">
+                    {tree == null ? (
+                      <div className="px-2 py-3 text-xs text-[#5e88ad]">Chargement de l'arbre…</div>
+                    ) : tree.length === 0 ? (
+                      <div className="px-2 py-3 text-xs text-[#5e88ad]">Aucune zone / composant détecté sur cette page.</div>
+                    ) : (
+                      <TreeRows
+                        nodes={tree}
+                        depth={0}
+                        path=""
+                        collapsed={collapsed}
+                        onToggle={toggleCollapse}
+                        onFocus={focusNode}
+                        onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
+                        onGapLeave={() => setGap(null)}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {tab === 'nodetypes' && (
+                <div className="min-h-0 flex-1 overflow-auto px-1 py-2">
+                  <NodetypesPanel
+                    model={nodetypes}
+                    isSuppressed={isSuppressed}
+                    open={ntOpen}
+                    onToggle={(id) => setNtOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })}
+                    onViewCode={onViewCode}
+                    onDelete={onDeleteNodetype}
                   />
-                )}
-              </div>
+                </div>
+              )}
             </aside>
 
             {/* RIGHT: responsive-width controls + the inspector iframe (fills remaining width) */}
@@ -292,6 +369,20 @@ export default function Zoning() {
               <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-snug text-amber-100">
                 {gap.node.html}
               </pre>
+            </div>
+          )}
+
+          {/* click a view in the Nodetypes tab → overlay showing that component's code (skeleton) */}
+          {viewCode && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setViewCode(null)}>
+              <div className="flex max-h-[85vh] w-[860px] max-w-full flex-col rounded border border-[#0a3252] bg-[#001526] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 border-b border-[#0a3252] px-3 py-2">
+                  <span className="font-mono text-sm font-semibold text-white">{viewCode.title}</span>
+                  <span className="text-xs text-[#5e88ad]">skeleton — le « code » à ce stade (pré-module)</span>
+                  <button onClick={() => setViewCode(null)} className="ml-auto rounded px-2 text-lg text-[#5e88ad] hover:text-white">✕</button>
+                </div>
+                <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-[11px] leading-snug text-gray-200">{viewCode.code}</pre>
+              </div>
             </div>
           )}
         </div>
@@ -406,6 +497,115 @@ function TreeRows({
           </li>
         )
       })}
+    </ul>
+  )
+}
+
+const NT_KIND: Record<string, { color: string; label: string }> = {
+  component: { color: '#1aa06a', label: 'composant' },
+  container: { color: '#1f6fd6', label: 'conteneur' },
+  zone: { color: '#1f6fd6', label: 'zone' },
+  absolute: { color: '#d33a2c', label: 'absolute area' },
+  passthrough: { color: '#8a94a6', label: 'verbatim' },
+}
+
+/** Nodetypes tab — the single-source component model: the editable list of identified types,
+ * their views (skeleton variants), a code overlay, and a site-wide delete. */
+function NodetypesPanel({
+  model,
+  isSuppressed,
+  open,
+  onToggle,
+  onViewCode,
+  onDelete,
+}: {
+  model: { entries: NodeTypeEntry[]; seeded: boolean } | null
+  isSuppressed: (e: NodeTypeEntry) => boolean
+  open: Set<string>
+  onToggle: (id: string) => void
+  onViewCode: (e: NodeTypeEntry, v: NodeTypeView) => void
+  onDelete: (e: NodeTypeEntry) => void
+}) {
+  if (model == null) return <div className="px-2 py-3 text-xs text-[#5e88ad]">Chargement du modèle…</div>
+  if (!model.seeded)
+    return (
+      <div className="px-2 py-3 text-xs leading-relaxed text-[#5e88ad]">
+        Modèle pas encore généré. Lance <b className="text-[#a8c1d6]">« Appliquer les décisions »</b> une
+        fois — le moteur seed <code className="text-[#a8c1d6]">component-model.json</code>.
+      </div>
+    )
+  const live = model.entries.filter((e) => !isSuppressed(e))
+  const dead = model.entries.filter((e) => isSuppressed(e))
+  return (
+    <ul className="text-[13px]">
+      {live.length === 0 && <li className="px-2 py-3 text-xs text-[#5e88ad]">Aucun nodetype.</li>}
+      {live.map((e) => {
+        const meta = NT_KIND[e.kind] || NT_KIND.component
+        const isOpen = open.has(e.id)
+        const hasViews = e.views.length > 0
+        return (
+          <li key={e.id}>
+            <div className="flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-[#0a2942]">
+              {hasViews ? (
+                <button onClick={() => onToggle(e.id)} className="w-4 shrink-0 text-[10px] text-[#5e88ad] hover:text-white">
+                  {isOpen ? '▾' : '▸'}
+                </button>
+              ) : (
+                <span className="w-4 shrink-0" />
+              )}
+              <span style={{ color: meta.color }} className="shrink-0 text-[11px]">●</span>
+              <span className="truncate font-medium text-gray-100" title={e.id}>{e.name}</span>
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">{meta.label}</span>
+              <span className="ml-auto shrink-0 text-[10px] text-[#5e88ad]">{e.instances}× · {e.pageCount}p</span>
+              <button
+                onClick={() => onDelete(e)}
+                title="Supprimer ce nodetype sur tout le site"
+                className="shrink-0 rounded px-1 text-[#b04a4a] hover:bg-[#3a1414] hover:text-red-300"
+              >
+                🗑
+              </button>
+            </div>
+            {isOpen && (
+              <div className="ml-5 border-l border-[#0a3252] pl-2">
+                {e.contentFree && <div className="py-0.5 text-[10px] text-[#5e88ad]">content-free (déco)</div>}
+                {e.isContainer && e.childType && (
+                  <div className="py-0.5 text-[10px] text-[#5e88ad]">enfants : {e.childType}</div>
+                )}
+                {e.views.length === 0 && (
+                  <div className="py-0.5 text-[10px] text-[#5e88ad]">structural — pas de code propre</div>
+                )}
+                {e.views.map((v) => (
+                  <button
+                    key={v.name}
+                    onClick={() => onViewCode(e, v)}
+                    className="flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-[12px] text-[#a8c1d6] hover:bg-[#0a2942] hover:text-white"
+                  >
+                    <span className="text-[#5e88ad]">📄</span>
+                    <span className="truncate">{v.name}</span>
+                    <span className="ml-auto shrink-0 text-[10px] text-[#5e88ad]">{v.instances}× · {v.chars}c</span>
+                  </button>
+                ))}
+                {e.variantsTotal > e.views.length && (
+                  <div className="py-0.5 text-[10px] text-[#5e88ad]">
+                    +{e.variantsTotal - e.views.length} variante(s) non listée(s) · {e.variantsTotal} au total
+                  </div>
+                )}
+              </div>
+            )}
+          </li>
+        )
+      })}
+      {dead.length > 0 && (
+        <li className="mt-2 border-t border-[#0a3252] px-2 pt-2 text-[10px] uppercase tracking-wide text-[#5e88ad]">
+          Supprimés ({dead.length}) — verbatim au prochain Appliquer
+        </li>
+      )}
+      {dead.map((e) => (
+        <li key={e.id} className="flex items-center gap-1.5 px-2 py-0.5 text-[12px] text-[#5e6b7a] line-through">
+          <span className="w-4" />
+          {e.name}
+        </li>
+      ))}
     </ul>
   )
 }

@@ -16,7 +16,7 @@ Containers carry decomposed `children` (item nodes) + a manifest `childType`. ED
 loader never publishes. Media DAM-weakref lift is deferred (images render verbatim via
 skeletonOrig) — a follow-up; fidelity holds by construction.
 """
-import sys, os, json, re, hashlib, base64, collections
+import sys, os, json, re, hashlib, base64, collections, shutil
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bs4 import BeautifulSoup, Comment
 import zone_detect as ZD
@@ -533,6 +533,8 @@ MANUAL_CSS = """
 .zm-del:hover{background:#d33a2c;color:#fff;}
 .zm-clear{cursor:pointer;background:#c0392b;color:#fff;border:0;border-radius:5px;padding:2px 9px;font:inherit;margin-left:10px;}
 .zm-clear:hover{background:#a5281b;}
+.zm-suppress{cursor:pointer;background:#fff;border:1px solid #c0392b;color:#c0392b;border-radius:6px;padding:5px 10px;font:inherit;margin-top:4px;}
+.zm-suppress:hover{background:#c0392b;color:#fff;}
 .zm-dec-component{box-shadow:inset 0 0 0 3px rgba(26,160,106,.9)!important;}
 .zm-dec-area{box-shadow:inset 0 0 0 3px rgba(31,111,214,.9)!important;}
 .zm-dec-absoluteArea{box-shadow:inset 0 0 0 3px rgba(211,58,44,.9)!important;}
@@ -552,6 +554,7 @@ _MANUAL_JS = """
  var XREF=ZX.xref||{}, TMPL=ZX.pageTemplates||{};
  var TOTAL=Object.keys(TMPL).length||1;
  var DEC={};        // selector.value -> saved decision (this page)
+ var SUP={};        // short type (lowercased) -> suppress decision (deleted nodetype)
  var pending=null;  // action chosen in the popin, awaiting Enregistrer
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
  function isUI(el){return !el||!el.closest||el.closest('#zm-pop,#zm-ban');}
@@ -663,6 +666,11 @@ _MANUAL_JS = """
  function markAll(){
    Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');x.removeAttribute('data-zm-label');});
    Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e){e.classList.add('zm-dec-'+DEC[sel].action);e.setAttribute('data-zm-label',DEC[sel].name||DEC[sel].action);}}catch(_){}});
+   // suppressed types (deleted from the model): drop their engine tags so they leave the
+   // tree/overlay entirely (verbatim, unattached) — instant feedback before the next engine run.
+   if(Object.keys(SUP).length)Array.prototype.forEach.call(document.querySelectorAll('[data-zt]'),function(e){
+     if(SUP[(e.getAttribute('data-zt')||'').toLowerCase()]){['data-zt','data-zr','data-zk','data-zc'].forEach(function(a){e.removeAttribute(a);});}
+   });
    updateCoverage();postTree();
  }
  // ---- structural TREE for the cockpit panel (Julian): only zones / absolute-areas /
@@ -715,13 +723,18 @@ _MANUAL_JS = """
  window.addEventListener('message',function(e){
    var d=e.data||{};
    if(d&&d.zmReq)postTree();
+   if(d&&d.zmReload)loadDecisions();          // cockpit suppressed/edited a type elsewhere
    if(d&&typeof d.zmFocus==='number'){var el=UIDMAP[d.zmFocus];if(el)focusEl(el);}
  },false);
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
    // so a decision made on another page shows up here too wherever the component recurs.
    return api(API+'decisions').then(function(r){
-     DEC={};if(r&&r.decisions)r.decisions.forEach(function(d){if(d.selector&&d.selector.value)DEC[d.selector.value]=d;});
+     DEC={};SUP={};
+     if(r&&r.decisions)r.decisions.forEach(function(d){
+       if(d.action==='suppress'){var s=((d.type||(d.nodeType||'').split(':').pop())||'').toLowerCase();if(s)SUP[s]=d;}
+       else if(d.selector&&d.selector.value)DEC[d.selector.value]=d;
+     });
      markAll();drawBan();
    });
  }
@@ -818,7 +831,13 @@ _MANUAL_JS = """
    if(pending==='component')h+='<input id="zm-name" value="'+esc(suggestName(el))+'"><button class="zm-save">Enregistrer</button>';
    else if(pending==='area')h+='<button class="zm-save">Enregistrer comme Area</button>';
    else if(pending==='absoluteArea')h+='<select id="zm-area"><option value="header">header</option><option value="nav">nav</option><option value="footer">footer</option></select><button class="zm-save">Enregistrer</button>';
-   return h+'</div></div>';
+   h+='</div>';
+   // engine-detected component (has data-zt, not a manual decision): allow deleting the whole
+   // nodetype site-wide (Julian) — demotes every instance to verbatim on the next engine run.
+   var _zt=el.getAttribute&&el.getAttribute('data-zt');
+   if(_zt&&!cur)h+='<div class="zm-lbl" style="margin-top:8px">Composant détecté par le moteur</div>'
+     +'<button class="zm-suppress">&#128465; Supprimer &laquo; '+esc(_zt)+' &raquo; (tout le site)</button>';
+   return h+'</div>';
  }
  function saveDecision(el){
    if(!pending)return;
@@ -836,6 +855,17 @@ _MANUAL_JS = """
    api(API+'delete',{id:cur.id}).then(function(r){
      if(r&&r.decisions){DEC={};r.decisions.filter(function(x){return x.page===SLUG;}).forEach(function(x){DEC[x.selector.value]=x;});}else{delete DEC[cssPath(el)];}
      markAll();drawBan();renderPop(el);
+   });
+ }
+ function suppressType(el){
+   var zt=el.getAttribute&&el.getAttribute('data-zt');if(!zt)return;
+   var k=el.getAttribute&&el.getAttribute('data-zk'),info=k?XREF[k]:null;
+   var n=info?(info.instances+' instance(s) sur '+((info.pages||[]).length)+' page(s)'):'toutes ses instances sur le site';
+   if(!confirm('Supprimer le composant « '+zt+' » ?\\n'+n+' seront désassignées (rendues verbatim, byte-exact). Irréversible via l\\'outil.'))return;
+   api(API+'decide',{decision:{action:'suppress',type:zt,id:'suppress|'+zt}}).then(function(){
+     pop.style.display='none';dropFoc();ancHiOff();foc=null;hist=[];
+     loadDecisions();  // repaints (strips the type) + reposts the tree
+     if(window.parent&&window.parent!==window)window.parent.postMessage({zmChanged:true},'*');
    });
  }
  function renderPop(el){
@@ -883,6 +913,7 @@ _MANUAL_JS = """
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);renderPop(el);};});
    var sv=pop.querySelector('.zm-save');if(sv)sv.onclick=function(){saveDecision(el);};
    var dl=pop.querySelector('.zm-del');if(dl)dl.onclick=function(){deleteDecision(el);};
+   var sp=pop.querySelector('.zm-suppress');if(sp)sp.onclick=function(){suppressType(el);};
  }
  drawBan();
  loadDecisions();
@@ -1207,6 +1238,16 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             manual_decisions = json.load(open(mdp)).get("decisions") or []
         except Exception as e:
             print(f"  ! manual-decisions read: {e}", file=sys.stderr)
+    # SUPPRESSED nodetypes (Julian deleted them from the single-source model): the engine must
+    # NOT emit these as typed components anywhere — each demotes to VERBATIM (byte-exact) so the
+    # DOM stays on every page but the assignment disappears. Matched on the short type name.
+    suppressed_types = set()
+    for _d in manual_decisions:
+        if _d.get("action") != "suppress":
+            continue
+        suppressed_types.add((_d.get("nodeType") or "").split(":")[-1].lower())  # from Nodetypes tab
+        suppressed_types.add((_d.get("type") or "").lower())                     # from the inspector popin
+    suppressed_types.discard("")
     try:
         EC.load_runtime_map(project)
     except Exception:
@@ -1687,6 +1728,16 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         # accept base-library types AND marker-derived types (data-component/itemtype
         # → the author's own type name, hoisted to high confidence in library_map)
         marker_typed = bool(k and k.startswith("cmp:"))
+        # SUPPRESSED type (deleted from the model): render VERBATIM in place (byte-exact via
+        # raw_inst) and do NOT tag it — the block stays on every page, just unattached to any
+        # component. Only where it WOULD have been typed, so low-confidence nodes still descend.
+        if (lib and lib.lower() in suppressed_types and conf >= 0.5
+                and (lib in ZD.LIBRARY_TYPES or marker_typed)):
+            t = raw_inst(node["_el"], base)
+            t["parent"] = parent
+            t["suppressed"] = True
+            insts.append(t)
+            return
         if lib and conf >= 0.5 and (lib in ZD.LIBRARY_TYPES or marker_typed):
             t = emit_typed(node["_el"], lib, base)
             # a typed node that lifts NOTHING is exactly G1's "empty shell"
@@ -1739,7 +1790,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             # navigation chrome and layout grids as cardGrids. A refusal is auditable
             # (stats["cardGridRefused"]) and falls through to the verbatim zone path.
             if cg is not None and wired(cg) and len(cg_kids) >= 3 \
-                    and inst_weight(cg) <= CAP:
+                    and inst_weight(cg) <= CAP and "cardgrid" not in suppressed_types:
                 if is_card_grid(cg, " ".join(node["_el"].get("class", []) or []), k):
                     cg["parent"] = parent
                     insts.append(cg)
@@ -1816,6 +1867,13 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
                     emit_node(kd, insts, depth + 1, parent)
                 return
         cf = content_free_type(node)
+        if cf is not None and cf.lower() in suppressed_types:
+            # deleted content-free type (divider/decoration…): plain verbatim, unattached (no tag)
+            t = raw_inst(node["_el"], base)
+            t["parent"] = parent
+            t["suppressed"] = True
+            insts.append(t)
+            return
         if cf is not None:
             # named content-free component: renders byte-exact (verbatim skeleton),
             # reusable, zero editable props — NOT anonymous rawHtml (Julian)
@@ -1881,6 +1939,8 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         # resolve this page's manual decisions to elements (id()-keyed, no markup change)
         decide_map.clear()
         for _dd in manual_decisions:   # SITE-scoped: every decision is tried on every page
+            if _dd.get("action") == "suppress":
+                continue               # type-level deletion, not a per-element placement
             if _dd.get("scope") == "page" and _dd.get("page") != slug:
                 continue               # a page-scoped decision only applies to its own page
             _sel = (_dd.get("selector") or {}).get("value")
@@ -2188,6 +2248,76 @@ def stamp_zones(module_dir, k):
     else:
         print(f"  ! stamp_zones: no anchor in {p}", file=sys.stderr)
 
+def emit_component_model(project, ns, content, manifest):
+    """SINGLE-SOURCE model (Julian): the editable list of nodetypes the cockpit shows and
+    curates. The engine SEEDS it from the content-load; you edit it (delete = a suppress
+    decision → the type demotes to verbatim on the next run, so it can't reappear). Each type's
+    distinct skeleton variants become 'views', written as sibling .html files — the 'code' at
+    this pre-module stage. Purely additive: does NOT affect the content-load.
+    Note: the model and the content-load derive from the SAME inputs (mirror + your decisions),
+    so they can never diverge — that is the single source of truth, materialised as this list."""
+    out_dir = os.path.join(REPO, "projects", project, "workflow-output")
+    cm_dir = os.path.join(out_dir, "component-model")
+    itm = manifest.get("instanceTypeMap", {})
+    meta_by_nt = {c["nodeType"]: c for c in manifest.get("components", [])}
+    cf = set(manifest.get("contentFreeTypes", []))
+    passthrough_nt = manifest.get("passthroughType")
+    MAX_VIEWS = 12   # cap materialised skeleton variants per type (variantsTotal keeps the truth)
+    agg = {}
+    for slug, pg in content.get("pages", {}).items():
+        for i in pg.get("instances", []):
+            if i.get("orphan"):
+                continue
+            t = i.get("type")
+            if not t:
+                continue
+            nt = itm.get(t.lower()) or f"{ns}:{t}"
+            e = agg.setdefault(nt, {"instances": 0, "pages": set(), "skeletons": {}})
+            e["instances"] += 1
+            e["pages"].add(slug)
+            code = i.get("skeleton") or (i.get("fields") or {}).get("html") or ""
+            if code:
+                h = hashlib.md5(code.encode("utf-8")).hexdigest()[:10]
+                sk = e["skeletons"].setdefault(h, {"code": code, "instances": 0})
+                sk["instances"] += 1
+    if os.path.isdir(cm_dir):
+        shutil.rmtree(cm_dir, ignore_errors=True)  # rewrite fresh each seed
+    entries = []
+    for nt in sorted(agg):
+        e = agg[nt]
+        meta = meta_by_nt.get(nt, {})
+        kind = ("passthrough" if nt == passthrough_nt
+                else "container" if meta.get("isContainer") else "component")
+        display = nt.split(":", 1)[1] if ":" in nt else nt
+        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", display) or "type"
+        # a type's distinct skeletons = its structural variants ("views"). A polymorphic type
+        # (section) can have hundreds — that is itself a zoning-quality signal, so we keep the
+        # true count (variantsTotal) but only materialise the top MAX_VIEWS by frequency.
+        skels = sorted(e["skeletons"].items(), key=lambda kv: -kv[1]["instances"])
+        views = []
+        for idx, (_h, sk) in enumerate(skels[:MAX_VIEWS]):
+            vname = "default" if idx == 0 else f"variant-{idx}"
+            rel = f"component-model/{safe}/{vname}.html"
+            fp = os.path.join(out_dir, rel)
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
+            open(fp, "w", encoding="utf-8").write(sk["code"])
+            views.append({"name": vname, "file": rel,
+                          "instances": sk["instances"], "chars": len(sk["code"])})
+        entries.append({
+            "id": nt, "name": display, "kind": kind,
+            "contentFree": nt in cf, "isContainer": bool(meta.get("isContainer")),
+            "childType": (meta.get("childType") or {}).get("nodeType"),
+            "instances": e["instances"], "pages": sorted(e["pages"]),
+            "pageCount": len(e["pages"]), "views": views, "variantsTotal": len(skels),
+            "origin": "engine",
+        })
+    model = {"project": project, "namespace": ns, "entries": entries}
+    open(os.path.join(out_dir, "component-model.json"), "w", encoding="utf-8").write(
+        json.dumps(model, ensure_ascii=False, indent=1))
+    print(f"  -> component-model.json: {len(entries)} nodetype(s), "
+          f"{sum(len(e['views']) for e in entries)} view(s)")
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: zone_to_contentload.py <project> [<site>] [--ns asr]")
@@ -2222,6 +2352,7 @@ def main():
     mf_path = os.path.join(mf_dir, "component-manifest.json")
     json.dump(content, open(cl_path, "w"), ensure_ascii=False, indent=1)
     json.dump(manifest, open(mf_path, "w"), ensure_ascii=False, indent=1)
+    emit_component_model(project, ns, content, manifest)  # seed the single-source model
     # orphans.json — the editorial residue for LLM arbitration at the model gate:
     # elements rendered verbatim (0-DOM safe) that the deterministic categorization
     # could NOT attribute to a meaningful type. Each carries context (page, zone,
