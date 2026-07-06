@@ -19,6 +19,7 @@ export default function Zoning() {
   const [applying, setApplying] = useState(false)
   const [applyMsg, setApplyMsg] = useState<string | null>(null)
   const [frame, setFrame] = useState(0) // bump to reload the iframe
+  const [width, setWidth] = useState<number | null>(null) // iframe viewport width (px); null = full
 
   useEffect(() => {
     fetchZoningProjects()
@@ -117,12 +118,48 @@ export default function Zoning() {
       )}
 
       {project && slug ? (
-        <iframe
-          key={`${project}/${slug}#${frame}`}
-          title="zoning-inspector"
-          src={`/projects/${encodeURIComponent(project)}/zoning/mirror/${encodeURIComponent(slug)}.manual.html`}
-          className="h-[80vh] w-full rounded border border-[#0a3252] bg-white"
-        />
+        <>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[#a8c1d6]">
+            <span>Largeur&nbsp;:</span>
+            {([['Mobile', 375], ['Tablet', 768], ['Laptop', 1024], ['Desktop', 1440]] as [string, number][]).map(
+              ([lbl, w]) => (
+                <button
+                  key={w}
+                  onClick={() => setWidth(w)}
+                  className={`rounded border px-2 py-0.5 ${width === w ? 'border-violet-500 bg-violet-700 text-white' : 'border-[#0a3252] bg-[#001932] hover:bg-[#0a3252]'}`}
+                >
+                  {lbl} {w}
+                </button>
+              ),
+            )}
+            <button
+              onClick={() => setWidth(null)}
+              className={`rounded border px-2 py-0.5 ${width === null ? 'border-violet-500 bg-violet-700 text-white' : 'border-[#0a3252] bg-[#001932] hover:bg-[#0a3252]'}`}
+            >
+              Full
+            </button>
+            <input
+              type="range"
+              min={320}
+              max={1600}
+              step={5}
+              value={width ?? 1600}
+              onChange={(e) => setWidth(Number(e.target.value))}
+              className="w-48 accent-violet-500"
+              title="Largeur de l'iframe (à la volée)"
+            />
+            <span className="font-mono text-xs text-[#7fd1ff]">{width ? `${width}px` : 'pleine largeur'}</span>
+          </div>
+          <div className="overflow-x-auto rounded border border-[#0a3252] bg-[#00223f] p-2">
+            <iframe
+              key={`${project}/${slug}#${frame}`}
+              title="zoning-inspector"
+              src={`/projects/${encodeURIComponent(project)}/zoning/mirror/${encodeURIComponent(slug)}.manual.html`}
+              style={{ width: width ? `${width}px` : '100%' }}
+              className="mx-auto block h-[80vh] rounded border border-[#0a3252] bg-white"
+            />
+          </div>
+        </>
       ) : (
         <div className="rounded border border-[#0a3252] px-3 py-6 text-center text-sm text-[#5e88ad]">
           Aucune page. Génère-les :{' '}
