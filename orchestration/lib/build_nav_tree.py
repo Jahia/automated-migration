@@ -36,11 +36,14 @@ NAV_TITLES = {
 
 def sitemap_paths(project):
     out = []
-    for line in open(f"orchestration/sitemaps/{project}.txt"):
-        line = line.strip()
-        if not line or line.startswith("#") or line == "home":
-            continue
-        out.append(line)
+    try:
+        for line in open(f"orchestration/sitemaps/{project}.txt"):
+            line = line.strip()
+            if not line or line.startswith("#") or line == "home":
+                continue
+            out.append(line)
+    except FileNotFoundError:
+        pass   # no sitemap = flat site: the step is a no-op, not an error
     return out
 
 

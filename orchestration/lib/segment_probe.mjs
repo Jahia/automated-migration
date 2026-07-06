@@ -37,9 +37,16 @@
 // v2 cluster shape and already-passing pages (protocol v2 or adjudicated) are
 // skipped unless --force. WITHOUT --consensus, behavior is exactly v1 above.
 //
+// PER-PAGE MODE (component-model doctrine, 2026-07-06): --all-pages segments
+// EVERY inventory page (no per-cluster sampling) and the v2 gate becomes
+// EVERY page green (stability or adjudication) — strictly stronger than the
+// cluster-majority gate. Frozen bars (0.8 / 50) unchanged. Rationale: sampled
+// segmentation left unsampled pages' specific content as one anonymous rawHtml
+// blob per page (signature matching only types RECURRING components).
+//
 // Usage: node segment_probe.mjs <project> --pages <slug>[,slug2]
 //        [--retries 3] [--min-coverage 50] [--stability 2]
-//        [--consensus] [--per-cluster k] [--force]   (protocol v2)
+//        [--consensus] [--per-cluster k] [--all-pages] [--force]   (protocol v2)
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
@@ -57,6 +64,7 @@ for (let i = 0; i < argv.length; i++) {
 const proj = pos[0];
 if (!proj) { console.error('usage: segment_probe.mjs <project> --pages slug[,slug2] [--consensus] [--per-cluster k] [--force]'); process.exit(2); }
 const CONSENSUS = !!flags.consensus;   // protocol v2 (ASSIST-PLAN §7)
+const ALL_PAGES = !!flags['all-pages']; // per-page doctrine (2026-07-06): every page, every-green gate
 const FORCE = !!flags.force;
 const mirrorDir = path.resolve(`${proj}/workflow-output/local-mirror`);
 const outDir = `${proj}/workflow-output/segment`;
@@ -86,6 +94,7 @@ try {
   }
   if (reps.length) defaultPages = reps;
 } catch { /* keep single-page fallback */ }
+if (ALL_PAGES) defaultPages = inv.pages.map(p => p.slug);   // per-page doctrine: no sampling
 const pageSel = typeof flags.pages === 'string' ? flags.pages.split(',').map(s => s.trim()) : defaultPages;
 
 // ── in-page: build a numbered outline of the significant block elements ──
@@ -423,11 +432,16 @@ if (CONSENSUS) {
     });
   }
   const clusters = [...byCluster.entries()].map(([id, pages]) => ({ id, pages, pass: clusterPassV2(pages) }));
-  const gatePass = clusters.length > 0 && clusters.every(c => c.pass);
+  // --all-pages (per-page doctrine 2026-07-06): EVERY page must be green
+  // (stability or adjudication) — strictly stronger than cluster majority.
+  const gatePass = ALL_PAGES
+    ? results.length > 0 && results.every(r => r.ok && r.gatePass)
+    : clusters.length > 0 && clusters.every(c => c.pass);
   const rulesInForce = scopeRules.map(rl => rl.id).filter(Boolean);
   fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify({
     protocol: 'v2', minCoverage: MIN_COVERAGE_BAR, stabilityBar: STABILITY_BAR,
     project: proj, model: OVH_VISION_MODEL, stabilityRuns: STABILITY,
+    gateMode: ALL_PAGES ? 'all-pages' : 'cluster-majority',
     clusters, gatePass, rulesInForce,
   }, null, 2));
   console.log(`\n=== SEGMENTATION v2 consensus (OVH ${OVH_VISION_MODEL}) — ${proj} ===`);

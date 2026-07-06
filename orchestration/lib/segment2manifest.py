@@ -43,6 +43,143 @@ def norm_name(name):
     return s or "component"
 
 
+# ── type consolidation (component-model doctrine, 2026-07-06) ────────────────
+# Per-page segmentation of every inventory page makes the vision name the same
+# component drift across pages ("Brands Logo" / "Brand Logos" / "Brand Logo
+# Grid"). Near-duplicate aggregates MERGE deterministically before type
+# emission; every absorbed key stays as an instanceTypeMap ALIAS so per-page
+# extraction still resolves the original vision names.
+
+_GENERIC_TOKENS = {"section", "component", "block", "content", "area",
+                   "the", "a", "an", "of", "and", "with"}
+
+
+def _tokens(key):
+    """Singularized, generic-word-free token set of a norm-name key."""
+    toks = set()
+    for t in (key or "").split("-"):
+        t = t.lower()
+        if t.endswith("s") and len(t) > 3:
+            t = t[:-1]
+        if t and t not in _GENERIC_TOKENS:
+            toks.add(t)
+    return toks
+
+
+def _tok_jaccard(a, b):
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+def _dominant_shape(e):
+    from collections import Counter
+    return set(Counter(e["shapes"]).most_common(1)[0][0]) if e["shapes"] else set()
+
+
+def _shape_compat(e1, e2):
+    """Dominant-shape field overlap; sparse shapes (<=1 field) never veto."""
+    s1, s2 = _dominant_shape(e1), _dominant_shape(e2)
+    if len(s1) <= 1 or len(s2) <= 1:
+        return True
+    return len(s1 & s2) / len(s1 | s2) >= 0.5
+
+
+def _merge_into(agg, winner, loser):
+    w, l = agg[winner], agg[loser]
+    w["shapes"] += l["shapes"]
+    w["childShapes"] += l["childShapes"]
+    w["heurRoles"] |= l["heurRoles"]
+    w["pages"] |= l["pages"]
+    w["frequency"] += l["frequency"]
+    w["interactive"] = w["interactive"] or l["interactive"]
+    w["boxes"] += l["boxes"]
+    if l["fragment"] and (w["fragment"] is None
+                          or len(l["fragment"][1]) > len(w["fragment"][1])):
+        w["fragment"] = l["fragment"]
+    if l["kind"] == "container":     # any container variant means child items exist
+        w["kind"] = "container"
+    w.setdefault("aliases", set()).add(loser)
+    w["aliases"] |= l.get("aliases", set())
+    del agg[loser]
+
+
+def consolidate_types(agg):
+    """Merge near-duplicate aggregates in place. Two aggregates merge when they
+    are both chrome or both non-chrome, their dominant shapes are compatible,
+    and EITHER their token-set Jaccard >= 0.6 (brand-logos ~ brand-logo-grid)
+    OR they share a >= 2-token name prefix family (section-heading-inspiration
+    ~ section-heading-follow-us -> merged under 'section-heading').
+    Deterministic: keys processed by (-frequency, len, alpha); winner is the
+    higher-frequency (then shorter, then alphabetical) key.
+    Returns the merge log [{into, merged, rule}]."""
+    log = []
+
+    # pass 1: prefix families — >= 2 keys sharing their first 2 tokens merge
+    # under the bare prefix key (created if absent).
+    from collections import defaultdict
+    fams = defaultdict(list)
+    for k in list(agg):
+        parts = k.split("-")
+        if len(parts) >= 2:
+            fams["-".join(parts[:2])].append(k)
+    for prefix, keys in sorted(fams.items()):
+        members = [k for k in keys if k in agg]
+        if len(members) < 2:
+            continue
+        kinds = {"chrome" if agg[k]["kind"] == "chrome" else "content" for k in members}
+        if len(kinds) > 1:
+            continue
+        base = [k for k in members if _shape_compat(agg[members[0]], agg[k])]
+        if len(base) < 2:
+            continue
+        if prefix in agg:
+            winner = prefix
+        else:
+            # rename the strongest member to the bare prefix — the family's
+            # clean editorial name ('Section Heading', not '... Inspiration');
+            # the original key survives as an instanceTypeMap alias.
+            best = min(base, key=lambda k: (-agg[k]["frequency"], len(k), k))
+            agg[prefix] = agg.pop(best)
+            agg[prefix]["name"] = title_case(prefix)
+            agg[prefix].setdefault("aliases", set()).add(best)
+            log.append({"into": prefix, "merged": best, "rule": f"prefix-rename:{prefix}"})
+            winner = prefix
+        for k in sorted(base):
+            if k == winner or k not in agg:
+                continue
+            _merge_into(agg, winner, k)
+            log.append({"into": winner, "merged": k, "rule": f"prefix-family:{prefix}"})
+
+    # pass 2: pairwise token-set Jaccard >= 0.6 (winner-absorbs, re-scanned
+    # until stable so chains like a~b~c collapse fully).
+    changed = True
+    while changed:
+        changed = False
+        keys = sorted(agg, key=lambda k: (-agg[k]["frequency"], len(k), k))
+        for i, w in enumerate(keys):
+            if w not in agg:
+                continue
+            for l in keys[i + 1:]:
+                if l not in agg or w not in agg:
+                    continue
+                same_class = (agg[w]["kind"] == "chrome") == (agg[l]["kind"] == "chrome")
+                if not same_class:
+                    continue
+                tw, tl = _tokens(w), _tokens(l)
+                small, big = (tw, tl) if len(tw) <= len(tl) else (tl, tw)
+                # near-identical token sets, or one name a strict refinement of
+                # the other by a single token ('footer' ~ 'site-footer').
+                near = _tok_jaccard(tw, tl) >= 0.6
+                refines = small and small <= big and len(big) - len(small) <= 1
+                if (near or refines) and _shape_compat(agg[w], agg[l]):
+                    _merge_into(agg, w, l)
+                    log.append({"into": w, "merged": l,
+                                "rule": "token-jaccard" if near else "token-subset"})
+                    changed = True
+    return log
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("project")
@@ -160,6 +297,12 @@ def main():
             if comp.get("box"):
                 e["boxes"].append(comp["box"])
 
+    # near-duplicate vision names collapse into one type each (merge log kept
+    # in the manifest for pilot review); absorbed keys become aliases below.
+    merge_log = consolidate_types(agg)
+    for m in merge_log:
+        print(f"  [consolidate] {m['merged']} -> {m['into']} ({m['rule']})")
+
     components, xcut = [], []
     instance_type_map = {}
     for key, e in sorted(agg.items(), key=lambda kv: -kv[1]["frequency"]):
@@ -183,6 +326,8 @@ def main():
                          "interactive": e["interactive"],
                          **({"htmlFragment": frag_rel} if frag_rel else {})})
             instance_type_map[key.lower()] = node
+            for alias in e.get("aliases", ()):     # absorbed vision names
+                instance_type_map.setdefault(alias.lower(), node)
             for hr in e["heurRoles"]:
                 instance_type_map.setdefault(hr.lower(), node)
             continue
@@ -224,6 +369,8 @@ def main():
             comp_entry["detailOf"] = dt.get("detailOf")
         components.append(comp_entry)
         instance_type_map[key.lower()] = node
+        for alias in e.get("aliases", ()):         # absorbed vision names
+            instance_type_map.setdefault(alias.lower(), node)
         for hr in e["heurRoles"]:
             instance_type_map.setdefault(hr.lower(), node)
             promote_roles.add(hr)
@@ -234,6 +381,7 @@ def main():
         "crossCutting": xcut, "components": components, "templates": [],
         "typeCount": len(components), "instanceTypeMap": instance_type_map,
         "passthroughType": f"{ns}:rawHtml",
+        "consolidation": merge_log,
     }
     v = naming_violations(manifest)
     manifest["namingViolations"] = v

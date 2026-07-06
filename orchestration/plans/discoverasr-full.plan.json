@@ -1,597 +1,616 @@
 {
-  "goal": "Migrate https://www.discoverasr.com/en to a Jahia JS module (project: discoverasr, site: discoverasr, ns: asr) — v2 full loop, fidelity >=99%/page vs local mirror",
-  "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
-  "model": "opencode/deepseek-v4-flash",
-  "epics": [
+ "goal": "Migrate https://www.discoverasr.com/en to a Jahia JS module (project: discoverasr, site: discoverasr, ns: asr) — v2 full loop, fidelity >=99%/page vs local mirror",
+ "repo_dir": "/Users/stephane/Runtimes/0.Modules/jahiaMigration",
+ "model": "opencode/deepseek-v4-flash",
+ "epics": [
+  {
+   "id": "epic_analyze",
+   "title": "Analyze (v2 deterministic + bounded LLM)",
+   "goal": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
+   "stories": [
     {
-      "id": "epic_analyze",
-      "title": "Analyze (v2 deterministic + bounded LLM)",
-      "goal": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
-      "stories": [
+     "id": "story_analyze",
+     "title": "Analyze (v2 deterministic + bounded LLM)",
+     "description": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
+     "steps": [
+      {
+       "id": "step_connect",
+       "title": "Env + Jahia reachable",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE: bash orchestration/probes/connect.sh projects/discoverasr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_crawl",
+       "title": "Crawl the source site",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_connect"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/crawl-site.py projects/discoverasr https://www.discoverasr.com/en --max-pages 20 --depth 2 --rate-delay 2 --max-asset-size 1",
+        "PROBE: test -s projects/discoverasr/workflow-output/page-inventory.json"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_localize",
+       "title": "Local mirror + offline mirror gate",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_crawl"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/localize_site.py projects/discoverasr --max-asset-size 15",
+        "PROBE: test -s projects/discoverasr/workflow-output/local-mirror/mirror.json",
+        "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/discoverasr 10"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_semantic",
+       "title": "Deterministic candidates + partitions",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_localize"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/scope_apply.py projects/discoverasr",
+        "Run: python3 orchestration/lib/semantic_extract.py projects/discoverasr",
+        "PROBE: test -s projects/discoverasr/workflow-output/semantic-candidates.json",
+        "PROBE: test -s projects/discoverasr/workflow-output/semantic-templates.json"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_segment",
+       "title": "Vision segmentation (protocol v2: consensus, ALL pages)",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_semantic"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: echo segmentation is executed by the engine probe",
+        "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --all-pages"
+       ],
+       "max_attempts": 2,
+       "strategies": [
         {
-          "id": "story_analyze",
-          "title": "Analyze (v2 deterministic + bounded LLM)",
-          "description": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
-          "steps": [
-            {
-              "id": "step_connect",
-              "title": "Env + Jahia reachable",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/connect.sh projects/discoverasr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_crawl",
-              "title": "Crawl the source site",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_connect"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/crawl-site.py projects/discoverasr https://www.discoverasr.com/en --max-pages 20 --depth 2 --rate-delay 2 --max-asset-size 1",
-                "PROBE: test -s projects/discoverasr/workflow-output/page-inventory.json"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_localize",
-              "title": "Local mirror + offline mirror gate",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_crawl"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/localize_site.py projects/discoverasr --max-asset-size 15",
-                "PROBE: test -s projects/discoverasr/workflow-output/local-mirror/mirror.json",
-                "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/discoverasr 10"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_semantic",
-              "title": "Deterministic candidates + partitions",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_localize"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/scope_apply.py projects/discoverasr",
-                "Run: python3 orchestration/lib/semantic_extract.py projects/discoverasr",
-                "PROBE: test -s projects/discoverasr/workflow-output/semantic-candidates.json",
-                "PROBE: test -s projects/discoverasr/workflow-output/semantic-templates.json"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_segment",
-              "title": "Vision segmentation (protocol v2: consensus + per-cluster)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_semantic"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: echo segmentation is executed by the engine probe",
-                "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --per-cluster 3"
-              ],
-              "max_attempts": 2,
-              "strategies": [
-                {
-                  "id": "claude_adjudicate",
-                  "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
-                  "when": "on_retries_exhausted",
-                  "order": 1,
-                  "arm_swap": false,
-                  "halt": false,
-                  "patches": [
-                    {
-                      "step_id": "step_segment",
-                      "inputs": {
-                        "project": "projects/discoverasr"
-                      },
-                      "acceptance_criteria": [
-                        "Run: node orchestration/lib/adjudicate_ingest.mjs projects/discoverasr",
-                        "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --per-cluster 3"
-                      ]
-                    }
-                  ],
-                  "skip": [],
-                  "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/discoverasr/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe — hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
-                },
-                {
-                  "id": "ab_test",
-                  "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
-                  "when": "on_retries_exhausted",
-                  "order": 2,
-                  "arm_swap": false,
-                  "halt": false,
-                  "patches": [
-                    {
-                      "step_id": "step_segment",
-                      "inputs": {
-                        "project": "projects/discoverasr"
-                      },
-                      "acceptance_criteria": [
-                        "Run: echo ab evidence",
-                        "PROBE[2700]: bash orchestration/lib/ab_segment.sh projects/discoverasr",
-                        "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --per-cluster 3"
-                      ]
-                    }
-                  ],
-                  "skip": [],
-                  "notes": "Information strategy: runs the heuristic arm into projects/discoverasr/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/discoverasr/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red — the NEXT decision has the A/B report."
-                },
-                {
-                  "id": "heuristic_arm",
-                  "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
-                  "when": "on_retries_exhausted",
-                  "order": 3,
-                  "arm_swap": true,
-                  "halt": false,
-                  "patches": [
-                    {
-                      "step_id": "step_group",
-                      "inputs": {
-                        "project": "projects/discoverasr"
-                      },
-                      "acceptance_criteria": [
-                        "Run: python3 orchestration/lib/group_llm.py projects/discoverasr --model deepseek-v4-flash --ns asr --out projects/discoverasr/workflow-output/grouping.json",
-                        "PROBE: python3 orchestration/lib/assemble_manifest.py projects/discoverasr/workflow-output/semantic-candidates.json --group projects/discoverasr/workflow-output/grouping.json --ns asr --out projects/discoverasr/workflow-output/component-manifest.json"
-                      ]
-                    }
-                  ],
-                  "skip": [
-                    "step_segment"
-                  ],
-                  "notes": "Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-PROBE lint): step_segment is skipped and step_group becomes the exact criteria gen_plan emits for --segmentation heuristic."
-                },
-                {
-                  "id": "manual_review",
-                  "title": "Manual review (Julian): halt with the segmentation bundle",
-                  "when": "on_retries_exhausted",
-                  "order": 4,
-                  "arm_swap": false,
-                  "halt": true,
-                  "patches": [],
-                  "skip": [],
-                  "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only — recorded as a waiver."
-                }
-              ]
-            },
-            {
-              "id": "step_group",
-              "title": "Vision -> manifest + contribution dial",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_segment"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/segment2manifest.py discoverasr --ns asr",
-                "Run: python3 orchestration/lib/make_overrides.py discoverasr --module discoverasr",
-                "PROBE: test -s projects/discoverasr/workflow-output/component-manifest.json",
-                "PROBE: test -s projects/discoverasr/workflow-output/passthrough-overrides.json"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_model_review",
-              "title": "Model review (scheduled decision point)",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_group"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Review: projects/discoverasr/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and projects/discoverasr/workflow-output/segment/*.segmap.html overlays.",
-                "Decide: POST /runs/{run_id}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to projects/discoverasr/workflow-output/scope-rules.json + action=apply_and_rerun.",
-                "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
-              ],
-              "max_attempts": 3,
-              "review": true
-            },
-            {
-              "id": "step_content_extract",
-              "title": "Content-load payload + partition/contribution gates",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_model_review"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/extract_content.py discoverasr",
-                "PROBE: python3 orchestration/probes/partition.py discoverasr",
-                "PROBE: python3 orchestration/probes/contribution.py discoverasr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_cnd",
-              "title": "Emit CND + view plan (wired-only sizing)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_content_extract"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/cnd_emit.py projects/discoverasr/workflow-output/component-manifest.json --ns asr --mixns asrmix --project discoverasr --out-cnd projects/discoverasr/workflow-output/definitions.cnd --out-views projects/discoverasr/workflow-output/views.json --content-load orchestration/content/discoverasr.content-load.json",
-                "PROBE: test -s projects/discoverasr/workflow-output/definitions.cnd",
-                "PROBE: grep -q \"asr = \" projects/discoverasr/workflow-output/definitions.cnd",
-                "PROBE: test -s projects/discoverasr/workflow-output/views.json"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_fidelity_gate",
-              "title": "Fidelity gate (HALT: human reviews review.html)",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_cnd"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE[900]: node orchestration/lib/reconstruct_probe.mjs projects/discoverasr 10 95",
-                "Gate: present worst pages + semantic share, return status halt."
-              ],
-              "max_attempts": 3
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "epic_module",
-      "title": "Module (scaffold, assets, CND, components, deploy)",
-      "goal": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
-      "stories": [
+         "id": "claude_adjudicate",
+         "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
+         "when": "on_retries_exhausted",
+         "order": 1,
+         "arm_swap": false,
+         "halt": false,
+         "patches": [
+          {
+           "step_id": "step_segment",
+           "inputs": {
+            "project": "projects/discoverasr"
+           },
+           "acceptance_criteria": [
+            "Run: node orchestration/lib/adjudicate_ingest.mjs projects/discoverasr",
+            "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --all-pages"
+           ]
+          }
+         ],
+         "skip": [],
+         "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/discoverasr/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe — hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
+        },
         {
-          "id": "story_module",
-          "title": "Module (scaffold, assets, CND, components, deploy)",
-          "description": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
-          "steps": [
-            {
-              "id": "step_namespace_check",
-              "title": "Jackrabbit namespace free/matching",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_fidelity_gate"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/namespace-check.sh asr 'https://jahia.com/discoverasr/nt/1.0'"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_scaffold",
-              "title": "Headless scaffold (official templates)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_namespace_check"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: bash orchestration/lib/scaffold_module.sh discoverasr discoverasr",
-                "PROBE: test -f projects/discoverasr/package.json"
-              ],
-              "max_attempts": 3,
-              "expected_outputs": {
-                "artifact_0": "projects/discoverasr/package.json"
-              }
-            },
-            {
-              "id": "step_assets",
-              "title": "Mirror assets -> module static/ + head manifests",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_scaffold"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/import_assets.py discoverasr",
-                "PROBE: test -s projects/discoverasr/src/templates/css-manifest.json",
-                "PROBE: test -d projects/discoverasr/static/assets"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_cnd_merge",
-              "title": "Install analyze CND + rule-18 bundles",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_scaffold"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/merge_cnd.py discoverasr --ns asr --mixns asrmix",
-                "PROBE: bash orchestration/probes/cnd.sh projects/discoverasr asr",
-                "PROBE: bash orchestration/probes/cnd-patterns.sh projects/discoverasr asr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_shell_templates",
-              "title": "Agnostic fidelity-shell template set + skeleton views",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_assets",
-                "step_cnd_merge"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/install_shell_templates.py discoverasr --ns asr --manifest projects/discoverasr/workflow-output/component-manifest.json",
-                "PROBE: grep -q 'rawHtml' projects/discoverasr/src/components/RawHtml/default.server.tsx"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_deploy",
-              "title": "Build + deploy to Jahia (deploy gate)",
-              "task_type": "deploy",
-              "agent": "code",
-              "depends_on": [
-                "step_shell_templates"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE[900]: bash orchestration/probes/deploy.sh projects/discoverasr",
-                "PROBE: bash orchestration/probes/namespace-check.sh asr 'https://jahia.com/discoverasr/nt/1.0'"
-              ],
-              "max_attempts": 3
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "epic_content",
-      "title": "Site + content + publish parity",
-      "goal": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
-      "stories": [
+         "id": "ab_test",
+         "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
+         "when": "on_retries_exhausted",
+         "order": 2,
+         "arm_swap": false,
+         "halt": false,
+         "patches": [
+          {
+           "step_id": "step_segment",
+           "inputs": {
+            "project": "projects/discoverasr"
+           },
+           "acceptance_criteria": [
+            "Run: echo ab evidence",
+            "PROBE[2700]: bash orchestration/lib/ab_segment.sh projects/discoverasr",
+            "PROBE[2700]: node orchestration/lib/segment_probe.mjs projects/discoverasr --consensus --stability 3 --all-pages"
+           ]
+          }
+         ],
+         "skip": [],
+         "notes": "Information strategy: runs the heuristic arm into projects/discoverasr/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/discoverasr/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red — the NEXT decision has the A/B report."
+        },
         {
-          "id": "story_content",
-          "title": "Site + content + publish parity",
-          "description": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
-          "steps": [
-            {
-              "id": "step_create_site",
-              "title": "Create the site (provisioning API only)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_deploy"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: bash orchestration/lib/create_site.sh discoverasr \"discoverasr (migrated)\" discoverasr en,fr",
-                "PROBE: bash orchestration/lib/create_site.sh discoverasr \"discoverasr (migrated)\" discoverasr en,fr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_mcp",
-              "title": "MCP write path up",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_create_site"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/mcp.sh projects/discoverasr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_pages",
-              "title": "Create pages from the crawl inventory (en+fr, published)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_mcp"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/create_pages.py discoverasr discoverasr --template basic --locale en",
-                "PROBE: python3 orchestration/lib/mcp_client.py discoverasr call content.get '{\"path\":\"/sites/discoverasr/home\",\"locale\":\"en\"}'"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_content_load",
-              "title": "Load shells + content via MCP (idempotent clean)",
-              "task_type": "content",
-              "agent": "code",
-              "depends_on": [
-                "step_pages"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/load_content.py discoverasr discoverasr --clean --locale en",
-                "PROBE: python3 orchestration/probes/partition.py discoverasr",
-                "PROBE: python3 orchestration/probes/contribution.py discoverasr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_publish_parity",
-              "title": "default vs live parity",
-              "task_type": "publish",
-              "agent": "code",
-              "depends_on": [
-                "step_content_load"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/publish-parity.sh projects/discoverasr discoverasr en,fr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_edit_frame",
-              "title": "Pages editable in jContent",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_publish_parity"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/edit-frame.sh projects/discoverasr discoverasr en"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_editor_surface",
-              "title": "G6 editor surface (forms + item frames)",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_edit_frame"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE[900]: python3 orchestration/probes/editor-surface.py discoverasr discoverasr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_roundtrip",
-              "title": "G2 contribution round-trip (sentinel edits)",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_editor_surface"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE[900]: python3 orchestration/probes/roundtrip.py discoverasr discoverasr"
-              ],
-              "max_attempts": 3
-            },
-            {
-              "id": "step_exceptions_review",
-              "title": "Batch exceptions review (scheduled decision point)",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_roundtrip"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "Review: per-page probe results (projects/discoverasr/workflow-output/contribution + partition + publish-parity + roundtrip outputs) and the exceptions report — pages that did not fit the frozen profile.",
-                "Decide: POST /runs/{run_id}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into projects/discoverasr/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
-                "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
-              ],
-              "max_attempts": 3,
-              "review": true
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "epic_groundtruth",
-      "title": "Ground truth (Jahia live vs source mirror)",
-      "goal": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
-      "stories": [
+         "id": "heuristic_arm",
+         "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
+         "when": "on_retries_exhausted",
+         "order": 3,
+         "arm_swap": true,
+         "halt": false,
+         "patches": [
+          {
+           "step_id": "step_group",
+           "inputs": {
+            "project": "projects/discoverasr"
+           },
+           "acceptance_criteria": [
+            "Run: python3 orchestration/lib/group_llm.py projects/discoverasr --model deepseek-v4-flash --ns asr --out projects/discoverasr/workflow-output/grouping.json",
+            "PROBE: python3 orchestration/lib/assemble_manifest.py projects/discoverasr/workflow-output/semantic-candidates.json --group projects/discoverasr/workflow-output/grouping.json --ns asr --out projects/discoverasr/workflow-output/component-manifest.json"
+           ]
+          }
+         ],
+         "skip": [
+          "step_segment"
+         ],
+         "notes": "Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-PROBE lint): step_segment is skipped and step_group becomes the exact criteria gen_plan emits for --segmentation heuristic."
+        },
         {
-          "id": "story_groundtruth",
-          "title": "Ground truth (Jahia live vs source mirror)",
-          "description": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
-          "steps": [
-            {
-              "id": "step_ground_truth",
-              "title": "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)",
-              "task_type": "verify",
-              "agent": "code",
-              "depends_on": [
-                "step_exceptions_review"
-              ],
-              "inputs": {
-                "project": "projects/discoverasr"
-              },
-              "acceptance_criteria": [
-                "PROBE[900]: bash orchestration/probes/groundtruth.sh discoverasr discoverasr 99",
-                "Gate: present groundtruth/review.html per-page fidelity, return status halt."
-              ],
-              "max_attempts": 3
-            }
-          ]
+         "id": "manual_review",
+         "title": "Manual review (Julian): halt with the segmentation bundle",
+         "when": "on_retries_exhausted",
+         "order": 4,
+         "arm_swap": false,
+         "halt": true,
+         "patches": [],
+         "skip": [],
+         "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only — recorded as a waiver."
         }
-      ]
+       ]
+      },
+      {
+       "id": "step_group",
+       "title": "Vision -> manifest + contribution dial",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_segment"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/segment2manifest.py discoverasr --ns asr",
+        "Run: python3 orchestration/lib/make_overrides.py discoverasr --module discoverasr",
+        "PROBE: test -s projects/discoverasr/workflow-output/component-manifest.json",
+        "PROBE: test -s projects/discoverasr/workflow-output/passthrough-overrides.json"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_model_review",
+       "title": "Model review (scheduled decision point)",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_group"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Review: projects/discoverasr/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and projects/discoverasr/workflow-output/segment/*.segmap.html overlays.",
+        "Decide: POST /runs/{run_id}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to projects/discoverasr/workflow-output/scope-rules.json + action=apply_and_rerun.",
+        "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
+       ],
+       "max_attempts": 3,
+       "review": true
+      },
+      {
+       "id": "step_content_extract",
+       "title": "Content-load payload + partition/contribution gates",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_model_review"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/extract_content.py discoverasr",
+        "PROBE: python3 orchestration/probes/partition.py discoverasr",
+        "PROBE: python3 orchestration/probes/contribution.py discoverasr",
+        "PROBE: python3 orchestration/probes/component_coverage.py discoverasr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_cnd",
+       "title": "Emit CND + view plan (wired-only sizing)",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_content_extract"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/cnd_emit.py projects/discoverasr/workflow-output/component-manifest.json --ns asr --mixns asrmix --project discoverasr --out-cnd projects/discoverasr/workflow-output/definitions.cnd --out-views projects/discoverasr/workflow-output/views.json --content-load orchestration/content/discoverasr.content-load.json",
+        "PROBE: test -s projects/discoverasr/workflow-output/definitions.cnd",
+        "PROBE: grep -q \"asr = \" projects/discoverasr/workflow-output/definitions.cnd",
+        "PROBE: test -s projects/discoverasr/workflow-output/views.json"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_fidelity_gate",
+       "title": "Fidelity gate (HALT: human reviews review.html)",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_cnd"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE[900]: node orchestration/lib/reconstruct_probe.mjs projects/discoverasr 10 95",
+        "Gate: present worst pages + semantic share, return status halt."
+       ],
+       "max_attempts": 3
+      }
+     ]
     }
-  ]
+   ]
+  },
+  {
+   "id": "epic_module",
+   "title": "Module (scaffold, assets, CND, components, deploy)",
+   "goal": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
+   "stories": [
+    {
+     "id": "story_module",
+     "title": "Module (scaffold, assets, CND, components, deploy)",
+     "description": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
+     "steps": [
+      {
+       "id": "step_namespace_check",
+       "title": "Jackrabbit namespace free/matching",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_fidelity_gate"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE: bash orchestration/probes/namespace-check.sh asr 'https://jahia.com/discoverasr/nt/1.0'"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_scaffold",
+       "title": "Headless scaffold (official templates)",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_namespace_check"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: bash orchestration/lib/scaffold_module.sh discoverasr discoverasr",
+        "PROBE: test -f projects/discoverasr/package.json"
+       ],
+       "max_attempts": 3,
+       "expected_outputs": {
+        "artifact_0": "projects/discoverasr/package.json"
+       }
+      },
+      {
+       "id": "step_assets",
+       "title": "Mirror assets -> module static/ + head manifests",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_scaffold"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/import_assets.py discoverasr",
+        "PROBE: test -s projects/discoverasr/src/templates/css-manifest.json",
+        "PROBE: test -d projects/discoverasr/static/assets"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_cnd_merge",
+       "title": "Install analyze CND + rule-18 bundles",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_scaffold"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/merge_cnd.py discoverasr --ns asr --mixns asrmix",
+        "PROBE: bash orchestration/probes/cnd.sh projects/discoverasr asr",
+        "PROBE: bash orchestration/probes/cnd-patterns.sh projects/discoverasr asr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_shell_templates",
+       "title": "Agnostic fidelity-shell template set + skeleton views",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_assets",
+        "step_cnd_merge"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/install_shell_templates.py discoverasr --ns asr --manifest projects/discoverasr/workflow-output/component-manifest.json",
+        "PROBE: grep -q 'rawHtml' projects/discoverasr/src/components/RawHtml/default.server.tsx"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_deploy",
+       "title": "Build + deploy to Jahia (deploy gate)",
+       "task_type": "deploy",
+       "agent": "code",
+       "depends_on": [
+        "step_shell_templates"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE[900]: bash orchestration/probes/deploy.sh projects/discoverasr",
+        "PROBE: bash orchestration/probes/namespace-check.sh asr 'https://jahia.com/discoverasr/nt/1.0'"
+       ],
+       "max_attempts": 3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "epic_content",
+   "title": "Site + content + publish parity",
+   "goal": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
+   "stories": [
+    {
+     "id": "story_content",
+     "title": "Site + content + publish parity",
+     "description": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
+     "steps": [
+      {
+       "id": "step_create_site",
+       "title": "Create the site (provisioning API only)",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_deploy"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: bash orchestration/lib/create_site.sh discoverasr \"discoverasr (migrated)\" discoverasr en,fr",
+        "PROBE: bash orchestration/lib/create_site.sh discoverasr \"discoverasr (migrated)\" discoverasr en,fr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_mcp",
+       "title": "MCP write path up",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_create_site"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE: bash orchestration/probes/mcp.sh projects/discoverasr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_pages",
+       "title": "Create pages from the crawl inventory (en+fr, published)",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_mcp"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/create_pages.py discoverasr discoverasr --template basic --locale en",
+        "PROBE: python3 orchestration/lib/mcp_client.py discoverasr call content.get '{\"path\":\"/sites/discoverasr/home\",\"locale\":\"en\"}'"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_nav",
+       "title": "Navigation tree per sitemap (sections, moves, L1 order)",
+       "task_type": "build",
+       "agent": "code",
+       "depends_on": [
+        "step_pages"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/build_nav_tree.py discoverasr discoverasr --locale en",
+        "PROBE: python3 orchestration/lib/create_pages.py discoverasr discoverasr --check"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_content_load",
+       "title": "Load shells + content via MCP (idempotent clean)",
+       "task_type": "content",
+       "agent": "code",
+       "depends_on": [
+        "step_nav"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Run: python3 orchestration/lib/load_content.py discoverasr discoverasr --clean --locale en",
+        "PROBE: python3 orchestration/probes/partition.py discoverasr",
+        "PROBE: python3 orchestration/probes/contribution.py discoverasr",
+        "PROBE: python3 orchestration/probes/component_coverage.py discoverasr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_publish_parity",
+       "title": "default vs live parity",
+       "task_type": "publish",
+       "agent": "code",
+       "depends_on": [
+        "step_content_load"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE: bash orchestration/probes/publish-parity.sh projects/discoverasr discoverasr en,fr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_edit_frame",
+       "title": "Pages editable in jContent",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_publish_parity"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE: bash orchestration/probes/edit-frame.sh projects/discoverasr discoverasr en"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_editor_surface",
+       "title": "G6 editor surface (forms + item frames)",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_edit_frame"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE[900]: python3 orchestration/probes/editor-surface.py discoverasr discoverasr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_roundtrip",
+       "title": "G2 contribution round-trip (sentinel edits)",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_editor_surface"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE[900]: python3 orchestration/probes/roundtrip.py discoverasr discoverasr"
+       ],
+       "max_attempts": 3
+      },
+      {
+       "id": "step_exceptions_review",
+       "title": "Batch exceptions review (scheduled decision point)",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_roundtrip"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "Review: per-page probe results (projects/discoverasr/workflow-output/contribution + partition + publish-parity + roundtrip outputs) and the exceptions report — pages that did not fit the frozen profile.",
+        "Decide: POST /runs/{run_id}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into projects/discoverasr/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
+        "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
+       ],
+       "max_attempts": 3,
+       "review": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "epic_groundtruth",
+   "title": "Ground truth (Jahia live vs source mirror)",
+   "goal": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
+   "stories": [
+    {
+     "id": "story_groundtruth",
+     "title": "Ground truth (Jahia live vs source mirror)",
+     "description": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
+     "steps": [
+      {
+       "id": "step_ground_truth",
+       "title": "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)",
+       "task_type": "verify",
+       "agent": "code",
+       "depends_on": [
+        "step_exceptions_review"
+       ],
+       "inputs": {
+        "project": "projects/discoverasr"
+       },
+       "acceptance_criteria": [
+        "PROBE[900]: bash orchestration/probes/groundtruth.sh discoverasr discoverasr 99",
+        "Gate: present groundtruth/review.html per-page fidelity, return status halt."
+       ],
+       "max_attempts": 3
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }

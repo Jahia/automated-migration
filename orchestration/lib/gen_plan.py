@@ -44,7 +44,7 @@ def build_plan(p):
     P, URL, NS, MIXNS = p["project"], p["url"], p["ns"], p["mixns"]
     SITE, MODULE, TITLE = p["site"], p["module"], p["title"]
     N, THR = p["max_pages"], p["threshold"]
-    K = p.get("per_cluster", 3)
+    K = p.get("per_cluster", 3)  # legacy knob — per-page doctrine ignores it (--all-pages)
     SEGMENTATION = p.get("segmentation", "vision")
     PP = f"projects/{P}"
     URI = f"https://jahia.com/{P}/nt/1.0"
@@ -56,8 +56,13 @@ def build_plan(p):
     # incremental, so retries never re-bill vision; a Run: agent step would hit
     # the 600s opencode completion deadline). Strategy patches with
     # arm_swap=false must carry this line VERBATIM (plan lint).
+    # PER-PAGE doctrine (2026-07-06): --all-pages segments EVERY inventory page
+    # and the gate is every-page-green. Per-cluster sampling left unsampled
+    # pages' specific content as ONE anonymous rawHtml blob each (signature
+    # matching only types recurring components) — the fragment-soup failure the
+    # component_coverage gate now also blocks downstream.
     SEG_PROBE = (f"PROBE[2700]: node orchestration/lib/segment_probe.mjs {PP} "
-                 f"--consensus --stability 3 --per-cluster {K}")
+                 f"--consensus --stability 3 --all-pages")
 
     # heuristic-arm criteria — the SAME lines gen_plan emits for
     # --segmentation heuristic; reused verbatim by the heuristic_arm swap.
@@ -145,7 +150,7 @@ def build_plan(p):
         # nondeterminism, so a red verdict is signal, not noise — one auto-retry
         # (continuing incrementally where the first left off), then the decision
         # ladder takes over instead of re-billing another full vision round.
-        *([{**step("step_segment", "Vision segmentation (protocol v2: consensus + per-cluster)", "build",
+        *([{**step("step_segment", "Vision segmentation (protocol v2: consensus, ALL pages)", "build",
                    ["Run: echo segmentation is executed by the engine probe",
                     SEG_PROBE],
                    deps=["step_semantic"], max_attempts=2),
@@ -186,10 +191,14 @@ def build_plan(p):
         # P2.5: extraction BEFORE the CND — cnd_emit sizes the body..bodyN
         # richtext props per type from the OBSERVED lift (wired-only types:
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
-        step("step_content_extract", "Content-load payload + partition/contribution gates", "build",
+        step("step_content_extract", "Content-load payload + partition/contribution/component gates", "build",
              [f"Run: python3 orchestration/lib/extract_content.py {P}",
               f"PROBE: python3 orchestration/probes/partition.py {P}",
-              f"PROBE: python3 orchestration/probes/contribution.py {P}"],
+              f"PROBE: python3 orchestration/probes/contribution.py {P}",
+              # component-model gate (2026-07-06): visible text must live in
+              # TYPED components — fragment soup (one big rawHtml blob per
+              # page) can never pass again.
+              f"PROBE: python3 orchestration/probes/component_coverage.py {P}"],
              deps=["step_naming"]),
         # COMPOSE GATE (ASSIST-PLAN): pre-Jahia qualitative gate — the extracted
         # content must re-compose each page EXACTLY as the Jahia LIVE views will
@@ -283,11 +292,19 @@ def build_plan(p):
              [f"Run: python3 orchestration/lib/create_pages.py {P} {SITE} --template basic --locale en",
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_mcp"]),
+        # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
+        # build_nav_tree restructures the flat crawl tree per the project
+        # sitemap (sections, moves, L1 order); no-op when no sitemap exists.
+        step("step_nav", "Navigation tree per sitemap (sections, moves, L1 order)", "build",
+             [f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale en",
+              f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
+             deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
              [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
               f"PROBE: python3 orchestration/probes/partition.py {P}",
-              f"PROBE: python3 orchestration/probes/contribution.py {P}"],
-             deps=["step_pages"]),
+              f"PROBE: python3 orchestration/probes/contribution.py {P}",
+              f"PROBE: python3 orchestration/probes/component_coverage.py {P}"],
+             deps=["step_nav"]),
         step("step_publish_parity", "default vs live parity", "publish",
              [f"PROBE: bash orchestration/probes/publish-parity.sh {PP} {SITE} en,fr"],
              deps=["step_content_load"]),

@@ -99,7 +99,12 @@ export function downscalePng(buf, maxW = 820, maxH = 4000) {
 
 // One vision+text call. `text` is the prompt, `pngBuf` the (already-downscaled) image.
 // Returns the assistant's raw string. maxTokens generous (the model reasons + emits JSON).
-export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
+// VISION_MAX_TOKENS overrides the default cap: a 500-block outline (discoverasr home)
+// legitimately needs > 8000 output tokens for its components JSON — DeepSeek returns
+// EMPTY content when json_object output is truncated at max_tokens (observed 2026-07-06:
+// tokens_out == 8000 exactly, 0-char reply).
+const VISION_MAX_TOKENS = Number(process.env.VISION_MAX_TOKENS) || 8000;
+export async function ovhVision(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
   const key = ovhKey();
   const content = [{ type: 'text', text }];
   if (pngBuf && !VISION_TEXT_ONLY) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });

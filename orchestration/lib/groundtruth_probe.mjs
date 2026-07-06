@@ -142,13 +142,29 @@ const previewCtx = await browser.newContext({
 });
 
 const readPng = (p) => PNG.sync.read(fs.readFileSync(p));
+
+// ── JS-OFF ground truth (component-model doctrine, 2026-07-06) ──────────────
+// External <script> requests are BLOCKED on BOTH sides (GT_BLOCK_SCRIPTS=0 to
+// restore the old behavior). Rationale: the source app JS is excluded from the
+// migration (scope rule exclude-app-scripts — the Vue runtime wiped #app on
+// the migrated pages), so the pixel baseline is the STATIC render. Browser JS
+// stays ON (addStyleTag/evaluate hang on a javaScriptEnabled:false page —
+// known trap); only script SUBRESOURCES are blocked. Inline scripts: none on
+// the scoped mirror; Jahia's own inline bits (csrf token, data-ctx JSON)
+// paint nothing.
+const BLOCK_SCRIPTS = process.env.GT_BLOCK_SCRIPTS !== '0';
+const scriptless = (handler) => (route) => {
+  if (BLOCK_SCRIPTS && route.request().resourceType() === 'script') return route.abort();
+  return handler(route);
+};
+
 const results = [];
 for (const slug of slugs) {
   const rec = { slug, previewPath: previewPath(slug), masks: masksFor(slug).length };
   try {
     // ── reference: source mirror, offline-deterministic ──
     const ref = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-    await ref.route('**/*', offlineRoute(mbase, mirrorDir, runtimeManifest, null));
+    await ref.route('**/*', scriptless(offlineRoute(mbase, mirrorDir, runtimeManifest, null)));
     await ref.goto(`${mbase}/${slug}.html`, { waitUntil: 'domcontentloaded', timeout: 45000 });
     try { await ref.waitForLoadState('load', { timeout: 15000 }); } catch {}
     if (maskCss(slug)) await ref.addStyleTag({ content: maskCss(slug) });
@@ -167,14 +183,14 @@ for (const slug of slugs) {
     const jahiaHost = new URL(HOST).host;
     const live = await previewCtx.newPage();
     const offlineForLive = offlineRoute(mbase, mirrorDir, runtimeManifest, null);
-    await live.route('**/*', (route) => {
+    await live.route('**/*', scriptless((route) => {
       const h = new URL(route.request().url()).host;
       if (h === jahiaHost) return route.continue();
       // external request: SAME offline resolution as the reference (mirror-
       // cached fonts/CDN files served, everything else aborted) — the two
       // sides must see an identical world outside the Jahia host
       return offlineForLive(route);
-    });
+    }));
     const resp = await live.goto(HOST + rec.previewPath, { waitUntil: 'domcontentloaded', timeout: 45000 });
     rec.httpStatus = resp ? resp.status() : 0;
     try { await live.waitForLoadState('load', { timeout: 15000 }); } catch {}
@@ -212,7 +228,8 @@ mserver.close();
 const passed = results.filter(r => r.pass).length;
 const avgShare = shares.length ? shares.reduce((s, x) => s + x.share, 0) / shares.length : null;
 const summary = {
-  project, site, threshold, hydrate: HYDRATE, generatedAt: new Date().toISOString(),
+  project, site, threshold, hydrate: HYDRATE, blockScripts: BLOCK_SCRIPTS,
+  generatedAt: new Date().toISOString(),
   pages: results, passed, total: results.length,
   gatePass: passed === results.length,
   semanticLeafShare: avgShare == null ? null : {

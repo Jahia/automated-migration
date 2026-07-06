@@ -1408,15 +1408,28 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     #   * a root-free wrapper -> lift text runs live | verbatim
     #   * a text node (incl. whitespace) -> verbatim (bytes contract)
     from bs4 import Comment
+    # Consecutive non-Tag body children (whitespace runs, comments) MERGE into
+    # ONE raw instance per gap. They are pixel-invisible but each used to load
+    # as its own anonymous rawHtml node — 828 whitespace + 383 comment nodes
+    # across 20 pages made the jContent tree unreadable (2026-07-06 component-
+    # model doctrine). Merging keeps the bytes contract intact: concatenation
+    # in document order reconstructs the body exactly.
+    pend = []
+
+    def _flush_pend():
+        t = "".join(pend)
+        pend.clear()
+        if t:
+            out.append(raw_instance(t))
+
     for child in list(body.children):
         if not isinstance(child, Tag):
             # bs4 str(Comment) yields the BARE text — the <!-- --> markers must be
             # re-wrapped or comment content becomes VISIBLE text and the page body
             # is no longer byte-exact (rule 32; same fix as page_shell's ser()).
-            t = f"<!--{child}-->" if isinstance(child, Comment) else str(child)
-            if t:  # preserve ALL text incl. whitespace (bytes contract)
-                out.append(raw_instance(t))
+            pend.append(f"<!--{child}-->" if isinstance(child, Comment) else str(child))
             continue
+        _flush_pend()
         if id(child) in root_ids:
             _emit_root(child)
             continue
@@ -1426,6 +1439,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             emit_container_live(child, inner)
             continue
         out.append(raw_lifted_live(child) or raw_instance(str(child)))
+    _flush_pend()
 
     # empty-leaf accounting for the loader (containers keep, empty leaves flagged).
     # Library atoms carry their content in imageFile/imgOrig/href (not fields/
