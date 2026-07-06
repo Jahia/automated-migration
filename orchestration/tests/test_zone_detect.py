@@ -112,6 +112,18 @@ for key, tier, scope, sib, kids, expect in cases:
     got, conf = zd.library_map(key, tier, scope, sib, kids)
     check(got == expect, f"library_map({key}) -> {got} (expected {expect}, conf {conf})")
 
+# anti-overfit regression: the bare "grid" token must NOT map to cardGrid — it matched
+# layout frameworks (aem-Grid, responsivegrid, Bootstrap main-grid) and typed layout
+# wrappers as cardGrids. Only card-INTENT words map; genuine card grids are reached via
+# the selective-parent is_card_grid gate. (Do not reintroduce "grid" here.)
+for layout_key in ("cls:main-grid", "cls:aem-Grid", "cls:responsivegrid", "cls:asr-grid-layouts"):
+    got, conf = zd.library_map(layout_key, "L3", "COMPONENT", 3, True)
+    check(got != "cardGrid" or conf < 0.5,
+          f"layout grid {layout_key} is NOT a confident cardGrid (got {got}@{conf})")
+for card_key in ("cls:card-grid", "cls:product-cards", "cls:cards-list"):
+    got, conf = zd.library_map(card_key, "L3", "COMPONENT", 3, True)
+    check(got == "cardGrid", f"card-intent {card_key} still maps to cardGrid (got {got})")
+
 print("== smoke test on a real cached page (if present) ==")
 REPO = os.path.join(os.path.dirname(__file__), "..", "..")
 import glob

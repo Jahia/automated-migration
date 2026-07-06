@@ -16,12 +16,13 @@ Containers carry decomposed `children` (item nodes) + a manifest `childType`. ED
 loader never publishes. Media DAM-weakref lift is deferred (images render verbatim via
 skeletonOrig) — a follow-up; fidelity holds by construction.
 """
-import sys, os, json, re, hashlib, base64
+import sys, os, json, re, hashlib, base64, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bs4 import BeautifulSoup
 import zone_detect as ZD
 import semantic_extract as SE
 import extract_content as EC
+import library_recognize as LR
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # set per-project by build(): where extracted/looked-up assets live
@@ -353,6 +354,93 @@ def inst_weight(p):
     for ch in p.get("children") or []:
         w = max(w, len(ch.get("skeleton") or ""))
     return w
+
+# ── cardGrid POSITIVE-EVIDENCE GATE (is_card_grid) ────────────────────────────
+# Replaces the old permissive "majority of children have >=2 slots" test. That test
+# counted a LINK as a slot, so a nav-menu item (label+href) or a logo strip (media+href)
+# trivially reached 2 → 51% of discoverasr's 78 cardGrids were navigation chrome and 43%
+# were AEM layout grids (measured: 0 genuine card grids). The gate below is intrinsic and
+# CMS-agnostic — it reads the node's OWN lifted shape, never a class/framework token except
+# the nav-role veto (a whole-token safety net, itself gated on "no per-item heading").
+# Refusal is fidelity-safe: the caller falls through to the verbatim wrapper_container/zone
+# path (0-DOM preserved). Cross-stack targets held during design: discoverasr 78→~7,
+# acquia keeps 7/8 genuine, contentful ~45, supercar/liferay/lesalondelaphoto stay at 0.
+_NAV_ROLE_RE = re.compile(
+    r"(?:^|[-_ ])(nav|navigation|menu|breadcrumb|hamburger|submenu|dropdown|pagination|tabs?)(?:$|[-_ ])",
+    re.I)
+
+def _cg_text(v):
+    """Visible text of a FIELD VALUE (values may be HTML). Must read values, never the
+    child skeleton — the skeleton holds {{f:body}} markers (~22 chars) that would
+    false-fail the substance test on genuine text cards."""
+    try:
+        return " ".join(BeautifulSoup(str(v or ""), "lxml").get_text(" ", strip=True).split())
+    except Exception:
+        return ""
+
+def _cg_profile(ch):
+    f = ch.get("fields") or {}
+    return (bool(f.get("title")),
+            any(str(kk).startswith("body") for kk in f),
+            bool(ch.get("media")),
+            bool(ch.get("link")))
+
+def _cg_substance(ch):
+    f = ch.get("fields") or {}
+    title_t = _cg_text(f.get("title"))
+    body_t = " ".join(_cg_text(f[kk]) for kk in f if str(kk).startswith("body"))
+    both = (title_t + " " + body_t).strip()
+    return ((bool(ch.get("media")) and len(both) >= 25)   # media WITH text
+            or (bool(title_t) and bool(body_t))            # title AND body
+            or (len(body_t) >= 60))                        # substantial body
+
+def is_card_grid(cg, classes_str="", key=""):
+    """True iff the promoted repeated-sibling container `cg` is genuinely a grid of
+    editorial CARDS, on four intrinsic axes + a nav-role veto. Decoupled from the DOM
+    (takes a class string, not a bs4 element) so the offline 5-stack replay can call it
+    directly against content-load.json instances."""
+    kids = cg.get("children") or []
+    n = len(kids)
+    if n < 3:
+        return False
+    # 1. link-discounted slots: a CARD carries >=2 NON-LINK slots (title/body*/media).
+    #    A nav/logo item is link(+media) only → 1 non-link slot → not a card.
+    def _nonlink(ch):
+        f = ch.get("fields") or {}
+        return bool(f.get("title")) + any(str(kk).startswith("body") for kk in f) + bool(ch.get("media"))
+    if sum(1 for ch in kids if _nonlink(ch) >= 2) < max(3, (n + 1) // 2):
+        return False
+    # 2. structural uniformity: modal (title,body,media,link) profile shared by >=60%.
+    profs = [_cg_profile(ch) for ch in kids]
+    if collections.Counter(profs).most_common(1)[0][1] < 0.6 * n:
+        return False
+    # 3. editorial substance (read from field VALUES), majority of children.
+    if sum(1 for ch in kids if _cg_substance(ch)) < (n + 1) // 2:
+        return False
+    # 4. prose payload-density: visible text OUTSIDE interactive controls, per markup byte.
+    #    A real card grid is prose-dense; a layout wrapper swallowing widgets is not.
+    src = cg.get("skeletonOrig") or cg.get("skeleton") or ""
+    if src:
+        try:
+            soup = BeautifulSoup(src, "lxml")
+            # strip only NON-content controls (forms, buttons, nav). Keep <a> text: a
+            # card's title/excerpt is often wrapped in a link (<a><h3>…</h3><p>…</p></a>),
+            # and stripping it false-killed genuine article cards (contentful blog).
+            # nav is caught earlier by the slot test + nav-role veto, so keeping link
+            # text here cannot resurrect a menu.
+            for t in soup.find_all(["button", "nav", "input", "select", "textarea", "label", "form"]):
+                t.decompose()
+            prose = len(" ".join(soup.get_text(" ", strip=True).split()))
+        except Exception:
+            prose = 0
+        if prose / len(src) < 0.02:
+            return False
+    # 5. nav-role veto: a nav/menu-classed container with ZERO per-item headings is a menu,
+    #    not a card grid (a genuine card grid's items carry titles, so this never fires on
+    #    real cards — it only catches nav that slipped the slot test).
+    if _NAV_ROLE_RE.search((classes_str or "") + " " + (key or "")) and not any(p[0] for p in profs):
+        return False
+    return True
 
 def emit_typed(el, lib, base):
     """A typed library instance with REAL lifted fields (G1: empty shells are the
@@ -900,27 +988,31 @@ def build(project, site, ns, module=None, overlay=False):
             # selective on strong listing/card patterns — exactly acquia's blog cards).
             cg = emit_typed(node["_el"], "cardGrid", base)
             cg_kids = (cg.get("children") if cg else None) or []
-            # a CARD carries >=2 content slots (title/body*/media/link). Requiring a
-            # MAJORITY of items to be card-like keeps genuine cards (title+body+image)
-            # and REFUSES single-atom repeated lists that are NOT card grids — a logo
-            # wall (media-only), a heading list (title-only), a text list (body-only).
-            # Those fall through to the zone path, keeping #3 genuinely SELECTIVE
-            # (Julian) rather than relabelling every repeated sibling group cardGrid.
-            def _slots(ch):
-                f = ch.get("fields") or {}
-                return (("title" in f) + any(kk.startswith("body") for kk in f)
-                        + bool(ch.get("media")) + bool(ch.get("link")))
-            cardlike = sum(1 for ch in cg_kids if _slots(ch) >= 2)
+            # A repeated-sibling container is promoted to cardGrid only if it PASSES the
+            # positive-evidence gate is_card_grid() (link-discounted slots + uniformity +
+            # substance-from-field-values + prose density + nav-role veto). This replaces
+            # the old ">=2-slot majority" test that counted a LINK as a slot and so typed
+            # navigation chrome and layout grids as cardGrids. A refusal is auditable
+            # (stats["cardGridRefused"]) and falls through to the verbatim zone path.
             if cg is not None and wired(cg) and len(cg_kids) >= 3 \
-                    and cardlike >= max(3, (len(cg_kids) + 1) // 2) \
                     and inst_weight(cg) <= CAP:
-                cg["parent"] = parent
-                insts.append(cg)
-                used.add("cardGrid")
-                stats["typed"] += 1
-                stats["container"] = stats.get("container", 0) + 1
-                tag(node["_el"], "cardGrid", k)
-                return
+                if is_card_grid(cg, " ".join(node["_el"].get("class", []) or []), k):
+                    cg["parent"] = parent
+                    insts.append(cg)
+                    used.add("cardGrid")
+                    stats["typed"] += 1
+                    stats["container"] = stats.get("container", 0) + 1
+                    stats["cardGridPromoted"] = stats.get("cardGridPromoted", 0) + 1
+                    # residue: a card grid that PASSES the intrinsic gate yet is a huge
+                    # page-swallower (uniform+substantive children but a layout monster) —
+                    # surface it for the model gate instead of letting it pass silently.
+                    if inst_weight(cg) > 8000:
+                        stats["cardGridOversize"] = stats.get("cardGridOversize", 0) + 1
+                    tag(node["_el"], "cardGrid", k)
+                    return
+                # NOT a card grid: count the refusal (per merge-backlog doctrine) and fall
+                # through to wrapper_container/zone — children re-emit as their own nodes.
+                stats["cardGridRefused"] = stats.get("cardGridRefused", 0) + 1
             ek = extraction_children(node)  # descend transparent single-child wrappers
             w = wrapper_container(node, ek)
             if w is not None:
@@ -929,6 +1021,16 @@ def build(project, site, ns, module=None, overlay=False):
                 insts.append(w)
                 used.add("zone")
                 stats["zone"] = stats.get("zone", 0) + 1
+                # CHIFFRAGE (Phase 1b, non-destructive): would the generic layout
+                # recognizer convert this pure-wrapper zone to a byte-exact <Area>
+                # component? Runs on the REAL source node; COUNT-ONLY (emit unchanged,
+                # fidelity untouched). Promotes to real conversion once views/CND ship.
+                try:
+                    _lp = LR._recognize_layout(node["_el"], ns)
+                except Exception:
+                    _lp = None
+                if _lp is not None:
+                    stats["layoutConvertible"] = stats.get("layoutConvertible", 0) + 1
                 tag(node["_el"], "zone", k)
                 for kd in ek:
                     emit_node(kd, insts, depth + 1, idx)
@@ -1213,6 +1315,17 @@ def build(project, site, ns, module=None, overlay=False):
         "keylessEditable": keyless_editable,
         "orphansTotal": sum(1 for i in content_insts if i.get("orphan")),
         "worklist": worklist,
+        # cardGrid positive-evidence gate audit (is_card_grid): promoted = kept as
+        # cardGrid, refused = fell through to verbatim zone (fidelity-safe, per-card
+        # editability deferred to the merge worklist above), oversize = passed the gate
+        # but is a >8KB page-swallower needing the altitude backstop (follow-up).
+        "cardGridPromoted": stats.get("cardGridPromoted", 0),
+        "cardGridRefused": stats.get("cardGridRefused", 0),
+        "cardGridOversize": stats.get("cardGridOversize", 0),
+        # Phase 1b real-pipeline chiffrage: zones the generic layout recognizer would
+        # convert to byte-exact <Area> components (count-only; emit still skeleton).
+        "layoutConvertible": stats.get("layoutConvertible", 0),
+        "zoneInstances": stats.get("zone", 0),
     }
 
     manifest = {"instanceTypeMap": itm, "passthroughType": f"{ns}:rawHtml",

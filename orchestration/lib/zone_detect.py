@@ -435,7 +435,12 @@ def library_map(key, tier, scope, sib, has_children):
         return ("logo", 0.7)
     if has("faq"):
         return ("faqItem" if scope == "RECORD" or sib >= 3 else "accordion", 0.75)
-    if (has("card-grid", "cardgrid", "cards", "card-list", "grid") and has_children):
+    # card-INTENT words only. The bare "grid" token was dropped: it matched layout
+    # frameworks (aem-Grid, responsivegrid, Bootstrap main-grid, asr-grid-layouts) and
+    # typed heroes/section wrappers as cardGrid via this path (measured on contentful:
+    # ~66 zero-child "cardGrid" heroes). A genuine grid of cards is reached through the
+    # selective-parent path, which is now gated by the is_card_grid positive-evidence test.
+    if (has("card-grid", "cardgrid", "cards", "card-list") and has_children):
         return ("cardGrid", 0.7)
     if has("card", "teaser", "tile", "listing-item", "article-card"):
         return ("card", 0.75)

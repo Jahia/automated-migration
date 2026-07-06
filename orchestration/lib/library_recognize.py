@@ -98,6 +98,49 @@ def _child_tags(el):
     return [c for c in el.children if isinstance(c, Tag)]
 
 
+def _own_text(el):
+    """el's OWN direct text (not descendants), whitespace-collapsed — the discriminator
+    of a PURE structural wrapper (layout) vs a content element."""
+    return "".join(s for s in el.find_all(string=True, recursive=False)).strip()
+
+
+_LAYOUT_TEXTRUN = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote"}
+
+
+def _recognize_layout(el, ns="asr"):
+    """Generic LAYOUT-CONTAINER recognizer (LIBRARY-SPEC §1.4 section/gridRow). A PURE
+    structural wrapper (no own editorial text) whose content is >=2 block child slots is
+    faithfully reproducible as <sourceClassChain> + <Area rendering children in order>:
+    the wrapper markup moves node->view, children render unchanged -> BYTE-EXACT by
+    construction. Unlike the atom/section library views, this engages NO fidelity trade,
+    so it is the byte-safe P1 fix (zone carries HTML -> zone is an Area). Returns a
+    layoutSection plan or None.
+      refuses: own text (content, not layout); <2 children (0 = atom/leaf, 1 = collapse
+      handled by descend_transparent); an all-text-run child set (<p>/<h*>/<ul> = one
+      richText run, rule 24, never a layout of slots)."""
+    if not isinstance(el, Tag):
+        return None
+    chain = [el]
+    node = el
+    while True:                                     # descend single-child pure wrappers
+        if _own_text(node):
+            return None
+        kids = _child_tags(node)
+        if len(kids) == 1:
+            node = kids[0]
+            chain.append(node)
+            continue
+        break
+    kids = _child_tags(node)
+    if len(kids) < 2 or _own_text(node):
+        return None
+    if all((k.name or "").lower() in _LAYOUT_TEXTRUN for k in kids):
+        return None
+    return {"kind": "layoutSection", "nodeType": f"{ns}:section",
+            "sourceClasses": [{"tag": e.name, "class": " ".join(_classes(e))} for e in chain],
+            "childCount": len(kids), "areas": 1}
+
+
 def _wraps_media(el):
     """True if el's subtree contains an <img>/<picture> (a logo/image atom)."""
     return el.find(["img", "picture"]) is not None
