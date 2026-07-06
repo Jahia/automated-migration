@@ -509,6 +509,22 @@ MANUAL_CSS = """
 .zm-kid{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:4px 7px;margin:3px 0;font:inherit;}
 .zm-kid:hover{background:#eef6ff;border-color:#b8d6f5;}
 .zm-mk{background:#1e1e1e;color:#d4d4d4;font-family:ui-monospace,monospace;font-size:11px;padding:8px;border-radius:6px;overflow:auto;max-height:220px;white-space:pre-wrap;word-break:break-word;}
+.zm-act{margin:8px 0;border-top:1px solid #eee;padding-top:8px;}
+.zm-a{cursor:pointer;border:1px solid #ccc;border-radius:6px;padding:5px 9px;margin:2px 4px 2px 0;font:inherit;background:#fafafa;}
+.zm-a:hover{background:#eee;}
+.zm-a.on{background:#1f6fd6;color:#fff;border-color:#1f6fd6;}
+#zm-form{margin-top:6px;}
+#zm-form input,#zm-form select{font:inherit;padding:4px 6px;border:1px solid #ccc;border-radius:5px;margin-right:6px;}
+.zm-save{cursor:pointer;background:#1aa06a;color:#fff;border:0;border-radius:6px;padding:5px 12px;font:inherit;font-weight:600;}
+.zm-save:hover{background:#158a5a;}
+.zm-cur{background:#fffbe6;border:1px solid #ffe58f;border-radius:6px;padding:6px 8px;margin-bottom:8px;}
+.zm-del{cursor:pointer;background:#fff;border:1px solid #d33a2c;color:#d33a2c;border-radius:6px;padding:3px 9px;font:inherit;margin-left:6px;}
+.zm-del:hover{background:#d33a2c;color:#fff;}
+.zm-clear{cursor:pointer;background:#c0392b;color:#fff;border:0;border-radius:5px;padding:2px 9px;font:inherit;margin-left:10px;}
+.zm-clear:hover{background:#a5281b;}
+.zm-dec-component{box-shadow:inset 0 0 0 3px rgba(26,160,106,.9)!important;}
+.zm-dec-area{box-shadow:inset 0 0 0 3px rgba(31,111,214,.9)!important;}
+.zm-dec-absoluteArea{box-shadow:inset 0 0 0 3px rgba(211,58,44,.9)!important;}
 """
 
 _MANUAL_JS = """
@@ -516,6 +532,8 @@ _MANUAL_JS = """
  var ZX=__ZX__, SLUG=__SLUG__;
  var XREF=ZX.xref||{}, TMPL=ZX.pageTemplates||{};
  var TOTAL=Object.keys(TMPL).length||1;
+ var DEC={};        // selector.value -> saved decision (this page)
+ var pending=null;  // action chosen in the popin, awaiting Enregistrer
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
  function isUI(el){return !el||!el.closest||el.closest('#zm-pop,#zm-ban');}
  function cls(el){return ((el.getAttribute&&el.getAttribute('class'))||'').split(/\\s+/).filter(function(x){return x&&x.indexOf('zm-')!==0;});}
@@ -533,7 +551,7 @@ _MANUAL_JS = """
    var all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
    all.forEach(function(x){
      ['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-skin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});
-     if(x.classList){x.classList.remove('zm-hover');x.classList.remove('zm-focus');if(!x.getAttribute('class'))x.removeAttribute('class');}
+     if(x.classList){Array.prototype.slice.call(x.classList).forEach(function(cn){if(cn.indexOf('zm-')===0)x.classList.remove(cn);});if(!x.getAttribute('class'))x.removeAttribute('class');}
    });
    return c.outerHTML||'';
  }
@@ -546,9 +564,47 @@ _MANUAL_JS = """
    if(zt)return{lab:'composant',cls:'c',ty:zt};
    return{lab:'non zoné',cls:'n',ty:''};
  }
- var ban=document.createElement('div');ban.id='zm-ban';
- ban.innerHTML='<b>Mode manuel</b> &middot; page <b>'+esc(SLUG)+'</b> &middot; survole un bloc, clique pour inspecter';
- document.body.appendChild(ban);
+ // stable, re-selectable CSS path (id short-circuits; else nth-of-type chain)
+ function cssPath(el){
+   if(el.id)return el.tagName.toLowerCase()+'#'+((window.CSS&&CSS.escape)?CSS.escape(el.id):el.id);
+   var parts=[],n=el;
+   while(n&&n.nodeType===1&&n!==document.body&&n!==document.documentElement){
+     var t=n.tagName.toLowerCase();
+     if(n.id){parts.unshift(t+'#'+((window.CSS&&CSS.escape)?CSS.escape(n.id):n.id));break;}
+     var i=1,s=n;while((s=s.previousElementSibling)){if(s.tagName===n.tagName)i++;}
+     parts.unshift(t+':nth-of-type('+i+')');n=n.parentElement;
+   }
+   return parts.join('>');
+ }
+ function selectorOf(el){return {value:cssPath(el), key:(el.getAttribute&&el.getAttribute('data-zk'))||null};}
+ function suggestName(el){return cls(el)[0]||(el.getAttribute&&el.getAttribute('data-zt'))||(el.tagName||'x').toLowerCase();}
+ function api(path,body){
+   var opt=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
+   return fetch(path,opt).then(function(r){return r.json();}).catch(function(){return null;});
+ }
+ function markAll(){
+   Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');});
+   Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e)e.classList.add('zm-dec-'+DEC[sel].action);}catch(_){}});
+ }
+ function loadDecisions(){
+   return api('/api/decisions?page='+encodeURIComponent(SLUG)).then(function(r){
+     DEC={};if(r&&r.decisions)r.decisions.forEach(function(d){DEC[d.selector.value]=d;});
+     markAll();drawBan();
+   });
+ }
+ var ban=document.createElement('div');ban.id='zm-ban';document.body.appendChild(ban);
+ function drawBan(){
+   var n=Object.keys(DEC).length;
+   ban.innerHTML='<b>Mode manuel</b> &middot; page <b>'+esc(SLUG)+'</b> &middot; survole, clique pour décider'
+     +' <button class="zm-clear">Vider la page ('+n+')</button>';
+   var c=ban.querySelector('.zm-clear');if(c)c.onclick=clearPage;
+ }
+ function clearPage(){
+   var n=Object.keys(DEC).length;
+   if(!n){alert('Aucune décision sur cette page.');return;}
+   if(!confirm('Vider TOUT le zoning manuel de la page \"'+SLUG+'\" ? ('+n+' décision(s)) — irréversible.'))return;
+   api('/api/clear',{page:SLUG}).then(function(){DEC={};markAll();drawBan();pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;});
+ }
  var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
  var hov=null;
  document.addEventListener('mouseover',function(e){
@@ -566,7 +622,7 @@ _MANUAL_JS = """
    if(!el||el===document.body||el===document.documentElement)return;
    if(foc&&foc!==el&&!fromBack)hist.push(foc); // record where we came from (Back stack)
    if(foc)foc.classList.remove('zm-focus');
-   foc=el;el.classList.add('zm-focus');
+   foc=el;el.classList.add('zm-focus');pending=null;
    try{el.scrollIntoView({block:'center'});}catch(_){}
    renderPop(el);
  }
@@ -588,6 +644,40 @@ _MANUAL_JS = """
      +'<div class="zm-pg">'+(others.length?'aussi: '+others.slice(0,8).map(esc).join(', ')+(others.length>8?' +'+(others.length-8):''):'seulement cette page')+'</div>'
      +'<div class="zm-prop">&#128161; '+prop+'</div></div>';
  }
+ function actionForm(el){
+   var cur=DEC[cssPath(el)], h='<div class="zm-act">';
+   if(cur){
+     var lab=cur.action==='component'?('Composant &laquo; '+esc(cur.name||'?')+' &raquo;'):(cur.action==='absoluteArea'?('Absolute Area / '+esc(cur.area||'?')):'Area (zone)');
+     h+='<div class="zm-cur">&#9679; Décidé : <b>'+lab+'</b><button class="zm-del">Supprimer</button></div>';
+   }
+   h+='<div class="zm-lbl">Décider ce bloc comme</div>';
+   h+='<button class="zm-a'+(pending==='component'?' on':'')+'" data-a="component">Composant</button>';
+   h+='<button class="zm-a'+(pending==='area'?' on':'')+'" data-a="area">Area (zone)</button>';
+   h+='<button class="zm-a'+(pending==='absoluteArea'?' on':'')+'" data-a="absoluteArea">Absolute Area</button>';
+   h+='<div id="zm-form">';
+   if(pending==='component')h+='<input id="zm-name" value="'+esc(suggestName(el))+'"><button class="zm-save">Enregistrer</button>';
+   else if(pending==='area')h+='<button class="zm-save">Enregistrer comme Area</button>';
+   else if(pending==='absoluteArea')h+='<select id="zm-area"><option value="header">header</option><option value="nav">nav</option><option value="footer">footer</option></select><button class="zm-save">Enregistrer</button>';
+   return h+'</div></div>';
+ }
+ function saveDecision(el){
+   if(!pending)return;
+   var d={page:SLUG, action:pending, selector:selectorOf(el), desc:descFull(el)};
+   if(d.selector.key)d.key=d.selector.key;
+   if(pending==='component'){var i=pop.querySelector('#zm-name');d.name=(i&&i.value.trim())||suggestName(el);}
+   if(pending==='absoluteArea'){var s=pop.querySelector('#zm-area');d.area=(s&&s.value)||'header';}
+   api('/api/decide',{decision:d}).then(function(r){
+     if(r&&r.decisions){DEC={};r.decisions.forEach(function(x){DEC[x.selector.value]=x;});}else{DEC[d.selector.value]=d;}
+     pending=null;markAll();drawBan();renderPop(el);
+   });
+ }
+ function deleteDecision(el){
+   var cur=DEC[cssPath(el)];if(!cur)return;
+   api('/api/delete',{id:cur.id}).then(function(r){
+     if(r&&r.decisions){DEC={};r.decisions.filter(function(x){return x.page===SLUG;}).forEach(function(x){DEC[x.selector.value]=x;});}else{delete DEC[cssPath(el)];}
+     markAll();drawBan();renderPop(el);
+   });
+ }
  function renderPop(el){
    var a=attr(el);
    var kids=Array.prototype.filter.call(el.children||[],function(c){return c.nodeType===1;});
@@ -597,6 +687,7 @@ _MANUAL_JS = """
      +(a.ty?' <span class="zm-ty">'+esc(a.ty)+'</span>':'')+'<span id="zm-x" title="fermer">&times;</span></div>';
    h+='<div class="zm-el">'+esc(desc(el))+'</div>';
    h+=statBlock(el);
+   h+=actionForm(el);
    h+='<div class="zm-nav">';
    if(hist.length)h+='<button class="zm-back">&larr; Back ('+hist.length+')</button>';
    if(par&&par!==document.body)h+='<button class="zm-up">&uarr; Parent : '+esc(descFull(par))+'</button>';
@@ -614,7 +705,12 @@ _MANUAL_JS = """
    var bk=pop.querySelector('.zm-back');if(bk)bk.onclick=back;
    var up=pop.querySelector('.zm-up');if(up)up.onclick=function(){focusEl(par);};
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);renderPop(el);};});
+   var sv=pop.querySelector('.zm-save');if(sv)sv.onclick=function(){saveDecision(el);};
+   var dl=pop.querySelector('.zm-del');if(dl)dl.onclick=function(){deleteDecision(el);};
  }
+ drawBan();
+ loadDecisions();
 })();
 """
 
