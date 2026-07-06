@@ -177,6 +177,35 @@ def area_for(key):
     if ("nav" in k or "menu" in k) and "footer" not in k:
         return "nav"
     return "header"  # top-bar, header, search, dialog, chatbot, announcement, booking …
+
+# Class/id/tag tokens naming a site nav/header/footer container — for landmark-less SPAs
+# where the nav sits as a content-root BAND beside the real sections (discoverasr home:
+# div > [navigation-cmp, container-structure, brands-logo, xfpage]). Such a band is chrome,
+# not content → extract it to its AbsoluteArea instead of decomposing it. Excludes "menu"
+# (dropdowns) and bare "header" (section titles); modals/overlays are NOT here (they ride
+# the shell). Whole-token match.
+_CHROME_BAND_CLASS = re.compile(
+    r"(?:^|[-_ ])(navigation|navbar|masthead|footer|sidebar)(?:$|[-_ ])", re.I)
+
+def chrome_band_token(el):
+    """The nav/header/footer token naming this element a site-chrome band, else None."""
+    if el is None:
+        return None
+    if el.name in ("nav", "header", "footer"):
+        return el.name
+    for attr in ("class", "id"):
+        v = el.get(attr)
+        if v and _CHROME_BAND_CLASS.search(" ".join(v) if isinstance(v, list) else str(v)):
+            return _CHROME_BAND_CLASS.search(" ".join(v) if isinstance(v, list) else str(v)).group(1).lower()
+    return None
+
+def chrome_band_area(tok):
+    if "footer" in tok:
+        return "footer"
+    if "masthead" in tok or "header" in tok:
+        return "header"
+    return "nav"  # navigation / navbar / nav / sidebar
+
 CONTAINERS = {"section", "gridRow", "cardGrid", "logoWall", "carousel", "tabs", "accordion"}
 # arbitrated types whose content is a single editable text run — an LLM attribution
 # of one of these lifts the element's inner content into {{f:body}} (text_wrap).
@@ -1088,6 +1117,33 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
                     chrome.append(raw_inst(node["_el"], base, area_for(k)))
                 tag(node["_el"], "chrome", k)  # tag even the deduped repeats
                 return
+            # CLASS-BASED chrome BAND (landmark-less SPA): a ubiquitous, link-bearing
+            # nav/header/footer container sitting as a content-root band beside the real
+            # sections (discoverasr home) — chrome, not content. Route to its AbsoluteArea
+            # (dedup by key), prune. Over the loader cap -> recurse into children so each
+            # area stays whole (deduping responsive nav variants is a later step). Keeps
+            # the nav OUT of the content decomposition (home went 409 nodes -> clean).
+            _ct = chrome_band_token(node.get("_el"))
+            if k and _ct:
+                _e = agg.get(k, {})
+                if (len(_e.get("pages", ()) or ()) >= 0.9 * len(pages) and isa(k)
+                        and (node["_el"].find("a") is not None or _ct == "footer")):
+                    if len(str(node["_el"])) > 200_000:
+                        for kd in node["kids"]:
+                            emit_node(kd, insts, depth, None)
+                        return
+                    # emit the nav/footer band as ONE VERBATIM node IN PLACE (byte-exact,
+                    # not decomposed) — keeps the nav out of the deep content decomposition
+                    # (discoverasr home: 409 -> ~60 nodes) while preserving fidelity. Moving
+                    # it to an AbsoluteArea broke the reconstruction (wrong position); the
+                    # nav renders inline here, verbatim. (Promoting to a real chrome
+                    # AbsoluteArea + Navigation Menu component is a later, deploy-time step.)
+                    t = raw_inst(node["_el"], base)
+                    t["parent"] = parent
+                    t["chromeBand"] = True
+                    insts.append(t)
+                    tag(node["_el"], "chrome", k)
+                    return
             # site-wide content-free SCAFFOLD (grid overlay, layout rail…): a
             # content-free element present on ~all pages as a SINGLETON (≈ one per
             # page) is TEMPLATE-level markup, not per-page content — emit once,

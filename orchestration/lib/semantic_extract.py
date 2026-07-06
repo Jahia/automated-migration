@@ -808,6 +808,25 @@ def recompose_group(skeleton, fields, children, media=None, link=None):
 
 _LEAF_MEDIA = {"img", "picture", "video", "iframe", "svg"}
 _CHROME_NAMES = {"header", "footer", "nav"}
+# class/id tokens naming CHROME (nav/header/footer) or a TRANSIENT SCAFFOLD overlay
+# (modal/dialog/loading/backdrop/cookie…) — for SPAs with NO landmark tags (discoverasr AEM:
+# the nav is a deep <div class="navigation-cmp"> and the real content sits BESIDE ~15
+# modal/overlay/loading divs, so main_content_root stopped at the modal-crowded shallow root).
+# Skipping these lets it descend to the real content container; the skipped subtrees ride the
+# VERBATIM page shell (page_shell captures every chain-sibling byte-for-byte → 0-DOM safe).
+# Whole-token match; "menu"/"header"(alone) are NOT listed (dropdowns / section titles = content).
+_CHROME_SCAFFOLD_CLASS = re.compile(
+    r"(?:^|[-_ ])(navigation|navbar|masthead|sidebar|footer|modal|dialog|overlay|backdrop|"
+    r"loading|spinner|popup|drawer|offcanvas|cookie|consent|toast|lightbox)(?:$|[-_ ])", re.I)
+
+
+def _is_chrome_scaffold(el):
+    """True if el is chrome or a transient scaffold overlay, by tag OR class/id — so
+    main_content_root skips it when locating the content root (it rides the verbatim shell)."""
+    if el.name in _CHROME_NAMES:
+        return True
+    blob = " ".join(el.get("class") or []) + " " + (el.get("id") or "")
+    return bool(_CHROME_SCAFFOLD_CLASS.search(blob))
 
 
 def _count_leaves(el):
@@ -829,23 +848,54 @@ def _count_leaves(el):
     return n
 
 
+_NONCONTENT_TAGS = {"script", "noscript", "style", "template", "link", "meta"}
+
+
 def main_content_root(main):
-    """Descend from <main> through SINGLE-significant-child wrappers (Drupal's
-    region--content etc.): partitioning at <main> altitude would yield ONE top
-    group per page (a full-page monolith — the §2 'pixel-perfect but editorially
-    useless' trap). The traversed chain is recorded so the page shell can
-    recompose those wrappers around the main Area. Returns (root, chain)."""
+    """Descend from <main> (or <body>) through wrappers that carry ONE dominant content
+    region — Drupal's region--content, and (added 2026-07-06) SPA page shells whose real
+    content sits beside chrome/scaffolding. Partitioning at the top altitude yields ONE
+    full-page monolith (the §2 'pixel-perfect but editorially useless' trap) OR, on a
+    landmark-less SPA, stops at the modal/script-crowded body. The traversed chain is
+    recorded so the page shell recomposes those wrappers (and their skipped siblings)
+    around the main Area — VERBATIM, so 0-DOM holds. Returns (root, chain).
+
+    Descent rules: ignore non-content tags (script/style/…), chrome + transient scaffold
+    (nav/footer/modal/overlay…), and comment stray-text (GTM markers). Descend while a
+    SINGLE content child remains, OR one child DOMINATES the content (>=80% of leaves) —
+    the latter drills past tracking iframes, date-pickers and other small widgets that sit
+    beside the page's real content container (discoverasr: body[page] > <div> > … > nav |
+    content — the content div holds 1955 of ~2050 leaves, so we reach it; the nav and the
+    ~15 modals ride the verbatim shell). Real visible stray text still stops the descent."""
+    from bs4 import Comment
+    # SPA gate (anti-overfit): the aggressive descent (scaffold-class exclusion + dominant
+    # child) is applied ONLY when the page has NO <main>/role=main landmark — i.e. main IS
+    # <body> (a landmark-less SPA shell, e.g. discoverasr AEM). Pages WITH a real <main>
+    # (Drupal/Next/SXA/Liferay: 18-20/20) keep the original single-significant-child descent,
+    # so the SSR stacks (which were already clean) do NOT regress.
+    spa = (getattr(main, "name", None) == "body")
     chain = []
     node = main
     while True:
-        tags = [c for c in node.children if isinstance(c, Tag)
-                and c.name not in _CHROME_NAMES]
+        if spa:
+            tags = [c for c in node.children if isinstance(c, Tag)
+                    and c.name not in _NONCONTENT_TAGS and not _is_chrome_scaffold(c)]
+            content_tags = [c for c in tags if _count_leaves(c)]
+            stray = any((not isinstance(c, Tag)) and (not isinstance(c, Comment))
+                        and str(c).strip() for c in node.children)
+            if not content_tags or stray:
+                return node, chain
+            dom = max(content_tags, key=_count_leaves)
+            tot = sum(_count_leaves(c) for c in content_tags)
+            if len(content_tags) == 1 or _count_leaves(dom) >= 0.8 * tot:
+                chain.append(dom)
+                node = dom
+                continue
+            return node, chain
+        # SSR path (unchanged): descend while exactly ONE child carries content leaves.
+        tags = [c for c in node.children if isinstance(c, Tag) and c.name not in _CHROME_NAMES]
         content_tags = [c for c in tags if _count_leaves(c)]
-        stray_text = any(not isinstance(c, Tag) and str(c).strip()
-                         for c in node.children)
-        # descend while exactly ONE child carries content leaves — empty
-        # siblings (anchors, pre/post-content regions) are preserved by the
-        # page shell's innerLevels before/after chunks
+        stray_text = any(not isinstance(c, Tag) and str(c).strip() for c in node.children)
         if len(content_tags) == 1 and not stray_text:
             chain.append(content_tags[0])
             node = content_tags[0]
