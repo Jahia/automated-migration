@@ -26,24 +26,38 @@ import library_recognize as LR
 
 
 def _try_layout_section(skeleton):
-    """Phase 1b: derive a byte-parity SINGLE-Area layoutSection skin from a zone
-    skeleton. A pure wrapper `[open]{{child:0}}..{{child:N}}[close]` whose inter-child
-    segments are whitespace-only (children contiguous) and whose wrapper carries no own
-    text is reproducible as open + <Area(children)> + close — byte-parity with the zone
-    render, but the wrapper markup lives STRUCTURED (open/close), not as an HTML blob in
-    the node (P1 fix). Returns {"open","close","areas":1} or None (celled/complex/impure
-    -> keep the verbatim zone; columns[N] deferred to Phase 1c)."""
+    """Derive a byte-parity layoutSection skin from a zone skeleton (a pure structural
+    wrapper `[open]{{child:0}}..{{child:N}}[close]`, no own text). Two shapes:
+      Phase 1b — SINGLE Area: inter-child segments whitespace-only (children contiguous)
+        -> {"open","close","areas":1}; view = open + <Area(children)> + close.
+      Phase 1c — UNIFORM columns: all inter-child segments identical and non-empty (each
+        child sits in an identical sibling cell) -> {"open","cellOpen","cellClose","close",
+        "areas":N}; view = open + N x (cellOpen + <Area(child)> + cellClose) + close.
+    Both are BYTE-PARITY with the zone render but store the wrapper STRUCTURED, not as an
+    HTML blob (P1 fix). Returns None for impure/asymmetric-celled wrappers (irreducible
+    glue -> keep the verbatim zone)."""
     if "{{f:" in skeleton or "{{media:" in skeleton or "{{link:" in skeleton:
         return None                          # not a pure structural wrapper
     parts = re.split(r"\{\{child:\d+\}\}", skeleton)
     if len(parts) < 3:                       # need >=2 child slots
         return None
     prefix, mids, suffix = parts[0], parts[1:-1], parts[-1]
-    if any(m.strip() for m in mids):         # tags/text between children -> celled/complex
+    if re.sub(r"<[^>]+>", "", "".join(parts)).strip():    # wrapper carries own text
         return None
-    if re.sub(r"<[^>]+>", "", prefix + suffix).strip():   # wrapper carries own text
-        return None
-    return {"open": prefix, "close": suffix, "areas": 1}
+    if all(not m.strip() for m in mids):                  # 1b: contiguous -> single Area
+        return {"open": prefix, "close": suffix, "areas": 1}
+    if len(set(mids)) == 1:                                # 1c: uniform columns
+        mid = mids[0]
+        m = re.match(r"^((?:\s*</[^>]+>)+)(\s*<.*)$", mid, re.S)  # cellClose + cellOpen
+        if not m:
+            return None
+        cell_close, cell_open = m.group(1), m.group(2)
+        if not prefix.endswith(cell_open) or not suffix.startswith(cell_close):
+            return None                      # first/last cell not uniform -> keep zone
+        return {"open": prefix[:len(prefix) - len(cell_open)],
+                "cellOpen": cell_open, "cellClose": cell_close,
+                "close": suffix[len(cell_close):], "areas": len(mids) + 1}
+    return None                              # asymmetric celled -> keep verbatim zone
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # set per-project by build(): where extracted/looked-up assets live
@@ -204,7 +218,7 @@ _OVERLAY_JS = """
    })(c);
    // strip overlay attrs / injected nodes from what remains (incl. the root)
    var all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
-   all.forEach(function(x){['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-pin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});});
+   all.forEach(function(x){['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-pin','data-zx-skin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});});
    Array.prototype.slice.call(c.querySelectorAll('#zx-ban,#zx-tip')).forEach(function(x){x.remove();});
    return c.outerHTML;
  }
@@ -287,7 +301,7 @@ _OVERLAY_JS = """
    var xb=document.getElementById('zx-x');if(xb)xb.onclick=function(ev){ev.stopPropagation();unpin();};
    var rb=document.getElementById('zx-raw');
    if(rb)rb.onclick=function(ev){ev.stopPropagation();var pre=document.getElementById('zx-pre');
-     if(pre.style.display==='none'){pre.innerHTML=hl(rawOf(el));pre.style.display='block';rb.innerHTML='&#9662; Masquer le HTML';pre.scrollIntoView({block:'nearest'});}
+     if(pre.style.display==='none'){var sk=el.getAttribute('data-zx-skin');pre.innerHTML=(sk?('<div style="color:#7ee0a0;font-weight:700;margin-bottom:3px">STOCKE (modele du noeud, aucun blob HTML)</div>'+hl(sk)+'<div style="color:#9ec5e6;font-weight:700;margin:9px 0 3px">SOURCE (mirror)</div>'):'')+hl(rawOf(el));pre.style.display='block';rb.innerHTML='&#9662; Masquer le HTML';pre.scrollIntoView({block:'nearest'});}
      else{pre.style.display='none';rb.innerHTML='&lt;/&gt; Voir le HTML brut';}};
  }
  document.body.addEventListener('mouseover',function(e){
@@ -803,13 +817,17 @@ def build(project, site, ns, module=None, overlay=False):
                 "skeleton": skel, "fields": {}, "media": [], "link": None,
                 "children": []}
 
-    def tag(el, t, key=None):
+    def tag(el, t, key=None, skin=None):
         # overlay: mark the SOURCE element with the type it was emitted as (+ its
         # detection KEY for the cross-page tooltip lookup). Set AFTER skeletonOrig
         # is captured (str(el) at emit time) so the content-load stays clean.
+        # `skin` (layoutSection only) = a readable render of the STRUCTURED skin the
+        # node actually stores, so the popin shows the stored model, not the source blob.
         if overlay and el is not None:
             el["data-zt"] = t
             el["data-zc"] = _overlay_category(t)  # category (probe counts)
+            if skin:
+                el["data-zx-skin"] = skin
             # role drives the 3-color scheme: chrome/ABSOLUTE = red, structural
             # container = blue zone, everything else = green component. A layoutSection
             # is a structural container (clean <Area>, stores NO HTML blob) -> blue, but
@@ -1043,12 +1061,13 @@ def build(project, site, ns, module=None, overlay=False):
             w = wrapper_container(node, ek)
             if w is not None:
                 idx = len(insts)
-                # Phase 1b: a pure single-Area wrapper -> byte-parity layoutSection (skin
-                # stored STRUCTURED as open/close, children in an <Area>, NO HTML blob in
-                # the node — the P1 fix). Gated by the layout recognizer (pure, >=2 slots,
-                # not a text run) AND _try_layout_section (contiguous children). Celled /
-                # impure wrappers keep the verbatim zone (fidelity-first). layoutConvertible
-                # = recognizer ceiling; layoutSectionEmit = actual single-Area conversions.
+                # Phase 1b/1c: a pure wrapper -> byte-parity layoutSection (skin stored
+                # STRUCTURED, children in <Area>(s), NO HTML blob in the node — the P1 fix).
+                # Gated by the layout recognizer (pure, >=2 slots, not a text run) AND
+                # _try_layout_section (1b single Area = contiguous children; 1c columns =
+                # uniform sibling cells). Celled-asymmetric / impure wrappers keep the
+                # verbatim zone (fidelity-first). layoutConvertible = recognizer ceiling;
+                # layoutSectionEmit = actual conversions.
                 try:
                     _lp = LR._recognize_layout(node["_el"], ns)
                 except Exception:
@@ -1062,7 +1081,13 @@ def build(project, site, ns, module=None, overlay=False):
                                   "sourceClasses": _lp.get("sourceClasses")})
                     used.add("layoutSection")
                     stats["layoutSectionEmit"] = stats.get("layoutSectionEmit", 0) + 1
-                    tag(node["_el"], "layoutSection", k)
+                    if lay.get("cellOpen") is not None:
+                        skin_disp = (f'{lay["open"]}  ⟨{lay["areas"]}× cellule '
+                                     f'{lay["cellOpen"]}…{lay["cellClose"]} · Area⟩  {lay["close"]}')
+                    else:
+                        skin_disp = (f'{lay["open"]}  ⟨Area · {len(ek)} sous-composant(s)⟩  '
+                                     f'{lay["close"]}')
+                    tag(node["_el"], "layoutSection", k, skin=skin_disp)
                 else:
                     w["parent"] = parent
                     insts.append(w)

@@ -33,11 +33,13 @@ def recompose_instance(insts, i, kids):
     if x.get("passthrough") or x.get("contentFree") or x.get("nonRendered"):
         return f.get("html", "") or so or sk
     lay = x.get("layout")
-    if lay is not None:  # Phase 1b layoutSection: skin (open/close) wraps an <Area> of
-        # parent-linked children (byte-parity with the zone render, mids were whitespace)
-        return (lay.get("open", "")
-                + "".join(recompose_instance(insts, ci, kids) for ci in kids.get(i, []))
-                + lay.get("close", ""))
+    if lay is not None:  # layoutSection: structured skin wraps parent-linked children.
+        ch = [recompose_instance(insts, ci, kids) for ci in kids.get(i, [])]
+        if lay.get("cellOpen") is not None:   # 1c columns: each child in an identical cell
+            body = "".join(lay["cellOpen"] + c + lay["cellClose"] for c in ch)
+        else:                                 # 1b single Area: children contiguous
+            body = "".join(ch)
+        return lay.get("open", "") + body + lay.get("close", "")
     if so is not None:
         # typed node: an UNEDITED node renders byte-exact to its source (rule 22),
         # and skeletonOrig IS that source. Its item children live in the instance's
