@@ -114,20 +114,26 @@ def main():
         created_path = {}
         expected = []
         for idx, inst in enumerate(pdata.get("instances", [])):
-            if inst.get("area") or not inst.get("children"):
+            if inst.get("area"):
                 continue
             nt = ld.type_map.get((inst.get("type") or "").lower())
             if not nt:
                 continue
             pi = inst.get("parent")
+            # register EVERY instance path (same rule as the loader's
+            # parent_for) — a childless wrapper container is still the JCR
+            # parent of nested instances; skipping it predicted flat paths
+            # for their item children (false "no edit frame", observed live
+            # on the navify header nested under the page wrapper).
             if pi is not None and isinstance(pi, int) and pi in created_path:
                 parent = created_path[pi]
             else:
                 parent = f"{page_base}/main"
             node = f"{parent}/{nt.split(':')[-1]}-{slug}-{idx}"
             created_path[idx] = node
-            expected += [f"{node}/item-{n + 1}"
-                         for n in range(len(inst["children"]))]
+            if inst.get("children"):
+                expected += [f"{node}/item-{n + 1}"
+                             for n in range(len(inst["children"]))]
         if not expected:
             continue
         page_path = page_base.split("/home", 1)[-1].strip("/") or "home"
