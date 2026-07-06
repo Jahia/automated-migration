@@ -565,13 +565,22 @@ _MANUAL_JS = """
    return{lab:'non zoné',cls:'n',ty:''};
  }
  // stable, re-selectable CSS path (id short-circuits; else nth-of-type chain)
+ function esc2(s){return (window.CSS&&CSS.escape)?CSS.escape(s):s;}
+ // a class UNIQUE on the page for this tag — stable across renders (AEM/SPA ids are
+ // render-random, so we NEVER anchor on id; the content-load decomposes a DIFFERENT
+ // render than this frozen capture, and authored classes survive, random ids do not).
+ function uniqClass(el){
+   var t=el.tagName.toLowerCase(), cs=cls(el);
+   for(var j=0;j<cs.length;j++){try{if(document.querySelectorAll(t+'.'+esc2(cs[j])).length===1)return t+'.'+esc2(cs[j]);}catch(_){}}
+   return null;
+ }
  function cssPath(el){
-   if(el.id)return el.tagName.toLowerCase()+'#'+((window.CSS&&CSS.escape)?CSS.escape(el.id):el.id);
+   var u=uniqClass(el); if(u)return u;                 // shortest stable unique selector
    var parts=[],n=el;
    while(n&&n.nodeType===1&&n!==document.body&&n!==document.documentElement){
-     var t=n.tagName.toLowerCase();
-     if(n.id){parts.unshift(t+'#'+((window.CSS&&CSS.escape)?CSS.escape(n.id):n.id));break;}
-     var i=1,s=n;while((s=s.previousElementSibling)){if(s.tagName===n.tagName)i++;}
+     var anc=uniqClass(n);
+     if(anc){parts.unshift(anc);break;}                // anchor at nearest unique-class ancestor
+     var t=n.tagName.toLowerCase(),i=1,s=n;while((s=s.previousElementSibling)){if(s.tagName===n.tagName)i++;}
      parts.unshift(t+':nth-of-type('+i+')');n=n.parentElement;
    }
    return parts.join('>');
@@ -1013,6 +1022,22 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
                     attr_rules[sig] = r["attribution"]
         except Exception as e:
             print(f"  ! scope-rules read: {e}", file=sys.stderr)
+    # MANUAL zoning decisions (Julian, Phase 2): explicit per-element overrides from the
+    # manual inspector (manual_server.py persists them). Loaded here; resolved to elements
+    # per page in a pre-pass (decide_map keyed by id() → NO markup pollution, byte-exact
+    # safe) and applied in emit_node ahead of the deterministic path. `component` → a named
+    # typed node (via apply_attribution's byte-exact emit_typed+fallback); area/absoluteArea
+    # are recorded and applied in a later pass (Phase 2b).
+    manual_decisions, decide_map = {}, {}
+    dec_stats = {"component": 0, "deferred": 0, "unmatched": 0}
+    stats["manual"] = dec_stats  # surfaced to main() for the summary (mutated in place)
+    mdp = f"{REPO}/projects/{project}/workflow-output/manual-decisions.json"
+    if os.path.exists(mdp):
+        try:
+            for d in (json.load(open(mdp)).get("decisions") or []):
+                manual_decisions.setdefault(d.get("page"), []).append(d)
+        except Exception as e:
+            print(f"  ! manual-decisions read: {e}", file=sys.stderr)
     try:
         EC.load_runtime_map(project)
     except Exception:
@@ -1346,6 +1371,24 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             return True
         return False
 
+    def _safe_type(name):
+        """A manual component name -> a valid camelCase nodetype local name."""
+        parts = [p for p in re.split(r"[^a-zA-Z0-9]+", (name or "").strip()) if p]
+        if not parts:
+            return "component"
+        s = parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
+        return s if s[:1].isalpha() else "c" + s
+
+    def apply_decision(node, d, parent, insts):
+        """Apply a MANUAL inspector decision (Julian, Phase 2). `component` -> a named
+        typed node, reusing apply_attribution's byte-exact emit_typed + verbatim fallback
+        (so a mis-resolved selector can NEVER break fidelity — worst case it types the
+        wrong element). area/absoluteArea are recorded but applied in a later pass.
+        Returns True if it consumed the node."""
+        if d.get("action") == "component":
+            return apply_attribution(node, {"type": _safe_type(d.get("name"))}, parent, insts)
+        return False
+
     def emit_node(node, insts, depth, parent=None):
         """Emit ONE annotate node, recursively, as parent-linked instances.
         Inside a container (parent is not None) every node emits EXACTLY ONE
@@ -1365,6 +1408,11 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             return
         k = node["key"]
         lib, conf, sc = lib_of(node)
+        # MANUAL decision (Julian): an explicit human decision on THIS element wins over
+        # every deterministic/LLM path. Matched by id() in the per-page pre-pass.
+        _d = decide_map.get(id(node["_el"])) if node.get("_el") is not None else None
+        if _d is not None and apply_decision(node, _d, parent, insts):
+            return
         # LLM arbitration wins over deterministic categorization: if the LLM posted
         # an attribution for this element's key, apply it (typing/placement only —
         # the content stays verbatim).
@@ -1622,6 +1670,21 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
     max_zones = 0
     for slug, crawl_body in pages:
         body = slug2body.get(slug, crawl_body)  # prefer localised markup (local asset refs)
+        # resolve this page's manual decisions to elements (id()-keyed, no markup change)
+        decide_map.clear()
+        for _dd in manual_decisions.get(slug, []):
+            _sel = (_dd.get("selector") or {}).get("value")
+            _el = None
+            if _sel:
+                try:
+                    _el = body.select_one(_sel)
+                except Exception:
+                    _el = None
+            if _el is None:
+                dec_stats["unmatched"] += 1
+                continue
+            decide_map[id(_el)] = _dd
+            dec_stats["component" if _dd.get("action") == "component" else "deferred"] += 1
         ann = ZD.annotate(body, stemdf, keep_el=True)
         # UNIFY the content-root with the SHELL (verbatim-first, 0-DOM): page_shell
         # owns <body>→<main>→wrappers verbatim and places the content Area at the
@@ -1990,6 +2053,11 @@ def main():
           f"text-leaf {stats['textleaf']} | containers {stats['container']} "
           f"(flatten {stats['flatten']}) | media units {nmedia} | links {nlink} | "
           f"item children {nkids} | zones z1..z{nzones}")
+    md = stats.get("manual") or {}
+    if md.get("component") or md.get("deferred") or md.get("unmatched"):
+        print(f"  MANUAL decisions applied: {md.get('component', 0)} component(s) -> named type | "
+              f"{md.get('deferred', 0)} area/absoluteArea recorded (Phase 2b) | "
+              f"{md.get('unmatched', 0)} selector(s) unmatched")
     b = manifest.get("mergeBacklog", {})
     print(f"  MERGE BACKLOG (zoning quality): {b.get('signaturesToMerge', 0)} signature(s) to merge, "
           f"{b.get('editableContentsToMerge', 0)} editable content(s) stranded "
