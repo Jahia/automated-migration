@@ -530,6 +530,10 @@ MANUAL_CSS = """
 _MANUAL_JS = """
 (function(){
  var ZX=__ZX__, SLUG=__SLUG__;
+ // API base auto-detected from the URL: embedded in the orchestrator (served at
+ // .../zoning/mirror/<slug>.manual.html) -> .../zoning/ ; else standalone manual_server -> /api/
+ var API=(location.pathname.indexOf('/zoning/mirror/')>=0)
+   ? location.pathname.split('/zoning/mirror/')[0]+'/zoning/' : '/api/';
  var XREF=ZX.xref||{}, TMPL=ZX.pageTemplates||{};
  var TOTAL=Object.keys(TMPL).length||1;
  var DEC={};        // selector.value -> saved decision (this page)
@@ -596,7 +600,7 @@ _MANUAL_JS = """
    Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e)e.classList.add('zm-dec-'+DEC[sel].action);}catch(_){}});
  }
  function loadDecisions(){
-   return api('/api/decisions?page='+encodeURIComponent(SLUG)).then(function(r){
+   return api(API+'decisions?page='+encodeURIComponent(SLUG)).then(function(r){
      DEC={};if(r&&r.decisions)r.decisions.forEach(function(d){DEC[d.selector.value]=d;});
      markAll();drawBan();
    });
@@ -612,7 +616,7 @@ _MANUAL_JS = """
    var n=Object.keys(DEC).length;
    if(!n){alert('Aucune décision sur cette page.');return;}
    if(!confirm('Vider TOUT le zoning manuel de la page \"'+SLUG+'\" ? ('+n+' décision(s)) — irréversible.'))return;
-   api('/api/clear',{page:SLUG}).then(function(){DEC={};markAll();drawBan();pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;});
+   api(API+'clear',{page:SLUG}).then(function(){DEC={};markAll();drawBan();pop.style.display='none';if(foc)foc.classList.remove('zm-focus');foc=null;});
  }
  var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
  var hov=null;
@@ -675,14 +679,14 @@ _MANUAL_JS = """
    if(d.selector.key)d.key=d.selector.key;
    if(pending==='component'){var i=pop.querySelector('#zm-name');d.name=(i&&i.value.trim())||suggestName(el);}
    if(pending==='absoluteArea'){var s=pop.querySelector('#zm-area');d.area=(s&&s.value)||'header';}
-   api('/api/decide',{decision:d}).then(function(r){
+   api(API+'decide',{decision:d}).then(function(r){
      if(r&&r.decisions){DEC={};r.decisions.forEach(function(x){DEC[x.selector.value]=x;});}else{DEC[d.selector.value]=d;}
      pending=null;markAll();drawBan();renderPop(el);
    });
  }
  function deleteDecision(el){
    var cur=DEC[cssPath(el)];if(!cur)return;
-   api('/api/delete',{id:cur.id}).then(function(r){
+   api(API+'delete',{id:cur.id}).then(function(r){
      if(r&&r.decisions){DEC={};r.decisions.filter(function(x){return x.page===SLUG;}).forEach(function(x){DEC[x.selector.value]=x;});}else{delete DEC[cssPath(el)];}
      markAll();drawBan();renderPop(el);
    });
