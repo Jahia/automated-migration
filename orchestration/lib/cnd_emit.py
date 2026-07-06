@@ -313,6 +313,10 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
     if raw_runs or rs.get("runs") or rs.get("media") or rs.get("link"):
         raw_lines.append("  - skeleton (string, textarea) hidden")
     return [
+        "// tree-driven main navigation (AIStartupKit rule 19: nav = page tree,",
+        "// 3 levels, never frozen markup; view renders the source's own classes)",
+        f"[{ns}:mainNavigation] > jnt:content, {mixns}:component",
+        "",
         f"// listing + grid tools (editor-facing, every module ships these)",
         f"[{ns}:jcrQuery] > jnt:content, {mixns}:component, jmix:list",
         "  - query (string, textarea)",

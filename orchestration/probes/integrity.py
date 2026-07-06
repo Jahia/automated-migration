@@ -152,23 +152,32 @@ class Jahia:
         return out.get("data") or {}
 
     def page_children(self, site: str, workspace: str) -> list[str]:
-        """jnt:page children of /sites/<site>/home (the flat page tree)."""
+        """jnt:page DESCENDANTS of /sites/<site>/home — the tree may be
+        hierarchical (sitemap-driven nav sections, AIStartupKit rule 19), so a
+        flat children query under-reports moved pages."""
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "/sites/%s/home") { '
-             'children(typesFilter: {types: ["jnt:page"]}) { nodes { name } } } } }'
+             'descendants(typesFilter: {types: ["jnt:page"]}) { nodes { name } } } } }'
              % (workspace, site))
         d = self.gql(q)
         node = (d.get("jcr") or {}).get("nodeByPath")
         if not node:
             return []
-        return [n["name"] for n in node["children"]["nodes"]]
+        return [n["name"] for n in node["descendants"]["nodes"]]
+
+    def _page_base(self, site: str, page_name: str) -> str:
+        """JCR path of a page node: /home for "home", else the sitemap-resolved
+        hierarchical path (orchestration/sitemaps/<project>.txt — nav sections,
+        AIStartupKit rule 19) with the flat /home/<name> fallback."""
+        if page_name == "home":
+            return f"/sites/{site}/home"
+        rel = _sitemap_paths().get(page_name.lower(), page_name)
+        return f"/sites/{site}/home/{rel}"
 
     def main_area_count(self, site: str, page_name: str, workspace: str) -> int | None:
         """Recursive count of content descendants under a page's /main area.
         Returns None when the /main area node does not exist yet (Jahia lazy-
         creates it) — distinct from 0 (area exists, empty)."""
-        # "home" = the site home node itself (its main area is /home/main)
-        base = f"/sites/{site}/home" if page_name == "home" else f"/sites/{site}/home/{page_name}"
-        path = f"{base}/main"
+        path = f"{self._page_base(site, page_name)}/main"
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
              'descendants { nodes { name } } } } }' % (workspace, path))
         try:
@@ -189,8 +198,7 @@ class Jahia:
         stale LIVE node keeps its OLD uuid while the reload's EDIT node has a NEW
         one (observed live: 925 EDIT-vs-LIVE uuid mismatches from a silently
         aborted purge)."""
-        base = f"/sites/{site}/home" if page_name == "home" else f"/sites/{site}/home/{page_name}"
-        path = f"{base}/main"
+        path = f"{self._page_base(site, page_name)}/main"
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
              'children { nodes { name uuid } } } } }' % (workspace, path))
         try:
@@ -218,6 +226,30 @@ class Jahia:
 
 
 # ── expectations (mechanical, artifact-derived) ──────────────────────────────
+_SITEMAP_CACHE: dict | None = None
+_SITEMAP_PROJECT: str | None = None
+
+
+def _sitemap_paths() -> dict:
+    """leaf page name (lowercase) -> relative path under /home, from
+    orchestration/sitemaps/<project>.txt (empty when absent = flat tree)."""
+    global _SITEMAP_CACHE
+    if _SITEMAP_CACHE is not None:
+        return _SITEMAP_CACHE
+    out: dict = {}
+    proj = (_SITEMAP_PROJECT or "").split("/")[-1]
+    try:
+        for line in open(os.path.join(REPO_ROOT, "orchestration", "sitemaps", f"{proj}.txt")):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            out[line.split("/")[-1].lower()] = line
+    except OSError:
+        pass
+    _SITEMAP_CACHE = out
+    return out
+
+
 def load_json(path: str, default=None):
     try:
         with open(path) as f:
@@ -480,6 +512,8 @@ def main() -> int:
     a = ap.parse_args()
 
     pp = a.project_path.rstrip("/")
+    global _SITEMAP_PROJECT
+    _SITEMAP_PROJECT = pp
     report = run(pp, a.site, a.phase, a.min_ratio)
 
     out_dir = os.path.join(REPO_ROOT, pp, "workflow-output")

@@ -401,6 +401,81 @@ def rewrite_asset_refs(html, base):
     return html
 
 
+_NAV_SWAP_MARKER = os.environ.get("EXTRACT_NAV_SWAP", "")
+
+
+def _excise_nav(html):
+    """Remove the source main-nav wrapper <div> (balanced div scan, pure string
+    surgery — bs4 reserialization is not byte-idempotent on this markup) and
+    plant __NAV_SLOT__ where it stood. Returns (html, ok)."""
+    i = html.find(f'<div class="{_NAV_SWAP_MARKER}')
+    if i < 0:
+        return html, False
+    depth = 0
+    end = -1
+    for m in re.finditer(r"<(/?)div\b", html[i:], re.I):
+        if m.group(1):
+            depth -= 1
+            if depth == 0:
+                gt = html.find(">", i + m.start())
+                if gt < 0:
+                    return html, False
+                end = gt + 1
+                break
+        else:
+            depth += 1
+    if end < 0:
+        return html, False
+    return html[:i] + "__NAV_SLOT__" + html[end:], True
+
+
+def navify(out, ns):
+    """AIStartupKit rule 19 (tree-driven navigation): swap the FROZEN source
+    nav bar for a typed {ns}:mainNavigation child rendered from the page tree.
+    Applies to every instance whose skeleton carries the configured nav wrapper
+    (EXTRACT_NAV_SWAP, e.g. asr-main-navigation--wrapper) — the per-page inline
+    chrome header on this AEM SPA. Fields/media whose markers sat inside the
+    excised region are dropped so the contribution gate sees no dead props."""
+    if not _NAV_SWAP_MARKER:
+        return 0
+    swapped = 0
+    for inst in out:
+        sk = inst.get("skeleton") or ""
+        if _NAV_SWAP_MARKER not in sk:
+            continue
+        # the source header carries the wrapper TWICE (desktop + mobile menu).
+        # First occurrence -> the tree-driven nav slot; the rest are dropped
+        # (the mobile drawer is a JS widget; the 1440px fidelity render never
+        # shows it — mobile nav is a follow-up on the component itself).
+        new_sk, ok = _excise_nav(sk)
+        if not ok:
+            continue
+        while True:
+            again, more = _excise_nav(new_sk)
+            if not more:
+                break
+            new_sk = again.replace("__NAV_SLOT__", "", 1)
+        children = inst.setdefault("children", [])
+        idx = len(children)
+        new_sk = new_sk.replace("__NAV_SLOT__", "{{child:%d}}" % idx)
+        inst["skeleton"] = new_sk
+        f_marks = set(re.findall(r"\{\{f:([^}]+)\}\}", new_sk))
+        inst["fields"] = {k: v for k, v in (inst.get("fields") or {}).items()
+                          if k in f_marks}
+        med_marks = set(re.findall(r"\{\{media:([^}]+)\}\}", new_sk))
+        inst["media"] = [m for m in (inst.get("media") or [])
+                         if m.get("name") in med_marks]
+        if "{{link:href}}" not in new_sk:
+            inst["link"] = None
+        children.append({"navChild": True, "nodeType": f"{ns}:mainNavigation",
+                         "fields": {}, "skeleton": "",
+                         "skeletonSubs": [], "skeletonMissed": []})
+        inst["skeletonSubs"] = sorted(inst["fields"]) + sorted(
+            k for ch in children for k in (ch.get("fields") or {}))
+        swapped += 1
+    return swapped
+
+
 def _library_atom(plan, parent_idx, facts, name, base):
     """Build one COMPOSABLE library atom instance (P6.3 logoWall, P6.3-bis
     carousel slide / tabs pane) as a child of `parent_idx`.
@@ -1355,6 +1430,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     # empty-leaf accounting for the loader (containers keep, empty leaves flagged).
     # Library atoms carry their content in imageFile/imgOrig/href (not fields/
     # images/links) — they are NEVER empty (a real editable node the loader wires).
+    navify(out, ns)
     parents = {i["parent"] for i in out if i.get("parent") is not None}
     for idx, i in enumerate(out):
         if i.get("libraryPlan") or i.get("libraryAtom"):

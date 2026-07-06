@@ -40,7 +40,7 @@ Usage:
   python3 orchestration/lib/load_content.py <project> <site> [--page home] [--limit N] \
       [--clean] [--force-rebuild] [--dry] [--locale en] [--chrome-from home|auto]
 """
-import hashlib, json, os, sys
+import hashlib, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_client import MCP
 
@@ -265,6 +265,71 @@ class Loader:
                     return x["jcrPath"]
         return None
 
+    def _href_map(self):
+        """source path (lowercase, no trailing /) -> Jahia page URL. Built from
+        page-inventory (crawled pages) + the sitemap (hierarchy + section
+        aliases like /en/offers -> the offers section page). Rewiring internal
+        anchors is AIStartupKit rule 8/G5: frozen source hrefs navigate off-site
+        or 404 on the migrated site (915 residue anchors observed)."""
+        if hasattr(self, "_href_map_cache"):
+            return self._href_map_cache
+        m = {}
+        rel_of = {}   # leaf slug -> sitemap rel path
+        try:
+            for line in open(f"orchestration/sitemaps/{self.project}.txt"):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                rel_of[line.split("/")[-1].lower()] = line
+        except OSError:
+            pass
+        try:
+            inv = load_json(f"projects/{self.project}/workflow-output/page-inventory.json", {})
+            site_url = (inv.get("siteUrl") or "").rstrip("/")
+            for p in inv.get("pages", []):
+                slug, url = p.get("slug"), (p.get("url") or "").rstrip("/")
+                if not slug or not url:
+                    continue
+                src_path = url[len(site_url.rsplit("/en", 1)[0]):] if "/en" in site_url else url
+                # normalize to the site-relative /en/... form
+                if src_path.startswith("http"):
+                    from urllib.parse import urlparse
+                    src_path = urlparse(src_path).path
+                if url.rstrip("/") == site_url:
+                    tgt = f"/sites/{self.site}/home.html"
+                else:
+                    rel = rel_of.get(slug.lower(), slug)
+                    tgt = f"/sites/{self.site}/home/{rel}.html"
+                m[src_path.lower().rstrip("/")] = tgt
+        except Exception:
+            pass
+        # section pages without a crawled counterpart: /en/<leaf> alias
+        for leaf, rel in rel_of.items():
+            key = f"/en/{leaf}"
+            if key not in m and not leaf.startswith("en_"):
+                m[key] = f"/sites/{self.site}/home/{rel}.html"
+        self._href_map_cache = m
+        return m
+
+    _HREF_RE = re.compile(r'href="((?:https?://[^/"]+)?(/en(?:/[^"?#]*)?))([^"]*)"')
+
+    def _rewire_hrefs(self, text):
+        """Rewrite internal source anchors (href="/en/..." and the absolute
+        form) to Jahia page URLs when the path maps to a migrated page;
+        unknown paths stay verbatim (external world unchanged)."""
+        if not text or "/en" not in text:
+            return text
+        hm = self._href_map()
+
+        def sub(mo):
+            path = mo.group(2).lower().rstrip("/") or "/en"
+            tgt = hm.get(path)
+            if not tgt:
+                return mo.group(0)
+            return f'href="{tgt}{mo.group(3)}"'
+
+        return self._HREF_RE.sub(sub, text)
+
     def promoted_props(self, payload, pdef, nodetype):
         """P2.5-D EXPLICIT contract for skeleton nodes (parent or item).
         The TYPE declares only the hidden `skeleton`; every editor-facing field
@@ -279,7 +344,8 @@ class Loader:
         only; mixin props are settable AFTER addMixins."""
         mixns = self.mixns
         f = payload.get("fields", {})
-        create_props = {"skeleton": (payload.get("skeleton") or "")[:200_000]}
+        create_props = {"skeleton": self._rewire_hrefs(
+            (payload.get("skeleton") or ""))[:200_000]}
         mixins, post = [], {}
         if f.get("title"):
             mixins.append("mix:title")
@@ -289,7 +355,7 @@ class Loader:
                 continue
             n = k[len("body"):]
             mixins.append(f"{mixns}:contribBody{n}")
-            post[k] = v[:200_000]
+            post[k] = self._rewire_hrefs(v)[:200_000]
         for k, v in f.items():
             # lift_labels plain-text fields (label, label2, ...) — same per-node
             # mixin pattern as bodies; unmapped they were silently DROPPED and
@@ -606,14 +672,18 @@ class Loader:
         return n
 
     # ── A2 reconcile: page-granular incident resume ("what is already done") ──
+    # bump when LOADER semantics change what reaches the JCR for an unchanged
+    # payload (e.g. rev 2: internal-anchor rewiring) — forces reconcile REBUILDs.
+    LOADER_REV = 2
+
     @staticmethod
     def _plan_hash(pdata):
         """sha256 of the page's CANONICAL plan slice (sort_keys + compact
-        separators over content['pages'][slug]) — a changed plan invalidates
-        the ledger entry and forces a REBUILD of that page only."""
+        separators over content['pages'][slug]) — a changed plan OR a loader
+        semantics rev invalidates the ledger entry and REBUILDs that page."""
         blob = json.dumps(pdata, sort_keys=True, separators=(",", ":"),
                           ensure_ascii=False)
-        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+        return hashlib.sha256((f"r{Loader.LOADER_REV}|" + blob).encode("utf-8")).hexdigest()
 
     def _area_children(self, area_path, workspace):
         """{name: uuid} of the area's DIRECT children in a workspace (read-only
@@ -960,20 +1030,30 @@ class Loader:
             # (the skeleton view splices child i into marker i)
             if kids and path:
                 cnt = self.child_type.get(nt)
-                if not cnt:
-                    print(f"  !! {nt} carries {len(kids)} item(s) but no childType "
+                untyped = [ch for ch in kids if not ch.get("nodeType")]
+                if not cnt and untyped:
+                    print(f"  !! {nt} carries {len(untyped)} item(s) but no childType "
                           f"in manifest — markers would render EMPTY", file=sys.stderr)
                     self.prop_misses.append((nt, "childType"))
-                else:
-                    cpdef = self.props_of(cnt)
+                if cnt or any(ch.get("nodeType") for ch in kids):
                     for n, ch in enumerate(kids):
-                        cprops, cmix, cpost = self.promoted_props(ch, cpdef, cnt)
+                        # a child payload may carry its OWN nodeType (navify's
+                        # {ns}:mainNavigation tree-driven child); manifest
+                        # childType stays the default for skeleton items
+                        cnt_ch = ch.get("nodeType") or cnt
+                        if not cnt_ch:
+                            continue
+                        if ch.get("navChild"):
+                            cprops, cmix, cpost = {}, [], {}
+                        else:
+                            cpdef = self.props_of(cnt_ch)
+                            cprops, cmix, cpost = self.promoted_props(ch, cpdef, cnt_ch)
                         try:
                             import time
                             rc = None
                             for attempt in range(4):
                                 try:
-                                    rc = self.m.create(path, cnt, cprops,
+                                    rc = self.m.create(path, cnt_ch, cprops,
                                                        name=f"item-{n + 1}", locale=self.locale)
                                     break
                                 except Exception as ce:
@@ -985,10 +1065,11 @@ class Loader:
                             cpath = rc.get("path") if isinstance(rc, dict) else None
                             if cpath:
                                 created += 1
-                                self.apply_payload(cpath, cmix, cpost, ch, cnt)
+                                if not ch.get("navChild"):
+                                    self.apply_payload(cpath, cmix, cpost, ch, cnt_ch)
                                 # no publish — EDIT-only (final act publishes)
                         except Exception as e:
-                            print(f"  ! item-{n + 1} ({cnt}) under {name} failed: {e}",
+                            print(f"  ! item-{n + 1} ({cnt_ch}) under {name} failed: {e}",
                                   file=sys.stderr)
             # no per-parent publish, no area sweep — EDIT-only (Julian
             # 2026-07-04): the single final publication (publish_site.sh,

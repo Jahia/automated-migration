@@ -32,6 +32,21 @@ type JCRNode = {
   getNodes: () => { hasNext: () => boolean; nextNode: () => JCRNode };
 };
 
+/** True when the child carries a `skeleton` property (string-composable);
+ *  false = a typed VIEW child (e.g. mainNavigation) that must render through
+ *  Jahia's pipeline (<Render node/>) on LIVE as well as EDIT. */
+export const hasSkeletonProp = (n: JCRNode): boolean => {
+  try {
+    const it = n.getProperties();
+    while (it.hasNext()) {
+      if (String(it.nextProperty().getName()) === "skeleton") return true;
+    }
+  } catch {
+    /* unreadable */
+  }
+  return false;
+};
+
 export const escapeHtml = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 export const escapeAttr = (s: string): string =>
