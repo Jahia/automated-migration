@@ -198,6 +198,7 @@ OVERLAY_CSS = """
 [data-zr]{outline-offset:-2px!important}
 [data-zr=absolute]{outline:2px solid #d33a2c!important}
 [data-zr=component]{outline:2px solid #1aa06a!important}
+[data-zr=layout]{outline:2px solid #14b8a6!important}
 [data-zr=zone]{outline:2px solid #1f6fd6!important}
 [data-zone]{box-shadow:inset 0 0 0 3px #1f6fd6!important}
 [data-zx-pin]{outline:3px solid #ffb000!important;outline-offset:-3px!important}
@@ -205,7 +206,7 @@ OVERLAY_CSS = """
  font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;padding:0 4px;pointer-events:none;
  white-space:nowrap;border-bottom-right-radius:4px}
 [data-zr=absolute]::before{background:#d33a2c}[data-zr=component]::before{background:#1aa06a}
-[data-zr=zone]::before{background:#1f6fd6}
+[data-zr=layout]::before{background:#14b8a6}[data-zr=zone]::before{background:#1f6fd6}
 [data-zone]::after{content:"\\25a6 " attr(data-zone);position:absolute;top:0;right:0;z-index:2147483645;
  font:700 10px/1.3 ui-monospace,Menlo,monospace;color:#fff;background:#1f6fd6;padding:0 4px;
  pointer-events:none;white-space:nowrap;border-bottom-left-radius:4px}
@@ -214,7 +215,7 @@ OVERLAY_CSS = """
 #zx-ban b{color:#fff}
 #zx-legend{float:right;font:11px/1.4 -apple-system,sans-serif;color:#9ec5e6}
 #zx-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 12px;vertical-align:-1px}
-#zx-legend i.z{background:#1f6fd6}#zx-legend i.a{background:#d33a2c}#zx-legend i.c{background:#1aa06a}
+#zx-legend i.z{background:#1f6fd6}#zx-legend i.a{background:#d33a2c}#zx-legend i.c{background:#1aa06a}#zx-legend i.l{background:#14b8a6}
 body{padding-top:30px!important}
 #zx-tip{position:fixed;z-index:2147483647;max-width:360px;background:#001932;color:#e8f1f9;
  font:12px/1.45 -apple-system,sans-serif;padding:9px 11px;border-radius:8px;
@@ -223,7 +224,7 @@ body{padding-top:30px!important}
 #zx-tip .hd{display:flex;align-items:center;gap:6px;margin-bottom:5px}
 #zx-tip .ty{font-family:ui-monospace,monospace;font-weight:700}
 #zx-tip .badge{font:700 10px/1.5 -apple-system,sans-serif;color:#fff;padding:0 6px;border-radius:9px}
-#zx-tip .badge.z{background:#1f6fd6}#zx-tip .badge.a{background:#d33a2c}#zx-tip .badge.c{background:#1aa06a}
+#zx-tip .badge.z{background:#1f6fd6}#zx-tip .badge.a{background:#d33a2c}#zx-tip .badge.c{background:#1aa06a}#zx-tip .badge.l{background:#14b8a6}
 #zx-tip #zx-x{margin-left:auto;cursor:pointer;font-size:16px;color:#9ec5e6;padding:0 2px}
 #zx-tip #zx-x:hover{color:#fff}
 #zx-tip .row{margin-top:3px}#zx-tip .p{color:#9ec5e6;margin-top:4px;font-size:11px}
@@ -244,6 +245,7 @@ body{padding-top:30px!important}
 #zx-tip #zx-pre .ph{font-weight:700;border-radius:3px;padding:0 3px}
 #zx-tip #zx-pre .ph-component{color:#08210f;background:#4ade80}
 #zx-tip #zx-pre .ph-zone{color:#07182c;background:#60a5fa}
+#zx-tip #zx-pre .ph-layout{color:#04211d;background:#5eead4}
 #zx-tip #zx-pre .ph-absolute{color:#2a0808;background:#f87171}
 """
 
@@ -269,15 +271,20 @@ _OVERLAY_JS = """
  var sibs=Object.keys(ZX.pageTemplates||{}).filter(function(s){return ZX.pageTemplates[s]===tmpl&&s!==SLUG;});
  ban.innerHTML='Page <b>'+SLUG+'</b> &middot; Template <b>'+tmpl+'</b> ('+(sibs.length+1)+' page'
   +(sibs.length?'s':'')+(sibs.length?' &middot; aussi: '+sibs.slice(0,8).join(', ')+(sibs.length>8?' +'+(sibs.length-8):''):'')+')'
-  +'<span id="zx-legend"><i class="z"></i>zone <i class="a"></i>zone absolue <i class="c"></i>composant &middot; clic = épingler</span>';
+  +'<span id="zx-legend"><i class="z"></i>zone (Area) <i class="l"></i>composant layout <i class="c"></i>composant <i class="a"></i>chrome &middot; clic = épingler</span>';
  document.body.appendChild(ban);
  var tip=document.createElement('div');tip.id='zx-tip';document.body.appendChild(tip);
  var pinned=null;
  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
  function role(el){
-   if(el.getAttribute('data-zr')==='absolute')return{k:'zone absolue',cls:'a'};
+   // the element's TRUE nature (data-zr) wins over the content band (data-zone): a
+   // layoutSection is a content-free LAYOUT COMPONENT, never a "zone" (Julian).
+   var r=el.getAttribute('data-zr');
+   if(r==='absolute')return{k:'chrome (absolute)',cls:'a'};
+   if(r==='layout')return{k:'composant layout',cls:'l'};
+   if(r==='component')return{k:'composant',cls:'c'};
    if(el.hasAttribute('data-zone'))return{k:'zone '+el.getAttribute('data-zone'),cls:'z'};
-   if(el.getAttribute('data-zr')==='zone')return{k:'zone',cls:'z'};
+   if(r==='zone')return{k:'zone',cls:'z'};
    return{k:'composant',cls:'c'};
  }
  function crumb(el){
@@ -296,6 +303,7 @@ _OVERLAY_JS = """
    return chain;
  }
  function ph(el){
+   if(el.getAttribute('data-zr')==='layout')return '[[layout:'+(el.getAttribute('data-zt')||'layoutSection')+']]';
    if(el.hasAttribute('data-zone'))return '[[zone:'+el.getAttribute('data-zone')+(el.getAttribute('data-zt')?':'+el.getAttribute('data-zt'):'')+']]';
    if(el.getAttribute('data-zr')==='zone')return '[[zone:'+(el.getAttribute('data-zt')||'zone')+']]';
    if(el.getAttribute('data-zr')==='absolute')return '[[absolute:'+(el.getAttribute('data-zt')||'chrome')+']]';
@@ -320,7 +328,7 @@ _OVERLAY_JS = """
    return c.outerHTML;
  }
  // ---- lightweight, self-contained HTML syntax highlighter for the raw view ----
- function phSpan(tok){var mm=/\\[\\[(component|zone|absolute):/.exec(tok);var r=mm?mm[1]:'component';
+ function phSpan(tok){var mm=/\\[\\[(component|layout|zone|absolute):/.exec(tok);var r=mm?mm[1]:'component';
    return '<span class="ph ph-'+r+'">'+esc(tok)+'</span>';}
  function attrPart(rest){
    var h='',re=/\\s+|([a-zA-Z_:][-\\w:.]*)(\\s*=\\s*)?("[^"]*"|'[^']*'|[^\\s"'=<>`]+)?/g,m;
@@ -344,7 +352,7 @@ _OVERLAY_JS = """
      +attrPart(rest)+'<span class="pu">'+(sc?'/':'')+'&gt;</span>';
  }
  function hl(raw){
-   var RE=/<!--[\\s\\S]*?-->|<\\/?[a-zA-Z][\\w:-]*(?:[^>"']|"[^"]*"|'[^']*')*>|\\[\\[(?:component|zone|absolute):[^\\]]+\\]\\]/g;
+   var RE=/<!--[\\s\\S]*?-->|<\\/?[a-zA-Z][\\w:-]*(?:[^>"']|"[^"]*"|'[^']*')*>|\\[\\[(?:component|layout|zone|absolute):[^\\]]+\\]\\]/g;
    var out='',last=0,m;
    while((m=RE.exec(raw))){
      if(m.index>last)out+='<span class="tx">'+esc(raw.slice(last,m.index))+'</span>';
@@ -939,8 +947,14 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None):
             # container = blue zone, everything else = green component. A layoutSection
             # is a structural container (clean <Area>, stores NO HTML blob) -> blue, but
             # data-zt="layoutSection" labels it distinctly from a verbatim "zone".
+            # a layoutSection is a content-free LAYOUT COMPONENT (skin markup + child
+            # <Area>), NOT a zone — a zone is a pure <Area> (a LIST of components, no
+            # HTML). Distinct role "layout" (teal) so the overlay never mislabels it a
+            # "zone" (Julian: "une zone n'a pas de rendu HTML"). "zone" (blue) is reserved
+            # for the content BANDS / <Area> regions (data-zone).
             el["data-zr"] = ("absolute" if t == "chrome"
-                             else "zone" if t in ("zone", "layoutSection")
+                             else "layout" if t == "layoutSection"
+                             else "zone" if t == "zone"
                              else "component")
             if key:
                 el["data-zk"] = key
