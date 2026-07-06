@@ -1029,7 +1029,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
     # typed node (via apply_attribution's byte-exact emit_typed+fallback); area/absoluteArea
     # are recorded and applied in a later pass (Phase 2b).
     manual_decisions, decide_map = {}, {}
-    dec_stats = {"component": 0, "deferred": 0, "unmatched": 0}
+    dec_stats = {"component": 0, "area": 0, "absoluteArea": 0, "unmatched": 0}
     stats["manual"] = dec_stats  # surfaced to main() for the summary (mutated in place)
     mdp = f"{REPO}/projects/{project}/workflow-output/manual-decisions.json"
     if os.path.exists(mdp):
@@ -1379,14 +1379,53 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         s = parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
         return s if s[:1].isalpha() else "c" + s
 
-    def apply_decision(node, d, parent, insts):
-        """Apply a MANUAL inspector decision (Julian, Phase 2). `component` -> a named
-        typed node, reusing apply_attribution's byte-exact emit_typed + verbatim fallback
-        (so a mis-resolved selector can NEVER break fidelity — worst case it types the
-        wrong element). area/absoluteArea are recorded but applied in a later pass.
-        Returns True if it consumed the node."""
-        if d.get("action") == "component":
+    def apply_decision(node, d, parent, insts, depth):
+        """Apply a MANUAL inspector decision (Julian). Returns True if it consumed the node.
+          component    -> named typed node (apply_attribution: byte-exact emit_typed+fallback)
+          absoluteArea -> chrome band rendered VERBATIM in place (same path as the auto nav:
+                          rides the adjacent zone, never a content zone) — fidelity-safe by
+                          construction; the header/nav/footer intent stays in the decision
+                          record for deploy-time /home/<area> extraction
+          area         -> structural container: byte-parity layoutSection (skin + child Area)
+                          or verbatim `zone`, children recursed as parent-linked instances"""
+        el = node.get("_el")
+        if el is None:
+            return False
+        k = node.get("key")
+        act = d.get("action")
+        if act == "component":
             return apply_attribution(node, {"type": _safe_type(d.get("name"))}, parent, insts)
+        if act == "absoluteArea":
+            t = raw_inst(el, base)              # verbatim; NO area key -> stays placed via a zone
+            t["chromeBand"] = True
+            t["parent"] = parent
+            insts.append(t)
+            tag(el, "chrome", k)
+            return True
+        if act == "area":
+            ek = extraction_children(node)
+            w = wrapper_container(node, ek) if ek else None
+            if w is not None:                   # byte-parity wrapper -> layoutSection / zone
+                idx = len(insts)
+                try:
+                    _lp = LR._recognize_layout(el, ns)
+                except Exception:
+                    _lp = None
+                lay = _try_layout_section(w.get("skeleton") or "")
+                if lay is not None:
+                    insts.append({"type": "layoutSection", "parent": parent, "promoted": True,
+                                  "layout": lay,
+                                  "sourceClasses": (_lp.get("sourceClasses") if _lp else None)})
+                    used.add("layoutSection"); tag(el, "layoutSection", k)
+                else:
+                    w["parent"] = parent; insts.append(w)
+                    used.add("zone"); tag(el, "zone", k)
+                for kd in ek:
+                    emit_node(kd, insts, depth + 1, idx)
+                return True
+            t = raw_inst(el, base); t["parent"] = parent  # not liftable -> verbatim (fidelity first)
+            insts.append(t); tag(el, "zone", k)
+            return True
         return False
 
     def emit_node(node, insts, depth, parent=None):
@@ -1411,7 +1450,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         # MANUAL decision (Julian): an explicit human decision on THIS element wins over
         # every deterministic/LLM path. Matched by id() in the per-page pre-pass.
         _d = decide_map.get(id(node["_el"])) if node.get("_el") is not None else None
-        if _d is not None and apply_decision(node, _d, parent, insts):
+        if _d is not None and apply_decision(node, _d, parent, insts, depth):
             return
         # LLM arbitration wins over deterministic categorization: if the LLM posted
         # an attribution for this element's key, apply it (typing/placement only —
@@ -1684,7 +1723,8 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
                 dec_stats["unmatched"] += 1
                 continue
             decide_map[id(_el)] = _dd
-            dec_stats["component" if _dd.get("action") == "component" else "deferred"] += 1
+            _a = _dd.get("action")
+            dec_stats[_a] = dec_stats.get(_a, 0) + 1
         ann = ZD.annotate(body, stemdf, keep_el=True)
         # UNIFY the content-root with the SHELL (verbatim-first, 0-DOM): page_shell
         # owns <body>→<main>→wrappers verbatim and places the content Area at the
@@ -2054,10 +2094,10 @@ def main():
           f"(flatten {stats['flatten']}) | media units {nmedia} | links {nlink} | "
           f"item children {nkids} | zones z1..z{nzones}")
     md = stats.get("manual") or {}
-    if md.get("component") or md.get("deferred") or md.get("unmatched"):
-        print(f"  MANUAL decisions applied: {md.get('component', 0)} component(s) -> named type | "
-              f"{md.get('deferred', 0)} area/absoluteArea recorded (Phase 2b) | "
-              f"{md.get('unmatched', 0)} selector(s) unmatched")
+    if any(md.get(x) for x in ("component", "area", "absoluteArea", "unmatched")):
+        print(f"  MANUAL decisions applied: {md.get('component', 0)} component | "
+              f"{md.get('area', 0)} area | {md.get('absoluteArea', 0)} absoluteArea | "
+              f"{md.get('unmatched', 0)} unmatched selector(s)")
     b = manifest.get("mergeBacklog", {})
     print(f"  MERGE BACKLOG (zoning quality): {b.get('signaturesToMerge', 0)} signature(s) to merge, "
           f"{b.get('editableContentsToMerge', 0)} editable content(s) stranded "
