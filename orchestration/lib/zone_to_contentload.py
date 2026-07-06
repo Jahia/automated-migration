@@ -484,7 +484,7 @@ _OVERLAY_JS = """
 # str.replace (NOT %-format) so literal % in the JS needs no escaping.
 MANUAL_CSS = """
 .zm-hover{outline:2px solid #ff6a00 !important;outline-offset:-2px;cursor:pointer !important;}
-.zm-focus{outline:3px solid #1f6fd6 !important;outline-offset:-3px;}
+.zm-focus.zm-focus{outline:3px solid #7c3aed !important;outline-offset:-3px;box-shadow:inset 0 0 0 9999px rgba(124,58,237,.34) !important;}
 #zm-ban{position:fixed;left:0;bottom:0;z-index:2147483646;background:rgba(17,17,17,.92);color:#fff;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:5px 12px;border-top-right-radius:6px;}
 #zm-ban b{color:#7fd1ff;}
 #zm-pop{position:fixed;top:12px;right:12px;width:400px;max-height:92vh;overflow:auto;z-index:2147483647;background:#fff;color:#1a1a1a;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.28);font:13px/1.55 system-ui,-apple-system,sans-serif;display:none;padding:10px 12px;}
@@ -525,6 +525,10 @@ MANUAL_CSS = """
 .zm-dec-component{box-shadow:inset 0 0 0 3px rgba(26,160,106,.9)!important;}
 .zm-dec-area{box-shadow:inset 0 0 0 3px rgba(31,111,214,.9)!important;}
 .zm-dec-absoluteArea{box-shadow:inset 0 0 0 3px rgba(211,58,44,.9)!important;}
+#zm-ban .zm-toggle{cursor:pointer;background:#0a3252;color:#fff;border:1px solid #1c5a8a;border-radius:5px;padding:2px 9px;font:inherit;margin-left:8px;}
+#zm-ban .zm-toggle:hover{background:#12507f;}
+#zm-ban .zm-toggle.on{background:#7c3aed;border-color:#7c3aed;}
+body.zm-hide-integrated .zm-integrated-top{display:none !important;}
 """
 
 _MANUAL_JS = """
@@ -552,9 +556,22 @@ _MANUAL_JS = """
  // clean source HTML for the preview: drop our injected zoning attrs + hover/focus classes
  function cleanHTML(el){
    var c=el.cloneNode(true);
+   // collapse each TAGGED / DECIDED sub-component to a [[label]] placeholder (don't recurse
+   // in) — so a component's HTML shows its children abstracted, e.g. [[nav-menu]] (Julian).
+   (function collapse(node){
+     Array.prototype.slice.call(node.children).forEach(function(ch){
+       var label=(ch.getAttribute&&(ch.getAttribute('data-zm-label')||ch.getAttribute('data-zt')))||'';
+       var zr=ch.getAttribute&&ch.getAttribute('data-zr');
+       var boundary=label||zr==='component'||zr==='layout'||zr==='absolute'
+         ||(ch.hasAttribute&&ch.hasAttribute('data-zone'))
+         ||((''+(ch.className||'')).indexOf('zm-dec-')>=0);
+       if(boundary){ch.parentNode.replaceChild(document.createTextNode('[['+(label||'composant')+']]'),ch);}
+       else collapse(ch);
+     });
+   })(c);
    var all=[c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
    all.forEach(function(x){
-     ['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-skin'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});
+     ['data-zt','data-zc','data-zk','data-zr','data-zone','data-zx-skin','data-zm-label'].forEach(function(a){if(x.removeAttribute)x.removeAttribute(a);});
      if(x.classList){Array.prototype.slice.call(x.classList).forEach(function(cn){if(cn.indexOf('zm-')===0)x.classList.remove(cn);});if(!x.getAttribute('class'))x.removeAttribute('class');}
    });
    return c.outerHTML||'';
@@ -595,9 +612,27 @@ _MANUAL_JS = """
    var opt=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
    return fetch(path,opt).then(function(r){return r.json();}).catch(function(){return null;});
  }
+ var covTot=0;  // % of page content already inside a component (decided or engine-typed)
+ function updateCoverage(){
+   // top-most component boundaries (content components + chrome + decisions; NOT bare
+   // structural zones/layouts — their loose children must still count as "not encapsulated")
+   var SELB='[data-zr="component"],[data-zr="layout"],[data-zr="absolute"],.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea';
+   var all=Array.prototype.slice.call(document.querySelectorAll(SELB)), inTxt=0;
+   all.forEach(function(e){e.classList.remove('zm-integrated-top');});
+   all.forEach(function(e){
+     if(!e.parentElement||!e.parentElement.closest(SELB)){   // top-most only (no double count)
+       e.classList.add('zm-integrated-top');
+       inTxt+=(''+(e.textContent||'')).replace(/\\s+/g,'').length;
+     }
+   });
+   var bodyTxt=(''+(document.body.textContent||'')).replace(/\\s+/g,'').length;
+   var uiTxt=((((ban&&ban.textContent)||'')+((pop&&pop.textContent)||''))).replace(/\\s+/g,'').length;
+   covTot=Math.max(0,Math.min(100,Math.round(100*inTxt/Math.max(1,bodyTxt-uiTxt))));
+ }
  function markAll(){
-   Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');});
-   Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e)e.classList.add('zm-dec-'+DEC[sel].action);}catch(_){}});
+   Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');x.removeAttribute('data-zm-label');});
+   Object.keys(DEC).forEach(function(sel){try{var e=document.querySelector(sel);if(e){e.classList.add('zm-dec-'+DEC[sel].action);e.setAttribute('data-zm-label',DEC[sel].name||DEC[sel].action);}}catch(_){}});
+   updateCoverage();
  }
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
@@ -611,10 +646,17 @@ _MANUAL_JS = """
  function drawBan(){
    var here=Object.keys(DEC).filter(function(s){try{return !!document.querySelector(s);}catch(e){return false;}}).length;
    var tot=Object.keys(DEC).length;
+   var hidden=document.body.classList.contains('zm-hide-integrated');
    ban.innerHTML='<b>Mode manuel</b> &middot; page <b>'+esc(SLUG)+'</b> &middot; survole, clique pour décider'
      +' &middot; <span style="color:#7fd1ff">'+here+' ici / '+tot+' sur le site</span>'
+     +' &middot; <span style="color:#7ee787">'+covTot+'% intégré</span> / <span style="color:#ffab70">'+(100-covTot)+'% libre</span>'
+     +' <button class="zm-toggle'+(hidden?' on':'')+'">'+(hidden?'Réafficher intégré':'Masquer intégré')+'</button>'
      +' <button class="zm-clear">Vider la page ('+here+')</button>';
    var c=ban.querySelector('.zm-clear');if(c)c.onclick=clearPage;
+   var t=ban.querySelector('.zm-toggle');if(t)t.onclick=function(){
+     var on=document.body.classList.toggle('zm-hide-integrated');
+     t.classList.toggle('on',on);t.textContent=on?'Réafficher intégré':'Masquer intégré';
+   };
  }
  function clearPage(){
    // decisions are site-wide -> clear the ones VISIBLE on this page (by id, sequential to
