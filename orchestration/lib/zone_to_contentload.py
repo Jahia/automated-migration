@@ -141,6 +141,8 @@ def _overlay_category(t):
         return "raw"
     if t == "zone":
         return "zone"
+    if t == "layoutSection":
+        return "layout"
     if t == "section":
         return "generic"
     return "cont" if t in CONTAINERS else "atom"
@@ -808,10 +810,13 @@ def build(project, site, ns, module=None, overlay=False):
         if overlay and el is not None:
             el["data-zt"] = t
             el["data-zc"] = _overlay_category(t)  # category (probe counts)
-            # role drives the 3-color scheme: chrome/ABSOLUTE = red, content-free
-            # structural container = blue zone, everything else = green component
+            # role drives the 3-color scheme: chrome/ABSOLUTE = red, structural
+            # container = blue zone, everything else = green component. A layoutSection
+            # is a structural container (clean <Area>, stores NO HTML blob) -> blue, but
+            # data-zt="layoutSection" labels it distinctly from a verbatim "zone".
             el["data-zr"] = ("absolute" if t == "chrome"
-                             else "zone" if t == "zone" else "component")
+                             else "zone" if t in ("zone", "layoutSection")
+                             else "component")
             if key:
                 el["data-zk"] = key
 
