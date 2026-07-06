@@ -621,16 +621,15 @@ _MANUAL_JS = """
    var SELB='[data-zr="component"],[data-zr="absolute"],.zm-dec-component,.zm-dec-absoluteArea';
    var all=Array.prototype.slice.call(document.querySelectorAll(SELB)), tops=[];
    all.forEach(function(e){e.classList.remove('zm-integrated-top');});
-   all.forEach(function(e){   // stamp top-most component boundaries (ALWAYS — the hide toggle needs them)
+   all.forEach(function(e){   // stamp top-most component boundaries (the hide toggle needs them)
      if(!e.parentElement||!e.parentElement.closest(SELB)){e.classList.add('zm-integrated-top');tops.push(e);}
    });
-   // % over VISIBLE text (innerText skips display:none menus/modals — else the huge hidden
-   // mega-menu inflates "libre"). Meaningful only while regions are SHOWN; when hidden keep
-   // the last value (innerText would read them as 0).
-   if(document.body.classList.contains('zm-hide-integrated'))return;
-   var vis=function(el){return (''+((el&&el.innerText)||'')).replace(/\\s+/g,'').length;};
-   var inTxt=0; tops.forEach(function(e){inTxt+=vis(e);});
-   covTot=Math.max(0,Math.min(100,Math.round(100*inTxt/Math.max(1,vis(document.body)-vis(ban)-vis(pop)))));
+   // % of ALL content code inside a component — textContent counts HIDDEN modals/dialogs too
+   // (they ARE un-componentized content: Julian's div#app zone has many non-zoned children —
+   // modals, session-timeout, chatbot…). A visible-only count read a false 100% by ignoring them.
+   var txt=function(el){return (''+((el&&el.textContent)||'')).replace(/\\s+/g,'').length;};
+   var inTxt=0; tops.forEach(function(e){inTxt+=txt(e);});
+   covTot=Math.max(0,Math.min(100,Math.round(100*inTxt/Math.max(1,txt(document.body)-txt(ban)-txt(pop)))));
  }
  function markAll(){
    Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component,.zm-dec-area,.zm-dec-absoluteArea'),function(x){x.classList.remove('zm-dec-component','zm-dec-area','zm-dec-absoluteArea');x.removeAttribute('data-zm-label');});
@@ -658,8 +657,7 @@ _MANUAL_JS = """
    var c=ban.querySelector('.zm-clear');if(c)c.onclick=clearPage;
    var t=ban.querySelector('.zm-toggle');if(t)t.onclick=function(){
      var on=document.body.classList.toggle('zm-hide-integrated');
-     if(!on)updateCoverage();   // regions shown again -> recompute the visible %
-     drawBan();                 // re-render banner (label + refreshed %); re-wires the button
+     t.classList.toggle('on',on);t.textContent=on?'Réafficher intégré':'Masquer intégré';
    };
  }
  function clearPage(){
