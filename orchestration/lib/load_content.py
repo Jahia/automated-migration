@@ -551,8 +551,12 @@ class Loader:
         # manifest props: title, text, html, skeleton...), then order-zip the
         # leftovers (v1 sxa field names -> heading first, etc.)
         fields = {k: v.strip() for k, v in inst.get("fields", {}).items() if v and v.strip()}
+        # internal anchors in verbatim html payloads point at the SOURCE site —
+        # same rewiring as promoted skeletons (rule 8: content owns the URLs)
+        if fields.get("html"):
+            fields["html"] = self._rewire_hrefs(fields["html"])
         if inst.get("skeleton"):
-            fields["skeleton"] = inst["skeleton"]
+            fields["skeleton"] = self._rewire_hrefs(inst["skeleton"])
         LONG = {"html", "skeleton"}  # verbatim markup — never truncate to 5k
         used_props, used_fields = set(), set()
         for name, val in fields.items():
@@ -674,7 +678,7 @@ class Loader:
     # ── A2 reconcile: page-granular incident resume ("what is already done") ──
     # bump when LOADER semantics change what reaches the JCR for an unchanged
     # payload (e.g. rev 2: internal-anchor rewiring) — forces reconcile REBUILDs.
-    LOADER_REV = 2
+    LOADER_REV = 3
 
     @staticmethod
     def _plan_hash(pdata):
