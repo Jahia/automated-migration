@@ -624,6 +624,19 @@ _MANUAL_JS = """
    if(zt)return{lab:'composant',cls:'c',ty:zt};
    return{lab:'non zoné',cls:'n',ty:''};
  }
+ // EFFECTIVE badge for a child row (Julian): attr() inspects only the element's OWN tags, so a
+ // wrapper that is itself untagged but CONTAINS a component reads "non zoné" — yet cleanHTML
+ // collapses it to [[component]] (they must agree). Reconcile: an untagged child wrapping a
+ // component is badged with that component's name; one wrapping only a zone/area says so.
+ function attrEff(el){
+   var a=attr(el);
+   if(a.cls!=='n'||!el.querySelector)return a;
+   var c=el.querySelector(COMPSEL);
+   if(c)return{lab:compName(c),cls:'c',ty:_localType(c)};
+   var z=el.querySelector(CONTSEL);
+   if(z){var zk=_contKind(z);return{lab:'contient '+zk,cls:zk==='absolute'?'a':(zk==='layout'?'l':'z'),ty:''};}
+   return a;
+ }
  // stable, re-selectable CSS path (id short-circuits; else nth-of-type chain)
  function esc2(s){return (window.CSS&&CSS.escape)?CSS.escape(s):s;}
  // a class UNIQUE on the page for this tag — stable across renders (AEM/SPA ids are
@@ -1054,7 +1067,7 @@ _MANUAL_JS = """
    }
    if(kids.length){
      h+='<div class="zm-kids"><div class="zm-lbl">'+kids.length+' enfant(s) &mdash; clique pour cibler</div>';
-     kids.slice(0,40).forEach(function(c,i){var ca=attr(c);
+     kids.slice(0,40).forEach(function(c,i){var ca=attrEff(c);
        h+='<button class="zm-kid" data-i="'+i+'"><span class="zm-badge '+ca.cls+'">'+esc(ca.lab)+'</span> '+esc(desc(c))+'</button>';});
      if(kids.length>40)h+='<div class="zm-lbl">&hellip; +'+(kids.length-40)+'</div>';
      h+='</div>';
