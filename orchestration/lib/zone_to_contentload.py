@@ -823,7 +823,27 @@ _MANUAL_JS = """
    b.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;';
    ovl.appendChild(b);
  }
- function _ob(el,cls){if(el&&el.getBoundingClientRect)_obRect(el.getBoundingClientRect(),cls);}
+ function _measure(el){
+   // element's own box; for a 0-size LAYOUT CONTAINER (a JS-driven SPA wrapper that collapses
+   // when rendered offline — e.g. discoverasr's carousel div is 0×0 though its slides render)
+   // fall back to the union of its rendered descendants, so a highlight on a tree node still
+   // has a visible footprint. Without this, clicking such a node in the tree washes nothing.
+   var r=el.getBoundingClientRect();
+   if(r.width>0&&r.height>0)return r;
+   var L=1/0,T=1/0,R=-1/0,B=-1/0,found=false,kids=el.querySelectorAll?el.querySelectorAll('*'):[];
+   for(var i=0;i<kids.length&&i<3000;i++){var c=kids[i].getBoundingClientRect();
+     if(c.width>0&&c.height>0){found=true;if(c.left<L)L=c.left;if(c.top<T)T=c.top;if(c.right>R)R=c.right;if(c.bottom>B)B=c.bottom;}}
+   return found?{left:L,top:T,width:R-L,height:B-T}:r;
+ }
+ function _visLeaf(el){
+   // el if it renders, else its first visible descendant — the scroll target for a 0-size container
+   var r=el.getBoundingClientRect();
+   if(r.width>0&&r.height>0)return el;
+   var kids=el.querySelectorAll?el.querySelectorAll('*'):[];
+   for(var i=0;i<kids.length;i++){var c=kids[i].getBoundingClientRect();if(c.width>0&&c.height>0)return kids[i];}
+   return el;
+ }
+ function _ob(el,cls){if(el&&el.getBoundingClientRect)_obRect(_measure(el),cls);}
  // union box of an unassigned RUN (first→last), text-only runs included, via a DOM Range;
  // falls back to per-element boxes if the Range API misbehaves. Recomputed each draw.
  function _gapRects(g){
@@ -878,7 +898,7 @@ _MANUAL_JS = """
    if(foc&&foc!==el&&!fromBack)hist.push(foc); // record where we came from (Back stack)
    dropFoc();ancHiOff();focGap=null;
    foc=el;el.classList.add('zm-focus','zm-focus-'+natureCls(el));pending=null; // wash tinted by nature (decision wins)
-   try{el.scrollIntoView({block:'center'});}catch(_){}
+   try{_visLeaf(el).scrollIntoView({block:'center'});}catch(_){}  // 0-size container → scroll its visible content in
    renderPop(el);scheduleDraw();
  }
  // Cockpit clicked a ⚠ gap in the tree → wash the WHOLE unassigned run as one zone and scroll
