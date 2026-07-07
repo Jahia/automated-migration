@@ -1189,6 +1189,17 @@ def content_free_name(el):
         return "spacer"
     return "decoration"
 
+def _safe_type(name):
+    """A manual component name -> a valid camelCase nodetype local name (the nodetype ID).
+    The editor's ORIGINAL label is preserved separately for DISPLAY (Julian: I want to see
+    'language-switcher', not 'languageSwitcher')."""
+    parts = [p for p in re.split(r"[^a-zA-Z0-9]+", (name or "").strip()) if p]
+    if not parts:
+        return "component"
+    s = parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
+    return s if s[:1].isalpha() else "c" + s
+
+
 def build(project, site, ns, module=None, overlay=False, overlay_src=None, manual=False):
     global MIRROR_ASSETS, STATIC_ASSETS
     MIRROR_ASSETS = f"{REPO}/projects/{project}/workflow-output/local-mirror/assets"
@@ -1581,13 +1592,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             return True
         return False
 
-    def _safe_type(name):
-        """A manual component name -> a valid camelCase nodetype local name."""
-        parts = [p for p in re.split(r"[^a-zA-Z0-9]+", (name or "").strip()) if p]
-        if not parts:
-            return "component"
-        s = parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
-        return s if s[:1].isalpha() else "c" + s
+    # _safe_type is now module-level (shared with emit_component_model for the display-label map)
 
     def _has_decided_descendant(node):
         """True if a STRICT descendant element carries a manual component/area decision — then
@@ -2305,6 +2310,17 @@ def emit_component_model(project, ns, content, manifest):
     meta_by_nt = {c["nodeType"]: c for c in manifest.get("components", [])}
     cf = set(manifest.get("contentFreeTypes", []))
     passthrough_nt = manifest.get("passthroughType")
+    # editor's ORIGINAL labels: the model DISPLAY must show what you named a component
+    # ("language-switcher"), not its camelCased nodetype local name ("languageSwitcher").
+    label_by_type = {}
+    try:
+        _mdp = os.path.join(REPO, "projects", project, "workflow-output", "manual-decisions.json")
+        if os.path.isfile(_mdp):
+            for d in (json.load(open(_mdp, encoding="utf-8")).get("decisions") or []):
+                if d.get("action") == "component" and d.get("name"):
+                    label_by_type[_safe_type(d["name"]).lower()] = d["name"]
+    except (OSError, ValueError):
+        pass
     MAX_VIEWS = 12   # cap materialised skeleton variants per type (variantsTotal keeps the truth)
     agg = {}
     for slug, pg in content.get("pages", {}).items():
@@ -2331,8 +2347,9 @@ def emit_component_model(project, ns, content, manifest):
         meta = meta_by_nt.get(nt, {})
         kind = ("passthrough" if nt == passthrough_nt
                 else "container" if meta.get("isContainer") else "component")
-        display = nt.split(":", 1)[1] if ":" in nt else nt
-        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", display) or "type"
+        local = nt.split(":", 1)[1] if ":" in nt else nt
+        display = label_by_type.get(local.lower(), local)  # editor's name wins over the camelCase ID
+        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", local) or "type"  # dir stays the stable camelCase ID
         # a type's distinct skeletons = its structural variants ("views"). A polymorphic type
         # (section) can have hundreds — that is itself a zoning-quality signal, so we keep the
         # true count (variantsTotal) but only materialise the top MAX_VIEWS by frequency.
