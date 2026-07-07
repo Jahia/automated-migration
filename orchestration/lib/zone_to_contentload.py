@@ -533,6 +533,10 @@ MANUAL_CSS = """
 .zm-a{cursor:pointer;border:1px solid #ccc;border-radius:6px;padding:5px 9px;margin:2px 4px 2px 0;font:inherit;background:#fafafa;}
 .zm-a:hover{background:#eee;}
 .zm-a.on{background:#1f6fd6;color:#fff;border-color:#1f6fd6;}
+.zm-sub{display:flex;gap:4px;margin:6px 0;}
+.zm-mode,.zm-vmode{flex:1;cursor:pointer;border:1px solid #ccc;border-radius:6px;padding:4px 6px;font:inherit;font-size:12px;background:#fafafa;}
+.zm-mode.on,.zm-vmode.on{background:#1f6fd6;color:#fff;border-color:#1f6fd6;}
+#zm-form select,#zm-form input{max-width:100%;}
 #zm-form{margin-top:6px;}
 #zm-form input,#zm-form select{font:inherit;padding:4px 6px;border:1px solid #ccc;border-radius:5px;margin-right:6px;}
 .zm-save{cursor:pointer;background:#1aa06a;color:#fff;border:0;border-radius:6px;padding:5px 12px;font:inherit;font-weight:600;}
@@ -571,6 +575,10 @@ _MANUAL_JS = """
  }
  function nsType(name){return NS+':'+safeType(name);}
  var pending=null;  // action chosen in the popin, awaiting Enregistrer
+ var NTYPES=[];     // existing nodetypes (from the model) for the "composant existant" picker
+ var cNew=true, cType='', vNew=true;  // component form: new vs existing type, new vs existing view
+ function localOf(id){return ((id||'').split(':').pop())||id;}
+ function viewsOf(id){for(var i=0;i<NTYPES.length;i++)if(NTYPES[i].id===id)return (NTYPES[i].views||[]).map(function(v){return v.name;});return [];}
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
  function isUI(el){return !el||!el.closest||el.closest('#zm-pop,#zm-ban');}
  function cls(el){return ((el.getAttribute&&el.getAttribute('class'))||'').split(/\\s+/).filter(function(x){return x&&x.indexOf('zm-')!==0;});}
@@ -756,6 +764,7 @@ _MANUAL_JS = """
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
    // so a decision made on another page shows up here too wherever the component recurs.
+   api(API+'nodetypes').then(function(r){if(r&&r.entries)NTYPES=r.entries;});  // for the reuse picker
    return api(API+'decisions').then(function(r){
      DEC={};SUP={};
      if(r&&r.decisions)r.decisions.forEach(function(d){
@@ -874,7 +883,7 @@ _MANUAL_JS = """
  function actionForm(el){
    var cur=DEC[cssPath(el)], h='<div class="zm-act">';
    if(cur){
-     var lab=cur.action==='component'?('Composant &laquo; '+esc(cur.name||'?')+' &raquo;'):(cur.action==='absoluteArea'?('Absolute Area / '+esc(cur.area||'?')):'Area (zone)');
+     var lab=cur.action==='component'?('Composant &laquo; '+esc(cur.name||'?')+' &raquo;'+(cur.view?(' &middot; vue '+esc(cur.view)):'')+(cur.nodeType?' (réutilisé)':'')):(cur.action==='absoluteArea'?('Absolute Area / '+esc(cur.area||'?')):'Area (zone)');
      h+='<div class="zm-cur">&#9679; Décidé : <b>'+lab+'</b><button class="zm-del">Supprimer</button></div>';
    }
    h+='<div class="zm-lbl">Décider ce bloc comme</div>';
@@ -882,7 +891,28 @@ _MANUAL_JS = """
    h+='<button class="zm-a'+(pending==='area'?' on':'')+'" data-a="area">Area (zone)</button>';
    h+='<button class="zm-a'+(pending==='absoluteArea'?' on':'')+'" data-a="absoluteArea">Absolute Area</button>';
    h+='<div id="zm-form">';
-   if(pending==='component')h+='<input id="zm-name" value="'+esc(suggestName(el))+'"><button class="zm-save">Enregistrer</button>';
+   if(pending==='component'){
+     h+='<div class="zm-sub"><button class="zm-mode'+(cNew?' on':'')+'" data-m="new">Nouveau composant</button>'
+       +'<button class="zm-mode'+(!cNew?' on':'')+'" data-m="ex">Composant existant</button></div>';
+     if(cNew){
+       h+='<input id="zm-name" value="'+esc(suggestName(el))+'" placeholder="nom du composant">';
+     } else if(!NTYPES.length){
+       h+='<div class="zm-lbl">Aucun composant existant &mdash; lance «&nbsp;Appliquer&nbsp;» une fois.</div>';
+     } else {
+       if(!cType)cType=NTYPES[0].id;
+       h+='<select id="zm-type">'+NTYPES.map(function(t){return '<option value="'+esc(t.id)+'"'+(t.id===cType?' selected':'')+'>'+esc(NS+':'+localOf(t.id))+' ('+(t.instances||0)+')</option>';}).join('')+'</select>';
+       h+='<div class="zm-sub" style="margin-top:6px"><button class="zm-vmode'+(vNew?' on':'')+'" data-v="new">Nouvelle vue</button>'
+         +'<button class="zm-vmode'+(!vNew?' on':'')+'" data-v="ex">Vue existante</button></div>';
+       if(vNew){
+         h+='<input id="zm-view" value="default" placeholder="nom de la vue">';
+       } else {
+         var _vs=viewsOf(cType);
+         h+=_vs.length?('<select id="zm-view-sel">'+_vs.map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join('')+'</select>')
+           :'<div class="zm-lbl">Pas de vue enregistrée pour ce composant.</div>';
+       }
+     }
+     h+='<button class="zm-save">Enregistrer</button>';
+   }
    else if(pending==='area')h+='<button class="zm-save">Enregistrer comme Area</button>';
    else if(pending==='absoluteArea')h+='<select id="zm-area"><option value="header">header</option><option value="nav">nav</option><option value="footer">footer</option></select><button class="zm-save">Enregistrer</button>';
    h+='</div>';
@@ -897,7 +927,13 @@ _MANUAL_JS = """
    if(!pending)return;
    var d={page:SLUG, action:pending, selector:selectorOf(el), desc:descFull(el)};
    if(d.selector.key)d.key=d.selector.key;
-   if(pending==='component'){var i=pop.querySelector('#zm-name');d.name=(i&&i.value.trim())||suggestName(el);}
+   if(pending==='component'){
+     if(cNew){var i=pop.querySelector('#zm-name');d.name=(i&&i.value.trim())||suggestName(el);}
+     else{var ts=pop.querySelector('#zm-type');d.nodeType=(ts&&ts.value)||(NTYPES[0]&&NTYPES[0].id);d.name=localOf(d.nodeType);
+       if(vNew){var vi=pop.querySelector('#zm-view');d.view=(vi&&vi.value.trim())||'default';d.newView=true;}
+       else{var vs=pop.querySelector('#zm-view-sel');d.view=(vs&&vs.value)||'default';d.newView=false;}
+     }
+   }
    if(pending==='absoluteArea'){var s=pop.querySelector('#zm-area');d.area=(s&&s.value)||'header';}
    api(API+'decide',{decision:d}).then(function(r){
      if(r&&r.decisions){DEC={};r.decisions.forEach(function(x){DEC[x.selector.value]=x;});}else{DEC[d.selector.value]=d;}
@@ -968,7 +1004,10 @@ _MANUAL_JS = """
      b.onmouseleave=ancHiOff;
    });
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
-   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;}renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-mode'),function(b){b.onclick=function(){cNew=(b.getAttribute('data-m')==='new');renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-vmode'),function(b){b.onclick=function(){vNew=(b.getAttribute('data-v')==='new');renderPop(el);};});
+   var _ts=pop.querySelector('#zm-type');if(_ts)_ts.onchange=function(){cType=_ts.value;vNew=true;renderPop(el);};
    var sv=pop.querySelector('.zm-save');if(sv)sv.onclick=function(){saveDecision(el);};
    var dl=pop.querySelector('.zm-del');if(dl)dl.onclick=function(){deleteDecision(el);};
    var sp=pop.querySelector('.zm-suppress');if(sp)sp.onclick=function(){suppressType(el);};
@@ -1721,12 +1760,16 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         k = node.get("key")
         act = d.get("action")
         if act == "component":
-            name = _safe_type(d.get("name"))
-            # a decided component containing OTHER decided components → named container + recurse
-            # (else the flat emit prunes & absorbs the nested decisions — Julian's bug).
+            # REUSE an existing nodetype (d.nodeType, Julian) or create a new one from the name;
+            # d.view records the chosen/created view (metadata for the later module step).
+            name = d["nodeType"].split(":")[-1] if d.get("nodeType") else _safe_type(d.get("name"))
             if _has_decided_descendant(node):
                 return _emit_named_container(node, name, parent, insts, depth)
-            return apply_attribution(node, {"type": name}, parent, insts)
+            n0 = len(insts)
+            ok = apply_attribution(node, {"type": name}, parent, insts)
+            if ok and d.get("view") and len(insts) > n0:
+                insts[n0]["view"] = d["view"]
+            return ok
         if act == "absoluteArea":
             t = raw_inst(el, base)              # verbatim; NO area key -> stays placed via a zone
             t["chromeBand"] = True
