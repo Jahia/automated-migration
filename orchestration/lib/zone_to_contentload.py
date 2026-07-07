@@ -2408,6 +2408,11 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
                 msoup.head.append(st)
             if msoup.body is not None:
                 sc = msoup.new_tag("script")
+                # id="zm-boot" so the inspector's OWN _walk skips it (its /^zm-/ id guard) — without
+                # it, this ~130 KB bootstrap script (code + embedded ZX xref) is counted as trailing
+                # "unassigned code à composantiser", ballooning the last gap (Julian saw 180 678 car.
+                # where the visible run was a spinner). It is the tool measuring itself.
+                sc["id"] = "zm-boot"
                 sc.string = (_MANUAL_JS
                              .replace("__ZX__", json.dumps(xref_data, ensure_ascii=False))
                              .replace("__SLUG__", json.dumps(slug)))
