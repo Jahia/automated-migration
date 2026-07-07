@@ -483,15 +483,24 @@ _OVERLAY_JS = """
 # are Phase 1 (buttons → AbsoluteArea/Area/component → scope-rules/seg-plan). Injected via
 # str.replace (NOT %-format) so literal % in the JS needs no escaping.
 MANUAL_CSS = """
-.zm-hover{outline:2px solid #ff6a00 !important;outline-offset:-2px;cursor:pointer !important;}
+.zm-hover{cursor:pointer !important;}
 /* focus = translucent wash (see the CONTENT through it) + strong outline marking the FULL
    footprint of the block; colored by nature (Julian: zone bleue, composant vert, absolute rouge). */
-.zm-focus.zm-focus{outline:3px solid #7c3aed !important;outline-offset:-3px;box-shadow:inset 0 0 0 9999px rgba(124,58,237,.16) !important;}
-.zm-focus.zm-focus-z{outline-color:#1f6fd6 !important;box-shadow:inset 0 0 0 9999px rgba(31,111,214,.16) !important;}
-.zm-focus.zm-focus-c{outline-color:#1aa06a !important;box-shadow:inset 0 0 0 9999px rgba(26,160,106,.16) !important;}
-.zm-focus.zm-focus-a{outline-color:#d33a2c !important;box-shadow:inset 0 0 0 9999px rgba(211,58,44,.16) !important;}
-.zm-focus.zm-focus-l{outline-color:#14b8a6 !important;box-shadow:inset 0 0 0 9999px rgba(20,184,166,.16) !important;}
-.zm-focus.zm-focus-n{outline-color:#7c3aed !important;box-shadow:inset 0 0 0 9999px rgba(124,58,237,.16) !important;}
+/* Overlays are drawn in a TOP layer (#zm-ovl) positioned by JS over each target, so they are
+   ALWAYS visible — never hidden behind a child image or an overlapping div (Julian). */
+#zm-ovl{position:fixed;inset:0;pointer-events:none;z-index:2147483640;overflow:hidden;}
+.zm-ob{position:absolute;pointer-events:none;box-sizing:border-box;}
+.zm-ob-c{box-shadow:inset 0 0 0 3px rgba(26,160,106,.95);}
+.zm-ob-z{box-shadow:inset 0 0 0 3px rgba(31,111,214,.95);}
+.zm-ob-a{box-shadow:inset 0 0 0 3px rgba(211,58,44,.95);}
+.zm-ob-hover{box-shadow:inset 0 0 0 2px #ff6a00;}
+.zm-ob-anc{box-shadow:inset 0 0 0 3px #111;background:rgba(17,17,17,.12);}
+.zm-ob-focus{box-shadow:inset 0 0 0 3px #7c3aed;background:rgba(124,58,237,.18);}
+.zm-ob-focus.zm-ob-fz{box-shadow:inset 0 0 0 3px #1f6fd6;background:rgba(31,111,214,.18);}
+.zm-ob-focus.zm-ob-fc{box-shadow:inset 0 0 0 3px #1aa06a;background:rgba(26,160,106,.18);}
+.zm-ob-focus.zm-ob-fa{box-shadow:inset 0 0 0 3px #d33a2c;background:rgba(211,58,44,.18);}
+.zm-ob-focus.zm-ob-fl{box-shadow:inset 0 0 0 3px #14b8a6;background:rgba(20,184,166,.18);}
+.zm-ob-focus.zm-ob-fn{box-shadow:inset 0 0 0 3px #7c3aed;background:rgba(124,58,237,.18);}
 #zm-ban{position:fixed;left:0;bottom:0;z-index:2147483646;background:rgba(17,17,17,.92);color:#fff;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:5px 12px;border-top-right-radius:6px;}
 #zm-ban b{color:#7fd1ff;}
 #zm-pop{position:fixed;top:12px;right:12px;width:400px;max-height:92vh;overflow:auto;z-index:2147483647;background:#fff;color:#1a1a1a;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.28);font:13px/1.55 system-ui,-apple-system,sans-serif;display:none;padding:10px 12px;}
@@ -514,7 +523,7 @@ MANUAL_CSS = """
 .zm-anc:hover{background:#f0f7ff;border-color:#b8d6f5;}
 .zm-own{display:inline-block;padding:0 6px;border-radius:8px;color:#fff;font-size:11px;font-weight:600;margin-right:5px;}
 #zm-flag{position:fixed;z-index:2147483647;background:#111;color:#fff;font:600 12px/1.4 system-ui,-apple-system,sans-serif;padding:3px 9px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:none;display:none;max-width:280px;}
-.zm-anc-hl.zm-anc-hl{outline:3px dashed #111 !important;outline-offset:-3px;box-shadow:inset 0 0 0 9999px rgba(17,17,17,.10) !important;}
+/* .zm-anc-hl / .zm-dec-* / .zm-focus visuals are drawn in the #zm-ovl top layer (see above) */
 .zm-kids{margin-bottom:8px;}
 .zm-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:6px 0 3px;}
 .zm-kid{display:block;width:100%;text-align:left;cursor:pointer;background:#fff;border:1px solid #e2e2e2;border-radius:6px;padding:4px 7px;margin:3px 0;font:inherit;}
@@ -535,9 +544,7 @@ MANUAL_CSS = """
 .zm-clear:hover{background:#a5281b;}
 .zm-suppress{cursor:pointer;background:#fff;border:1px solid #c0392b;color:#c0392b;border-radius:6px;padding:5px 10px;font:inherit;margin-top:4px;}
 .zm-suppress:hover{background:#c0392b;color:#fff;}
-.zm-dec-component{box-shadow:inset 0 0 0 3px rgba(26,160,106,.9)!important;}
-.zm-dec-area{box-shadow:inset 0 0 0 3px rgba(31,111,214,.9)!important;}
-.zm-dec-absoluteArea{box-shadow:inset 0 0 0 3px rgba(211,58,44,.9)!important;}
+/* .zm-dec-* stay as state markers only — their outline is drawn in #zm-ovl */
 #zm-ban .zm-toggle{cursor:pointer;background:#0a3252;color:#fff;border:1px solid #1c5a8a;border-radius:5px;padding:2px 9px;font:inherit;margin-left:8px;}
 #zm-ban .zm-toggle:hover{background:#12507f;}
 #zm-ban .zm-toggle.on{background:#7c3aed;border-color:#7c3aed;}
@@ -679,7 +686,7 @@ _MANUAL_JS = """
    if(Object.keys(SUP).length)Array.prototype.forEach.call(document.querySelectorAll('[data-zt]'),function(e){
      if(SUP[(e.getAttribute('data-zt')||'').toLowerCase()]){['data-zt','data-zr','data-zk','data-zc'].forEach(function(a){e.removeAttribute(a);});}
    });
-   updateCoverage();postTree();
+   updateCoverage();postTree();scheduleDraw();
  }
  // ---- structural TREE for the cockpit panel (Julian): only zones / absolute-areas /
  // components (wrappers are transparent). A bare Area/AbsoluteArea carries NO code, so ANY
@@ -787,23 +794,50 @@ _MANUAL_JS = """
  var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
  // floating label shown over an ancestor when hovering its row in the parent chain
  var flag=document.createElement('div');flag.id='zm-flag';document.body.appendChild(flag);
+ // TOP overlay layer: every highlight (decided outlines, hover, focus wash, ancestor) is drawn
+ // here as a fixed, positioned box — ALWAYS above page content, never hidden behind an image or
+ // a div (Julian). Positions come from getBoundingClientRect; redrawn on scroll/resize/change.
+ var ovl=document.createElement('div');ovl.id='zm-ovl';document.body.appendChild(ovl);
+ function _ob(el,cls){
+   if(!el||!el.getBoundingClientRect)return;
+   var r=el.getBoundingClientRect();
+   if(r.width<=0||r.height<=0)return;
+   var b=document.createElement('div');b.className='zm-ob '+cls;
+   b.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;';
+   ovl.appendChild(b);
+ }
+ function drawOverlays(){
+   ovl.innerHTML='';
+   Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-component'),function(e){_ob(e,'zm-ob-c');});
+   Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-area'),function(e){_ob(e,'zm-ob-z');});
+   Array.prototype.forEach.call(document.querySelectorAll('.zm-dec-absoluteArea'),function(e){_ob(e,'zm-ob-a');});
+   if(hov&&!isUI(hov))_ob(hov,'zm-ob-hover');
+   if(ancHl)_ob(ancHl,'zm-ob-anc');
+   if(foc)_ob(foc,'zm-ob-focus zm-ob-f'+natureCls(foc));   // wash + ring, drawn last = on top
+ }
+ var _drawReq=false;
+ // setTimeout (not rAF) so it fires reliably even where iframe rAF is paint-throttled; the flag
+ // coalesces bursts (scroll/hover) into one draw per tick.
+ function scheduleDraw(){if(_drawReq)return;_drawReq=true;setTimeout(function(){_drawReq=false;drawOverlays();},0);}
+ window.addEventListener('scroll',scheduleDraw,true);
+ window.addEventListener('resize',scheduleDraw);
  var ancHl=null;
- function ancHiOff(){if(ancHl){ancHl.classList.remove('zm-anc-hl');ancHl=null;}flag.style.display='none';}
+ function ancHiOff(){ancHl=null;flag.style.display='none';scheduleDraw();}
  function ancHi(anc){
-   ancHiOff();ancHl=anc;anc.classList.add('zm-anc-hl');
+   ancHiOff();ancHl=anc;
    var oc=owningComp(anc),r=anc.getBoundingClientRect();
    flag.textContent=oc?('◆ '+compName(oc)):'non assigné à un composant';
    flag.style.background=oc?compColor(compKey(oc)):'#666';
    flag.style.display='block';
    flag.style.top=Math.max(4,r.top-26)+'px';flag.style.left=Math.max(4,r.left)+'px';
+   scheduleDraw();
  }
  var hov=null;
  document.addEventListener('mouseover',function(e){
    if(isUI(e.target))return;
-   if(hov&&hov!==e.target)hov.classList.remove('zm-hover');
-   hov=e.target;hov.classList.add('zm-hover');
+   hov=e.target;scheduleDraw();
  },true);
- document.addEventListener('mouseout',function(e){if(hov)hov.classList.remove('zm-hover');},true);
+ document.addEventListener('mouseout',function(e){hov=null;scheduleDraw();},true);
  document.addEventListener('click',function(e){
    if(isUI(e.target))return;
    e.preventDefault();e.stopPropagation();focusEl(e.target);
@@ -817,7 +851,7 @@ _MANUAL_JS = """
    dropFoc();ancHiOff();
    foc=el;el.classList.add('zm-focus','zm-focus-'+natureCls(el));pending=null; // wash tinted by nature (decision wins)
    try{el.scrollIntoView({block:'center'});}catch(_){}
-   renderPop(el);
+   renderPop(el);scheduleDraw();
  }
  function back(){ if(hist.length)focusEl(hist.pop(),true); }
  function statBlock(el){
