@@ -54,6 +54,7 @@ export default function Zoning() {
   const [gap, setGap] = useState<{ node: TreeNode; x: number; y: number } | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set()) // tree paths whose children are hidden
   const [hidden, setHidden] = useState<Set<string>>(new Set()) // tree paths hidden in the preview (display:none, triage aid)
+  const [hideComps, setHideComps] = useState(false) // hide ALL components (+ absolute areas) in the preview at once
   const [selected, setSelected] = useState<string | null>(null) // tree path highlighted (reverse: clicked in the preview)
   const [selUid, setSelUid] = useState<number | null>(null)      // pending uid from the preview → resolved to a path once tree is ready
   const treeScrollRef = useRef<HTMLDivElement>(null)
@@ -133,6 +134,7 @@ export default function Zoning() {
     setGap(null)
     setCollapsed(new Set())
     setHidden(new Set())
+    setHideComps(false)
     setSelected(null)
     setSelUid(null)
   }, [slug, frame])
@@ -185,6 +187,14 @@ export default function Zoning() {
   function showAllHidden() {
     setHidden(new Set())
     frameRef.current?.contentWindow?.postMessage({ zmShowAll: true }, '*')
+  }
+  // hide/show ALL components (+ absolute areas) at once — NOT zones/layouts. Separate from the
+  // per-node hide set: the inspector toggles body.zm-hide-integrated (reuses the .zm-integrated-top
+  // rule). Lets Julian see only the remaining unassigned code ("le reste") in one click.
+  function toggleHideComps() {
+    const on = !hideComps
+    setHideComps(on)
+    frameRef.current?.contentWindow?.postMessage({ zmHideComps: on }, '*')
   }
   // reverse sync: a preview click posted a uid → resolve it to a tree path, reveal it (open the
   // tree tab + expand its collapsed ancestors) and highlight it. Runs once the tree is present.
@@ -348,6 +358,13 @@ export default function Zoning() {
                     <span>zones &amp; composants</span>
                     {tree && tree.length > 0 && (
                       <span className="ml-auto flex gap-1 normal-case tracking-normal">
+                        <button
+                          onClick={toggleHideComps}
+                          title="Masquer/afficher TOUS les composants (+ absolute areas) dans l’aperçu — les zones restent visibles, pour ne voir que le code non assigné"
+                          className={`rounded border px-1.5 py-0.5 font-normal ${hideComps ? 'border-violet-500/60 bg-violet-800/40 text-violet-200' : 'border-[#0a3252] text-[#a8c1d6] hover:bg-[#0a3252]'}`}
+                        >
+                          {hideComps ? '👁 composants' : '🙈 composants'}
+                        </button>
                         {hidden.size > 0 && (
                           <button onClick={showAllHidden} title="Réafficher tout ce qui est masqué dans l’aperçu" className="rounded border border-amber-500/40 px-1.5 py-0.5 font-normal text-amber-300 hover:bg-[#0a3252]">👁 tout afficher ({hidden.size})</button>
                         )}

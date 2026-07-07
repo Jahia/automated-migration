@@ -770,6 +770,11 @@ _MANUAL_JS = """
    // can triage what is already componentized vs the remaining unassigned code.
    if(d&&typeof d.zmHide==='number'){var _he=UIDMAP[d.zmHide];if(_he&&_he.classList){_he.classList.toggle('zm-hidden',!!d.on);scheduleDraw();}}
    if(d&&d.zmShowAll){Array.prototype.forEach.call(document.querySelectorAll('.zm-hidden'),function(x){x.classList.remove('zm-hidden');});scheduleDraw();}
+   // hide ALL components (+ absolute areas) at once — NOT zones/layouts (Julian: "composants only").
+   // Reuses the existing body.zm-hide-integrated rule on .zm-integrated-top (top-most component
+   // boundaries, stamped by updateCoverage = SELB = components+absolute). Independent of the
+   // per-node zm-hidden set, so 'tout afficher' and this toggle don't fight.
+   if(d&&typeof d.zmHideComps==='boolean'){document.body.classList.toggle('zm-hide-integrated',d.zmHideComps);drawBan();scheduleDraw();}
  },false);
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
