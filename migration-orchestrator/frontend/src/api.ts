@@ -103,6 +103,23 @@ export async function unsuppressNodeType(project: string, nodeType: string): Pro
   })
 }
 
+/** The single JCR namespace prefix for this project's nodetypes (default 'custom'). */
+export async function fetchNamespace(project: string): Promise<string> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/namespace`)
+  if (!resp.ok) return 'custom'
+  return (await resp.json()).namespace || 'custom'
+}
+
+export async function setNamespace(project: string, namespace: string): Promise<string> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/zoning/namespace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ namespace }),
+  })
+  if (!resp.ok) throw new Error(`namespace refusé (${resp.status})`)
+  return (await resp.json()).namespace
+}
+
 // NOTE: launch/relaunch of runs is intentionally NOT exposed here. The cockpit
 // is observability-only — runs are created, started, and restarted exclusively
 // via the REST API (POST /migrations, /runs/{id}/start, /runs/{id}/restart,

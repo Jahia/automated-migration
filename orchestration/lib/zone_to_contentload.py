@@ -555,6 +555,14 @@ _MANUAL_JS = """
  var TOTAL=Object.keys(TMPL).length||1;
  var DEC={};        // selector.value -> saved decision (this page)
  var SUP={};        // short type (lowercased) -> suppress decision (deleted nodetype)
+ var NS='custom';   // JCR namespace prefix for nodetype display (synced from the cockpit)
+ function safeType(name){ // mirror of engine _safe_type: name -> camelCase nodetype local name
+   var parts=(name||'').split(/[^a-zA-Z0-9]+/).filter(Boolean);
+   if(!parts.length)return 'component';
+   var s=parts[0].toLowerCase()+parts.slice(1).map(function(p){return p.charAt(0).toUpperCase()+p.slice(1);}).join('');
+   return /^[a-zA-Z]/.test(s)?s:'c'+s;
+ }
+ function nsType(name){return NS+':'+safeType(name);}
  var pending=null;  // action chosen in the popin, awaiting Enregistrer
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
  function isUI(el){return !el||!el.closest||el.closest('#zm-pop,#zm-ban');}
@@ -709,11 +717,22 @@ _MANUAL_JS = """
    flush();
    return out;
  }
+ function _localType(el){
+   // decided component -> camelCase the editor's label; engine component -> data-zt is ALREADY
+   // the valid nodetype local name (layoutSection/cardGrid/carouselHome must NOT be re-lowercased).
+   var lab=el.getAttribute&&el.getAttribute('data-zm-label');
+   var zt=el.getAttribute&&el.getAttribute('data-zt');
+   return lab?safeType(lab):(zt||safeType(compName(el)));
+ }
  function _node(el){
-   if(el.matches(COMPSEL))
-     return {k:'component',name:compName(el),color:compColor(compKey(el)),uid:_uid(el),children:_walk(el,true)};
-   var kind=_contKind(el);
-   return {k:kind,name:_cname(el)||kind,uid:_uid(el),children:_walk(el,false)};
+   if(el.matches(COMPSEL)){
+     var nm=compName(el);
+     return {k:'component',name:nm,nt:_localType(el),color:compColor(compKey(el)),uid:_uid(el),children:_walk(el,true)};
+   }
+   var kind=_contKind(el),cn=_cname(el)||kind;
+   var node={k:kind,name:cn,uid:_uid(el),children:_walk(el,false)};
+   if(kind==='layout')node.nt=_localType(el);   // layoutSection is a nodetype too
+   return node;
  }
  function postTree(){
    try{UIDMAP=[];var t=_walk(document.body,false);window.ZMTREE=t;
@@ -724,6 +743,7 @@ _MANUAL_JS = """
    var d=e.data||{};
    if(d&&d.zmReq)postTree();
    if(d&&d.zmReload)loadDecisions();          // cockpit suppressed/edited a type elsewhere
+   if(d&&d.zmNs){NS=d.zmNs;if(foc)renderPop(foc);}  // cockpit changed the namespace
    if(d&&typeof d.zmFocus==='number'){var el=UIDMAP[d.zmFocus];if(el)focusEl(el);}
  },false);
  function loadDecisions(){
@@ -872,8 +892,11 @@ _MANUAL_JS = """
    var a=attr(el);
    var kids=Array.prototype.filter.call(el.children||[],function(c){return c.nodeType===1;});
    var full=cleanHTML(el);
+   // for a component/layout, show the full namespaced nodetype (custom:languageSwitcher)
+   var ntDisp=(a.cls==='c'||a.cls==='l')?(NS+':'+_localType(el)):'';
    var h='<div class="zm-hd"><span class="zm-badge '+a.cls+'">'+esc(a.lab)+'</span>'
-     +(a.ty?' <span class="zm-ty">'+esc(a.ty)+'</span>':'')+'<span id="zm-x" title="fermer">&times;</span></div>';
+     +(ntDisp?' <span class="zm-ty">'+esc(ntDisp)+'</span>':(a.ty?' <span class="zm-ty">'+esc(a.ty)+'</span>':''))
+     +'<span id="zm-x" title="fermer">&times;</span></div>';
    h+='<div class="zm-el">'+esc(desc(el))+'</div>';
    h+=statBlock(el);
    h+=actionForm(el);
@@ -2383,9 +2406,19 @@ def main():
         sys.exit("usage: zone_to_contentload.py <project> [<site>] [--ns asr]")
     project = sys.argv[1]
     site = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else project
-    ns = "asr"
+    # JCR namespace for the emitted nodetypes: --ns wins; else the per-project zoning-config.json
+    # (set from the cockpit); else "custom" (Julian's default). Only the manual/cockpit path relies
+    # on this default — every other pipeline caller passes --ns explicitly.
+    ns = "custom"
     if "--ns" in sys.argv:
         ns = sys.argv[sys.argv.index("--ns") + 1]
+    else:
+        _cfg = os.path.join(REPO, "projects", project, "workflow-output", "zoning-config.json")
+        if os.path.isfile(_cfg):
+            try:
+                ns = json.load(open(_cfg, encoding="utf-8")).get("namespace") or ns
+            except (OSError, ValueError):
+                pass
     module = sys.argv[sys.argv.index("--module") + 1] if "--module" in sys.argv else None
     overlay = "--overlay" in sys.argv
     overlay_src = sys.argv[sys.argv.index("--overlay-src") + 1] if "--overlay-src" in sys.argv else None

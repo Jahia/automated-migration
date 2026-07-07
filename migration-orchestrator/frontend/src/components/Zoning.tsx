@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   fetchZoningProjects, fetchZoningPages, applyZoning, fetchNodetypes, fetchViewCode,
-  fetchDecisions, suppressNodeType, type ZoningPage, type NodeTypeEntry, type NodeTypeView,
+  fetchDecisions, suppressNodeType, fetchNamespace, setNamespace,
+  type ZoningPage, type NodeTypeEntry, type NodeTypeView,
 } from '../api'
 
 /**
@@ -22,6 +23,7 @@ import {
 type TreeNode = {
   k: 'component' | 'zone' | 'absolute' | 'layout' | 'gap'
   name?: string
+  nt?: string // camelCase nodetype local name (component/layout) — displayed as <ns>:<nt>
   color?: string
   chars?: number
   html?: string
@@ -56,6 +58,8 @@ export default function Zoning() {
   const [supNT, setSupNT] = useState<Set<string>>(new Set())     // suppressed nodeType ids (asr:x)
   const [supShort, setSupShort] = useState<Set<string>>(new Set()) // suppressed short type names (lc)
   const [viewCode, setViewCode] = useState<{ title: string; code: string } | null>(null)
+  const [ns, setNs] = useState('custom') // the one JCR namespace prefix for all nodetypes
+  const [cacheBust] = useState(() => Date.now()) // refetch the (regenerated) inspector page per load
   const frameRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
@@ -96,6 +100,7 @@ export default function Zoning() {
   // load the single-source model + which types are currently suppressed (for the Nodetypes tab)
   const loadModelAndSuppressed = () => {
     if (!project) return
+    fetchNamespace(project).then(setNs).catch(() => {})
     fetchNodetypes(project).then(setNodetypes).catch(() => setNodetypes({ entries: [], seeded: false }))
     fetchDecisions(project)
       .then((ds) => {
@@ -124,11 +129,22 @@ export default function Zoning() {
   }, [slug, frame])
 
   function requestTree() {
-    frameRef.current?.contentWindow?.postMessage({ zmReq: true }, '*')
+    const w = frameRef.current?.contentWindow
+    if (w) { w.postMessage({ zmReq: true }, '*'); w.postMessage({ zmNs: ns }, '*') }
   }
   function focusNode(uid?: number | null) {
     if (uid == null) return
     frameRef.current?.contentWindow?.postMessage({ zmFocus: uid }, '*')
+  }
+  // keep the inspector's popin namespace in sync as you type
+  useEffect(() => {
+    frameRef.current?.contentWindow?.postMessage({ zmNs: ns }, '*')
+  }, [ns])
+  async function saveNs(e: React.SyntheticEvent<HTMLInputElement>) {
+    const v = (e.currentTarget.value || '').trim() // read the DOM value, not a possibly-stale closure
+    if (!/^[A-Za-z][A-Za-z0-9]*$/.test(v)) { fetchNamespace(project).then(setNs); return } // revert invalid
+    const saved = await setNamespace(project, v).catch(() => v)
+    setNs(saved)
   }
   function toggleCollapse(path: string) {
     setCollapsed((prev) => {
@@ -219,6 +235,19 @@ export default function Zoning() {
           </select>
         </label>
 
+        <label className="text-sm text-[#a8c1d6]">
+          Namespace{' '}
+          <input
+            value={ns}
+            onChange={(e) => setNs(e.target.value)}
+            onBlur={saveNs}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+            spellCheck={false}
+            className="w-28 rounded border border-[#0a3252] bg-[#001932] px-2 py-1 font-mono text-sm text-gray-100"
+            title="Préfixe JCR unique pour tous les nodetypes (ex. custom → custom:languageSwitcher)"
+          />
+        </label>
+
         <span className="text-xs text-[#5e88ad]">{totalDecisions} décision(s) sur ce projet</span>
 
         <button
@@ -276,6 +305,7 @@ export default function Zoning() {
                         nodes={tree}
                         depth={0}
                         path=""
+                        ns={ns}
                         collapsed={collapsed}
                         onToggle={toggleCollapse}
                         onFocus={focusNode}
@@ -291,6 +321,7 @@ export default function Zoning() {
                 <div className="min-h-0 flex-1 overflow-auto px-1 py-2">
                   <NodetypesPanel
                     model={nodetypes}
+                    ns={ns}
                     isSuppressed={isSuppressed}
                     open={ntOpen}
                     onToggle={(id) => setNtOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })}
@@ -345,7 +376,7 @@ export default function Zoning() {
                   key={`${project}/${slug}#${frame}`}
                   title="zoning-inspector"
                   onLoad={requestTree}
-                  src={`/projects/${encodeURIComponent(project)}/zoning/mirror/${encodeURIComponent(slug)}.manual.html`}
+                  src={`/projects/${encodeURIComponent(project)}/zoning/mirror/${encodeURIComponent(slug)}.manual.html?v=${cacheBust}`}
                   style={{ width: width ? `${width}px` : '100%' }}
                   className="mx-auto block h-[84vh] rounded border border-[#0a3252] bg-white"
                 />
@@ -417,6 +448,7 @@ function TreeRows({
   nodes,
   depth,
   path,
+  ns,
   collapsed,
   onToggle,
   onFocus,
@@ -426,6 +458,7 @@ function TreeRows({
   nodes: TreeNode[]
   depth: number
   path: string
+  ns: string
   collapsed: Set<string>
   onToggle: (path: string) => void
   onFocus: (uid?: number | null) => void
@@ -469,7 +502,9 @@ function TreeRows({
                   <span className="truncate">{n.chars} car. non assigné</span>
                 ) : (
                   <>
-                    <span className="truncate font-medium">{n.name || meta.label}</span>
+                    <span className="truncate font-medium" title={n.nt ? `${ns}:${n.nt}` : n.name}>
+                      {n.nt ? `${ns}:${n.nt}` : n.name || meta.label}
+                    </span>
                     {hasKids && isCollapsed && (
                       <span className="shrink-0 text-[10px] text-[#5e88ad]">
                         {n.children!.length}
@@ -487,6 +522,7 @@ function TreeRows({
                 nodes={n.children!}
                 depth={depth + 1}
                 path={p}
+                ns={ns}
                 collapsed={collapsed}
                 onToggle={onToggle}
                 onFocus={onFocus}
@@ -513,6 +549,7 @@ const NT_KIND: Record<string, { color: string; label: string }> = {
  * their views (skeleton variants), a code overlay, and a site-wide delete. */
 function NodetypesPanel({
   model,
+  ns,
   isSuppressed,
   open,
   onToggle,
@@ -520,6 +557,7 @@ function NodetypesPanel({
   onDelete,
 }: {
   model: { entries: NodeTypeEntry[]; seeded: boolean } | null
+  ns: string
   isSuppressed: (e: NodeTypeEntry) => boolean
   open: Set<string>
   onToggle: (id: string) => void
@@ -543,6 +581,7 @@ function NodetypesPanel({
         const meta = NT_KIND[e.kind] || NT_KIND.component
         const isOpen = open.has(e.id)
         const hasViews = e.views.length > 0
+        const local = e.id.split(':').pop() || e.name
         return (
           <li key={e.id}>
             <div className="flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-[#0a2942]">
@@ -554,7 +593,12 @@ function NodetypesPanel({
                 <span className="w-[15px] shrink-0" />
               )}
               <span style={{ color: meta.color }} className="shrink-0 text-[11px]">●</span>
-              <span className="truncate font-medium text-gray-100" title={e.id}>{e.name}</span>
+              <span
+                className="truncate font-mono text-[12px] font-medium text-gray-100"
+                title={e.name !== local ? `${ns}:${local}  ·  libellé : ${e.name}` : `${ns}:${local}`}
+              >
+                {ns}:{local}
+              </span>
               <span className="shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">{meta.label}</span>
               <span className="ml-auto shrink-0 text-[10px] text-[#5e88ad]">{e.instances}× · {e.pageCount}p</span>
               <button
