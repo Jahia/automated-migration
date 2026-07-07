@@ -1589,6 +1589,44 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         s = parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
         return s if s[:1].isalpha() else "c" + s
 
+    def _has_decided_descendant(node):
+        """True if a STRICT descendant element carries a manual component/area decision — then
+        a flat typed emit would prune & absorb it (Julian: nested language-switcher/nav-menu
+        vanished from the model)."""
+        el = node.get("_el")
+        if el is None:
+            return False
+        try:
+            for de in el.descendants:
+                if getattr(de, "name", None) and id(de) in decide_map \
+                        and decide_map[id(de)].get("action") in ("component", "area"):
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def _emit_named_container(node, name, parent, insts, depth):
+        """A decided component that HOLDS other decided components: emit it as a byte-exact
+        NAMED container (wrapper skeleton + {{child:N}}), then recurse so every nested decision
+        survives as its own sub-component. Falls back to a flat typed component if the wrapper
+        can't splice (fidelity first — worst case = the previous absorbing behavior)."""
+        el = node["_el"]
+        k = node.get("key")
+        ek = extraction_children(node)
+        w = wrapper_container(node, ek) if ek else None
+        if w is None:
+            return apply_attribution(node, {"type": name}, parent, insts)
+        w["type"] = name
+        w["parent"] = parent
+        w["namedContainer"] = True
+        idx = len(insts)
+        insts.append(w)
+        used.add(name)
+        tag(el, name, k)
+        for kd in ek:
+            emit_node(kd, insts, depth + 1, idx)
+        return True
+
     def apply_decision(node, d, parent, insts, depth):
         """Apply a MANUAL inspector decision (Julian). Returns True if it consumed the node.
           component    -> named typed node (apply_attribution: byte-exact emit_typed+fallback)
@@ -1604,7 +1642,12 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         k = node.get("key")
         act = d.get("action")
         if act == "component":
-            return apply_attribution(node, {"type": _safe_type(d.get("name"))}, parent, insts)
+            name = _safe_type(d.get("name"))
+            # a decided component containing OTHER decided components → named container + recurse
+            # (else the flat emit prunes & absorbs the nested decisions — Julian's bug).
+            if _has_decided_descendant(node):
+                return _emit_named_container(node, name, parent, insts, depth)
+            return apply_attribution(node, {"type": name}, parent, insts)
         if act == "absoluteArea":
             t = raw_inst(el, base)              # verbatim; NO area key -> stays placed via a zone
             t["chromeBand"] = True

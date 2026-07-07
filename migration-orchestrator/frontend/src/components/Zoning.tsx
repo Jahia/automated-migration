@@ -448,12 +448,12 @@ function TreeRows({
                 <button
                   onClick={() => onToggle(p)}
                   title={isCollapsed ? 'Déplier' : 'Replier'}
-                  className="w-4 shrink-0 text-[10px] text-[#5e88ad] hover:text-white"
+                  className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded border border-[#1c4a70] text-[13px] font-bold leading-none text-[#7fd1ff] hover:bg-[#0a3252]"
                 >
-                  {isCollapsed ? '▸' : '▾'}
+                  {isCollapsed ? '+' : '−'}
                 </button>
               ) : (
-                <span className="w-4 shrink-0" />
+                <span className="w-[15px] shrink-0" />
               )}
               <button
                 onClick={() => onFocus(n.uid)}
@@ -547,11 +547,11 @@ function NodetypesPanel({
           <li key={e.id}>
             <div className="flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-[#0a2942]">
               {hasViews ? (
-                <button onClick={() => onToggle(e.id)} className="w-4 shrink-0 text-[10px] text-[#5e88ad] hover:text-white">
-                  {isOpen ? '▾' : '▸'}
+                <button onClick={() => onToggle(e.id)} className="grid h-[15px] w-[15px] shrink-0 place-items-center rounded border border-[#1c4a70] text-[13px] font-bold leading-none text-[#7fd1ff] hover:bg-[#0a3252]">
+                  {isOpen ? '−' : '+'}
                 </button>
               ) : (
-                <span className="w-4 shrink-0" />
+                <span className="w-[15px] shrink-0" />
               )}
               <span style={{ color: meta.color }} className="shrink-0 text-[11px]">●</span>
               <span className="truncate font-medium text-gray-100" title={e.id}>{e.name}</span>
