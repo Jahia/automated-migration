@@ -501,6 +501,7 @@ MANUAL_CSS = """
 .zm-ob-focus.zm-ob-fa{box-shadow:inset 0 0 0 3px #d33a2c;background:rgba(211,58,44,.18);}
 .zm-ob-focus.zm-ob-fl{box-shadow:inset 0 0 0 3px #14b8a6;background:rgba(20,184,166,.18);}
 .zm-ob-focus.zm-ob-fn{box-shadow:inset 0 0 0 3px #7c3aed;background:rgba(124,58,237,.18);}
+.zm-ob-focus.zm-ob-fg{box-shadow:inset 0 0 0 3px #f59e0b;background:rgba(245,158,11,.20);}
 #zm-ban{position:fixed;left:0;bottom:0;z-index:2147483646;background:rgba(17,17,17,.92);color:#fff;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:5px 12px;border-top-right-radius:6px;}
 #zm-ban b{color:#7fd1ff;}
 #zm-pop{position:fixed;top:12px;right:12px;width:400px;max-height:92vh;overflow:auto;z-index:2147483647;background:#fff;color:#1a1a1a;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.28);font:13px/1.55 system-ui,-apple-system,sans-serif;display:none;padding:10px 12px;}
@@ -702,7 +703,7 @@ _MANUAL_JS = """
  // → we emit a ⚠ gap for it (byte-exact guarantee). Inside a component, code is owned (no gap).
  var CONTSEL='[data-zone],[data-zr="zone"],[data-zr="absolute"],[data-zr="layout"],.zm-dec-area,.zm-dec-absoluteArea';
  var BSEL=COMPSEL+','+CONTSEL;
- var UIDMAP=[];
+ var UIDMAP=[];var GAPMAP=[];
  function _uid(el){UIDMAP.push(el);return UIDMAP.length-1;}
  function _isB(el){return el.nodeType===1&&el.matches&&el.matches(BSEL);}
  function _hasB(el){return el.nodeType===1&&el.querySelector&&!!el.querySelector(BSEL);}
@@ -719,7 +720,10 @@ _MANUAL_JS = """
      if(buf.length&&!inComp&&buf.some(_code)){
        var html=buf.map(function(n){return n.nodeType===1?n.outerHTML:(n.nodeValue||'');}).join('');
        var fe=null,i;for(i=0;i<buf.length;i++){if(buf[i].nodeType===1){fe=buf[i];break;}}
-       out.push({k:'gap',chars:html.replace(/\\s+/g,'').length,html:html.slice(0,6000),uid:fe?_uid(fe):null});
+       // remember the RUN (first→last node) so a cockpit gap-click can wash the whole zone,
+       // text-only runs included — not just the first element (uid, kept for back-compat).
+       var gid=GAPMAP.length;GAPMAP.push({first:buf[0],last:buf[buf.length-1]});
+       out.push({k:'gap',chars:html.replace(/\\s+/g,'').length,html:html.slice(0,6000),uid:fe?_uid(fe):null,gid:gid});
      }
      buf=[];
    }
@@ -750,7 +754,7 @@ _MANUAL_JS = """
    return node;
  }
  function postTree(){
-   try{UIDMAP=[];var t=_walk(document.body,false);window.ZMTREE=t;
+   try{UIDMAP=[];GAPMAP=[];var t=_walk(document.body,false);window.ZMTREE=t;
      if(window.parent&&window.parent!==window)window.parent.postMessage({zmTree:true,slug:SLUG,tree:t},'*');
    }catch(e){}
  }
@@ -760,6 +764,7 @@ _MANUAL_JS = """
    if(d&&d.zmReload)loadDecisions();          // cockpit suppressed/edited a type elsewhere
    if(d&&d.zmNs){NS=d.zmNs;if(foc)renderPop(foc);}  // cockpit changed the namespace
    if(d&&typeof d.zmFocus==='number'){var el=UIDMAP[d.zmFocus];if(el)focusEl(el);}
+   if(d&&typeof d.zmFocusGap==='number')focusGap(d.zmFocusGap);
  },false);
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
@@ -798,7 +803,7 @@ _MANUAL_JS = """
    if(!ids.length){alert('Aucune décision sur cette page.');return;}
    if(!confirm('Retirer '+ids.length+' décision(s) visible(s) sur cette page ? (effet site-wide, irréversible)'))return;
    ids.reduce(function(pr,id){return pr.then(function(){return api(API+'delete',{id:id});});},Promise.resolve())
-     .then(function(){DEC={};loadDecisions();pop.style.display='none';dropFoc();ancHiOff();foc=null;});
+     .then(function(){DEC={};loadDecisions();pop.style.display='none';dropFoc();ancHiOff();foc=null;focGap=null;});
  }
  var pop=document.createElement('div');pop.id='zm-pop';document.body.appendChild(pop);
  // floating label shown over an ancestor when hovering its row in the parent chain
@@ -807,13 +812,21 @@ _MANUAL_JS = """
  // here as a fixed, positioned box — ALWAYS above page content, never hidden behind an image or
  // a div (Julian). Positions come from getBoundingClientRect; redrawn on scroll/resize/change.
  var ovl=document.createElement('div');ovl.id='zm-ovl';document.body.appendChild(ovl);
- function _ob(el,cls){
-   if(!el||!el.getBoundingClientRect)return;
-   var r=el.getBoundingClientRect();
-   if(r.width<=0||r.height<=0)return;
+ function _obRect(r,cls){
+   if(!r||r.width<=0||r.height<=0)return;
    var b=document.createElement('div');b.className='zm-ob '+cls;
    b.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;';
    ovl.appendChild(b);
+ }
+ function _ob(el,cls){if(el&&el.getBoundingClientRect)_obRect(el.getBoundingClientRect(),cls);}
+ // union box of an unassigned RUN (first→last), text-only runs included, via a DOM Range;
+ // falls back to the per-element boxes if the Range API misbehaves. Recomputed each draw.
+ function _gapRects(g){
+   try{var r=document.createRange();r.setStartBefore(g.first);r.setEndAfter(g.last);
+     var b=r.getBoundingClientRect();if(b.width>0&&b.height>0)return[b];}catch(_){}
+   var rects=[],n=g.first;
+   while(n){if(n.nodeType===1&&n.getBoundingClientRect){var rb=n.getBoundingClientRect();if(rb.width>0&&rb.height>0)rects.push(rb);}if(n===g.last)break;n=n.nextSibling;}
+   return rects;
  }
  function drawOverlays(){
    ovl.innerHTML='';
@@ -823,6 +836,7 @@ _MANUAL_JS = """
    if(hov&&!isUI(hov))_ob(hov,'zm-ob-hover');
    if(ancHl)_ob(ancHl,'zm-ob-anc');
    if(foc)_ob(foc,'zm-ob-focus zm-ob-f'+natureCls(foc));   // wash + ring, drawn last = on top
+   if(focGap)_gapRects(focGap).forEach(function(r){_obRect(r,'zm-ob-focus zm-ob-fg');}); // gap zone wash
  }
  var _drawReq=false;
  // setTimeout (not rAF) so it fires reliably even where iframe rAF is paint-throttled; the flag
@@ -851,16 +865,31 @@ _MANUAL_JS = """
    if(isUI(e.target))return;
    e.preventDefault();e.stopPropagation();focusEl(e.target);
  },true);
- var foc=null, hist=[];
+ var foc=null, hist=[], focGap=null;   // focGap = the unassigned run currently washed (holds node refs, not a stale gid)
  var FOCCLS=['zm-focus','zm-focus-z','zm-focus-c','zm-focus-a','zm-focus-l','zm-focus-n'];
  function dropFoc(){if(foc)FOCCLS.forEach(function(c){foc.classList.remove(c);});}
  function focusEl(el,fromBack){
    if(!el||el===document.body||el===document.documentElement)return;
    if(foc&&foc!==el&&!fromBack)hist.push(foc); // record where we came from (Back stack)
-   dropFoc();ancHiOff();
+   dropFoc();ancHiOff();focGap=null;
    foc=el;el.classList.add('zm-focus','zm-focus-'+natureCls(el));pending=null; // wash tinted by nature (decision wins)
    try{el.scrollIntoView({block:'center'});}catch(_){}
    renderPop(el);scheduleDraw();
+ }
+ // Cockpit clicked a ⚠ gap in the tree → wash the WHOLE unassigned run as one zone and scroll
+ // it into view, exactly like clicking a block. No parent-chain popin (a gap isn't a selectable
+ // node). Holds the {first,last} refs (survives a tree re-walk), so it tracks scroll/resize.
+ function focusGap(gid){
+   var g=GAPMAP[gid];if(!g||!g.first)return;
+   dropFoc();ancHiOff();foc=null;focGap=g;pop.style.display='none';
+   // scroll the run's first VISIBLE element into view — same call a manual click uses (focusEl),
+   // so gap-focus behaves identically (incl. on pages where scrolling is locked). g.first alone
+   // may be a 0-height leading marker already at the top → picking it would never scroll.
+   var vis=null,n=g.first;
+   while(n){if(n.nodeType===1&&n.getBoundingClientRect){var rb=n.getBoundingClientRect();if(rb.width>0&&rb.height>0){vis=n;break;}}if(n===g.last)break;n=n.nextSibling;}
+   vis=vis||(g.first.nodeType===1?g.first:g.first.parentNode);
+   try{if(vis&&vis.scrollIntoView)vis.scrollIntoView({block:'center'});}catch(_){}
+   scheduleDraw();
  }
  function back(){ if(hist.length)focusEl(hist.pop(),true); }
  function statBlock(el){

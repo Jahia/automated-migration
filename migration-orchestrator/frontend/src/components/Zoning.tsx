@@ -28,6 +28,7 @@ type TreeNode = {
   chars?: number
   html?: string
   uid?: number | null
+  gid?: number | null // gap only: index of the unassigned run → wash the whole zone on click
   children?: TreeNode[]
 }
 
@@ -135,6 +136,11 @@ export default function Zoning() {
   function focusNode(uid?: number | null) {
     if (uid == null) return
     frameRef.current?.contentWindow?.postMessage({ zmFocus: uid }, '*')
+  }
+  // clicking a ⚠ gap row washes the whole unassigned run in the page, like a manual zone click
+  function focusGapNode(gid?: number | null) {
+    if (gid == null) return
+    frameRef.current?.contentWindow?.postMessage({ zmFocusGap: gid }, '*')
   }
   // keep the inspector's popin namespace in sync as you type
   useEffect(() => {
@@ -309,6 +315,7 @@ export default function Zoning() {
                         collapsed={collapsed}
                         onToggle={toggleCollapse}
                         onFocus={focusNode}
+                        onFocusGap={focusGapNode}
                         onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
                         onGapLeave={() => setGap(null)}
                       />
@@ -452,6 +459,7 @@ function TreeRows({
   collapsed,
   onToggle,
   onFocus,
+  onFocusGap,
   onGapEnter,
   onGapLeave,
 }: {
@@ -462,6 +470,7 @@ function TreeRows({
   collapsed: Set<string>
   onToggle: (path: string) => void
   onFocus: (uid?: number | null) => void
+  onFocusGap: (gid?: number | null) => void
   onGapEnter: (node: TreeNode, e: React.MouseEvent) => void
   onGapLeave: () => void
 }) {
@@ -489,11 +498,11 @@ function TreeRows({
                 <span className="w-[15px] shrink-0" />
               )}
               <button
-                onClick={() => onFocus(n.uid)}
+                onClick={() => (isGap ? onFocusGap(n.gid) : onFocus(n.uid))}
                 onMouseEnter={isGap ? (e) => onGapEnter(n, e) : undefined}
                 onMouseLeave={isGap ? onGapLeave : undefined}
                 className={`flex flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-[#0a2942] ${isGap ? 'text-amber-300' : 'text-gray-200'}`}
-                title={isGap ? 'Survole pour voir le code · clic pour le localiser' : n.name || meta.label}
+                title={isGap ? 'Survole pour voir le code · clic pour surligner la zone' : n.name || meta.label}
               >
                 <span style={{ color: dot }} className="shrink-0 text-[11px]">
                   {meta.icon}
@@ -526,6 +535,7 @@ function TreeRows({
                 collapsed={collapsed}
                 onToggle={onToggle}
                 onFocus={onFocus}
+                onFocusGap={onFocusGap}
                 onGapEnter={onGapEnter}
                 onGapLeave={onGapLeave}
               />
