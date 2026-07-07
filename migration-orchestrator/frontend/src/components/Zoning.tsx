@@ -54,6 +54,9 @@ export default function Zoning() {
   const [gap, setGap] = useState<{ node: TreeNode; x: number; y: number } | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set()) // tree paths whose children are hidden
   const [hidden, setHidden] = useState<Set<string>>(new Set()) // tree paths hidden in the preview (display:none, triage aid)
+  const [selected, setSelected] = useState<string | null>(null) // tree path highlighted (reverse: clicked in the preview)
+  const [selUid, setSelUid] = useState<number | null>(null)      // pending uid from the preview → resolved to a path once tree is ready
+  const treeScrollRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'nodetypes' | 'tree'>('tree')
   const [nodetypes, setNodetypes] = useState<{ entries: NodeTypeEntry[]; seeded: boolean } | null>(null)
   const [ntOpen, setNtOpen] = useState<Set<string>>(new Set())   // expanded nodetype rows (views shown)
@@ -93,6 +96,7 @@ export default function Zoning() {
       const d = e.data
       if (d && d.zmTree && Array.isArray(d.tree)) setTree(d.tree)
       if (d && d.zmChanged) loadModelAndSuppressed()
+      if (d && typeof d.zmSelected === 'number') setSelUid(d.zmSelected) // preview click → highlight its tree node
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
@@ -129,6 +133,8 @@ export default function Zoning() {
     setGap(null)
     setCollapsed(new Set())
     setHidden(new Set())
+    setSelected(null)
+    setSelUid(null)
   }, [slug, frame])
 
   function requestTree() {
@@ -180,6 +186,33 @@ export default function Zoning() {
     setHidden(new Set())
     frameRef.current?.contentWindow?.postMessage({ zmShowAll: true }, '*')
   }
+  // reverse sync: a preview click posted a uid → resolve it to a tree path, reveal it (open the
+  // tree tab + expand its collapsed ancestors) and highlight it. Runs once the tree is present.
+  useEffect(() => {
+    if (selUid == null || !tree) return
+    const path = pathByUid(tree, selUid)
+    if (path) {
+      setTab('tree')
+      setSelected(path)
+      setCollapsed((prev) => {
+        const next = new Set(prev)
+        const parts = path.split('-')
+        for (let i = 1; i < parts.length; i++) next.delete(parts.slice(0, i).join('-'))
+        return next
+      })
+    }
+    setSelUid(null)
+  }, [selUid, tree])
+  // scroll the highlighted row into view (after the expand/render settles)
+  useEffect(() => {
+    if (!selected) return
+    const t = setTimeout(() => {
+      treeScrollRef.current
+        ?.querySelector(`[data-zpath="${selected}"]`)
+        ?.scrollIntoView({ block: 'nearest' })
+    }, 30)
+    return () => clearTimeout(t)
+  }, [selected])
 
   async function onApply() {
     setApplying(true)
@@ -323,7 +356,7 @@ export default function Zoning() {
                       </span>
                     )}
                   </div>
-                  <div className="min-h-0 flex-1 overflow-auto px-1 py-2">
+                  <div ref={treeScrollRef} className="min-h-0 flex-1 overflow-auto px-1 py-2">
                     {tree == null ? (
                       <div className="px-2 py-3 text-xs text-[#5e88ad]">Chargement de l'arbre…</div>
                     ) : tree.length === 0 ? (
@@ -336,6 +369,7 @@ export default function Zoning() {
                         ns={ns}
                         collapsed={collapsed}
                         hidden={hidden}
+                        selected={selected}
                         onToggle={toggleCollapse}
                         onToggleHide={toggleHide}
                         onFocus={focusNode}
@@ -473,6 +507,19 @@ function branchPaths(nodes: TreeNode[], prefix: string): string[] {
   return out
 }
 
+/** Path of the tree node carrying a given uid (reverse lookup: a preview click posts a uid). */
+function pathByUid(nodes: TreeNode[], uid: number, prefix = ''): string | null {
+  for (let i = 0; i < nodes.length; i++) {
+    const p = prefix ? `${prefix}-${i}` : `${i}`
+    if (nodes[i].uid === uid) return p
+    if (nodes[i].children) {
+      const r = pathByUid(nodes[i].children!, uid, p)
+      if (r) return r
+    }
+  }
+  return null
+}
+
 /** Recursive tree rows. A ⚠ gap sits between components wherever code is not yet componentized.
  * Nodes with children carry a ▸/▾ chevron (collapse/expand); the label click focuses in the page. */
 function TreeRows({
@@ -482,6 +529,7 @@ function TreeRows({
   ns,
   collapsed,
   hidden,
+  selected,
   onToggle,
   onToggleHide,
   onFocus,
@@ -495,6 +543,7 @@ function TreeRows({
   ns: string
   collapsed: Set<string>
   hidden: Set<string>
+  selected: string | null
   onToggle: (path: string) => void
   onToggleHide: (path: string, uid?: number | null) => void
   onFocus: (uid?: number | null) => void
@@ -512,9 +561,14 @@ function TreeRows({
         const hasKids = !!(n.children && n.children.length)
         const isCollapsed = collapsed.has(p)
         const isHidden = hidden.has(p)
+        const isSelected = selected === p
         return (
           <li key={p}>
-            <div className="flex items-stretch" style={{ marginLeft: depth * 12 }}>
+            <div
+              data-zpath={p}
+              className={`flex items-stretch rounded ${isSelected ? 'bg-[#0f3a5c] ring-1 ring-inset ring-[#7fd1ff]' : ''}`}
+              style={{ marginLeft: depth * 12 }}
+            >
               {hasKids ? (
                 <button
                   onClick={() => onToggle(p)}
@@ -574,6 +628,7 @@ function TreeRows({
                 ns={ns}
                 collapsed={collapsed}
                 hidden={hidden}
+                selected={selected}
                 onToggle={onToggle}
                 onToggleHide={onToggleHide}
                 onFocus={onFocus}

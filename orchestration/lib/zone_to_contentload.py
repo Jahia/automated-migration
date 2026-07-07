@@ -899,6 +899,12 @@ _MANUAL_JS = """
    dropFoc();ancHiOff();focGap=null;
    foc=el;el.classList.add('zm-focus','zm-focus-'+natureCls(el));pending=null; // wash tinted by nature (decision wins)
    try{_visLeaf(el).scrollIntoView({block:'center'});}catch(_){}  // 0-size container → scroll its visible content in
+   // reverse sync: tell the cockpit which TREE NODE this maps to (nearest tagged component/zone
+   // ancestor-or-self) so it highlights + scrolls to that row. No-op in the standalone tool.
+   // MUST use the module-level BSEL (the SAME selector _walk uses to mint tree nodes) — a local
+   // like SELB (scoped inside updateCoverage) would throw here (swallowed → nothing ever posts).
+   try{var _tn=el.closest?el.closest(BSEL):null,_su=_tn?UIDMAP.indexOf(_tn):-1;
+       if(_su>=0&&window.parent&&window.parent!==window)window.parent.postMessage({zmSelected:_su},'*');}catch(_){}
    renderPop(el);scheduleDraw();
  }
  // Cockpit clicked a ⚠ gap in the tree → wash the WHOLE unassigned run as one zone and scroll
