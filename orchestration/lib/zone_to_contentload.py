@@ -579,6 +579,7 @@ _MANUAL_JS = """
  var pending=null;  // action chosen in the popin, awaiting Enregistrer
  var NTYPES=[];     // existing nodetypes (from the model) for the "composant existant" picker
  var cNew=true, cType='', vNew=true;  // component form: new vs existing type, new vs existing view
+ var cAll=false;   // component form: apply to ALL same class-signature occurrences (one nodetype, N instances)
  function localOf(id){return ((id||'').split(':').pop())||id;}
  function viewsOf(id){for(var i=0;i<NTYPES.length;i++)if(NTYPES[i].id===id)return (NTYPES[i].views||[]).map(function(v){return v.name;});return [];}
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
@@ -660,6 +661,16 @@ _MANUAL_JS = """
  }
  function selectorOf(el){return {value:cssPath(el), key:(el.getAttribute&&el.getAttribute('data-zk'))||null};}
  function suggestName(el){return cls(el)[0]||(el.getAttribute&&el.getAttribute('data-zt'))||(el.tagName||'x').toLowerCase();}
+ // CLASS-SIGNATURE selector (Julian): tag + ALL authored classes. Every element sharing this exact
+ // signature is the SAME component (one nodetype, N instances) — e.g. every
+ // div.asr-section-ourbrands.aem-GridColumn... on the site. Null when the element has no authored
+ // class (nothing stable to match on) → match-all is offered ONLY when a signature exists.
+ function sigSelector(el){
+   var t=(el.tagName||'').toLowerCase(),cs=cls(el);
+   if(!t||!cs.length)return null;
+   try{return t+cs.map(function(c){return '.'+esc2(c);}).join('');}catch(_){return null;}
+ }
+ function sigCount(sel){if(!sel)return 0;try{return document.querySelectorAll(sel).length;}catch(_){return 0;}}
  // OWNING COMPONENT (Julian): only real components carry code — NOT zones/absolute-areas/layouts
  // (those are bare containers to be FILLED). So an ancestor "belongs to" the nearest enclosing
  // component; the colored chain BREAKS at each component boundary (a sub-component owns itself).
@@ -990,6 +1001,14 @@ _MANUAL_JS = """
            :'<div class="zm-lbl">Pas de vue enregistrée pour ce composant.</div>';
        }
      }
+     // match-all: one nodetype, N instances — offered only when a class signature exists AND it
+     // recurs (>1 block on this page). The engine re-applies to EVERY same-signature block site-wide.
+     var _sig=sigSelector(el),_sc=sigCount(_sig);
+     if(_sig&&_sc>1){
+       h+='<label class="zm-all" style="display:flex;align-items:center;gap:6px;margin:7px 0;font-size:12px;cursor:pointer">'
+         +'<input type="checkbox" class="zm-allc"'+(cAll?' checked':'')+'> Toutes les occurrences &middot; <b>'+_sc+'</b> blocs de même signature</label>'
+         +'<div class="zm-lbl" style="opacity:.65;word-break:break-all;font-family:monospace">'+esc(_sig)+'</div>';
+     }
      h+='<button class="zm-save">Enregistrer</button>';
    }
    else if(pending==='area')h+='<button class="zm-save">Enregistrer comme Area</button>';
@@ -1012,6 +1031,9 @@ _MANUAL_JS = """
        if(vNew){var vi=pop.querySelector('#zm-view');d.view=(vi&&vi.value.trim())||'default';d.newView=true;}
        else{var vs=pop.querySelector('#zm-view-sel');d.view=(vs&&vs.value)||'default';d.newView=false;}
      }
+     // match-all: persist the class signature so the engine applies this ONE nodetype to EVERY
+     // same-signature block site-wide (N instances), not just the selector's first match.
+     if(cAll){var _s=sigSelector(el);if(_s){d.matchAll=true;d.sig=_s;}}
    }
    if(pending==='absoluteArea'){var s=pop.querySelector('#zm-area');d.area=(s&&s.value)||'header';}
    api(API+'decide',{decision:d}).then(function(r){
@@ -1083,7 +1105,8 @@ _MANUAL_JS = """
      b.onmouseleave=ancHiOff;
    });
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
-   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;}renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;cAll=false;}renderPop(el);};});
+   var _ac=pop.querySelector('.zm-allc');if(_ac)_ac.onchange=function(){cAll=_ac.checked;};  // no re-render (keeps DOM ↔ cAll in sync via the checked attr)
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-mode'),function(b){b.onclick=function(){cNew=(b.getAttribute('data-m')==='new');renderPop(el);};});
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-vmode'),function(b){b.onclick=function(){vNew=(b.getAttribute('data-v')==='new');renderPop(el);};});
    var _ts=pop.querySelector('#zm-type');if(_ts)_ts.onchange=function(){cType=_ts.value;vNew=true;renderPop(el);};
@@ -2207,27 +2230,63 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
     max_zones = 0
     for slug, crawl_body in pages:
         body = slug2body.get(slug, crawl_body)  # prefer localised markup (local asset refs)
-        # resolve this page's manual decisions to elements (id()-keyed, no markup change)
+        # resolve this page's manual decisions to elements (id()-keyed, no markup change).
+        # TWO passes so a SPECIFIC decision always wins over a broad match-all one:
+        #   pass 1 — precise single-element decisions (selector's first match);
+        #   pass 2 — match-all component decisions (Julian): every block sharing the stored class
+        #            signature becomes an instance of the ONE nodetype, filling only elements not
+        #            already claimed in pass 1. Order-independent → deterministic.
         decide_map.clear()
-        for _dd in manual_decisions:   # SITE-scoped: every decision is tried on every page
-            if _dd.get("action") == "suppress":
-                continue               # type-level deletion, not a per-element placement
-            if _dd.get("scope") == "page" and _dd.get("page") != slug:
-                continue               # a page-scoped decision only applies to its own page
-            _sel = (_dd.get("selector") or {}).get("value")
-            _el = None
-            if _sel:
-                try:
-                    _el = body.select_one(_sel)
-                except Exception:
-                    _el = None
-            if _el is None:
-                continue               # this component simply isn't on this page (NOT an error)
+
+        def _register(_dd, _el):
             decide_map[id(_el)] = _dd
             _a = _dd.get("action")
             dec_stats[_a] = dec_stats.get(_a, 0) + 1
             _dec_matched.add(_dd.get("id"))
             _dec_pages.add(slug)
+
+        def _is_matchall(_dd):
+            return bool(_dd.get("matchAll") and _dd.get("sig") and _dd.get("action") == "component")
+
+        for _pass in (1, 2):
+            for _dd in manual_decisions:   # SITE-scoped: every decision is tried on every page
+                if _dd.get("action") == "suppress":
+                    continue           # type-level deletion, not a per-element placement
+                if _dd.get("scope") == "page" and _dd.get("page") != slug:
+                    continue           # a page-scoped decision only applies to its own page
+                _ma = _is_matchall(_dd)
+                if (_pass == 1) == _ma:
+                    continue           # pass 1 = specific only, pass 2 = match-all only
+                if _ma:
+                    try:
+                        _els = body.select(_dd["sig"])
+                    except Exception:
+                        _els = []
+                    _hit = False
+                    for _el in _els:
+                        if id(_el) in decide_map:
+                            continue   # a specific decision already claimed this block — it wins
+                        _register(_dd, _el)
+                        _hit = True
+                    if not _hit:       # signature unusable on this page → never worse than specific
+                        _sel = (_dd.get("selector") or {}).get("value")
+                        try:
+                            _el = body.select_one(_sel) if _sel else None
+                        except Exception:
+                            _el = None
+                        if _el is not None and id(_el) not in decide_map:
+                            _register(_dd, _el)
+                    continue
+                _sel = (_dd.get("selector") or {}).get("value")
+                _el = None
+                if _sel:
+                    try:
+                        _el = body.select_one(_sel)
+                    except Exception:
+                        _el = None
+                if _el is None:
+                    continue           # this component simply isn't on this page (NOT an error)
+                _register(_dd, _el)
         ann = ZD.annotate(body, stemdf, keep_el=True)
         # UNIFY the content-root with the SHELL (verbatim-first, 0-DOM): page_shell
         # owns <body>→<main>→wrappers verbatim and places the content Area at the
