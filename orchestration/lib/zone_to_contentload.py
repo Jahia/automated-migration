@@ -1343,7 +1343,7 @@ def default_namespace(project, workflow_dir):
     return abbrev if abbrev.endswith("nt") else abbrev + "nt"
 
 
-def build(project, site, ns, module=None, overlay=False, overlay_src=None, manual=False):
+def build(project, site, ns, module=None, overlay=False, overlay_src=None, manual=False, manual_only=False):
     global MIRROR_ASSETS, STATIC_ASSETS
     MIRROR_ASSETS = f"{REPO}/projects/{project}/workflow-output/local-mirror/assets"
     STATIC_ASSETS = f"{REPO}/projects/{project}/static/assets"
@@ -1747,7 +1747,7 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         try:
             for de in el.descendants:
                 if getattr(de, "name", None) and id(de) in decide_map \
-                        and decide_map[id(de)].get("action") in ("component", "area"):
+                        and decide_map[id(de)].get("action") in ("component", "area", "absoluteArea"):
                     return True
         except Exception:
             pass
@@ -1856,6 +1856,33 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
         # every deterministic/LLM path. Matched by id() in the per-page pre-pass.
         _d = decide_map.get(id(node["_el"])) if node.get("_el") is not None else None
         if _d is not None and apply_decision(node, _d, parent, insts, depth):
+            return
+        if manual_only:
+            # MANUAL-ONLY (Julian, single source of truth): the engine is a PURE APPLICATOR —
+            # no heuristic ever creates or TAGS a component/zone/layout/chrome. Only manual
+            # decisions (handled just above, the sole callers of tag() left in this mode) yield
+            # typed nodes. An undecided wrapper is descended ONLY to reach a decided descendant,
+            # its own markup preserved byte-exact as an UNTAGGED structural container (the tree
+            # renders it transparent → its glue shows as ⚠ unassigned gaps). Everything else is
+            # carried VERBATIM. This is what makes "je ne veux que mes décisions manuelles" true.
+            if depth < 12 and node.get("kids") and _has_decided_descendant(node):
+                ek = extraction_children(node)
+                w = wrapper_container(node, ek) if ek else None
+                if w is not None:
+                    idx = len(insts)
+                    w["parent"] = parent
+                    insts.append(w)                 # NO tag() → no overlay marker on this wrapper
+                    for kd in ek:
+                        emit_node(kd, insts, depth + 1, idx)
+                else:
+                    # no byte-exact skeleton (too big / unspliceable): still descend so the
+                    # decision survives (a lost decision is worse than minor glue at preview)
+                    for kd in node["kids"]:
+                        emit_node(kd, insts, depth, parent)
+                return
+            t = raw_inst(node["_el"], base)
+            t["parent"] = parent
+            insts.append(t)
             return
         # LLM arbitration wins over deterministic categorization: if the LLM posted
         # an attribution for this element's key, apply it (typing/placement only —
@@ -2550,8 +2577,22 @@ def main():
     overlay = "--overlay" in sys.argv
     overlay_src = sys.argv[sys.argv.index("--overlay-src") + 1] if "--overlay-src" in sys.argv else None
     manual = "--manual" in sys.argv
+    # MANUAL-ONLY (single source of truth): the engine only re-applies decisions, no heuristic
+    # tagging. Per-project via zoning-config.json "manualOnly"; --manual-only / --no-manual-only
+    # override on the CLI. Default off → other projects/stacks keep the assisted seeding (anti-overfit).
+    manual_only = False
+    _cfgp = os.path.join(_wo, "zoning-config.json")
+    if os.path.isfile(_cfgp):
+        try:
+            manual_only = bool(json.load(open(_cfgp, encoding="utf-8")).get("manualOnly"))
+        except (OSError, ValueError):
+            manual_only = False
+    if "--manual-only" in sys.argv:
+        manual_only = True
+    if "--no-manual-only" in sys.argv:
+        manual_only = False
     content, manifest, used, stats = build(project, site, ns, module, overlay=overlay,
-                                           overlay_src=overlay_src, manual=manual)
+                                           overlay_src=overlay_src, manual=manual, manual_only=manual_only)
     if overlay:
         lm = f"{REPO}/projects/{project}/workflow-output/local-mirror"
         n = len([f for f in os.listdir(lm) if f.endswith(".overlay.html")]) if os.path.isdir(lm) else 0
