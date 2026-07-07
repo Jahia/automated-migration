@@ -53,6 +53,7 @@ export default function Zoning() {
   const [tree, setTree] = useState<TreeNode[] | null>(null)
   const [gap, setGap] = useState<{ node: TreeNode; x: number; y: number } | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set()) // tree paths whose children are hidden
+  const [hidden, setHidden] = useState<Set<string>>(new Set()) // tree paths hidden in the preview (display:none, triage aid)
   const [tab, setTab] = useState<'nodetypes' | 'tree'>('tree')
   const [nodetypes, setNodetypes] = useState<{ entries: NodeTypeEntry[]; seeded: boolean } | null>(null)
   const [ntOpen, setNtOpen] = useState<Set<string>>(new Set())   // expanded nodetype rows (views shown)
@@ -127,6 +128,7 @@ export default function Zoning() {
     setTree(null)
     setGap(null)
     setCollapsed(new Set())
+    setHidden(new Set())
   }, [slug, frame])
 
   function requestTree() {
@@ -161,6 +163,23 @@ export default function Zoning() {
   }
   const collapseAll = () => setCollapsed(new Set(branchPaths(tree ?? [], '')))
   const expandAll = () => setCollapsed(new Set())
+
+  // hide/show a component or zone (+ its subtree) in the preview — triage what is already
+  // componentized vs the remaining unassigned code. State is view-only (never a decision).
+  function toggleHide(path: string, uid?: number | null) {
+    if (uid == null) return
+    const on = !hidden.has(path)
+    setHidden((prev) => {
+      const next = new Set(prev)
+      on ? next.add(path) : next.delete(path)
+      return next
+    })
+    frameRef.current?.contentWindow?.postMessage({ zmHide: uid, on }, '*')
+  }
+  function showAllHidden() {
+    setHidden(new Set())
+    frameRef.current?.contentWindow?.postMessage({ zmShowAll: true }, '*')
+  }
 
   async function onApply() {
     setApplying(true)
@@ -296,6 +315,9 @@ export default function Zoning() {
                     <span>zones &amp; composants</span>
                     {tree && tree.length > 0 && (
                       <span className="ml-auto flex gap-1 normal-case tracking-normal">
+                        {hidden.size > 0 && (
+                          <button onClick={showAllHidden} title="Réafficher tout ce qui est masqué dans l’aperçu" className="rounded border border-amber-500/40 px-1.5 py-0.5 font-normal text-amber-300 hover:bg-[#0a3252]">👁 tout afficher ({hidden.size})</button>
+                        )}
                         <button onClick={collapseAll} title="Tout replier" className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]">▸ replier</button>
                         <button onClick={expandAll} title="Tout déplier" className="rounded border border-[#0a3252] px-1.5 py-0.5 font-normal text-[#a8c1d6] hover:bg-[#0a3252]">▾ déplier</button>
                       </span>
@@ -313,7 +335,9 @@ export default function Zoning() {
                         path=""
                         ns={ns}
                         collapsed={collapsed}
+                        hidden={hidden}
                         onToggle={toggleCollapse}
+                        onToggleHide={toggleHide}
                         onFocus={focusNode}
                         onFocusGap={focusGapNode}
                         onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
@@ -457,7 +481,9 @@ function TreeRows({
   path,
   ns,
   collapsed,
+  hidden,
   onToggle,
+  onToggleHide,
   onFocus,
   onFocusGap,
   onGapEnter,
@@ -468,7 +494,9 @@ function TreeRows({
   path: string
   ns: string
   collapsed: Set<string>
+  hidden: Set<string>
   onToggle: (path: string) => void
+  onToggleHide: (path: string, uid?: number | null) => void
   onFocus: (uid?: number | null) => void
   onFocusGap: (gid?: number | null) => void
   onGapEnter: (node: TreeNode, e: React.MouseEvent) => void
@@ -483,6 +511,7 @@ function TreeRows({
         const isGap = n.k === 'gap'
         const hasKids = !!(n.children && n.children.length)
         const isCollapsed = collapsed.has(p)
+        const isHidden = hidden.has(p)
         return (
           <li key={p}>
             <div className="flex items-stretch" style={{ marginLeft: depth * 12 }}>
@@ -501,7 +530,7 @@ function TreeRows({
                 onClick={() => (isGap ? onFocusGap(n.gid) : onFocus(n.uid))}
                 onMouseEnter={isGap ? (e) => onGapEnter(n, e) : undefined}
                 onMouseLeave={isGap ? onGapLeave : undefined}
-                className={`flex flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-[#0a2942] ${isGap ? 'text-amber-300' : 'text-gray-200'}`}
+                className={`flex flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-[#0a2942] ${isGap ? 'text-amber-300' : 'text-gray-200'} ${isHidden ? 'opacity-40' : ''}`}
                 title={isGap ? 'Survole pour voir le code · clic pour le sélectionner (surligne + popin)' : n.name || meta.label}
               >
                 <span style={{ color: dot }} className="shrink-0 text-[11px]">
@@ -525,6 +554,17 @@ function TreeRows({
                   </>
                 )}
               </button>
+              {!isGap && (
+                <button
+                  onClick={() => onToggleHide(p, n.uid)}
+                  title={isHidden ? 'Afficher dans l’aperçu' : 'Masquer dans l’aperçu (composant + sous-composants)'}
+                  className={`ml-0.5 grid w-[22px] shrink-0 place-items-center rounded text-[12px] leading-none ${
+                    isHidden ? 'bg-[#0a3252] text-amber-300' : 'text-[#5e88ad] hover:bg-[#0a2942] hover:text-white'
+                  }`}
+                >
+                  {isHidden ? '🙈' : '👁'}
+                </button>
+              )}
             </div>
             {hasKids && !isCollapsed && (
               <TreeRows
@@ -533,7 +573,9 @@ function TreeRows({
                 path={p}
                 ns={ns}
                 collapsed={collapsed}
+                hidden={hidden}
                 onToggle={onToggle}
+                onToggleHide={onToggleHide}
                 onFocus={onFocus}
                 onFocusGap={onFocusGap}
                 onGapEnter={onGapEnter}

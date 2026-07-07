@@ -502,6 +502,7 @@ MANUAL_CSS = """
 .zm-ob-focus.zm-ob-fl{box-shadow:inset 0 0 0 3px #14b8a6;background:rgba(20,184,166,.18);}
 .zm-ob-focus.zm-ob-fn{box-shadow:inset 0 0 0 3px #7c3aed;background:rgba(124,58,237,.18);}
 .zm-ob-focus.zm-ob-fg{box-shadow:inset 0 0 0 3px #f59e0b;background:rgba(245,158,11,.20);}
+.zm-hidden{display:none!important;}   /* cockpit hid this component/zone in the preview (triage aid) */
 #zm-ban{position:fixed;left:0;bottom:0;z-index:2147483646;background:rgba(17,17,17,.92);color:#fff;font:12px/1.5 system-ui,-apple-system,sans-serif;padding:5px 12px;border-top-right-radius:6px;}
 #zm-ban b{color:#7fd1ff;}
 #zm-pop{position:fixed;top:12px;right:12px;width:400px;max-height:92vh;overflow:auto;z-index:2147483647;background:#fff;color:#1a1a1a;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.28);font:13px/1.55 system-ui,-apple-system,sans-serif;display:none;padding:10px 12px;}
@@ -765,6 +766,10 @@ _MANUAL_JS = """
    if(d&&d.zmNs){NS=d.zmNs;if(foc)renderPop(foc);}  // cockpit changed the namespace
    if(d&&typeof d.zmFocus==='number'){var el=UIDMAP[d.zmFocus];if(el)focusEl(el);}
    if(d&&typeof d.zmFocusGap==='number')focusGap(d.zmFocusGap);
+   // hide/show a component or zone (+ its subtree, via display:none) in the preview so Julian
+   // can triage what is already componentized vs the remaining unassigned code.
+   if(d&&typeof d.zmHide==='number'){var _he=UIDMAP[d.zmHide];if(_he&&_he.classList){_he.classList.toggle('zm-hidden',!!d.on);scheduleDraw();}}
+   if(d&&d.zmShowAll){Array.prototype.forEach.call(document.querySelectorAll('.zm-hidden'),function(x){x.classList.remove('zm-hidden');});scheduleDraw();}
  },false);
  function loadDecisions(){
    // ALL decisions (site-scoped): markAll only paints those whose selector matches THIS page,
