@@ -594,7 +594,7 @@ function NodetypesPanel({
               )}
               <span style={{ color: meta.color }} className="shrink-0 text-[11px]">●</span>
               <span
-                className="truncate font-mono text-[12px] font-medium text-gray-100"
+                className="min-w-0 flex-1 truncate font-mono text-[12px] font-medium text-gray-100"
                 title={e.name !== local ? `${ns}:${local}  ·  libellé : ${e.name}` : `${ns}:${local}`}
               >
                 {ns}:{local}
@@ -602,7 +602,12 @@ function NodetypesPanel({
               {e.kind !== 'component' && (
                 <span className="shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">{meta.label}</span>
               )}
-              <span className="ml-auto shrink-0 text-[10px] text-[#5e88ad]">{e.instances}× · {e.pageCount}p</span>
+              <span
+                className="shrink-0 text-[10px] text-[#7fd1ff]"
+                title={`${e.instances} instance(s) détectée(s) sur ${e.pageCount} page(s)`}
+              >
+                {e.instances}&times; · {e.pageCount}p
+              </span>
               <button
                 onClick={() => onDelete(e)}
                 title="Supprimer ce nodetype sur tout le site"

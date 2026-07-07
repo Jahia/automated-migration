@@ -161,7 +161,7 @@ def _config_path(project: str) -> Path:
 
 
 def _derive_namespace(project: str) -> str:
-    """Default namespace = the project's LLM-chosen abbreviation + 'mix' (asr -> asrmix, Julian).
+    """Default namespace = the project's LLM-chosen abbreviation + 'nt' (asr -> asrnt, Julian).
     Reuses the namespace recorded in views.json ('on garde' the LLM abbrev); else derives 3 chars
     from the project name. Mirrors zone_to_contentload.default_namespace."""
     abbrev = ""
@@ -174,7 +174,7 @@ def _derive_namespace(project: str) -> str:
             abbrev = ""
     if not abbrev:
         abbrev = re.sub(r"[^a-z]", "", project.lower())[:3] or "ns"
-    return abbrev if abbrev.endswith("mix") else abbrev + "mix"
+    return abbrev if abbrev.endswith("nt") else abbrev + "nt"
 
 
 @router.get("/projects/{project}/zoning/namespace")

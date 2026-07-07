@@ -1259,7 +1259,7 @@ def _safe_type(name):
 
 
 def default_namespace(project, workflow_dir):
-    """Default JCR namespace = the project's LLM-chosen abbreviation + 'mix' (e.g. asr -> asrmix,
+    """Default JCR namespace = the project's LLM-chosen abbreviation + 'nt' (e.g. asr -> asrnt,
     Julian). 'On garde' the LLM abbrev by reusing the namespace recorded in views.json; else it
     derives 3 chars from the project name."""
     abbrev = ""
@@ -1271,7 +1271,7 @@ def default_namespace(project, workflow_dir):
             abbrev = ""
     if not abbrev:
         abbrev = re.sub(r"[^a-z]", "", project.lower())[:3] or "ns"
-    return abbrev if abbrev.endswith("mix") else abbrev + "mix"
+    return abbrev if abbrev.endswith("nt") else abbrev + "nt"
 
 
 def build(project, site, ns, module=None, overlay=False, overlay_src=None, manual=False):
