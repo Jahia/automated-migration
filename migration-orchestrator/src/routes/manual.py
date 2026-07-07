@@ -160,18 +160,37 @@ def _config_path(project: str) -> Path:
     return _workflow_dir(project) / "zoning-config.json"
 
 
+def _derive_namespace(project: str) -> str:
+    """Default namespace = the project's LLM-chosen abbreviation + 'mix' (asr -> asrmix, Julian).
+    Reuses the namespace recorded in views.json ('on garde' the LLM abbrev); else derives 3 chars
+    from the project name. Mirrors zone_to_contentload.default_namespace."""
+    abbrev = ""
+    vp = _workflow_dir(project) / "views.json"
+    if vp.is_file():
+        try:
+            abbrev = re.sub(r"[^a-z0-9]", "",
+                            (json.load(open(vp, encoding="utf-8")).get("namespace") or "").lower())
+        except (OSError, ValueError):
+            abbrev = ""
+    if not abbrev:
+        abbrev = re.sub(r"[^a-z]", "", project.lower())[:3] or "ns"
+    return abbrev if abbrev.endswith("mix") else abbrev + "mix"
+
+
 @router.get("/projects/{project}/zoning/namespace")
 async def zoning_get_namespace(project: str) -> dict:
-    """The single JCR namespace prefix for this project's nodetypes (default 'custom')."""
+    """The single JCR namespace prefix for this project's nodetypes. Defaults to the auto-derived
+    <abbrev>mix (stable — same value the engine uses); a user override is persisted via POST."""
     _require(project)
     p = _config_path(project)
-    ns = "custom"
     if p.is_file():
         try:
-            ns = json.load(open(p, encoding="utf-8")).get("namespace") or "custom"
+            v = json.load(open(p, encoding="utf-8")).get("namespace")
+            if v:
+                return {"namespace": v}
         except (OSError, ValueError):
             pass
-    return {"namespace": ns}
+    return {"namespace": _derive_namespace(project)}
 
 
 @router.post("/projects/{project}/zoning/namespace")

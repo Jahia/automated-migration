@@ -907,12 +907,13 @@ _MANUAL_JS = """
    // component ⇒ same color; the chain breaks where an ancestor is itself a component).
    var chain=[];{var _p=el.parentElement;while(_p&&_p!==document.body&&_p!==document.documentElement){chain.push(_p);_p=_p.parentElement;}}
    if(chain.length){
-     h+='<div class="zm-lbl">Parents ('+chain.length+') &mdash; couleur = composant propriétaire &middot; survol = voir dans la page</div><div class="zm-ancs">';
-     chain.forEach(function(anc,i){
-       var oc=owningComp(anc),color=oc?compColor(compKey(oc)):'',stl=color?(' style="border-left-color:'+color+'"'):'';
+     h+='<div class="zm-lbl">Parents ('+chain.length+') &mdash; racine en haut &middot; couleur = composant propriétaire &middot; survol = voir dans la page</div><div class="zm-ancs">';
+     // top-to-bottom: the ROOT-most ancestor first, the immediate parent last (Julian).
+     for(var _ci=chain.length-1;_ci>=0;_ci--){
+       var anc=chain[_ci],oc=owningComp(anc),color=oc?compColor(compKey(oc)):'',stl=color?(' style="border-left-color:'+color+'"'):'';
        var chip=oc?('<span class="zm-own" style="background:'+color+'">'+esc(compName(oc))+'</span>'):'';
-       h+='<button class="zm-anc" data-i="'+i+'"'+stl+'>'+chip+esc(descFull(anc))+'</button>';
-     });
+       h+='<button class="zm-anc" data-i="'+_ci+'"'+stl+'>'+chip+esc(descFull(anc))+'</button>';
+     }
      h+='</div>';
    }
    if(kids.length){
@@ -1221,6 +1222,22 @@ def _safe_type(name):
         return "component"
     s = parts[0].lower() + "".join(p[:1].upper() + p[1:] for p in parts[1:])
     return s if s[:1].isalpha() else "c" + s
+
+
+def default_namespace(project, workflow_dir):
+    """Default JCR namespace = the project's LLM-chosen abbreviation + 'mix' (e.g. asr -> asrmix,
+    Julian). 'On garde' the LLM abbrev by reusing the namespace recorded in views.json; else it
+    derives 3 chars from the project name."""
+    abbrev = ""
+    vp = os.path.join(workflow_dir, "views.json")
+    if os.path.isfile(vp):
+        try:
+            abbrev = re.sub(r"[^a-z0-9]", "", (json.load(open(vp, encoding="utf-8")).get("namespace") or "").lower())
+        except (OSError, ValueError):
+            abbrev = ""
+    if not abbrev:
+        abbrev = re.sub(r"[^a-z]", "", project.lower())[:3] or "ns"
+    return abbrev if abbrev.endswith("mix") else abbrev + "mix"
 
 
 def build(project, site, ns, module=None, overlay=False, overlay_src=None, manual=False):
@@ -2409,16 +2426,19 @@ def main():
     # JCR namespace for the emitted nodetypes: --ns wins; else the per-project zoning-config.json
     # (set from the cockpit); else "custom" (Julian's default). Only the manual/cockpit path relies
     # on this default — every other pipeline caller passes --ns explicitly.
-    ns = "custom"
+    _wo = os.path.join(REPO, "projects", project, "workflow-output")
+    ns = None
     if "--ns" in sys.argv:
         ns = sys.argv[sys.argv.index("--ns") + 1]
-    else:
-        _cfg = os.path.join(REPO, "projects", project, "workflow-output", "zoning-config.json")
+    if not ns:
+        _cfg = os.path.join(_wo, "zoning-config.json")
         if os.path.isfile(_cfg):
             try:
-                ns = json.load(open(_cfg, encoding="utf-8")).get("namespace") or ns
+                ns = json.load(open(_cfg, encoding="utf-8")).get("namespace") or None
             except (OSError, ValueError):
-                pass
+                ns = None
+    if not ns:
+        ns = default_namespace(project, _wo)   # <abbrev>mix (LLM abbrev reused, else derived)
     module = sys.argv[sys.argv.index("--module") + 1] if "--module" in sys.argv else None
     overlay = "--overlay" in sys.argv
     overlay_src = sys.argv[sys.argv.index("--overlay-src") + 1] if "--overlay-src" in sys.argv else None

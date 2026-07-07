@@ -599,7 +599,9 @@ function NodetypesPanel({
               >
                 {ns}:{local}
               </span>
-              <span className="shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">{meta.label}</span>
+              {e.kind !== 'component' && (
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-[#5e88ad]">{meta.label}</span>
+              )}
               <span className="ml-auto shrink-0 text-[10px] text-[#5e88ad]">{e.instances}× · {e.pageCount}p</span>
               <button
                 onClick={() => onDelete(e)}
