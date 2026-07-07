@@ -502,7 +502,7 @@ function TreeRows({
                 onMouseEnter={isGap ? (e) => onGapEnter(n, e) : undefined}
                 onMouseLeave={isGap ? onGapLeave : undefined}
                 className={`flex flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-[#0a2942] ${isGap ? 'text-amber-300' : 'text-gray-200'}`}
-                title={isGap ? 'Survole pour voir le code · clic pour surligner la zone' : n.name || meta.label}
+                title={isGap ? 'Survole pour voir le code · clic pour le sélectionner (surligne + popin)' : n.name || meta.label}
               >
                 <span style={{ color: dot }} className="shrink-0 text-[11px]">
                   {meta.icon}

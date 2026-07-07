@@ -820,7 +820,7 @@ _MANUAL_JS = """
  }
  function _ob(el,cls){if(el&&el.getBoundingClientRect)_obRect(el.getBoundingClientRect(),cls);}
  // union box of an unassigned RUN (first→last), text-only runs included, via a DOM Range;
- // falls back to the per-element boxes if the Range API misbehaves. Recomputed each draw.
+ // falls back to per-element boxes if the Range API misbehaves. Recomputed each draw.
  function _gapRects(g){
    try{var r=document.createRange();r.setStartBefore(g.first);r.setEndAfter(g.last);
      var b=r.getBoundingClientRect();if(b.width>0&&b.height>0)return[b];}catch(_){}
@@ -836,7 +836,7 @@ _MANUAL_JS = """
    if(hov&&!isUI(hov))_ob(hov,'zm-ob-hover');
    if(ancHl)_ob(ancHl,'zm-ob-anc');
    if(foc)_ob(foc,'zm-ob-focus zm-ob-f'+natureCls(foc));   // wash + ring, drawn last = on top
-   if(focGap)_gapRects(focGap).forEach(function(r){_obRect(r,'zm-ob-focus zm-ob-fg');}); // gap zone wash
+   if(focGap)_gapRects(focGap).forEach(function(r){_obRect(r,'zm-ob-focus zm-ob-fg');}); // whole-run zone wash (gap click)
  }
  var _drawReq=false;
  // setTimeout (not rAF) so it fires reliably even where iframe rAF is paint-throttled; the flag
@@ -865,7 +865,7 @@ _MANUAL_JS = """
    if(isUI(e.target))return;
    e.preventDefault();e.stopPropagation();focusEl(e.target);
  },true);
- var foc=null, hist=[], focGap=null;   // focGap = the unassigned run currently washed (holds node refs, not a stale gid)
+ var foc=null, hist=[], focGap=null;   // focGap = unassigned run whose whole box is washed (zone view); cleared on element focus
  var FOCCLS=['zm-focus','zm-focus-z','zm-focus-c','zm-focus-a','zm-focus-l','zm-focus-n'];
  function dropFoc(){if(foc)FOCCLS.forEach(function(c){foc.classList.remove(c);});}
  function focusEl(el,fromBack){
@@ -881,14 +881,15 @@ _MANUAL_JS = """
  // node). Holds the {first,last} refs (survives a tree re-walk), so it tracks scroll/resize.
  function focusGap(gid){
    var g=GAPMAP[gid];if(!g||!g.first)return;
-   dropFoc();ancHiOff();foc=null;focGap=g;pop.style.display='none';
-   // scroll the run's first VISIBLE element into view — same call a manual click uses (focusEl),
-   // so gap-focus behaves identically (incl. on pages where scrolling is locked). g.first alone
-   // may be a 0-height leading marker already at the top → picking it would never scroll.
-   var vis=null,n=g.first;
-   while(n){if(n.nodeType===1&&n.getBoundingClientRect){var rb=n.getBoundingClientRect();if(rb.width>0&&rb.height>0){vis=n;break;}}if(n===g.last)break;n=n.nextSibling;}
-   vis=vis||(g.first.nodeType===1?g.first:g.first.parentNode);
-   try{if(vis&&vis.scrollIntoView)vis.scrollIntoView({block:'center'});}catch(_){}
+   // A gap click == a manual zone click: wash the WHOLE run (the amber zone box) AND open the
+   // popin anchored on the run's first element (parent chain + add-to-component). foc stays null
+   // so only the zone box shows; clicking a parent in the chain switches to normal element focus.
+   dropFoc();ancHiOff();foc=null;focGap=g;
+   var anchor=null,vis=null,n=g.first;
+   while(n){if(n.nodeType===1){if(!anchor)anchor=n;if(!vis){var r=n.getBoundingClientRect&&n.getBoundingClientRect();if(r&&r.width>0&&r.height>0)vis=n;}}if(n===g.last)break;n=n.nextSibling;}
+   anchor=anchor||(g.first.parentNode&&g.first.parentNode.nodeType===1?g.first.parentNode:null);
+   try{if(vis)vis.scrollIntoView({block:'center'});else if(anchor&&anchor.scrollIntoView)anchor.scrollIntoView({block:'center'});}catch(_){}
+   if(anchor)renderPop(anchor);else pop.style.display='none';
    scheduleDraw();
  }
  function back(){ if(hist.length)focusEl(hist.pop(),true); }
