@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from ..github_client import GitHubClient
-from ..migration_control import compact_status, log_tail, project_path, quality_verdict, workflow_output_dir
+from ..migration_control import compact_status, log_tail, project_path, quality_verdict, step_provenance, workflow_output_dir
 from ..models import EpicInput, PlanInput, RunState, RunStatus, StepInput, StoryInput
 from ..llm_client import LLMClient
 from ..orchestrator import (
@@ -235,6 +235,25 @@ async def get_artifact(run_id: str, path: str):
     if not target.is_file():
         raise HTTPException(status_code=404, detail="artifact not found")
     return FileResponse(str(target))
+
+
+@router.get("/runs/{run_id}/provenance")
+async def get_run_provenance(run_id: str):
+    """Per-step artifact provenance for the step-honesty view (P2). ONE call
+    returns {step_id: {...}} for every step whose PRIMARY workflow-output JSON is
+    derivable from its acceptance_criteria (the covered subset — the map simply
+    omits steps that name none). `reused:true` + `produced_by_run` flags a step
+    that only validated an EARLIER run's artifact (done fast, no real work this
+    run). Batch (not per-step) to spare the cockpit an N+1; additive + read-only."""
+    run = await _resolve_run(run_id)
+    steps: dict[str, dict] = {}
+    for e in run.epics:
+        for s in e.stories:
+            for st in s.steps:
+                info = step_provenance(run, st)
+                if info["artifact"]:
+                    steps[st.id] = info
+    return {"run_id": run_id, "steps": steps}
 
 
 class FidelityRerun(BaseModel):

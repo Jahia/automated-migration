@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import AgentOutput from './AgentOutput'
 import QuestionPanel from './QuestionPanel'
-import type { StepState } from '../types'
+import { StepHonestyBadge } from './migration/StepHonesty'
+import type { StepProvenance, StepState } from '../types'
 
 interface Props {
   step: StepState
   runId: string
   index: number
+  /** provenance of this step's primary artifact (from GET /runs/{id}/provenance) */
+  provenance?: StepProvenance
 }
 
 const statusIcons: Record<string, string> = {
@@ -42,7 +45,7 @@ const taskTypeColors: Record<string, string> = {
   security_check: 'border-red-700',
 }
 
-export default function StepCard({ step, runId, index }: Props) {
+export default function StepCard({ step, runId, index, provenance }: Props) {
   const [expanded, setExpanded] = useState(step.status === 'running' || step.status === 'waiting_human')
   const hasOutput = step.streaming_text || step.agent_result
   const isActive = step.status === 'running' || step.status === 'verifying'
@@ -85,6 +88,11 @@ export default function StepCard({ step, runId, index }: Props) {
             {expanded ? '[-]' : '[+]'}
           </button>
         )}
+      </div>
+
+      {/* Honnêteté d'exécution (P2) : exactement un état par step */}
+      <div className="ml-6 mt-0.5">
+        <StepHonestyBadge step={step} provenance={provenance} />
       </div>
 
       {/* Résumé toujours visible pour les steps terminées */}

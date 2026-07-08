@@ -56,6 +56,32 @@ export interface StepState {
   tokens_cache: number
   cost: number
   gate_type?: string | null
+  // Execution timing (epoch ms) — always on the wire from GET /runs/{id}; the
+  // honesty view renders them (a 5ms duration is the tell of a validate-only step).
+  started_at?: number | null
+  completed_at?: number | null
+  duration_ms?: number | null
+  // review checkpoints are decided (proceed), never executed → "validé sans exécution"
+  review?: boolean
+}
+
+/** GET /runs/{id}/provenance entry — the step's PRIMARY workflow-output JSON
+ * artifact and whether it was produced by THIS run or reused from an earlier one
+ * (`reused:true` = the step only validated a preexisting file, no real work). */
+export interface StepProvenance {
+  artifact: string | null
+  found: boolean
+  provenance?: Record<string, unknown> | null
+  produced_by_run?: string | null
+  generated_at?: string | null
+  reused: boolean
+  self: boolean
+}
+
+/** GET /runs/{id}/provenance — the per-step map (covered subset only). */
+export interface RunProvenance {
+  run_id: string
+  steps: Record<string, StepProvenance>
 }
 
 export interface GitHubIssue {

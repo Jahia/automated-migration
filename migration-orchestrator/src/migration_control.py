@@ -18,6 +18,7 @@ route handlers. See CONTROL-LOOP.md for the poll→decide→act contract.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from statistics import mean
 
@@ -87,6 +88,99 @@ def project_path(run: RunState) -> str | None:
 def workflow_output_dir(run: RunState) -> Path | None:
     pp = project_path(run)
     return (Path(run.repo_dir) / pp / "workflow-output") if pp else None
+
+
+# ── step provenance — the "reused from an earlier run" detector (P2) ───────
+# A partial plan's verify step can go 'done' in ~5ms because its PROBE only
+# `test -s`'d an artifact an EARLIER run produced. That reads in the UI as "a
+# full migration ran". We tell the two apart by reading the _provenance stamp
+# every P0-instrumented producer embeds (provenance.py / provenance.mjs): if the
+# step's primary workflow-output JSON was stamped by a DIFFERENT run_id, the step
+# reused it rather than doing the work this run. The artifact is derived from the
+# step's acceptance_criteria (the Run:/PROBE: command contract) — a verify step's
+# `test -s <upstream>.json` resolves to that upstream artifact ON PURPOSE, which
+# is exactly the reuse signal. Old pre-P0 artifacts carry no stamp → 'neither',
+# and the caller falls back to the executed/validated classification.
+_OUT_FLAG_JSON = re.compile(r"--out(?:-views)?[=\s]+(\S+\.json)\b")
+_TEST_S_JSON = re.compile(r"test\s+-s\s+(\S+\.json)\b")
+_WO_JSON = re.compile(r"(\S*workflow-output/\S+\.json)\b")
+
+
+def step_artifact_rel(step: StepState) -> str | None:
+    """The step's PRIMARY workflow-output *.json artifact as a repo-relative path,
+    derived from its acceptance_criteria. PROBE: lines (the gate/output contract)
+    win over Run: lines; within a group an --out/--out-views flag wins, then a
+    `test -s` target, then any workflow-output json token. None when the step names
+    no such JSON (directory-only probes, shell checks, review checkpoints) — the
+    covered subset is exactly the steps that DO name one."""
+    crit = list(step.acceptance_criteria or [])
+    probes = [c for c in crit if c.strip().upper().startswith("PROBE")]
+    runs = [c for c in crit if c.strip().startswith("Run:")]
+    for group in (probes, runs, crit):
+        blob = "\n".join(group)
+        for pat in (_OUT_FLAG_JSON, _TEST_S_JSON, _WO_JSON):
+            m = pat.search(blob)
+            if m and "workflow-output/" in m.group(1):
+                return m.group(1)
+    return None
+
+
+def read_json_provenance(path: Path) -> dict | None:
+    """The _provenance record for a JSON artifact: the in-file "_provenance" key
+    (the contract) or the sibling X.provenance.json sidecar. None when neither
+    carries one (old pre-P0 artifacts stay valid — no consumer may require it)."""
+    try:
+        if path.is_file():
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+            if isinstance(d, dict) and isinstance(d.get("_provenance"), dict):
+                return d["_provenance"]
+    except (OSError, ValueError):
+        pass
+    if path.name.endswith(".json"):
+        sidecar = path.parent / (path.name[:-5] + ".provenance.json")
+        try:
+            if sidecar.is_file():
+                with open(sidecar, encoding="utf-8") as f:
+                    d = json.load(f)
+                return d if isinstance(d, dict) else None
+        except (OSError, ValueError):
+            pass
+    return None
+
+
+def step_provenance(run: RunState, step: StepState) -> dict:
+    """Per-step artifact provenance for the honesty view. Resolves the step's
+    primary JSON artifact under THIS run's project workflow-output (traversal-
+    guarded — never reads outside it), reads its provenance stamp, and classifies:
+      - reused: produced by a DIFFERENT run (the misleading 'done fast on an
+        earlier run's file' case) — carries produced_by_run + generated_at;
+      - self:   produced by THIS run;
+      - neither: no artifact / no stamp → the caller renders the executed or
+        validated state from attempt + started_at instead.
+    Never raises — a missing/corrupt artifact is simply found:false."""
+    rel = step_artifact_rel(step)
+    out = {"artifact": rel, "found": False, "provenance": None,
+           "produced_by_run": None, "generated_at": None, "reused": False, "self": False}
+    if not rel:
+        return out
+    proj = project_path(run)
+    if not proj:
+        return out
+    base = (Path(run.repo_dir) / proj / "workflow-output").resolve()
+    target = (Path(run.repo_dir) / rel).resolve()
+    if target != base and not str(target).startswith(str(base) + "/"):
+        return out  # derived path escaped this project's workflow-output — refuse
+    out["found"] = target.is_file()
+    prov = read_json_provenance(target)
+    if prov:
+        produced = prov.get("run_id")
+        out["provenance"] = prov
+        out["produced_by_run"] = produced
+        out["generated_at"] = prov.get("generated_at")
+        out["reused"] = bool(produced and produced != run.run_id)
+        out["self"] = bool(produced and produced == run.run_id)
+    return out
 
 
 # ── quality verdict — green/amber/red from artifacts ──────────────

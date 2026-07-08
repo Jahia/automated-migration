@@ -37,7 +37,11 @@ export interface ComponentManifest {
 
 // ── the fixed migration pipeline (migration profile) ──
 
-export type PhaseStatus = 'done' | 'active' | 'pending'
+// 'absent' (P2 honesty): a canonical phase that NO step in this run's plan
+// covers — rendered as a grayed placeholder, distinct from 'pending' ("à venir",
+// a phase that WILL run). This is how a partial plan (e.g. a 5-step zone plan)
+// stops reading as "a full migration with phases still to come".
+export type PhaseStatus = 'done' | 'active' | 'pending' | 'absent'
 export type Badge = 'deterministic' | 'DeepSeek V4' | 'gated'
 
 export interface PhaseDef {
@@ -64,6 +68,25 @@ export interface StepLike {
   id: string
   status: string
   gate_type?: string | null
+}
+
+/** Does any step in the plan cover this canonical phase? */
+export function phaseHasSteps(phase: PhaseDef, steps: StepLike[]): boolean {
+  return steps.some((s) => phase.match.some((m) => s.id.toLowerCase().includes(m)))
+}
+
+/**
+ * PARTIAL-PLAN detection (P2 honesty). CHOICE: the canonical stage list is
+ * MIGRATION_PHASES above — it mirrors orchestration/lib/gen_plan.py's full-loop
+ * phases (kept in sync with migration_control.PHASES). A run's plan is partial
+ * when it OMITS ≥1 canonical phase (no step matches it). We compare at PHASE
+ * granularity, not against gen_plan's exact 30 step ids, because the step set
+ * legitimately varies (vision vs heuristic arm, zone-only plans) while the phase
+ * spine is stable — so a phase-level check is the reliable canonical list the
+ * task calls for, without hardcoding a brittle step-id roster in the frontend.
+ */
+export function isPartialPlan(steps: StepLike[]): boolean {
+  return steps.length > 0 && MIGRATION_PHASES.some((p) => !phaseHasSteps(p, steps))
 }
 
 /** Phase keys that have a dedicated review panel (MigrationStage.panelForPhase).

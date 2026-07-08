@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import StepCard from './StepCard'
-import type { StoryState } from '../types'
+import type { StepProvenance, StoryState } from '../types'
 
 interface Props {
   story: StoryState
   runId: string
   epicId: string
   index: number
+  provenance?: Record<string, StepProvenance>
 }
 
 const statusBadges: Record<string, string> = {
@@ -23,7 +24,7 @@ const statusIcons: Record<string, string> = {
   failed: '❌',
 }
 
-export default function StoryCard({ story, runId, index }: Props) {
+export default function StoryCard({ story, runId, index, provenance }: Props) {
   const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function StoryCard({ story, runId, index }: Props) {
           )}
           <div className="space-y-2 ml-7">
             {story.steps.map((step, si) => (
-              <StepCard key={step.id} step={step} runId={runId} index={si} />
+              <StepCard key={step.id} step={step} runId={runId} index={si} provenance={provenance?.[step.id]} />
             ))}
           </div>
         </div>

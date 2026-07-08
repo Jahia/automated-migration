@@ -9,7 +9,24 @@ import { PipelineRail } from './migration/PipelineRail'
 import { KpiBar } from './migration/KpiBar'
 import { MigrationStage } from './migration/MigrationStage'
 import { ContentLoadProgress } from './migration/ContentLoadProgress'
+import { isPartialPlan } from './migration/types'
+import { StepHonestyBadge } from './migration/StepHonesty'
+import { fetchRunProvenance } from '../api'
+import type { StepProvenance } from '../types'
 import { useEffect, useState, useRef } from 'react'
+
+// Step-status pill colors for the flat execution list (light-themed migration area).
+const STEP_PILL: Record<string, string> = {
+  done: 'bg-[#e2f5ef] text-[#0a7d5f]',
+  running: 'bg-[#e4f2fb] text-[#0077bf]',
+  verifying: 'bg-[#e4f2fb] text-[#0077bf]',
+  halted: 'bg-[#fbf0da] text-[#8a5a00]',
+  waiting_human: 'bg-[#fbf0da] text-[#8a5a00]',
+  decision_pending: 'bg-[#fbf0da] text-[#8a5a00]',
+  failed: 'bg-[#fbe4e4] text-[#b0271f]',
+  rejected: 'bg-[#fbe4e4] text-[#b0271f]',
+  blocked: 'bg-[#fbe4e4] text-[#b0271f]',
+}
 
 export default function RunDetail() {
   const { runId } = useParams<{ runId: string }>()
@@ -18,8 +35,37 @@ export default function RunDetail() {
   const [pollCount, setPollCount] = useState(0)
   const [healthOk, setHealthOk] = useState(true)
   const [showRaw, setShowRaw] = useState(false)
+  const [stepsOpen, setStepsOpen] = useState(false)
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null)
+  const [provenance, setProvenance] = useState<Record<string, StepProvenance>>({})
   const pollTimer = useRef<ReturnType<typeof setInterval>>()
+
+  // Per-step artifact provenance (the "réutilisé" detector). One batched call,
+  // refetched as steps reach a terminal status (their artifacts settle) — the
+  // map is otherwise stable, so we key on the terminal-step count, not each poll.
+  const terminalCount = (run?.epics ?? [])
+    .flatMap((e) => e.stories).flatMap((s) => s.steps)
+    .filter((st) => ['done', 'failed', 'halted', 'rejected'].includes(st.status)).length
+  useEffect(() => {
+    if (!runId || !run) return
+    let cancelled = false
+    fetchRunProvenance(runId)
+      .then((p) => { if (!cancelled) setProvenance(p.steps || {}) })
+      .catch(() => { /* older engine w/o the endpoint → no honesty chips, no error */ })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, terminalCount])
+
+  // Partial-plan honesty: a plan that omits canonical phases is the exact case
+  // that misled twice ("step 4 done" ⇒ "a full migration ran"). Open the flat
+  // per-step execution list by default for it (once per run) so it is not hidden.
+  useEffect(() => {
+    if (!run) return
+    const steps = run.epics.flatMap((e) => e.stories).flatMap((s) => s.steps)
+    const migration = steps.some((st) => /crawl|semantic|group|reconstruct|component_model|assemble/i.test(st.id))
+    if (migration && isPartialPlan(steps)) setStepsOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.run_id])
 
   useEffect(() => {
     const check = async () => {
@@ -147,6 +193,45 @@ export default function RunDetail() {
         </div>
       )}
 
+      {/* Flat per-step execution honesty (P2): each step is exactly one of
+          exécuté / validé sans exécution / réutilisé — the antidote to a partial
+          plan reading as "a full migration ran". Auto-opens for partial plans. */}
+      {isMigration && (
+        <div className="mb-6 rounded-lg border border-[#dae0e7] bg-white">
+          <button
+            onClick={() => setStepsOpen((o) => !o)}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left"
+          >
+            <span className="text-xs text-[#7d8a9a]">{stepsOpen ? '▾' : '▸'}</span>
+            <span className="text-sm font-semibold text-[#001932]">Étapes — exécution</span>
+            <span className="text-xs text-[#7d8a9a]">
+              {allSteps.length} étape{allSteps.length > 1 ? 's' : ''} · exécuté / validé sans exécution / réutilisé
+            </span>
+          </button>
+          {stepsOpen && (
+            <div className="divide-y divide-[#f0f3f7] border-t border-[#eef2f6]">
+              {allSteps.map((st, i) => (
+                <div key={st.id} className="flex items-start gap-3 px-4 py-2">
+                  <span className="w-5 shrink-0 text-right text-[11px] text-[#9aa6b4]">{i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[11px] text-[#5b6b7b]">{st.id}</span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] ${STEP_PILL[st.status] || 'bg-[#eef2f6] text-[#5b6b7b]'}`}>
+                        {st.status}
+                      </span>
+                      <span className="truncate text-[12px] text-[#33445a]">{st.title}</span>
+                    </div>
+                    <div className="mt-0.5">
+                      <StepHonestyBadge step={st} provenance={provenance[st.id]} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <ActivityBar run={run} />
       <LiveLog run={run} />
 
@@ -161,14 +246,14 @@ export default function RunDetail() {
           {showRaw && (
             <div className="mt-3 space-y-4">
               <RunReport run={run} />
-              <EpicTimeline run={run} />
+              <EpicTimeline run={run} provenance={provenance} />
             </div>
           )}
         </div>
       ) : (
         <>
           <RunReport run={run} />
-          <EpicTimeline run={run} />
+          <EpicTimeline run={run} provenance={provenance} />
         </>
       )}
     </div>

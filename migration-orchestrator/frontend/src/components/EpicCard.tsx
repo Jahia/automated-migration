@@ -2,12 +2,13 @@ import { useState } from 'react'
 import StoryCard from './StoryCard'
 import RectificationPanel from './RectificationPanel'
 import ReviewHistory from './ReviewHistory'
-import type { EpicState } from '../types'
+import type { EpicState, StepProvenance } from '../types'
 
 interface Props {
   epic: EpicState
   runId: string
   index: number
+  provenance?: Record<string, StepProvenance>
 }
 
 const statusColors: Record<string, string> = {
@@ -28,7 +29,7 @@ const statusBadges: Record<string, string> = {
   failed: 'bg-red-900 text-red-300',
 }
 
-export default function EpicCard({ epic, runId, index }: Props) {
+export default function EpicCard({ epic, runId, index, provenance }: Props) {
   const [expanded, setExpanded] = useState(true)
 
   return (
@@ -64,7 +65,7 @@ export default function EpicCard({ epic, runId, index }: Props) {
 
           <div className="space-y-3 ml-6">
             {epic.stories.map((story, si) => (
-              <StoryCard key={story.id} story={story} runId={runId} epicId={epic.id} index={si} />
+              <StoryCard key={story.id} story={story} runId={runId} epicId={epic.id} index={si} provenance={provenance} />
             ))}
           </div>
         </div>

@@ -1,6 +1,18 @@
-import type { ContentProgress, RunState, RunSummary, SSEEvent } from './types'
+import type { ContentProgress, RunProvenance, RunState, RunSummary, SSEEvent } from './types'
 
 const BASE = ''
+
+/**
+ * Per-step artifact provenance for the step-honesty view (one batched call per
+ * run). Flags steps whose primary workflow-output JSON was produced by a
+ * DIFFERENT run (reused, not re-done this run). Throws on error so the caller can
+ * degrade gracefully (an older engine has no such endpoint → no honesty chips).
+ */
+export async function fetchRunProvenance(runId: string): Promise<RunProvenance> {
+  const resp = await fetch(`${BASE}/runs/${runId}/provenance`)
+  if (!resp.ok) throw new Error(`provenance unavailable (${resp.status})`)
+  return resp.json()
+}
 
 /**
  * Read-only content-load progress for a project (the content_watch.sh ticker +
