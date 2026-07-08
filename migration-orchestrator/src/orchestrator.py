@@ -439,7 +439,10 @@ async def _execute_single_step(run: RunState, epic: EpicState, story: StoryState
         records: list[dict] = []
         has_run_lines = bool(run_lines(step.acceptance_criteria))
         if has_run_lines:
-            ok, records, failure_context = await run_step_commands(step, run.repo_dir, run.run_id)
+            # P0: run/step identity in the child env so tools stamp provenance.
+            ok, records, failure_context = await run_step_commands(
+                step, run.repo_dir, run.run_id,
+                extra_env={"ORCH_RUN_ID": run.run_id, "ORCH_STEP_ID": step.id})
             if not ok:
                 # A Run: line failed → the step fails; the failure context is stashed
                 # for the decision bundle. No repair agent — the engine drives alone.
@@ -498,7 +501,11 @@ async def _verify_and_finalize(run: RunState, epic: EpicState, story: StoryState
     step.status = StepStatus.verifying
     await notify_sse(run, "step_status", {"status": "verifying", "task_type": step.task_type}, step_id=step.id, story_id=story.id, epic_id=epic.id)
 
-    verification = await verify_result(step, agent_result, run.repo_dir, run.run_id)
+    # P0: same run/step identity for probe subprocesses; P1: the modeled project
+    # threads into the integrity belt's site derivation.
+    verification = await verify_result(step, agent_result, run.repo_dir, run.run_id,
+                                       extra_env={"ORCH_RUN_ID": run.run_id, "ORCH_STEP_ID": step.id},
+                                       project=run.project)
     step.verification = verification
 
     if verification.passed and agent_result.status == "completed":

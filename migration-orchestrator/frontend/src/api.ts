@@ -1,4 +1,4 @@
-import type { ContentProgress, RunState, SSEEvent } from './types'
+import type { ContentProgress, RunState, RunSummary, SSEEvent } from './types'
 
 const BASE = ''
 
@@ -14,7 +14,7 @@ export async function fetchContentProgress(project: string, limit = 50): Promise
   return resp.json()
 }
 
-export async function fetchRuns(): Promise<{ run_id: string; goal: string; status: string; created_at: number }[]> {
+export async function fetchRuns(): Promise<RunSummary[]> {
   const resp = await fetch(`${BASE}/runs`)
   return resp.json()
 }

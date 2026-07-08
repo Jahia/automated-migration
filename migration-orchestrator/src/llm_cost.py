@@ -75,12 +75,17 @@ def project_of(run, step=None) -> str | None:
     """Resolve the ledger's project pointer for a run/step. The step's
     inputs.project (a bare name like "sial-paris" or a "projects/<name>" path)
     is authoritative; ledger_path() normalises a bare name under projects/. None
-    when no project is derivable (ledger append is then skipped, not fatal)."""
+    when no project is derivable (ledger append is then skipped, not fatal).
+    P1: the modeled run.project (bare name) short-circuits the run-wide scan;
+    the scan stays as the fallback for old blobs."""
     if step is not None:
         proj = (step.inputs or {}).get("project")
         if proj:
             return str(proj)
-    # No per-step project → try any step in the run that carries one.
+    proj = getattr(run, "project", None)
+    if proj:
+        return str(proj)
+    # No per-step or modeled project → try any step in the run that carries one.
     try:
         for epic in run.epics:
             for story in epic.stories:

@@ -215,6 +215,58 @@ def test_no_run_lines_is_noop(exec_run_on, monkeypatch):
     assert ok is True and records == [] and ctx == ""
 
 
+# ── (i) P0: extra_env (ORCH_RUN_ID/ORCH_STEP_ID) reaches the child env ───
+def test_run_step_commands_merges_extra_env(exec_run_on, monkeypatch):
+    seen_env = {}
+
+    async def _fake_shell(cmd, **k):
+        seen_env.update(k.get("env") or {})
+        return FakeProc(0)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_shell", _fake_shell)
+    step = _step(criteria=["Run: echo a"])
+    run_async(run_step_commands(step, "/tmp", run_id=None,
+                                extra_env={"ORCH_RUN_ID": "r1", "ORCH_STEP_ID": "s1"}))
+    assert seen_env["ORCH_RUN_ID"] == "r1"
+    assert seen_env["ORCH_STEP_ID"] == "s1"
+
+
+def test_run_step_commands_without_extra_env_has_no_identity(exec_run_on, monkeypatch):
+    # manual invocations (no orchestrator) must NOT carry a run/step identity
+    monkeypatch.delenv("ORCH_RUN_ID", raising=False)
+    monkeypatch.delenv("ORCH_STEP_ID", raising=False)
+    seen_env = {}
+
+    async def _fake_shell(cmd, **k):
+        seen_env.update(k.get("env") or {})
+        return FakeProc(0)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_shell", _fake_shell)
+    run_async(run_step_commands(_step(criteria=["Run: echo a"]), "/tmp", run_id=None))
+    assert "ORCH_RUN_ID" not in seen_env
+    assert "ORCH_STEP_ID" not in seen_env
+
+
+def test_verify_result_probes_carry_extra_env(monkeypatch):
+    from src.verifier import verify_result
+
+    seen_env = {}
+
+    async def _fake_shell(cmd, **k):
+        seen_env.update(k.get("env") or {})
+        return FakeProc(0)
+
+    monkeypatch.setattr(asyncio, "create_subprocess_shell", _fake_shell)
+    step = _step(step_id="step_probe_only", task_type="verify",
+                 criteria=["PROBE: test true"])
+    result = AgentResult(step_id=step.id, agent="engine", status="completed", summary="ok")
+    vr = run_async(verify_result(step, result, "/tmp", run_id=None,
+                                 extra_env={"ORCH_RUN_ID": "r9", "ORCH_STEP_ID": "step_probe_only"}))
+    assert vr.passed is True
+    assert seen_env["ORCH_RUN_ID"] == "r9"
+    assert seen_env["ORCH_STEP_ID"] == "step_probe_only"
+
+
 # ── (h) audit records command_executed with the mirror shape ─────────────
 def test_run_audited_as_command_executed(exec_run_on, monkeypatch):
     recorded = []
@@ -330,9 +382,10 @@ def test_execute_single_step_engine_path_skips_agent(exec_run_on, monkeypatch):
 
         captured = {}
 
-        async def _fake_verify(step, agent_result, repo_dir, run_id=None):
+        async def _fake_verify(step, agent_result, repo_dir, run_id=None, **kw):
             captured["agent"] = agent_result.agent
             captured["summary"] = agent_result.summary
+            captured["extra_env"] = kw.get("extra_env")
             return VerificationResult(passed=True, checks=["command_passed:echo x"], errors=[])
 
         monkeypatch.setattr(orchestrator, "verify_result", _fake_verify)
@@ -351,6 +404,9 @@ def test_execute_single_step_engine_path_skips_agent(exec_run_on, monkeypatch):
         assert step.status == StepStatus.done
         assert captured["agent"] == "engine"
         assert "echo x" in captured["summary"]
+        # P0: the orchestrator threads the run/step identity into verification
+        assert captured["extra_env"] == {"ORCH_RUN_ID": "run_engine_path",
+                                         "ORCH_STEP_ID": step.id}
 
     run_async(scenario())
 
@@ -368,7 +424,7 @@ def test_execute_single_step_run_failure_fails_step_with_context(exec_run_on, mo
         monkeypatch.setattr(asyncio, "create_subprocess_shell", _fake_shell)
 
         # verify must NOT be reached on a Run: failure
-        async def _boom_verify(step, agent_result, repo_dir, run_id=None):
+        async def _boom_verify(step, agent_result, repo_dir, run_id=None, **kw):
             raise AssertionError("verify must not run when a Run: line failed")
 
         monkeypatch.setattr(orchestrator, "verify_result", _boom_verify)
@@ -405,7 +461,7 @@ def test_execute_single_step_no_run_lines_synthesizes_engine_result(exec_run_on,
 
         captured = {}
 
-        async def _fake_verify(step, agent_result, repo_dir, run_id=None):
+        async def _fake_verify(step, agent_result, repo_dir, run_id=None, **kw):
             captured["agent"] = agent_result.agent
             return VerificationResult(passed=True, checks=[], errors=[])
 

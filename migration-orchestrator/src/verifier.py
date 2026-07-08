@@ -93,38 +93,46 @@ def is_content_phase(step: StepState) -> bool:
     return step.task_type in CONTENT_TASK_TYPES or step.id in CONTENT_STEP_IDS
 
 
-def derive_site(step: StepState) -> str | None:
+def derive_site(step: StepState, project: str | None = None) -> str | None:
     """Site key for the integrity belt: from step inputs if present (gen_plan
     now emits inputs.site), else the project basename as a graceful fallback.
     The LIVE plan predates the inputs.site addition, so the fallback keeps the
-    belt working on in-flight runs. Returns None only when no project is known
-    (belt is then skipped with an audit note, never crashes)."""
+    belt working on in-flight runs. `project` (the modeled run.project, P1)
+    fills the gap when the step's own inputs carry neither. Returns None only
+    when no project is known (belt is then skipped with an audit note, never
+    crashes)."""
     inputs = step.inputs or {}
     site = inputs.get("site")
     if site:
         return str(site)
-    project = inputs.get("project")
-    if project:
-        return os.path.basename(str(project).rstrip("/"))
+    proj = inputs.get("project") or project
+    if proj:
+        return os.path.basename(str(proj).rstrip("/"))
     return None
 
 
-def integrity_command(step: StepState) -> str | None:
+def integrity_command(step: StepState, project: str | None = None) -> str | None:
     """The read-only integrity probe command for a content step, or None when it
     is not derivable (no project/site → skip gracefully). Phase == step id so the
-    probe scales its expectations to pipeline position."""
+    probe scales its expectations to pipeline position. Step inputs stay
+    authoritative (they carry the exact arg shape the plan chose); the modeled
+    run.project (bare name) is the fallback for steps that carry none — it is
+    re-anchored under projects/ because integrity.py joins its project_path arg
+    under the repo root (a bare name would resolve to a nonexistent dir)."""
     inputs = step.inputs or {}
-    project = inputs.get("project")
-    if not project:
+    proj = inputs.get("project") or (f"projects/{project}" if project else None)
+    if not proj:
         return None
-    site = derive_site(step)
+    site = derive_site(step, project)
     if not site:
         return None
-    return f"python3 {INTEGRITY_PROBE} {project} {site} --phase {step.id}"
+    return f"python3 {INTEGRITY_PROBE} {proj} {site} --phase {step.id}"
 
 
 async def run_integrity_belt(step: StepState, repo_dir: str,
-                             run_id: str | None) -> tuple[list[str], list[str]]:
+                             run_id: str | None,
+                             project: str | None = None,
+                             extra_env: dict[str, str] | None = None) -> tuple[list[str], list[str]]:
     """Run the integrity belt as an additional verification for a content step.
     Returns (checks, errors) merged into the VerificationResult. A non-zero exit
     is a verification FAILURE (same retry/decision path as any probe). Audited
@@ -138,7 +146,7 @@ async def run_integrity_belt(step: StepState, repo_dir: str,
         return checks, errors
     if not is_content_phase(step):
         return checks, errors
-    cmd = integrity_command(step)
+    cmd = integrity_command(step, project)
     if not cmd:
         # graceful: no site derivable → skip with an audit note, never crash
         checks.append("integrity_skipped:no_site")
@@ -151,6 +159,8 @@ async def run_integrity_belt(step: StepState, repo_dir: str,
         return checks, errors
 
     env = probe_env(repo_dir)
+    if extra_env:
+        env.update(extra_env)
     cmd_start = time.time() * 1000
     try:
         proc = await asyncio.create_subprocess_shell(
@@ -253,9 +263,12 @@ def run_step_timeout(step: StepState) -> float:
 
 
 async def run_step_commands(step: StepState, repo_dir: str,
-                            run_id: str | None = None) -> tuple[bool, list[dict], str]:
+                            run_id: str | None = None,
+                            extra_env: dict[str, str] | None = None) -> tuple[bool, list[dict], str]:
     """Execute the step's `Run: <cmd>` lines sequentially — same subprocess
     mechanism as the probes (same cwd=repo_dir, same probe_env, per-line timeout).
+    `extra_env` (optional) is merged over the child env — the orchestrator passes
+    ORCH_RUN_ID/ORCH_STEP_ID so child tools can stamp provenance (P0).
     Honours the ORCHESTRATOR_ENGINE_EXEC_RUN kill-switch (same pattern as the
     integrity belt): when disabled OR the step has no Run: lines, returns
     (True, [], "") so the caller falls straight through to the legacy agent path.
@@ -283,6 +296,10 @@ async def run_step_commands(step: StepState, repo_dir: str,
 
     default_timeout = run_step_timeout(step)
     env = probe_env(repo_dir)
+    if extra_env:
+        # P0: run/step identity for child tools (ORCH_RUN_ID / ORCH_STEP_ID) —
+        # merged LAST so the executor-provided identity always wins.
+        env.update(extra_env)
     records: list[dict] = []
     audit = get_audit_logger(run_id) if run_id else None
 
@@ -345,7 +362,13 @@ async def run_step_commands(step: StepState, repo_dir: str,
     return True, records, ""
 
 
-async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run_id: str | None = None) -> VerificationResult:
+async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run_id: str | None = None,
+                        extra_env: dict[str, str] | None = None,
+                        project: str | None = None) -> VerificationResult:
+    """`extra_env` (optional) is merged over the probe subprocess env — the
+    orchestrator passes ORCH_RUN_ID/ORCH_STEP_ID so probes/tools can stamp
+    provenance (P0). `project` (optional, the modeled run.project) threads into
+    the integrity belt's site derivation (P1)."""
     checks: list[str] = []
     errors: list[str] = []
 
@@ -378,6 +401,8 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
     for cmd in result.commands_requested:
         to_run.setdefault(cmd, default_probe_timeout())
     env = probe_env(repo_dir)
+    if extra_env:
+        env.update(extra_env)
     for cmd, timeout_s in to_run.items():
         cmd_start = time.time() * 1000
         try:
@@ -447,7 +472,8 @@ async def verify_result(step: StepState, result: AgentResult, repo_dir: str, run
     # taking the same retry/decision path as any probe. Runs only when the step's
     # own gate is otherwise green (no point diffing a step that already failed).
     if not errors:
-        belt_checks, belt_errors = await run_integrity_belt(step, repo_dir, run_id)
+        belt_checks, belt_errors = await run_integrity_belt(step, repo_dir, run_id,
+                                                            project=project, extra_env=extra_env)
         checks.extend(belt_checks)
         errors.extend(belt_errors)
 

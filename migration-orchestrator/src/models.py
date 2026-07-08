@@ -329,6 +329,11 @@ class RunState(BaseModel):
     repo_dir: str
     github_repo: str | None = None
     model: str
+    # P1: the migrated project, modeled explicitly as the BARE name (e.g.
+    # "discoverasr" — never "projects/discoverasr"). Derived once at plan build
+    # (state.derive_project) instead of re-scanned from step inputs by every
+    # consumer. None on old persisted blobs until load_run backfills it.
+    project: str | None = None
     status: RunStatus = RunStatus.running
     epics: list[EpicState] = Field(default_factory=list)
     current_epic_id: str | None = None

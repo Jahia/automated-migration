@@ -70,7 +70,13 @@ def pending_decision(steps: list[StepState]) -> StepState | None:
 
 
 def project_path(run: RunState) -> str | None:
-    """The project dir this run migrates (from any step's inputs)."""
+    """The project dir this run migrates. P1: the modeled run.project (bare
+    name) wins when set — re-anchored under projects/ (the shape every plan
+    stamps into project_path); the step-inputs scan stays as the fallback for
+    old persisted blobs."""
+    proj = getattr(run, "project", None)
+    if proj:
+        return f"projects/{proj}"
     for s in all_steps(run):
         pp = s.inputs.get("project_path") or s.inputs.get("project")
         if pp:

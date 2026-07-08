@@ -139,11 +139,22 @@ export interface EpicState {
   pending_proposal?: RectificationProposal | null
 }
 
+/** GET /runs item — flat list entry (project is the bare project name, null for legacy runs). */
+export interface RunSummary {
+  run_id: string
+  goal: string
+  status: string
+  created_at: number
+  updated_at?: number
+  project?: string | null
+}
+
 export interface RunState {
   run_id: string
   goal: string
   repo_dir: string
   github_repo?: string | null
+  project?: string | null
   model: string
   status: RunStatus
   epics: EpicState[]

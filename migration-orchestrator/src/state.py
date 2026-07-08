@@ -137,16 +137,61 @@ def build_epic_state(epic_input: EpicInput) -> EpicState:
     )
 
 
+# ── Project derivation (P1: "project" is modeled, not re-scanned) ─────
+# Every consumer used to re-scan step inputs for project/project_path.
+# derive_project is now the SINGLE derivation point: build_run_state stamps
+# run.project at creation, load_run backfills old blobs, and the persistence
+# schema migration backfills the runs.project column from raw state_json.
+
+
+def normalize_project(value: object) -> str | None:
+    """Bare project name from an inputs value: tolerates "discoverasr",
+    "projects/discoverasr", trailing slashes and absolute paths alike — strips
+    any leading "projects/" and keeps the LAST path segment."""
+    if not value:
+        return None
+    name = str(value).strip().strip("/")
+    if name.startswith("projects/"):
+        name = name[len("projects/"):].rstrip("/")
+    if not name:
+        return None
+    return name.split("/")[-1] or None
+
+
+def _node_field(node: object, key: str):
+    """Dict-or-model accessor: derive_project runs over live pydantic state AND
+    raw state_json dicts (the persistence backfill never re-validates old blobs)."""
+    if isinstance(node, dict):
+        return node.get(key)
+    return getattr(node, key, None)
+
+
+def derive_project(epics) -> str | None:
+    """Scan epics>stories>steps inputs for "project"/"project_path" and normalize
+    to the BARE project name. Fallback derivation for plans and persisted blobs
+    that predate the modeled RunState.project."""
+    for epic in epics or []:
+        for story in _node_field(epic, "stories") or []:
+            for step in _node_field(story, "steps") or []:
+                inputs = _node_field(step, "inputs") or {}
+                name = normalize_project(inputs.get("project") or inputs.get("project_path"))
+                if name:
+                    return name
+    return None
+
+
 def build_run_state(plan: PlanInput) -> RunState:
     lint_plan(plan)
     now = time.time() * 1000
+    epics = [build_epic_state(e) for e in plan.epics]
     return RunState(
         run_id=f"run_{int(now)}",
         goal=plan.goal,
         repo_dir=plan.repo_dir,
         github_repo=plan.github_repo,
         model=plan.model,
-        epics=[build_epic_state(e) for e in plan.epics],
+        epics=epics,
+        project=derive_project(epics),
         created_at=now,
         updated_at=now,
     )

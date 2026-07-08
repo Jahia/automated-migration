@@ -41,6 +41,31 @@ class RunResponse(BaseModel):
     run_id: str
     status: str
     message: str = ""
+    # P1 (additive): creation endpoints warn when the project already has a
+    # RUNNING run — two engines writing the same workflow-output is usually a
+    # mistake. Empty everywhere else.
+    warnings: list[str] = []
+
+
+async def _concurrent_project_warnings(run: RunState) -> list[str]:
+    """Warn (never block) when another run on the SAME project has an EFFECTIVE
+    (live-merged) status of running. Only an in-memory 'running' counts — a
+    persisted 'running' with no active loop is effectively 'paused' (engine
+    restart), exactly like GET /runs normalizes."""
+    if not run.project:
+        return []
+    warnings: list[str] = []
+    for r in await list_runs():
+        if r["run_id"] == run.run_id or r.get("project") != run.project:
+            continue
+        mem = get_run(r["run_id"])
+        status = mem.status.value if mem else ("paused" if r["status"] == "running" else r["status"])
+        if status == "running":
+            msg = (f"project '{run.project}' already has a running run ({r['run_id']}) — "
+                   "two concurrent runs write the same workflow-output")
+            log.warning(msg)
+            warnings.append(msg)
+    return warnings
 
 
 class JumpRequest(BaseModel):
@@ -66,7 +91,9 @@ async def create_run(plan: PlanInput, request: Request):
 
     register_run(run)
     await save_run(run)
-    return RunResponse(run_id=run.run_id, status="created", message="Run créé. POST /runs/{run_id}/start pour démarrer.")
+    return RunResponse(run_id=run.run_id, status="created",
+                       message="Run créé. POST /runs/{run_id}/start pour démarrer.",
+                       warnings=await _concurrent_project_warnings(run))
 
 
 @router.post("/runs/{run_id}/start", response_model=RunResponse)
@@ -179,15 +206,8 @@ async def restart_run_endpoint(run_id: str, request: Request):
 
 # ── Migration profile: domain artifacts + fidelity actions ───────────
 
-def _project_path(run: RunState) -> str | None:
-    """The project dir this run migrates (from any step's inputs)."""
-    for epic in run.epics:
-        for story in epic.stories:
-            for step in story.steps:
-                pp = step.inputs.get("project_path") or step.inputs.get("project")
-                if pp:
-                    return str(pp)
-    return None
+# P1: the local _project_path duplicate is gone — migration_control.project_path
+# is the single resolver (run.project short-circuit + legacy step-inputs scan).
 
 
 async def _resolve_run(run_id: str) -> RunState:
@@ -205,7 +225,7 @@ async def _resolve_run(run_id: str) -> RunState:
 async def get_artifact(run_id: str, path: str):
     """Serve a file from the run's project workflow-output (screenshots, JSON, CND)."""
     run = await _resolve_run(run_id)
-    proj = _project_path(run)
+    proj = project_path(run)
     if not proj:
         raise HTTPException(status_code=404, detail="no project for run")
     base = (Path(run.repo_dir) / proj / "workflow-output").resolve()
@@ -225,7 +245,7 @@ class FidelityRerun(BaseModel):
 async def fidelity_rerun(run_id: str, req: FidelityRerun):
     """Re-run the reconstruction probe on a chosen page sample (fire-and-forget)."""
     run = await _resolve_run(run_id)
-    proj = _project_path(run)
+    proj = project_path(run)
     if not proj:
         raise HTTPException(status_code=404, detail="no project for run")
     args = ["node", "orchestration/lib/reconstruct_probe.mjs", proj, "95"]
@@ -390,6 +410,7 @@ async def create_migration(inp: MigrationInput):
         run_id=run.run_id,
         status="created",
         message="Migration créée. POST /runs/{run_id}/start pour lancer l'analyse.",
+        warnings=await _concurrent_project_warnings(run),
     )
 
 

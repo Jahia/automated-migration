@@ -6,6 +6,7 @@ import aiosqlite
 
 from .config import settings
 from .models import RunState, RunStatus
+from .state import derive_project
 
 _db: aiosqlite.Connection | None = None
 
@@ -28,6 +29,7 @@ async def init_tables(db: aiosqlite.Connection) -> None:
             repo_dir TEXT NOT NULL,
             model TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'running',
+            project TEXT,
             state_json TEXT NOT NULL,
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL
@@ -46,16 +48,39 @@ async def init_tables(db: aiosqlite.Connection) -> None:
             FOREIGN KEY (run_id) REFERENCES runs(run_id)
         )
     """)
+    await _migrate_runs_project(db)
     await db.commit()
+
+
+async def _migrate_runs_project(db: aiosqlite.Connection) -> None:
+    """Schema migration (P1): DBs created before the `project` column get it
+    ALTERed in, then BACKFILLED from each row's state_json via derive_project.
+    Only the COLUMN is written — state_json blobs stay byte-identical, so old
+    runs keep deserializing exactly as before (load_run backfills the model)."""
+    cursor = await db.execute("PRAGMA table_info(runs)")
+    # r[1] = column name: works with both the aiosqlite.Row factory and the
+    # default tuple factory (tests call init_tables on their own connection).
+    cols = {r[1] for r in await cursor.fetchall()}
+    if "project" in cols:
+        return
+    await db.execute("ALTER TABLE runs ADD COLUMN project TEXT")
+    cursor = await db.execute("SELECT run_id, state_json FROM runs WHERE project IS NULL")
+    for run_id, state_json in [(r[0], r[1]) for r in await cursor.fetchall()]:
+        try:
+            project = derive_project(json.loads(state_json).get("epics"))
+        except (ValueError, TypeError, AttributeError):
+            project = None  # a corrupt/foreign blob never blocks startup
+        if project:
+            await db.execute("UPDATE runs SET project = ? WHERE run_id = ?", (project, run_id))
 
 
 async def save_run(run: RunState) -> None:
     db = await get_db()
     state_json = run.model_dump_json()
     await db.execute(
-        """INSERT OR REPLACE INTO runs (run_id, goal, repo_dir, model, status, state_json, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (run.run_id, run.goal, run.repo_dir, run.model, run.status.value, state_json, run.created_at, run.updated_at),
+        """INSERT OR REPLACE INTO runs (run_id, goal, repo_dir, model, status, project, state_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (run.run_id, run.goal, run.repo_dir, run.model, run.status.value, run.project, state_json, run.created_at, run.updated_at),
     )
     await db.commit()
 
@@ -69,18 +94,24 @@ async def load_run(run_id: str) -> RunState | None:
     run = RunState.model_validate_json(row["state_json"])
     if run.status.value == "running":
         run.status = RunStatus.paused
+    if run.project is None:
+        # Old blobs predate the modeled project — derive once at load so every
+        # consumer (routes, ledger, integrity belt) short-circuits uniformly.
+        run.project = derive_project(run.epics)
     return run
 
 
 async def list_runs() -> list[dict]:
     db = await get_db()
-    cursor = await db.execute("SELECT run_id, goal, status, created_at, updated_at FROM runs ORDER BY created_at DESC")
+    cursor = await db.execute(
+        "SELECT run_id, goal, status, project, created_at, updated_at FROM runs ORDER BY created_at DESC")
     rows = await cursor.fetchall()
     return [
         {
             "run_id": r["run_id"],
             "goal": r["goal"],
             "status": r["status"],
+            "project": r["project"],
             "created_at": r["created_at"],
             "updated_at": r["updated_at"],
         }

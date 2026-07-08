@@ -82,6 +82,11 @@ export default function RunDetail() {
               {run.status}
             </span>
             <span className="text-gray-500 text-sm">{run.run_id}</span>
+            {run.project && (
+              <span className="px-2 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-xs text-gray-300">
+                {run.project}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-4">

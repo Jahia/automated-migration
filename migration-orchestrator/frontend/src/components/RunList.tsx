@@ -1,13 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchRuns, deleteRun, pruneRuns } from '../api'
-
-interface RunSummary {
-  run_id: string
-  goal: string
-  status: string
-  created_at: number
-}
+import type { RunSummary } from '../types'
 
 const statusColors: Record<string, string> = {
   created: 'bg-gray-500',
@@ -16,6 +10,35 @@ const statusColors: Record<string, string> = {
   completed: 'bg-green-500',
   failed: 'bg-red-500',
   aborted: 'bg-gray-500',
+}
+
+const NO_PROJECT = '(sans projet)'
+
+/** Group runs by project; groups sorted by most recent created_at desc, "(sans projet)" always last. */
+function groupByProject(runs: RunSummary[]): { project: string; runs: RunSummary[] }[] {
+  const byProject = new Map<string, RunSummary[]>()
+  for (const run of runs) {
+    const key = run.project || NO_PROJECT
+    const list = byProject.get(key)
+    if (list) list.push(run)
+    else byProject.set(key, [run])
+  }
+  const groups = [...byProject.entries()].map(([project, list]) => ({
+    project,
+    runs: [...list].sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0)),
+  }))
+  groups.sort((a, b) => {
+    if (a.project === NO_PROJECT) return 1
+    if (b.project === NO_PROJECT) return -1
+    return (b.runs[0]?.created_at ?? 0) - (a.runs[0]?.created_at ?? 0)
+  })
+  return groups
+}
+
+/** Compact creation date-time (created_at is epoch milliseconds). */
+function formatCreatedAt(ms?: number): string {
+  if (!ms) return ''
+  return new Date(ms).toLocaleString(undefined, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 export default function RunList() {
@@ -106,30 +129,43 @@ export default function RunList() {
           Aucun run. Les runs sont pilotés via l'API (CONTROL-LOOP.md).
         </p>
       ) : (
-        <div className="space-y-3">
-          {runs.map((run) => (
-            <Link
-              key={run.run_id}
-              to={`/runs/${run.run_id}`}
-              className="block bg-gray-900 border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition"
-            >
-              <div className="flex items-center gap-3">
-                <span className={`w-2.5 h-2.5 rounded-full ${statusColors[run.status] || 'bg-gray-500'}`} />
-                <span className="font-mono text-sm text-gray-400">{run.run_id}</span>
-                <span className="text-gray-300 flex-1 truncate">{run.goal}</span>
-                <span className="text-xs text-gray-500">{run.status}</span>
-                {['failed', 'completed', 'aborted', 'created'].includes(run.status) && (
-                  <button
-                    onClick={(e) => handleDelete(e, run.run_id)}
-                    disabled={actionLoading === run.run_id}
-                    className="px-3 py-1 bg-gray-700 hover:bg-red-700 disabled:opacity-50 rounded text-xs"
-                    title="Supprimer ce run"
-                  >
-                    {actionLoading === run.run_id ? '...' : 'Supprimer'}
-                  </button>
-                )}
+        <div className="space-y-6">
+          {groupByProject(runs).map((group) => (
+            <div key={group.project}>
+              <div className="flex items-baseline gap-2 mb-2">
+                <h2 className="text-sm font-semibold text-gray-300">{group.project}</h2>
+                <span className="text-xs text-gray-500">
+                  {group.runs.length} run{group.runs.length > 1 ? 's' : ''}
+                </span>
               </div>
-            </Link>
+              <div className="space-y-3">
+                {group.runs.map((run) => (
+                  <Link
+                    key={run.run_id}
+                    to={`/runs/${run.run_id}`}
+                    className="block bg-gray-900 border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2.5 h-2.5 rounded-full ${statusColors[run.status] || 'bg-gray-500'}`} />
+                      <span className="font-mono text-sm text-gray-400">{run.run_id}</span>
+                      <span className="text-gray-300 flex-1 truncate">{run.goal}</span>
+                      <span className="text-xs text-gray-600 whitespace-nowrap">{formatCreatedAt(run.created_at)}</span>
+                      <span className="text-xs text-gray-500">{run.status}</span>
+                      {['failed', 'completed', 'aborted', 'created'].includes(run.status) && (
+                        <button
+                          onClick={(e) => handleDelete(e, run.run_id)}
+                          disabled={actionLoading === run.run_id}
+                          className="px-3 py-1 bg-gray-700 hover:bg-red-700 disabled:opacity-50 rounded text-xs"
+                          title="Supprimer ce run"
+                        >
+                          {actionLoading === run.run_id ? '...' : 'Supprimer'}
+                        </button>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
