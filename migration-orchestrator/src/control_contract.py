@@ -20,7 +20,7 @@ CONTROL_CONTRACT = {
     ),
     "loop": [
         "1. GET /runs/{id} → read `status`, `control.gate`, `control.quality`, `control.review`, `control.actions`.",
-        "2. status=running → poll again (optionally GET /runs/{id}/logs).",
+        "2. status=running → poll again (optionally GET /runs/{id}/log).",
         "3. A gate/decision is active → OPEN every URL in `control.review`, read `quality.verdict`+`reasons`, then take EXACTLY ONE action from `control.actions` (the only way past a gate).",
         "4. status=failed → read `last_error`, then rerun the failing step or rollback.",
         "5. Repeat until status=done.",
@@ -28,7 +28,8 @@ CONTROL_CONTRACT = {
     "endpoints": [
         {"call": "GET /runs/{id}", "when": "always — the current state and what to do next (has the `control` block)"},
         {"call": "GET /runs/{id}/quality", "when": "detail on the current gate verdict (green/amber/red + metrics + reasons)"},
-        {"call": "GET /runs/{id}/logs", "when": "a step is running or failed and you need its output"},
+        {"call": "GET /runs/{id}/log", "when": "a step is running or failed and you need its output"},
+        {"call": "GET /runs/{id}/steps/{step}/log", "when": "the captured stdout/stderr of ONE step's probe/command attempts (a posteriori)"},
         {"call": "GET /runs/{id}/artifacts/{path}", "when": "open an observability artifact listed in `control.review`"},
         {"call": "POST /runs/{id}/steps/{step}/decide {action, reason}", "when": "a decision/gate is pending; action ∈ [proceed, retry, apply_and_rerun, repatch]"},
         {"call": "POST /runs/{id}/steps/{step}/rerun {reason}", "when": "you fixed that STEP'S CODE and want it re-executed with the fix (resets dependents; upstream steps like the mirror are NOT re-run)"},
