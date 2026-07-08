@@ -18,6 +18,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
+import { writeSidecar } from './provenance.mjs';
 
 const argv = process.argv.slice(2);
 const proj = argv.find((a) => !a.startsWith('--'));
@@ -90,5 +91,6 @@ fs.writeFileSync(`${outDir}/index.html`,
    <p style="color:#697386;font-size:13px">Vignette = aperçu des frontières. <b>Clique une page pour la version interactive</b> : bandeau <b>Template</b> en haut, et au <b>survol</b> d'un composant → nombre d'instances + autres pages qui le référencent.</p>
    <div style="position:sticky;top:0;background:#fff;padding:10px 0;border-bottom:1px solid #eee;font-size:13px;z-index:9">${legend}</div>
    ${cards}</body>`);
+writeSidecar(outDir, 'zone_overlay_probe.mjs', done.map((d) => d.slug));
 console.error(`\n  zone-overlay: ${done.length}/${slugs.length} page(s) -> ${outDir}/index.html`);
 process.exit(done.length ? 0 : 1);

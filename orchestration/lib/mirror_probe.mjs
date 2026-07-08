@@ -26,6 +26,7 @@ import { PNG } from 'pngjs';
 import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest, saveRuntimeManifest, fetchRuntimeAsset, clusterSample } from './mirror_net.mjs';
+import { stampJson, writeSidecar } from './provenance.mjs';
 
 const argv = process.argv.slice(2);
 const flags = {}, pos = [];
@@ -284,8 +285,11 @@ srv.close();
 const gatePass = results.every(r => r.ok && r.offlineRendered && (r.realMissCount || 0) === 0 && (r.localMissCount || 0) === 0);
 const excusedTotal = results.reduce((s, r) => s + (r.runtimeResidue || 0) + (r.embedBlockedCount || 0) + (r.dataMissCount || 0), 0);
 const hasSoft = results.some(r => (r.embedBlockedCount || 0) || (r.dataMissCount || 0) || (r.runtimeResidue || 0));
+const pageSet = results.map(r => r.slug);
 fs.writeFileSync(`${outDir}/mirror-check.json`, JSON.stringify(
-  { project: proj, gatePass, excusedTotal, residue: (mirror.residue || []).length, pages: results }, null, 2));
+  stampJson({ project: proj, gatePass, excusedTotal, residue: (mirror.residue || []).length, pages: results },
+            'mirror_probe.mjs', pageSet), null, 2));
+writeSidecar(outDir, 'mirror_probe.mjs', pageSet);
 
 const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const okPage = r => r.ok && r.offlineRendered && (r.realMissCount || 0) === 0 && (r.localMissCount || 0) === 0;

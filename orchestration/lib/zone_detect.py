@@ -25,6 +25,9 @@ import sys, os, json, re, hashlib, statistics
 from collections import defaultdict, Counter
 from bs4 import BeautifulSoup, Comment
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import provenance  # stamps the emit_json output
+
 REPO = "/Users/jmaurel/Documents/GitHub/jahiaMigration"
 DROP = {"script", "style", "noscript", "template", "link", "meta", "br", "wbr", "source", "svg",
         "path", "iframe", "canvas"}
@@ -510,6 +513,7 @@ def emit_json(R, path):
         ks = [k for k in agg if agg[k]["scope"] == sc and isa(k) and is_toplevel(k)]
         ks.sort(key=lambda k: (len(agg[k]["pages"]), agg[k]["inst"]), reverse=True)
         out["scopes"][sc] = [node(k) for k in ks[:14]]
+    provenance.stamp_json(out, "zone_detect.py", page_set=slugs)
     json.dump(out, open(path, "w"), indent=1, ensure_ascii=False)
 
 def scaling(proj):

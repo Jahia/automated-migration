@@ -43,6 +43,7 @@ Usage:
 import hashlib, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_client import MCP
+import provenance  # stamps load-ledger.json
 
 TEXTY = {"String", "Text"}
 SKIP_PROP = {"jcr:title"}  # set via title/heading mapping, not raw
@@ -124,6 +125,8 @@ class Loader:
         # then backfilled. Runtime artifact, never written in --dry.
         self._ledger_path = f"projects/{project}/workflow-output/load-ledger.json"
         self.ledger = load_json(self._ledger_path, {})
+        self.ledger.pop("_provenance", None)  # stamp metadata, not a page entry
+        self._pages_touched = []  # pages written by THIS invocation (provenance page_set)
         self.reconcile = {"ALIGNED": [], "REBUILD": []}  # EDIT-only verdicts
 
     def _dam_resolves(self, path):
@@ -746,8 +749,13 @@ class Loader:
                              "loadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                              "created": created, "published": published,
                              "verdict": verdict}
+        if page not in self._pages_touched:
+            self._pages_touched.append(page)
         os.makedirs(os.path.dirname(self._ledger_path), exist_ok=True)
-        json.dump(self.ledger, open(self._ledger_path, "w"), indent=1)
+        # embed provenance (popped on load — never read back as a page entry)
+        json.dump(provenance.stamp_json(dict(self.ledger), "load_content.py",
+                                        page_set=self._pages_touched),
+                  open(self._ledger_path, "w"), indent=1)
 
     def _home_slug(self):
         """The content-load slug that IS the site home page (its URL == the site

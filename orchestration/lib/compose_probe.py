@@ -103,6 +103,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__))))
 import extract_content as EC  # noqa: E402  (rewrite_asset_refs / runtime map)
+import provenance  # noqa: E402  (stamps compose-check.json + compose/ dir)
 
 try:
     from bs4 import BeautifulSoup, Comment
@@ -1066,12 +1067,15 @@ def main():
         "gatePass": gate_pass,
         "pages": results,
     }
+    page_set = [r["slug"] for r in results]
+    provenance.stamp_json(check, "compose_probe.py", page_set=page_set)
     with open(os.path.join(out_dir, "compose-check.json"), "w",
               encoding="utf-8") as f:
         json.dump(check, f, indent=2, ensure_ascii=False)
     with open(os.path.join(out_dir, "compose-review.html"), "w",
               encoding="utf-8") as f:
         f.write(review_html(project, results))
+    provenance.write_sidecar(out_dir, "compose_probe.py", page_set=page_set)
 
     # ── drill-down component map (never affects the gate verdict/exit code) ──
     # Built when --map is passed OR automatically after a GREEN gate (cheap), unless

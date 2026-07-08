@@ -30,6 +30,9 @@ import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import provenance  # noqa: E402  (stamps page-inventory.json)
+
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 RATE_DELAY = 2.0
 MAX_RETRIES = 3
@@ -423,6 +426,8 @@ def main():
         'skippedUtility': len(skipped_utility),
         'skippedLang': len(skipped_lang),
     }
+    provenance.stamp_json(inventory, 'crawl-site.py',
+                          page_set=[p['slug'] for p in pages])
     inv_path = os.path.join(proj, 'workflow-output', 'page-inventory.json')
     with open(inv_path, 'w') as f:
         json.dump(inventory, f, indent=2)

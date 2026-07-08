@@ -26,6 +26,9 @@ Writes: orchestration/content/<project>.content-load.json
 """
 import html.parser, json, os, re, sys, urllib.parse
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import provenance  # noqa: E402  (stamps <project>.content-load.json)
+
 IMG_EXT = re.compile(r"\.(png|jpe?g|webp|gif|svg|avif)(\?|$)", re.I)
 LAYOUT = re.compile(r"^(component|component-content|container|container-fluid|row|"
                     r"col|col-\w+|mb-\d+|mt-\d+|p-\d+|px-\d+|py-\d+|g-\d+|gap-\d+|"
@@ -1453,6 +1456,8 @@ def main():
 
     os.makedirs("orchestration/content", exist_ok=True)
     outp = f"orchestration/content/{project}.content-load.json"
+    provenance.stamp_json(data, "extract_content.py",
+                          page_set=sorted(data["pages"].keys()))
     json.dump(data, open(outp, "w"), indent=2, ensure_ascii=False)
     # summary
     tot_inst = sum(len(v.get("instances", [])) for v in data["pages"].values())

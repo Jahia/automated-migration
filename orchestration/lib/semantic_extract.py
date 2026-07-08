@@ -37,6 +37,9 @@ from collections import Counter, defaultdict
 
 from bs4 import BeautifulSoup, Tag
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import provenance  # noqa: E402  (stamps semantic-candidates/templates.json)
+
 
 # ── Tag vocab ─────────────────────────────────────────────────────
 REGION_TAGS = {"header", "footer", "nav", "main", "section", "article", "aside"}
@@ -1459,6 +1462,8 @@ def main():
         "nestedParts": nested,
         "detailTemplates": detail_templates,
     }
+    _page_set = sorted(page_partitions.keys())
+    provenance.stamp_json(cand_out, "semantic_extract.py", page_set=_page_set)
     with open(f"{out_dir}/semantic-candidates.json", "w") as f:
         json.dump(cand_out, f, indent=2, ensure_ascii=False)
 
@@ -1471,6 +1476,7 @@ def main():
         # P1.2 passthrough accounting per page (semantic share = quality dial §2)
         "pagePartitions": page_partitions,
     }
+    provenance.stamp_json(tpl_out, "semantic_extract.py", page_set=_page_set)
     with open(f"{out_dir}/semantic-templates.json", "w") as f:
         json.dump(tpl_out, f, indent=2, ensure_ascii=False)
 

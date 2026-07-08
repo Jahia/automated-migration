@@ -45,6 +45,7 @@ import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
 import { ovhVision, downscalePng, extractJson, OVH_VISION_MODEL } from './ovh_vision.mjs';
+import { stampJson, writeSidecar } from './provenance.mjs';
 import { STABILITY_BAR, MIN_COVERAGE_BAR, meanPairwiseJaccard, medoidIndex, consensusRootIds, pagePassV2, clusterPassV2, spreadIndexes, effectivePerCluster } from './segment_consensus.mjs';
 
 const argv = process.argv.slice(2);
@@ -367,10 +368,14 @@ for (const slug of pageSel) {
 }
 await browser.close(); server.srv.close();
 
+// provenance page_set = pages actually SEGMENTED this invocation (skips excluded)
+const pageSet = results.filter(r => r.ok && !r.skipped).map(r => r.slug);
 for (const r of results) {
   // skipped pages keep their existing (prior-green / adjudicated) segmentation.json untouched
-  if (r.ok && !r.skipped) { fs.writeFileSync(`${outDir}/${r.slug}.segmentation.json`, JSON.stringify(r, null, 2)); writeSegmap(r); }
+  // (stamp a shallow copy so the in-memory rec — reused by segment-check — stays clean)
+  if (r.ok && !r.skipped) { fs.writeFileSync(`${outDir}/${r.slug}.segmentation.json`, JSON.stringify(stampJson({ ...r }, 'segment_probe.mjs', [r.slug]), null, 2)); writeSegmap(r); }
 }
+writeSidecar(outDir, 'segment_probe.mjs', pageSet);
 
 // coloured component map — every region shown, NOTHING hidden. component=blue,
 // container=green (+cyan children), chrome=grey, passthrough=amber (kept as raw HTML).
@@ -423,11 +428,11 @@ if (CONSENSUS) {
   const clusters = [...byCluster.entries()].map(([id, pages]) => ({ id, pages, pass: clusterPassV2(pages) }));
   const gatePass = clusters.length > 0 && clusters.every(c => c.pass);
   const rulesInForce = scopeRules.map(rl => rl.id).filter(Boolean);
-  fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify({
+  fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify(stampJson({
     protocol: 'v2', minCoverage: MIN_COVERAGE_BAR, stabilityBar: STABILITY_BAR,
     project: proj, model: OVH_VISION_MODEL, stabilityRuns: STABILITY,
     clusters, gatePass, rulesInForce,
-  }, null, 2));
+  }, 'segment_probe.mjs', pageSet), null, 2));
   console.log(`\n=== SEGMENTATION v2 consensus (OVH ${OVH_VISION_MODEL}) — ${proj} ===`);
   for (const c of clusters) {
     console.log(`  cluster ${c.id}: ${c.pass ? 'PASS' : 'FAIL'} (majority of ${c.pages.length} sampled)`);
@@ -440,7 +445,8 @@ if (CONSENSUS) {
 
 // ── v1 (no --consensus): unchanged output shape + per-page gate ──
 fs.writeFileSync(`${outDir}/segment-check.json`, JSON.stringify(
-  { project: proj, model: OVH_VISION_MODEL, pages: results.map(({ nodes, ...r }) => r) }, null, 2));
+  stampJson({ project: proj, model: OVH_VISION_MODEL, pages: results.map(({ nodes, ...r }) => r) },
+            'segment_probe.mjs', pageSet), null, 2));
 
 console.log(`\n=== SEGMENTATION (OVH ${OVH_VISION_MODEL}) — ${proj} ===`);
 for (const r of results) {

@@ -38,6 +38,7 @@ import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
 import { settlePage } from './settle.mjs';
+import { stampJson, writeSidecar } from './provenance.mjs';
 
 const [, , projArg, site, thrArg, ...rest] = process.argv;
 if (!projArg || !site) {
@@ -213,7 +214,10 @@ const summary = {
     perPage: Object.fromEntries(shares.map(x => [x.slug, x.share])),
   },
 };
+const pageSet = results.map(r => r.slug);
+stampJson(summary, 'groundtruth_probe.mjs', pageSet);
 fs.writeFileSync(`${outDir}/groundtruth.json`, JSON.stringify(summary, null, 2));
+writeSidecar(outDir, 'groundtruth_probe.mjs', pageSet);
 
 // ── review.html: ref | preview | diff per page, worst first ──
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');

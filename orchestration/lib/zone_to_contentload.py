@@ -23,6 +23,7 @@ import zone_detect as ZD
 import semantic_extract as SE
 import extract_content as EC
 import library_recognize as LR
+import provenance as PV  # stamps content-load / manifest / component-model / orphans
 
 
 # A wrapper's inline <style>/<script> BODY (CSS/JS text) and comment text is SKIN, not
@@ -2659,6 +2660,8 @@ def emit_component_model(project, ns, content, manifest):
             "origin": "engine",
         })
     model = {"project": project, "namespace": ns, "entries": entries}
+    PV.stamp_json(model, "zone_to_contentload.py",
+                  page_set=sorted(content.get("pages", {}).keys()))
     open(os.path.join(out_dir, "component-model.json"), "w", encoding="utf-8").write(
         json.dumps(model, ensure_ascii=False, indent=1))
     print(f"  -> component-model.json: {len(entries)} nodetype(s), "
@@ -2724,6 +2727,9 @@ def main():
     mf_dir = os.path.join(REPO, "projects", project, "workflow-output")
     os.makedirs(mf_dir, exist_ok=True)
     mf_path = os.path.join(mf_dir, "component-manifest.json")
+    _page_set = sorted(content.get("pages", {}).keys())
+    PV.stamp_json(content, "zone_to_contentload.py", page_set=_page_set)
+    PV.stamp_json(manifest, "zone_to_contentload.py", page_set=_page_set)
     json.dump(content, open(cl_path, "w"), ensure_ascii=False, indent=1)
     json.dump(manifest, open(mf_path, "w"), ensure_ascii=False, indent=1)
     emit_component_model(project, ns, content, manifest)  # seed the single-source model
@@ -2749,7 +2755,8 @@ def main():
                 "reason": "no liftable fields/text — verbatim rawHtml fallback",
                 "size": len(html), "snippet": snip[:400]})
     backlog = manifest.get("mergeBacklog", {})
-    json.dump({"count": len(orphans), "mergeBacklog": backlog, "orphans": orphans},
+    json.dump(PV.stamp_json({"count": len(orphans), "mergeBacklog": backlog, "orphans": orphans},
+                            "zone_to_contentload.py", page_set=_page_set),
               open(os.path.join(mf_dir, "orphans.json"), "w"), ensure_ascii=False, indent=1)
     if orphans:
         print(f"  -> {len(orphans)} editorial orphan(s) for arbitration -> orphans.json", file=sys.stderr)

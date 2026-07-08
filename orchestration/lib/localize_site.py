@@ -32,6 +32,9 @@ import urllib.request
 
 from bs4 import BeautifulSoup
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import provenance  # noqa: E402  (stamps local-mirror/mirror.json)
+
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 CONNECT_TIMEOUT = 20
 MAX_RETRIES = 4
@@ -428,6 +431,8 @@ def main():
         "urlMap": {k: "assets/" + n for k, n in sorted(loc.urlmap.items())},
         "residue": sorted(set(loc.residue)),
     }
+    provenance.stamp_json(mirror, "localize_site.py",
+                          page_set=[p["slug"] for p in page_recs])
     with open(os.path.join(loc.mirror, "mirror.json"), "w") as f:
         json.dump(mirror, f, indent=2, ensure_ascii=False)
 

@@ -22,6 +22,7 @@ import { PNG } from 'pngjs';
 import fs from 'fs';
 import path from 'path';
 import { serveMirror, offlineRoute, loadRuntimeManifest, clusterSample } from './mirror_net.mjs';
+import { stampJson, writeSidecar } from './provenance.mjs';
 
 const argv = process.argv.slice(2);
 const flags = {}, pos = [];
@@ -315,7 +316,10 @@ for (const p of pages) {
 await browser.close();
 if (mserver) mserver.close();
 
-fs.writeFileSync(`${outDir}/reconstruct.json`, JSON.stringify({ project: proj, threshold, pages: results }, null, 2));
+const pageSet = results.map(r => r.slug);
+fs.writeFileSync(`${outDir}/reconstruct.json`, JSON.stringify(
+  stampJson({ project: proj, threshold, pages: results }, 'reconstruct_probe.mjs', pageSet), null, 2));
+writeSidecar(outDir, 'reconstruct_probe.mjs', pageSet);
 
 // ── component map: source screenshot with a hover-labelled overlay per component ──
 function componentMapHtml(slug, boxes, docW, docH) {
