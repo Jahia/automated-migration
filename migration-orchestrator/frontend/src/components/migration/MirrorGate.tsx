@@ -1,6 +1,7 @@
 import { GateActions, GateHeader, NOTCH } from './GateShell'
 import { useJsonArtifact } from './useArtifact'
 import { artifactUrl } from '../fidelity/api'
+import { ArtifactProvenanceLine, useProjectArtifacts } from './ArtifactProvenance'
 
 interface MirrorPage {
   slug: string
@@ -35,9 +36,20 @@ interface MirrorJson {
  * fidelity gate. GREEN = every sample page renders with zero external static
  * assets and zero local 404s (runtime-composed URLs are captured by the
  * probe's repair pass). gate_type === 'mirror'. */
-export function MirrorGate({ runId, onApproved, readOnly }: { runId: string; onApproved?: () => void; readOnly?: boolean }) {
+export function MirrorGate({
+  runId,
+  project,
+  onApproved,
+  readOnly,
+}: {
+  runId: string
+  project?: string | null
+  onApproved?: () => void
+  readOnly?: boolean
+}) {
   const check = useJsonArtifact<MirrorCheck>(runId, 'mirror/mirror-check.json')
   const mirror = useJsonArtifact<MirrorJson>(runId, 'local-mirror/mirror.json')
+  const { byId: artifacts } = useProjectArtifacts(project)
 
   const pages = check.data?.pages ?? []
   const gatePass = !!check.data?.gatePass
@@ -62,6 +74,11 @@ export function MirrorGate({ runId, onApproved, readOnly }: { runId: string; onA
         badge={check.status === 'ok' ? (gatePass ? 'GREEN — truly local' : `RED — ${misses} miss`) : undefined}
         actions={readOnly ? undefined : <GateActions runId={runId} onApproved={onApproved} approveLabel="Approve mirror" />}
       />
+
+      <div className="mb-3 space-y-1">
+        <ArtifactProvenanceLine label="local-mirror/mirror.json" entry={artifacts['local-mirror']} />
+        <ArtifactProvenanceLine label="mirror/mirror-check.json" entry={artifacts['mirror-check']} />
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat v={mirror.data?.pages ? String(mirror.data.pages.length) : '—'} l="pages mirrored" />

@@ -1,4 +1,4 @@
-import type { ContentProgress, RunProvenance, RunState, RunSummary, SSEEvent } from './types'
+import type { ContentProgress, ProjectArtifactsReport, RunProvenance, RunState, RunSummary, SSEEvent } from './types'
 
 const BASE = ''
 
@@ -23,6 +23,18 @@ export async function fetchRunProvenance(runId: string): Promise<RunProvenance> 
 export async function fetchContentProgress(project: string, limit = 50): Promise<ContentProgress> {
   const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/content-progress?limit=${limit}`)
   if (!resp.ok) throw new Error(`content-progress unavailable (${resp.status})`)
+  return resp.json()
+}
+
+/**
+ * Per-project artifact provenance + staleness (P3b) — one call covers every
+ * known pipeline artifact (see artifact_provenance.py's DAG registry). Throws
+ * on error so callers degrade gracefully (an older engine has no such endpoint,
+ * or the project directory doesn't exist yet → no staleness chips, no crash).
+ */
+export async function fetchProjectArtifacts(project: string): Promise<ProjectArtifactsReport> {
+  const resp = await fetch(`${BASE}/projects/${encodeURIComponent(project)}/artifacts`)
+  if (!resp.ok) throw new Error(`project artifacts unavailable (${resp.status})`)
   return resp.json()
 }
 

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { BeforeAfterSlider } from './BeforeAfterSlider'
 import { approveFidelityGate, artifactUrl, fetchReconstructReport, rejectFidelityGate, rerunFidelity } from './api'
 import type { ReconstructPage, ReconstructReport } from './types'
+import { ArtifactProvenanceLine, useProjectArtifacts } from '../migration/ArtifactProvenance'
 
 const NOTCH = { clipPath: 'polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%)' } as const
 
 interface Props {
   runId: string
+  project?: string | null
   stepId?: string
   onApproved?: () => void
   /** Review mode: render without the approve/reject/rerun actions
@@ -20,11 +22,12 @@ interface Props {
  * selecting a row opens a side-by-side source↔reconstruction comparison with the
  * per-page artifact links. Approving hands a verified model to the template step.
  */
-export function FidelityGate({ runId, stepId, onApproved, readOnly }: Props) {
+export function FidelityGate({ runId, project, stepId, onApproved, readOnly }: Props) {
   const [report, setReport] = useState<ReconstructReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+  const { byId: artifacts } = useProjectArtifacts(project)
 
   const load = () =>
     fetchReconstructReport(runId)
@@ -81,6 +84,9 @@ export function FidelityGate({ runId, stepId, onApproved, readOnly }: Props) {
             Each page is rebuilt from <b>only</b> the extracted components and pixel-diffed against the source. Pick a page
             in the table to compare side-by-side. Approving hands a verified model to the template step.
           </p>
+          <div className="mt-1.5">
+            <ArtifactProvenanceLine label="reconstruct/reconstruct.json" entry={artifacts['reconstruct']} />
+          </div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <span

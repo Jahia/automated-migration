@@ -50,20 +50,23 @@ function panelForGate(gt?: string | null): Panel {
   }
 }
 
-function renderPanel(panel: Panel, o: { runId: string; readOnly: boolean; stepId?: string; onApproved: () => void }) {
+function renderPanel(
+  panel: Panel,
+  o: { runId: string; project?: string | null; readOnly: boolean; stepId?: string; onApproved: () => void },
+) {
   switch (panel) {
     case 'scope':
-      return <ScopeGate runId={o.runId} onApproved={o.onApproved} readOnly={o.readOnly} />
+      return <ScopeGate runId={o.runId} project={o.project} onApproved={o.onApproved} readOnly={o.readOnly} />
     case 'mirror':
-      return <MirrorGate runId={o.runId} onApproved={o.onApproved} readOnly={o.readOnly} />
+      return <MirrorGate runId={o.runId} project={o.project} onApproved={o.onApproved} readOnly={o.readOnly} />
     case 'model':
-      return <ComponentModelView runId={o.runId} />
+      return <ComponentModelView runId={o.runId} project={o.project} />
     case 'fidelity':
-      return <FidelityGate runId={o.runId} stepId={o.stepId} onApproved={o.onApproved} readOnly={o.readOnly} />
+      return <FidelityGate runId={o.runId} project={o.project} stepId={o.stepId} onApproved={o.onApproved} readOnly={o.readOnly} />
     case 'content':
       return <ContentGate runId={o.runId} onApproved={o.onApproved} readOnly={o.readOnly} />
     case 'golive':
-      return <GoLiveGate runId={o.runId} onApproved={o.onApproved} readOnly={o.readOnly} />
+      return <GoLiveGate runId={o.runId} project={o.project} onApproved={o.onApproved} readOnly={o.readOnly} />
     default:
       return <EmptyArtifact label="No dedicated view for this phase." />
   }
@@ -110,13 +113,13 @@ export function MigrationStage({
             </button>
           </div>
         )}
-        {renderPanel(panel, { runId: id, readOnly: !isLiveGate, stepId: fidelityStepId, onApproved })}
+        {renderPanel(panel, { runId: id, project: run.project, readOnly: !isLiveGate, stepId: fidelityStepId, onApproved })}
       </div>
     )
   }
 
   if (gateStep) {
-    return renderPanel(gatePanel ?? 'model', { runId: id, readOnly: false, stepId: gateStep.id, onApproved })
+    return renderPanel(gatePanel ?? 'model', { runId: id, project: run.project, readOnly: false, stepId: gateStep.id, onApproved })
   }
-  return <ComponentModelView runId={id} />
+  return <ComponentModelView runId={id} project={run.project} />
 }

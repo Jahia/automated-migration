@@ -1,11 +1,25 @@
 import { GateActions, GateHeader, EmptyArtifact, NOTCH } from './GateShell'
 import { useTextArtifact } from './useArtifact'
+import { artifactUrl } from '../fidelity/api'
+import { ArtifactProvenanceLine, useProjectArtifacts } from './ArtifactProvenance'
 
 /** Go-live gate — visual-diff summary + vanity redirect map, the final review
  * before the migrated site is published. gate_type === 'golive'. */
-export function GoLiveGate({ runId, onApproved, readOnly }: { runId: string; onApproved?: () => void; readOnly?: boolean }) {
+export function GoLiveGate({
+  runId,
+  project,
+  onApproved,
+  readOnly,
+}: {
+  runId: string
+  project?: string | null
+  onApproved?: () => void
+  readOnly?: boolean
+}) {
   const summary = useTextArtifact(runId, 'visual-diff/SUMMARY.md')
   const redirects = useTextArtifact(runId, 'vanity/redirects.map')
+  const { byId: artifacts } = useProjectArtifacts(project)
+  const groundtruth = artifacts['groundtruth']
 
   const redirectLines = (redirects.text ?? '')
     .split('\n')
@@ -22,6 +36,35 @@ export function GoLiveGate({ runId, onApproved, readOnly }: { runId: string; onA
         badge={redirectLines.length ? `${redirectLines.length} redirects` : undefined}
         actions={readOnly ? undefined : <GateActions runId={runId} onApproved={onApproved} approveLabel="Publish · go live" />}
       />
+
+      <Section title="Ground truth — deployed Jahia vs frozen mirror snapshot">
+        {!groundtruth?.exists && <EmptyArtifact label="No groundtruth report yet — run orchestration/probes/groundtruth.sh." />}
+        {groundtruth?.exists && (
+          <div className="border border-[#dae0e7] bg-white p-4" style={NOTCH}>
+            <ArtifactProvenanceLine entry={groundtruth} />
+            <div className="mt-2 flex flex-wrap gap-4 text-[12px]">
+              <a
+                href={artifactUrl(runId, 'groundtruth/review.html')}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[#0077bf] hover:underline"
+              >
+                ▶ review.html — dernier rapport complet ↗
+              </a>
+              {groundtruth.partial && (
+                <a
+                  href={artifactUrl(runId, 'groundtruth/review.partial.html')}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-[#ab6000] hover:underline"
+                >
+                  ▶ review.partial.html — rapport partiel le plus récent ↗
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </Section>
 
       <Section title="Visual-diff summary">
         {summary.status === 'missing' && <EmptyArtifact label="No visual-diff/SUMMARY.md yet." />}

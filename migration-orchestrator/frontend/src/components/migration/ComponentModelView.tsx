@@ -3,12 +3,14 @@ import { EmptyArtifact } from './GateShell'
 import { useJsonArtifact } from './useArtifact'
 import { artifactUrl } from '../fidelity/api'
 import type { ComponentManifest, ComponentType } from './types'
+import { ArtifactProvenanceLine, useProjectArtifacts } from './ArtifactProvenance'
 
 const NOTCH = { clipPath: 'polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%)' } as const
 
 /** Renders component-manifest.json: types, views, layout props, containers, cross-cutting, templates. */
-export function ComponentModelView({ runId }: { runId: string }) {
+export function ComponentModelView({ runId, project }: { runId: string; project?: string | null }) {
   const { data: m, status } = useJsonArtifact<ComponentManifest>(runId, 'component-manifest.json')
+  const { byId: artifacts } = useProjectArtifacts(project)
 
   if (status === 'loading') return <div className="p-6 text-[#7d8a9a]">Loading component model…</div>
   if (status === 'missing' || !m) return <EmptyArtifact label="Component model not generated yet." />
@@ -23,6 +25,10 @@ export function ComponentModelView({ runId }: { runId: string }) {
 
   return (
     <div className="text-[#001932]">
+      <div className="mb-3 space-y-1">
+        <ArtifactProvenanceLine label="component-manifest.json" entry={artifacts['component-manifest']} />
+        <ArtifactProvenanceLine label="zone-overlay/" entry={artifacts['zone-overlay']} />
+      </div>
       {/* the VISUAL judge of the zoning: boundaries drawn on every rendered page
           (a pixel-diff can't judge granularity — skeletons are byte-exact). */}
       <a

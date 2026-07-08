@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { GateActions, GateHeader, NOTCH } from './GateShell'
 import { useJsonArtifact } from './useArtifact'
+import { ArtifactProvenanceLine, useProjectArtifacts } from './ArtifactProvenance'
 
 interface InvPage {
   url: string
@@ -43,10 +44,21 @@ interface Templates {
 
 /** Scope & capture gate — approve WHAT was extracted (pages + candidates + template
  * clusters) before the LLM builds the component model. gate_type === 'scope'. */
-export function ScopeGate({ runId, onApproved, readOnly }: { runId: string; onApproved?: () => void; readOnly?: boolean }) {
+export function ScopeGate({
+  runId,
+  project,
+  onApproved,
+  readOnly,
+}: {
+  runId: string
+  project?: string | null
+  onApproved?: () => void
+  readOnly?: boolean
+}) {
   const inv = useJsonArtifact<PageInventory>(runId, 'page-inventory.json')
   const cand = useJsonArtifact<Candidates>(runId, 'semantic-candidates.json')
   const tpl = useJsonArtifact<Templates>(runId, 'semantic-templates.json')
+  const { byId: artifacts } = useProjectArtifacts(project)
   const [showPages, setShowPages] = useState(false)
 
   const pages = inv.data?.pages ?? []
@@ -71,6 +83,12 @@ export function ScopeGate({ runId, onApproved, readOnly }: { runId: string; onAp
         badge={inv.data ? `${inv.data.totalPages ?? pages.length} pages` : undefined}
         actions={readOnly ? undefined : <GateActions runId={runId} onApproved={onApproved} approveLabel="Approve scope" />}
       />
+
+      <div className="mb-3 space-y-1">
+        <ArtifactProvenanceLine label="page-inventory.json" entry={artifacts['page-inventory']} />
+        <ArtifactProvenanceLine label="semantic-candidates.json" entry={artifacts['semantic-candidates']} />
+        <ArtifactProvenanceLine label="semantic-templates.json" entry={artifacts['semantic-templates']} />
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat v={String(inv.data?.totalPages ?? (pages.length || '—'))} l="pages crawled" />

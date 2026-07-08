@@ -11,6 +11,7 @@ import { MigrationStage } from './migration/MigrationStage'
 import { ContentLoadProgress } from './migration/ContentLoadProgress'
 import { isPartialPlan } from './migration/types'
 import { StepHonestyBadge } from './migration/StepHonesty'
+import { ArtifactFreshnessPanel } from './migration/ArtifactProvenance'
 import { fetchRunProvenance } from '../api'
 import type { StepProvenance } from '../types'
 import { useEffect, useState, useRef } from 'react'
@@ -192,6 +193,11 @@ export default function RunDetail() {
           </div>
         </div>
       )}
+
+      {/* Artifact staleness (P3b): every known pipeline artifact's provenance +
+          whether a DAG-upstream stage regenerated after it — visible even for
+          stages with no dedicated gate panel (groundtruth, compose, cnd, ...). */}
+      {isMigration && <ArtifactFreshnessPanel project={run.project} />}
 
       {/* Flat per-step execution honesty (P2): each step is exactly one of
           exécuté / validé sans exécution / réutilisé — the antidote to a partial

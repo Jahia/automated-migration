@@ -1,4 +1,4 @@
-export type StepStatus = 'pending' | 'ready' | 'running' | 'verifying' | 'done' | 'failed' | 'blocked' | 'waiting_human' | 'halted' | 'rejected'
+export type StepStatus = 'pending' | 'ready' | 'running' | 'verifying' | 'done' | 'failed' | 'blocked' | 'waiting_human' | 'halted' | 'rejected' | 'decision_pending'
 
 export type StoryStatus = 'pending' | 'running' | 'approved' | 'failed'
 
@@ -213,6 +213,38 @@ export interface ContentProgress {
     mismatchCount: number
     pages?: { expectedCount?: number; actualCount?: number; missing?: string[] } | null
   } | null
+}
+
+/** groundtruth only: populated when the freshest ground-truth report is a
+ * --pages SUBSET (groundtruth.partial.json), never when the full report wins. */
+export interface ArtifactPartial {
+  pages_covered: number | null
+  pages_total: number | null
+}
+
+/** GET /projects/{project}/artifacts entry (P3b) — provenance + staleness for
+ * one pipeline artifact. `generated_at`/`run_id`/`git_sha` are null for a
+ * pre-P0 artifact (no _provenance stamp) — render as "provenance inconnue
+ * (pré-P0)", never as an error. `stale` is still computed in that case (via
+ * file mtime), so a pre-P0 artifact can still surface as stale. */
+export interface ProjectArtifact {
+  artifact: string
+  stage: string
+  path: string
+  exists: boolean
+  generated_at: string | null
+  run_id: string | null
+  git_sha: string | null
+  partial: ArtifactPartial | null
+  stale: boolean
+  stale_reason: string | null
+}
+
+/** GET /projects/{project}/artifacts — the full per-project artifact registry,
+ * in DAG order (orchestration/assist/invalidate.sh's stage graph). */
+export interface ProjectArtifactsReport {
+  project: string
+  artifacts: ProjectArtifact[]
 }
 
 export interface SSEEvent {

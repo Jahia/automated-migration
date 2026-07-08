@@ -1,4 +1,4 @@
-"""projects.py — project-level grouping over runs (P1).
+"""projects.py — project-level grouping over runs (P1) + artifact freshness (P3b).
 
 "Project" is now modeled on RunState (run.project, bare name) and persisted as a
 column on the runs table. This route aggregates the run list per project so the
@@ -13,13 +13,22 @@ persisted column, and a persisted 'running' with no active loop means the engine
 restarted → 'paused'. Project directories under <harness_root>/projects/ that
 have zero runs still appear (runs: [], run_count: 0) so a freshly-scaffolded
 project is visible before its first run.
+
+  GET /projects/{project}/artifacts →
+    { project, artifacts: [{artifact, stage, path, exists, generated_at,
+                            run_id, git_sha, partial, stale, stale_reason}, ...] }
+
+Read-only artifact-staleness summary (P3b) — see ../artifact_provenance.py for
+the DAG + per-stage artifact registry (mirrors orchestration/assist/invalidate.sh)
+and the stale rule. Pure file reads, same traversal posture as content-progress.
 """
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
+from ..artifact_provenance import project_artifact_report
 from ..orchestrator import get_run
 from ..persistence import list_runs
 # Harness-root / project-dir validation is content_progress' — reuse it (module
@@ -84,3 +93,19 @@ async def get_projects():
 
     out.sort(key=lambda g: g["last_created_at"] or 0, reverse=True)
     return out
+
+
+@router.get("/projects/{project}/artifacts")
+async def get_project_artifacts(project: str):
+    """Provenance + staleness for every known pipeline artifact of one project
+    (P3b). Read-only, pure file reads — no run state involved, so it works even
+    before/between runs. A pre-P0 artifact (no _provenance stamp) still gets an
+    entry: generated_at/run_id/git_sha are null but staleness is still computed
+    from its mtime (see artifact_provenance.py)."""
+    if not content_progress._valid_project(project):
+        raise HTTPException(status_code=400, detail="invalid project name")
+    root = content_progress._harness_root()
+    project_dir = root / "projects" / project
+    if not project_dir.is_dir():
+        raise HTTPException(status_code=404, detail=f"project not found: {project}")
+    return {"project": project, "artifacts": project_artifact_report(project_dir, root, project)}
