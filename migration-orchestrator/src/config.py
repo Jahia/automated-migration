@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     engine_exec_run_content_timeout: float = 3600.0
     engine_exec_run_default_timeout: float = 900.0
 
+    # P5: per-run structured audit JSONL directory (audit.py RunAuditLogger).
+    # None (default) resolves to a persistent path anchored on the package dir
+    # (migration-orchestrator/logs/audit) — override for ops (e.g. a bigger disk)
+    # with ORCHESTRATOR_AUDIT_DIR.
+    audit_dir: str | None = None
+
     github_token: str | None = None
     github_repo: str | None = None
 

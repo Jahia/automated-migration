@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter
+
+from ..audit import audit_log_path
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ async def get_run_stats(run_id: str) -> dict:
 
     # Read audit log if available
     audit_entries = []
-    audit_file = Path(f"/tmp/orch-audit/{run_id}.jsonl")
+    audit_file = audit_log_path(run_id)
     if audit_file.exists():
         try:
             with open(audit_file) as f:
@@ -128,7 +129,7 @@ async def get_run_audit(run_id: str, event_type: str | None = None, limit: int =
     - event_type: filter by event type (e.g. step_failed, probe_executed)
     - limit: max entries to return (default 100)
     """
-    audit_file = Path(f"/tmp/orch-audit/{run_id}.jsonl")
+    audit_file = audit_log_path(run_id)
     if not audit_file.exists():
         return []
 

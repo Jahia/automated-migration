@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
 
 import aiosqlite
 
 from .config import settings
 from .models import RunState, RunStatus
 from .state import derive_project
+
+log = logging.getLogger(__name__)
 
 _db: aiosqlite.Connection | None = None
 
@@ -49,6 +53,7 @@ async def init_tables(db: aiosqlite.Connection) -> None:
         )
     """)
     await _migrate_runs_project(db)
+    await _mark_interrupted_runs(db)
     await db.commit()
 
 
@@ -72,6 +77,59 @@ async def _migrate_runs_project(db: aiosqlite.Connection) -> None:
             project = None  # a corrupt/foreign blob never blocks startup
         if project:
             await db.execute("UPDATE runs SET project = ? WHERE run_id = ?", (project, run_id))
+
+
+async def _mark_interrupted_runs(db: aiosqlite.Connection) -> None:
+    """Boot-time integrity pass (P5 observability): a run persisted with
+    status='running' in a FRESH process has no live asyncio loop — the engine was
+    killed/crashed mid-run (or the host rebooted) rather than exiting cleanly
+    through _run_loop's `finally` block. GET /runs and GET /projects already
+    normalize this to 'paused' for DISPLAY (a mem-less 'running' row reads as
+    'paused'), but the stored row keeps lying forever unless something fixes it.
+    Flip it to 'interrupted' (distinct from an operator-initiated 'paused' — worth
+    flagging, not silently conflated) and stamp BOTH the state_json blob
+    (status + a trace note) and the status column, so every consumer agrees
+    whether it reads the column (list_runs) or the blob (load_run). A row whose
+    blob doesn't round-trip as JSON still gets its column fixed — a corrupt/
+    foreign blob must never block startup (same tolerance as
+    _migrate_runs_project). Runs AFTER the project-column migration by design
+    (the caller order in init_tables), so a pre-P1 blob has both fixes applied
+    together at the same boot."""
+    cursor = await db.execute("SELECT run_id, state_json FROM runs WHERE status = 'running'")
+    rows = [(r[0], r[1]) for r in await cursor.fetchall()]
+    if not rows:
+        return
+    note = "engine restarted while this run was 'running' — no live process found at boot"
+    now = time.time() * 1000
+    for run_id, state_json in rows:
+        new_state_json = None
+        try:
+            blob = json.loads(state_json)
+            blob["status"] = "interrupted"
+            trace = blob.get("trace")
+            if not isinstance(trace, list):
+                trace = []
+            trace.append({
+                "seq": len(trace) + 1, "timestamp": now, "type": "run_interrupted",
+                "step_id": None, "story_id": None, "epic_id": None,
+                "payload": {"note": note},
+            })
+            blob["trace"] = trace
+            new_state_json = json.dumps(blob)
+        except (ValueError, TypeError, AttributeError, KeyError):
+            pass  # corrupt/foreign blob: fix the column only, never block startup
+        if new_state_json is not None:
+            await db.execute(
+                "UPDATE runs SET status = 'interrupted', state_json = ? WHERE run_id = ?",
+                (new_state_json, run_id))
+        else:
+            await db.execute("UPDATE runs SET status = 'interrupted' WHERE run_id = ?", (run_id,))
+        await db.execute(
+            """INSERT INTO events (run_id, epic_id, story_id, step_id, type, payload_json, timestamp)
+               VALUES (?, NULL, NULL, NULL, 'run_interrupted', ?, ?)""",
+            (run_id, json.dumps({"note": note}), now),
+        )
+        log.warning(f"Run {run_id}: was 'running' at boot with no live process — marked interrupted")
 
 
 async def save_run(run: RunState) -> None:
@@ -157,6 +215,43 @@ async def save_event(run_id: str, event_type: str, payload: dict, *, epic_id: st
         (run_id, epic_id, story_id, step_id, event_type, json.dumps(payload), time.time() * 1000),
     )
     await db.commit()
+
+
+async def list_events(run_id: str, limit: int = 50, before_id: int | None = None) -> list[dict]:
+    """Newest-first page of a run's persisted `events` rows (P5 observability):
+    the append-only table every notify_sse call (plus a few direct save_event
+    calls — gate_decision, rollback, rerun_step, decision) writes to, but which no
+    route read until GET /runs/{run_id}/events/history. Durable across engine
+    restarts, unlike the live SSE stream at GET /runs/{run_id}/events
+    (routes/events.py — a subscriber only sees events emitted while connected).
+    Paginate older pages with before_id=<the oldest "id" from the previous page>
+    (strictly less-than, so pages never overlap)."""
+    db = await get_db()
+    if before_id is not None:
+        cursor = await db.execute(
+            """SELECT id, run_id, epic_id, story_id, step_id, type, payload_json, timestamp
+               FROM events WHERE run_id = ? AND id < ? ORDER BY id DESC LIMIT ?""",
+            (run_id, before_id, limit),
+        )
+    else:
+        cursor = await db.execute(
+            """SELECT id, run_id, epic_id, story_id, step_id, type, payload_json, timestamp
+               FROM events WHERE run_id = ? ORDER BY id DESC LIMIT ?""",
+            (run_id, limit),
+        )
+    rows = await cursor.fetchall()
+    out = []
+    for r in rows:
+        try:
+            payload = json.loads(r["payload_json"])
+        except (TypeError, ValueError):
+            payload = None
+        out.append({
+            "id": r["id"], "run_id": r["run_id"],
+            "epic_id": r["epic_id"], "story_id": r["story_id"], "step_id": r["step_id"],
+            "type": r["type"], "payload": payload, "timestamp": r["timestamp"],
+        })
+    return out
 
 
 async def close_db() -> None:

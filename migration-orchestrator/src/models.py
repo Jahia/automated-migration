@@ -48,6 +48,14 @@ class RunStatus(str, Enum):
     completed = "completed"
     failed = "failed"
     aborted = "aborted"
+    # P5 observability: a run whose DB row is found 'running' at engine boot with
+    # no live asyncio loop (process killed/crashed mid-run, host restart) is
+    # flipped here by persistence._mark_interrupted_runs instead of lying on disk
+    # forever as 'running'. Distinct from an operator-initiated 'paused' — worth
+    # flagging rather than silently conflating the two. Resumable exactly like
+    # 'paused' (see orchestrator.try_resume_run); normalize_for_resume repairs any
+    # orphaned step/story/epic state before the fresh loop re-enters.
+    interrupted = "interrupted"
 
 
 # ── Strategies (pre-registered decision options, ASSIST-PLAN §3-4) ────

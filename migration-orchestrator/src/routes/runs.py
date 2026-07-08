@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ..audit import read_step_audit_entries
 from ..github_client import GitHubClient
 from ..migration_control import compact_status, log_tail, project_path, quality_verdict, step_provenance, workflow_output_dir
 from ..models import EpicInput, PlanInput, RunState, RunStatus, StepInput, StoryInput
@@ -29,7 +30,7 @@ from ..orchestrator import (
     start_run,
     try_resume_run,
 )
-from ..persistence import list_runs, load_run, save_event, save_run
+from ..persistence import list_events, list_runs, load_run, save_event, save_run
 from ..state import PlanLintError, build_run_state
 
 log = logging.getLogger(__name__)
@@ -488,6 +489,26 @@ async def run_log(run_id: str, since: float = 0.0, limit: int = 50):
     return log_tail(run, since, limit)
 
 
+@router.get("/runs/{run_id}/events/history")
+async def run_events_history(run_id: str, limit: int = 50, before_id: int | None = None):
+    """Paginated, read-only view over the persisted `events` table (P5
+    observability) — additive, never overlapping the live SSE stream at GET
+    /runs/{run_id}/events (routes/events.py, a DIFFERENT endpoint kept as-is: a
+    literal `/runs/{run_id}/events` route already exists for that stream, so this
+    durable/paginated view over the SAME underlying table lives at its own path).
+    Every notify_sse call (plus a few direct save_event calls — gate_decision,
+    rollback, rerun_step, decision) appends a row here; unlike SSE it survives
+    engine restarts and a client that connects late. Newest first
+    (`limit`, default 50, capped at 500); page further back with
+    before_id=<the oldest "id" from this page> — `next_before_id` is null once a
+    page comes back shorter than `limit` (no older rows left)."""
+    await _resolve_run(run_id)
+    limit = max(1, min(limit, 500))
+    events = await list_events(run_id, limit=limit, before_id=before_id)
+    next_before_id = events[-1]["id"] if len(events) == limit else None
+    return {"run_id": run_id, "events": events, "count": len(events), "next_before_id": next_before_id}
+
+
 class GateDecision(BaseModel):
     decision: str            # approve | reject | rerun
     reason: str = ""
@@ -654,3 +675,19 @@ async def run_rerun_step(run_id: str, step_id: str, req: Rerun, request: Request
     return {"status": "rerunning", "step_id": step_id,
             "reset_steps": result.get("reset_steps", []),
             "skipped_steps": result.get("skipped_steps", [])}
+
+
+@router.get("/runs/{run_id}/steps/{step_id}/log")
+async def run_step_log(run_id: str, step_id: str):
+    """A posteriori per-step output (P5 observability): every PROBE/Run: line the
+    engine captured for this step, oldest first — command, exit code, stdout/
+    stderr (bounded at capture time: ~2000c for a PROBE, ~500c for a Run: line),
+    duration. The engine never persisted this to the `events` table — it lives in
+    the per-run audit JSONL (probe_executed/command_executed events written by
+    verifier.py via audit.py), the SAME source orchestrator.decision_bundles reads
+    for the decision context. Additive and read-only; 404 only when the run
+    itself is unknown — an unrecognized or not-yet-run step_id simply yields an
+    empty `entries` list rather than an error."""
+    await _resolve_run(run_id)
+    entries = read_step_audit_entries(run_id, step_id)
+    return {"run_id": run_id, "step_id": step_id, "entries": entries, "count": len(entries)}

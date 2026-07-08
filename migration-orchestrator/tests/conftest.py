@@ -13,6 +13,13 @@ os.environ.setdefault(
     os.path.join(tempfile.mkdtemp(prefix="orch-test-"), "orchestrator.db"),
 )
 
+# Isolate the audit JSONL trail the same way (P5): audit.py's default is now a
+# PERSISTENT path anchored on the package dir (migration-orchestrator/logs/audit)
+# instead of /tmp/orch-audit — without this override, every test that exercises
+# the orchestrator (get_audit_logger with no explicit log_dir) would write real
+# files into the actual working tree on every test run.
+os.environ.setdefault("ORCHESTRATOR_AUDIT_DIR", tempfile.mkdtemp(prefix="orch-test-audit-"))
+
 # Runtime deps (aiosqlite, pydantic-settings) live in the project venv; fall back
 # to its site-packages when the invoking interpreter doesn't have them.
 try:

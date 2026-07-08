@@ -268,6 +268,19 @@ def check_transition(step: StepState, story: StoryState) -> StepTransition | Non
     return None
 
 
+def clear_execution_timing(step: StepState) -> None:
+    """Reset the per-attempt timing fields when a step leaves a terminal state for
+    pending/ready (P5 observability). Without this, a stale started_at/completed_at/
+    duration_ms from the PREVIOUS attempt lingers on a step that is about to (or
+    already did) get re-queued — completed_at then lies, claiming the step already
+    finished while it is actually pending/ready again. The next real execution
+    re-stamps started_at (orchestrator._execute_single_step) and, on conclusion,
+    completed_at/duration_ms — so clearing here is always safe."""
+    step.started_at = None
+    step.completed_at = None
+    step.duration_ms = None
+
+
 def reset_steps_from(story: StoryState, from_step_id: str) -> list[str]:
     found = False
     reset_ids = []
@@ -280,6 +293,7 @@ def reset_steps_from(story: StoryState, from_step_id: str) -> list[str]:
             step.verification = None
             step.streaming_text = ""
             step.attempt = 0
+            clear_execution_timing(step)
             reset_ids.append(step.id)
     return reset_ids
 
@@ -350,6 +364,7 @@ def normalize_for_resume(run: RunState) -> None:
                     # only picks pending steps ('ready' is jump's forced state)
                     step.status = StepStatus.pending
                     step.attempt = 0
+                    clear_execution_timing(step)
             if story.status == StoryStatus.running:
                 # persisted mid-story (halt/crash): the old loop is gone and
                 # select_next_ready_story only picks pending — left as running,

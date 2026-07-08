@@ -5,7 +5,7 @@ import logging
 import re
 import time
 
-from .audit import get_audit_logger
+from .audit import get_audit_logger, read_step_audit_entries
 from .cost_tracker import write_run_cost, format_cost_summary
 from .models import (
     AgentResult,
@@ -24,6 +24,7 @@ from .persistence import load_run, save_event, save_run
 from .state import (
     approve_gate_step,
     check_transition,
+    clear_execution_timing,
     find_all_dependents,
     find_decision_steps,
     find_halted_step,
@@ -293,9 +294,12 @@ async def _park_for_decision(run: RunState, epic: EpicState, story: StoryState, 
     # pipeline would otherwise mask a fresh model/mirror verdict (observed live).
     if not step.gate_type or step.gate_type == "unknown":
         step.gate_type = _infer_gate_type(step) or "unknown"
-    step.completed_at = time.time() * 1000
-    if step.started_at:
-        step.duration_ms = step.completed_at - step.started_at
+    # P5 observability: decision_pending is NOT terminal — a decide can send the
+    # step straight back to pending/ready (retry/repatch/apply_and_rerun) or leave
+    # it done (proceed). Stamping completed_at "now" made a merely-PARKED step
+    # (sometimes one that never even executed — a review checkpoint) look already
+    # finished. Leave started_at/completed_at/duration_ms exactly as the last
+    # concluded attempt (or the initial None) left them.
     run.status = RunStatus.paused
     run.updated_at = time.time() * 1000
     await save_run(run)
@@ -616,7 +620,10 @@ async def try_resume_run(run_id: str, client: LLMClient, event_listener: object 
     # already-approved epics and never re-runs done steps (select_next_ready_step
     # only picks ready steps), so recovery continues from the first unfinished
     # step without redoing completed work or re-prompting passed gates.
-    if not run or run.status not in (RunStatus.paused, RunStatus.failed):
+    # 'interrupted' (P5: a run boot-fixed from a phantom 'running' row, see
+    # persistence._mark_interrupted_runs) is resumable exactly like 'paused' —
+    # normalize_for_resume below repairs any orphaned step/story/epic state.
+    if not run or run.status not in (RunStatus.paused, RunStatus.failed, RunStatus.interrupted):
         return False
     blocked = gate_blocked_step(run)
     if blocked:
@@ -740,6 +747,7 @@ async def jump_to_step(
                 dep.streaming_text = ""
                 dep.attempt = 0
                 dep.failure_context = None
+                clear_execution_timing(dep)
                 reset_ids.append(dep_id)
 
     target_step.status = StepStatus.ready
@@ -748,6 +756,7 @@ async def jump_to_step(
     target_step.streaming_text = ""
     target_step.attempt = 0
     target_step.failure_context = None
+    clear_execution_timing(target_step)
 
     skipped: list[str] = []
     for skip_id in skip_done or []:
@@ -1075,41 +1084,25 @@ def decision_bundles(run: RunState) -> list[dict]:
       - probe verdicts (command, exit code, stdout/stderr ~800c tails) AND the last
         engine-run command_executed events (Run: line that failed), from the audit trail;
       - the last verification result, inputs and acceptance criteria."""
-    import json
-    from pathlib import Path
-
     bundles = []
     for epic, story, step in find_decision_steps(run):
-        probes: list[dict] = []
-        commands: list[dict] = []
-        try:
-            audit_file = Path("/tmp/orch-audit") / f"{run.run_id}.jsonl"
-            if audit_file.is_file():
-                for line in audit_file.read_text().splitlines():
-                    try:
-                        ev = json.loads(line)
-                    except Exception:
-                        continue
-                    if ev.get("step_id") != step.id:
-                        continue
-                    if ev.get("event") == "probe_executed":
-                        probes.append({
-                            "command": ev.get("command"), "exit_code": ev.get("exit_code"),
-                            "passed": ev.get("passed"),
-                            "stdout_tail": (ev.get("stdout") or "")[-800:],
-                            "stderr_tail": (ev.get("stderr") or "")[-800:],
-                            "ts": ev.get("ts"),
-                        })
-                    elif ev.get("event") == "command_executed":
-                        commands.append({
-                            "command": ev.get("command"), "exit_code": ev.get("exit_code"),
-                            "passed": ev.get("passed"),
-                            "stdout_tail": (ev.get("stdout") or "")[-800:],
-                            "stderr_tail": (ev.get("stderr") or "")[-800:],
-                            "ts": ev.get("ts"),
-                        })
-        except Exception:
-            pass
+        # read_step_audit_entries (audit.py) is the SAME reader GET
+        # /runs/{id}/steps/{id}/log uses (P5) — reads whichever location has the
+        # file (current persistent dir, else the legacy /tmp/orch-audit path), so
+        # this never goes blind on a run recorded before the P5 relocation.
+        entries = read_step_audit_entries(run.run_id, step.id)
+        probes = [
+            {"command": e["command"], "exit_code": e["exit_code"], "passed": e["passed"],
+             "stdout_tail": (e["stdout"] or "")[-800:], "stderr_tail": (e["stderr"] or "")[-800:],
+             "ts": e["ts"]}
+            for e in entries if e["kind"] == "probe"
+        ]
+        commands = [
+            {"command": e["command"], "exit_code": e["exit_code"], "passed": e["passed"],
+             "stdout_tail": (e["stdout"] or "")[-800:], "stderr_tail": (e["stderr"] or "")[-800:],
+             "ts": e["ts"]}
+            for e in entries if e["kind"] == "command"
+        ]
         remaining = _remaining_strategies(step)
         bundles.append({
             "step_id": step.id, "title": step.title, "epic_id": epic.id, "story_id": story.id,
@@ -1148,15 +1141,10 @@ async def restart_run(run_id: str, client: LLMClient, event_listener: object | N
         for story in epic.stories:
             story.status = StoryStatus.pending
             for step in story.steps:
-                step.status = StepStatus.pending
-                step.agent_result = None
-                step.verification = None
-                step.streaming_text = ""
-                step.attempt = 0
-                step.question = None
-                step.human_answer = None
-                step.failure_context = None
-                step.strategies_applied = []
+                # _reset_step also clears started_at/completed_at/duration_ms
+                # (P5 observability: a restarted step must not show as already
+                # finished — see state.clear_execution_timing).
+                _reset_step(step)
     run.status = RunStatus.running
     run.current_epic_id = None
     run.current_story_id = None
@@ -1184,6 +1172,7 @@ def _reset_step(step: StepState) -> None:
     step.human_answer = None
     step.failure_context = None
     step.strategies_applied = []
+    clear_execution_timing(step)
 
 
 def _reset_story_state(story: StoryState) -> None:

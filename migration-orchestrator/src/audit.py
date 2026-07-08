@@ -11,20 +11,101 @@ import logging
 import time
 from pathlib import Path
 
+from .config import settings
+
 log = logging.getLogger(__name__)
+
+# P5 observability: the audit JSONL used to default to /tmp/orch-audit — outside
+# the repo, cleared by any OS tmp-reaper, and gone on a reboot. Anchored on the
+# package dir (…/migration-orchestrator/logs/audit), like cost_tracker's
+# DEFAULT_COST_DIR — NEVER a bare relative string (a relative default resolves
+# against the process CWD, which is exactly how a stray
+# migration-orchestrator/migration-orchestrator/ tree appeared elsewhere in this
+# repo). Override with ORCHESTRATOR_AUDIT_DIR (settings.audit_dir) for ops.
+DEFAULT_AUDIT_DIR = Path(__file__).resolve().parent.parent / "logs" / "audit"
+
+# Pre-P5 location. Readers (audit_log_path / read_step_audit_entries) fall back
+# here so a run recorded before the relocation stays readable; writers
+# (RunAuditLogger) never write here anymore.
+LEGACY_AUDIT_DIR = Path("/tmp/orch-audit")
+
+
+def default_audit_dir() -> Path:
+    """The directory new audit JSONL files are written to: settings.audit_dir
+    (ORCHESTRATOR_AUDIT_DIR) when set, else the persistent package-anchored
+    default."""
+    return Path(settings.audit_dir) if settings.audit_dir else DEFAULT_AUDIT_DIR
+
+
+def audit_log_path(run_id: str) -> Path:
+    """The JSONL audit file to READ for a run: the current persistent location if
+    a file actually exists there, else the legacy /tmp/orch-audit path (a run
+    recorded before the P5 relocation) — so nothing written under the old default
+    goes silently unreadable. When neither exists, returns the current-location
+    path (callers already guard with .is_file()/.exists())."""
+    current = default_audit_dir() / f"{run_id}.jsonl"
+    if current.is_file():
+        return current
+    legacy = LEGACY_AUDIT_DIR / f"{run_id}.jsonl"
+    if legacy.is_file():
+        return legacy
+    return current
+
+
+def read_step_audit_entries(run_id: str, step_id: str) -> list[dict]:
+    """Every probe_executed/command_executed entry recorded for ONE step, oldest
+    first — the durable a-posteriori log of what actually ran (command, exit
+    code, stdout/stderr as bounded at capture time, duration). This is the SAME
+    data GET /runs/{run_id}/steps/{step_id}/log exposes and orchestrator.
+    decision_bundles reads for the decision context — factored here once so both
+    stay in sync. Reads whichever location actually has the file (see
+    audit_log_path). Never raises: a missing file yields [], a corrupt line is
+    skipped."""
+    path = audit_log_path(run_id)
+    if not path.is_file():
+        return []
+    entries: list[dict] = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return entries
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except (ValueError, TypeError):
+            continue
+        event = ev.get("event")
+        if event not in ("probe_executed", "command_executed") or ev.get("step_id") != step_id:
+            continue
+        entries.append({
+            "kind": "probe" if event == "probe_executed" else "command",
+            "command": ev.get("command"),
+            "exit_code": ev.get("exit_code"),
+            "passed": ev.get("passed"),
+            "stdout": ev.get("stdout", ""),
+            "stderr": ev.get("stderr", ""),
+            "duration_ms": ev.get("duration_ms"),
+            "ts": ev.get("ts"),
+        })
+    entries.sort(key=lambda e: e.get("ts") or 0)
+    return entries
 
 
 class RunAuditLogger:
     """Structured audit trail for a single run.
 
     Writes to:
-    - Python logger (for /tmp/orch.log filtering)
-    - Per-run JSONL file (for programmatic analysis)
+    - Python logger (module "orch.run.<run_id>")
+    - Per-run JSONL file under default_audit_dir() (for programmatic analysis
+      and the GET /runs/{id}/audit, /runs/{id}/steps/{id}/log endpoints)
     """
 
-    def __init__(self, run_id: str, log_dir: str | Path = "/tmp/orch-audit"):
+    def __init__(self, run_id: str, log_dir: str | Path | None = None):
         self.run_id = run_id
-        self.log_dir = Path(log_dir)
+        self.log_dir = Path(log_dir) if log_dir is not None else default_audit_dir()
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.log_file = self.log_dir / f"{run_id}.jsonl"
         self._logger = logging.getLogger(f"orch.run.{run_id}")
