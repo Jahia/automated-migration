@@ -24,6 +24,13 @@ UP="${JAHIA_USER:-root}"; [[ "$UP" == *:* ]] || UP="$UP:${JAHIA_PASS:-root}"
 curl -sf -u "$UP" -H "Origin: $HOST" -X POST \
   "$HOST/modules/tools/cache.jsp" --data "action=flushOutputCaches" -o /dev/null \
   || echo "WARN: output-cache flush failed (tools cache.jsp) — results may be stale" >&2
+# P3a: a --pages (subset) invocation writes review.partial.html, never the
+# full-run review.html (orchestration/lib/groundtruth_probe.mjs) — point the
+# failure message at whichever file THIS invocation actually wrote.
+review_file="review.html"
+for a in "$@"; do
+  case "$a" in --pages) review_file="review.partial.html" ;; esac
+done
 node orchestration/lib/groundtruth_probe.mjs "projects/$project" "$site" "$thr" "$@" \
-  || fail "ground-truth gate below ${thr}% (see projects/$project/workflow-output/groundtruth/review.html)"
+  || fail "ground-truth gate below ${thr}% (see projects/$project/workflow-output/groundtruth/${review_file})"
 pass "ground truth >= ${thr}% on every migrated page"

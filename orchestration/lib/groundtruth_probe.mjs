@@ -74,12 +74,19 @@ const mirrorDir = `${wo}/local-mirror`;
 const outDir = `${wo}/groundtruth`;
 fs.mkdirSync(outDir, { recursive: true });
 
-// migrated pages = content-load pages that exist in the mirror
+// migrated pages = content-load pages that exist in the mirror. This IS the
+// project's authoritative full page list for this gate: content-load is every
+// page actually migrated, intersected with the mirror is every page this probe
+// is even able to judge — no other manifest is more authoritative for "every
+// migrated page" than the set the gate itself already computes. Captured
+// BEFORE the --pages filter narrows `slugs`, so a subset run still knows how
+// big the full set was (P3a coverage fields: pages_total).
 const loadFile = `orchestration/content/${project}.content-load.json`;
 if (!fs.existsSync(loadFile)) { console.error(`FAIL: ${loadFile} missing`); process.exit(1); }
 const contentLoad = JSON.parse(fs.readFileSync(loadFile, 'utf8'));
 let slugs = Object.keys(contentLoad.pages || {})
   .filter(s => fs.existsSync(`${mirrorDir}/${s}.html`));
+const pagesTotal = slugs.length;
 if (only) slugs = slugs.filter(s => only.includes(s));
 if (!slugs.length) { console.error('FAIL: no migrated pages found (content-load ∩ mirror empty)'); process.exit(1); }
 
@@ -204,19 +211,36 @@ mserver.close();
 
 const passed = results.filter(r => r.pass).length;
 const avgShare = shares.length ? shares.reduce((s, x) => s + x.share, 0) / shares.length : null;
+const pageSet = results.map(r => r.slug);
+// P3a: a --pages (subset) invocation must NEVER overwrite the full-site report
+// — a partial run silently posing as "the" groundtruth.json/review.html hid a
+// 4-of-21 page subset behind what looked like a complete gate (seen live:
+// discoverasr). Full runs (no --pages) keep writing review.html/groundtruth.json
+// exactly as before; a --pages run writes review.partial.html/
+// groundtruth.partial.json instead and never touches the full-run files. Every
+// consumer must be resilient to either name existing (or not).
+const isPartial = !!only;
+const jsonName = isPartial ? 'groundtruth.partial.json' : 'groundtruth.json';
+const htmlName = isPartial ? 'review.partial.html' : 'review.html';
 const summary = {
   project, site, threshold, hydrate: HYDRATE, generatedAt: new Date().toISOString(),
-  pages: results, passed, total: results.length,
+  results, passed, total: results.length,
   gatePass: passed === results.length,
+  // coverage (P3a): how much of the FULL site this report actually judged.
+  // pages_total = the pre-filter candidate count above (content-load ∩ mirror);
+  // pages/pages_covered describe THIS invocation's actual slice (== pages_total
+  // on a full run, since `only` is null and `slugs` is never narrowed).
+  pages_covered: pageSet.length,
+  pages_total: pagesTotal,
+  pages: pageSet,
   semanticLeafShare: avgShare == null ? null : {
     avg: +avgShare.toFixed(3),
     min: Math.min(...shares.map(x => x.share)),
     perPage: Object.fromEntries(shares.map(x => [x.slug, x.share])),
   },
 };
-const pageSet = results.map(r => r.slug);
 stampJson(summary, 'groundtruth_probe.mjs', pageSet);
-fs.writeFileSync(`${outDir}/groundtruth.json`, JSON.stringify(summary, null, 2));
+fs.writeFileSync(`${outDir}/${jsonName}`, JSON.stringify(summary, null, 2));
 writeSidecar(outDir, 'groundtruth_probe.mjs', pageSet);
 
 // ── review.html: ref | preview | diff per page, worst first ──
@@ -231,8 +255,14 @@ const rows = results.slice().sort((x, y) => (x.fidelity ?? -1) - (y.fidelity ?? 
   <figure><figcaption>diff</figcaption><img src="${esc(r.slug)}.diff.png"></figure>
  </div>
 </section>`).join('\n');
-fs.writeFileSync(`${outDir}/review.html`, `<!doctype html><meta charset="utf-8">
-<title>Ground truth — ${esc(project)} → /sites/${esc(site)}</title><style>
+// PARTIAL runs get a loud banner — the filename alone (review.partial.html)
+// is not enough; a reader who lands on the file via a stale link/tab must not
+// mistake a 4/21 sample for the full-site report.
+const coverageBanner = isPartial
+  ? `<div class="partial">⚠ PARTIAL RUN — covers ${pageSet.length}/${pagesTotal} migrated pages (--pages ${esc(only.join(','))}). This is NOT the full-site report. See review.html for the last full run.</div>`
+  : '';
+fs.writeFileSync(`${outDir}/${htmlName}`, `<!doctype html><meta charset="utf-8">
+<title>Ground truth — ${esc(project)} → /sites/${esc(site)}${isPartial ? ' (PARTIAL)' : ''}</title><style>
  body{margin:0;background:#0f1115;color:#e6e6e6;font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}
  header{position:sticky;top:0;padding:12px 20px;background:#171a21;border-bottom:1px solid #2a2f3a;z-index:9}
  h1{font-size:16px;margin:0} h2{font-size:14px;margin:0 0 8px} h2 small{color:#9aa3b2;font-weight:400}
@@ -240,10 +270,12 @@ fs.writeFileSync(`${outDir}/review.html`, `<!doctype html><meta charset="utf-8">
  .tri{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
  figure{margin:0} figcaption{color:#9aa3b2;font-size:12px;margin-bottom:4px}
  img{width:100%;border:1px solid #2a2f3a;border-radius:4px}
+ .partial{position:sticky;top:41px;background:#3a2a12;color:#ffb454;border-bottom:1px solid #5a4222;padding:8px 20px;font-weight:600;z-index:8}
 </style>
 <header><h1>GROUND TRUTH — ${passed}/${results.length} pages ≥ ${threshold}% ${summary.gatePass ? '✅' : '❌'}
  · semantic share avg ${avgShare == null ? 'n/a' : (100 * avgShare).toFixed(0) + '%'} (dial, not gated in P1)</h1></header>
+${coverageBanner}
 ${rows}`);
 
-console.error(`\nGROUND TRUTH: ${passed}/${results.length} pages >= ${threshold}% — ${summary.gatePass ? 'PASS' : 'FAIL'} -> ${outDir}/review.html`);
+console.error(`\nGROUND TRUTH: ${passed}/${results.length} pages >= ${threshold}% — ${summary.gatePass ? 'PASS' : 'FAIL'} -> ${outDir}/${htmlName}`);
 process.exit(summary.gatePass ? 0 : 1);
