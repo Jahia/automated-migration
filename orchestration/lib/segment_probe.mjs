@@ -59,6 +59,10 @@ const proj = pos[0];
 if (!proj) { console.error('usage: segment_probe.mjs <project> --pages slug[,slug2] [--consensus] [--per-cluster k] [--force]'); process.exit(2); }
 const CONSENSUS = !!flags.consensus;   // protocol v2 (ASSIST-PLAN §7)
 const FORCE = !!flags.force;
+// P4: bump when the segmentation algorithm/prompt/gate changes — a stamped-but-
+// stale toolVersion makes priorPass() treat the page as a MISS (re-segment)
+// instead of trusting a prior-green result computed under the old logic.
+const TOOL_VERSION = 1;
 const mirrorDir = path.resolve(`${proj}/workflow-output/local-mirror`);
 const outDir = `${proj}/workflow-output/segment`;
 fs.mkdirSync(outDir, { recursive: true });
@@ -289,7 +293,15 @@ async function segmentConsensus(nodes, shot, slug, N) {
 function priorPass(slug) {
   try {
     const s = JSON.parse(fs.readFileSync(`${outDir}/${slug}.segmentation.json`, 'utf8'));
+    // Human adjudication survives TOOL_VERSION bumps: the verdict was given on
+    // the OUTPUT (B6), and an algorithm change does not invalidate a human
+    // ruling — busting it would re-spend vision calls on pages a human already
+    // decided (and, on first deploy, every adjudicated page of every project).
+    // Redo adjudicated pages deliberately: --force or invalidate.sh <p> segment.
     if (s.adjudicated === true && s.gatePass === true) return { greenBy: 'adjudication', s };
+    // Otherwise missing or stale toolVersion (predates this const, or an older
+    // algorithm wrote it) = cache MISS — never trust it silently, re-segment.
+    if (s.toolVersion !== TOOL_VERSION) return null;
     if (s.protocol === 'v2' && s.gatePass === true) return { greenBy: 'stability', s };
   } catch { /* no prior segmentation */ }
   return null;
@@ -309,7 +321,7 @@ for (const slug of pageSel) {
       continue;
     }
   }
-  const rec = { slug, model: OVH_VISION_MODEL };
+  const rec = { slug, model: OVH_VISION_MODEL, toolVersion: TOOL_VERSION };
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await page.route('**/*', offlineRoute(base, mirrorDir, loadRuntimeManifest(mirrorDir), null));

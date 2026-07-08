@@ -48,6 +48,15 @@ import provenance  # stamps load-ledger.json
 TEXTY = {"String", "Text"}
 SKIP_PROP = {"jcr:title"}  # set via title/heading mapping, not raw
 
+# P4: independent cache-busting levers (bump either when the corresponding
+# algorithm changes) — stamped into every ledger/dam entry; a missing or
+# different version reads as a MISS (forces REBUILD / re-upload), never a
+# crash on an old entry. Separate consts because they invalidate at very
+# different cost (a ledger bump forces a full per-page JCR reconcile; a dam
+# bump only forces re-upload of media) — bumping one must not force the other.
+LEDGER_TOOL_VERSION = 1   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+DAM_TOOL_VERSION = 1      # DAM dedupe-map upload/resolve algorithm (upload_dam)
+
 
 def load_json(p, default=None):
     try:
@@ -158,11 +167,15 @@ class Loader:
             return None
         if fname in self._dam:
             cached = self._dam[fname] or None
+            # P4: a stamped-but-stale (or absent, pre-P4) toolVersion is also a
+            # MISS — an upload/dedupe algorithm change must not be masked by a
+            # cache hit just because the old target still happens to resolve.
+            version_ok = bool(cached) and cached.get("toolVersion") == DAM_TOOL_VERSION
             # verify the cached path still resolves — after a site RECREATE the
             # old /sites/<site>/files/* nodes are gone but the map persists, so a
             # stale uuid would silently fail every weakref (observed live). Re-upload
             # when the cached target no longer exists.
-            if cached and self._dam_resolves(cached.get("path")):
+            if cached and version_ok and self._dam_resolves(cached.get("path")):
                 return cached
         src = f"projects/{self.project}/workflow-output/local-mirror/assets/{fname}"
         if not os.path.isfile(src):
@@ -182,7 +195,7 @@ class Loader:
             req = urllib.request.Request(r["uploadUrl"], data=data, method="PUT", headers=h)
             self.m._urlopen_retry(req, timeout=120)  # transient-reset safe
             fin = self.m.call("media.upload.finalize", {"token": r["token"]})
-            entry = {"path": fin["path"], "uuid": fin["identifier"]}
+            entry = {"path": fin["path"], "uuid": fin["identifier"], "toolVersion": DAM_TOOL_VERSION}
             # no publish — EDIT-only; publish_site.sh publishes the files tree
         except Exception as e:
             print(f"    ! dam upload {fname}: {str(e)[:160]}", file=sys.stderr)
@@ -723,13 +736,15 @@ class Loader:
         Returns (verdict, info dict for the report)."""
         entry = self.ledger.get(page)
         plan_hash = self._plan_hash(pdata)
-        hash_ok = bool(entry) and entry.get("planHash") == plan_hash
+        version_ok = bool(entry) and entry.get("toolVersion") == LEDGER_TOOL_VERSION
+        hash_ok = bool(entry) and entry.get("planHash") == plan_hash and version_ok
         expected = self._expected_main_children(page, pdata.get("instances", []), main_area)
         edit = self._area_children(main_area, "EDIT") or {}
         info = {"expected": len(expected), "edit": len(edit),
                 "hashOk": hash_ok, "bootstrap": entry is None}
         if entry and not hash_ok:
-            info["reason"] = "plan hash changed since last load"
+            info["reason"] = ("load/reconcile tool version changed since last load"
+                              if not version_ok else "plan hash changed since last load")
             return "REBUILD", info
         missing = sorted(set(expected) - set(edit))
         surplus = sorted(set(edit) - set(expected))
@@ -746,6 +761,7 @@ class Loader:
         interrupted run resumes page-granular. Never called in --dry."""
         import time
         self.ledger[page] = {"planHash": plan_hash,
+                             "toolVersion": LEDGER_TOOL_VERSION,
                              "loadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                              "created": created, "published": published,
                              "verdict": verdict}

@@ -39,6 +39,14 @@ MAX_RETRIES = 3
 CONNECT_TIMEOUT = 15
 MAX_ASSET_SIZE = 5 * 1024 * 1024  # 5 MB
 
+# P4: bump when the crawl/render/download algorithm changes (e.g. render_page.mjs
+# capture logic, retry/backoff policy) — invalidates the WHOLE on-disk cache for a
+# project (a stale cache is silently wrong: same path, algorithm-different bytes).
+# The version lives in one marker file per project (not per cached page — thousands
+# of sidecar files would be wasteful), so a bump forces a full honest re-crawl once;
+# is_cached() reads it fresh each call and never raises on an absent/old marker.
+TOOL_VERSION = 1
+
 ASSET_EXTS = {'.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif',
               '.woff', '.woff2', '.ttf', '.eot', '.ico', '.pdf'}
 
@@ -176,7 +184,35 @@ def cache_path(proj, url, subdir='_crawl'):
     return os.path.join(proj, '.reference', 'cache', subdir, rel)
 
 
-def is_cached(path):
+def _cache_version_marker(proj):
+    return os.path.join(proj, '.reference', 'cache', '.tool-version')
+
+
+def cache_version_ok(proj):
+    """False when the on-disk cache predates TOOL_VERSION (or has no marker yet)
+    — every is_cached() lookup then reads as a MISS so a bumped algorithm gets an
+    honest re-download/re-render instead of trusting stale bytes. Never raises."""
+    try:
+        with open(_cache_version_marker(proj)) as f:
+            return f.read().strip() == str(TOOL_VERSION)
+    except OSError:
+        return False
+
+
+def stamp_cache_version(proj):
+    """Refresh the marker once the cache is known-consistent with TOOL_VERSION
+    (called at the end of a completed crawl — never mid-run, or a fresh miss on
+    page 1 would get 'healed' into a false hit on page 2)."""
+    try:
+        with open(_cache_version_marker(proj), 'w') as f:
+            f.write(str(TOOL_VERSION))
+    except OSError:
+        pass
+
+
+def is_cached(path, proj=None):
+    if proj is not None and not cache_version_ok(proj):
+        return False
     return os.path.isfile(path) and os.path.getsize(path) > 0
 
 
@@ -350,7 +386,7 @@ def main():
 
         # Download page
         page_cache = cache_path(proj, url, '_crawl')
-        if not args.force and is_cached(page_cache):
+        if not args.force and is_cached(page_cache, proj):
             print(f"  [cached] {url}")
         else:
             print(f"  [{len(pages)+1}] {url}")
@@ -393,7 +429,7 @@ def main():
         assets = extract_assets(page_cache, url)
         for asset_url in assets:
             asset_path = cache_path(proj, asset_url, '_assets')
-            if not args.force and is_cached(asset_path):
+            if not args.force and is_cached(asset_path, proj):
                 continue
             ok, nbytes = download(asset_url, asset_path, rate_delay, max_asset_bytes)
             if ok:
@@ -431,6 +467,7 @@ def main():
     inv_path = os.path.join(proj, 'workflow-output', 'page-inventory.json')
     with open(inv_path, 'w') as f:
         json.dump(inventory, f, indent=2)
+    stamp_cache_version(proj)  # cache is now fully consistent with TOOL_VERSION
 
     duration = time.time() - crawl_start
     print(f"\n{'='*50}")
