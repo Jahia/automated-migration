@@ -10,7 +10,9 @@ export function useJsonArtifact<T>(runId: string, path: string, deps: unknown[] 
   useEffect(() => {
     let alive = true
     setStatus('loading')
-    fetch(artifactUrl(runId, path))
+    // no-store: artifacts are regenerated in place (same URL, new content each run),
+    // so a cached copy shows stale fidelity/gate numbers until a hard refresh.
+    fetch(artifactUrl(runId, path), { cache: 'no-store' })
       .then((r) => (r.ok ? (r.json() as Promise<T>) : Promise.reject(r.status)))
       .then((d) => alive && (setData(d), setStatus('ok')))
       .catch(() => alive && setStatus('missing'))
@@ -29,7 +31,7 @@ export function useTextArtifact(runId: string, path: string, deps: unknown[] = [
   useEffect(() => {
     let alive = true
     setStatus('loading')
-    fetch(artifactUrl(runId, path))
+    fetch(artifactUrl(runId, path), { cache: 'no-store' })
       .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
       .then((t) => alive && (setText(t), setStatus('ok')))
       .catch(() => alive && setStatus('missing'))

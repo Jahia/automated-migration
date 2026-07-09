@@ -52,6 +52,11 @@ const doRepair = !flags['no-repair'];
 // stacks stay headless (no window spam, works without a display); mirror-fidelity
 // is a reported metric, not the gate (rule 35), so headless-live stays valid.
 const headedLive = !!flags['headed-live'];
+// Cache-buster for the review's <img> tags: pngs are overwritten in place each
+// run, and the browser caches them by their canonical (relative) URL, so a plain
+// reload can show last run's screenshot (e.g. an old blank live capture). A
+// per-run token forces a fresh fetch. (The engine also serves artifacts no-cache.)
+const REVIEW_CB = Date.now();
 
 const mirrorDir = path.resolve(`${proj}/workflow-output/local-mirror`);
 const outDir = `${proj}/workflow-output/mirror`;
@@ -405,9 +410,9 @@ const card = r => !r.ok ? `<section class=pg><h2>${esc(r.slug)} — <span class=
     <h2>${esc(r.slug)} ${okPage(r) ? '<span class=ok>LOCAL ✓</span>' : '<span class=warn>REVIEW</span>'}
       <small>${r.styleSheets} stylesheets · ${r.domElements ?? '?'} els / ${r.textLen ?? '?'} chars · ${r.localImages} local images · ${r.externalBlocked} external blocked (${r.ignorableBlocked} ignorable, ${r.realMissCount} ext miss, ${r.localMissCount} local 404)${r.runtimeRepaired != null ? ' · ' + r.runtimeRepaired + ' runtime-repaired' : ''}${r.runtimeResidue ? ' · ' + r.runtimeResidue + ' residue' : ''}${r.embedBlockedCount ? ' · ' + r.embedBlockedCount + ' embed' : ''}${r.dataMissCount ? ' · ' + r.dataMissCount + ' data-xhr' : ''}${r.mirrorFidelity != null ? ' · mirror-fidelity ' + r.mirrorFidelity + '%' : ''}</small></h2>
     ${r.mirrorFidelity != null ? `<div class=slider id=s_${esc(r.slug)}>
-      <img class=b src="${esc(r.slug)}.live.png"><img class=a src="${esc(r.slug)}.local.png" style="clip-path:inset(0 50% 0 0)">
+      <img class=b src="${esc(r.slug)}.live.png?v=${REVIEW_CB}"><img class=a src="${esc(r.slug)}.local.png?v=${REVIEW_CB}" style="clip-path:inset(0 50% 0 0)">
       <div class=handle></div><input type=range min=0 max=100 value=50 oninput="slide(this)"></div>
-      <div class=lg>← LIVE · LOCAL(offline) → · drag</div>` : `<img class=solo src="${esc(r.slug)}.local.png">`}
+      <div class=lg>← LIVE · LOCAL(offline) → · drag</div>` : `<img class=solo src="${esc(r.slug)}.local.png?v=${REVIEW_CB}">`}
     ${(r.realMissCount || r.localMissCount)
       ? `<div class=miss><b>Not localized (${r.realMissCount} external asset, ${r.localMissCount} local 404):</b><ul>${[...(r.realMiss || []), ...(r.localMiss || [])].map(u => `<li>${esc(u)}</li>`).join('')}</ul></div>`
       : '<div class=miss ok>✓ no unexpected external static assets, no local 404 — truly local</div>'}

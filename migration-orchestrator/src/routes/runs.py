@@ -235,7 +235,11 @@ async def get_artifact(run_id: str, path: str):
         raise HTTPException(status_code=403, detail="path traversal blocked")
     if not target.is_file():
         raise HTTPException(status_code=404, detail="artifact not found")
-    return FileResponse(str(target))
+    # Artifacts are regenerated in place (same URL, new bytes each run): screenshots,
+    # mirror-check.json, mirror-review.html and its <img> pngs. Without no-cache the
+    # browser serves a stale copy (e.g. old blank live screenshots) until a hard
+    # refresh — must-revalidate makes it re-check ETag/mtime on every load.
+    return FileResponse(str(target), headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
 @router.get("/runs/{run_id}/provenance")
