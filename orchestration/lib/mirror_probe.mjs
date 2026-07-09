@@ -41,10 +41,17 @@ for (let i = 0; i < argv.length; i++) {
 }
 const proj = pos[0];
 const maxPages = parseInt(pos[1] || '4', 10) || 4;
-if (!proj) { console.error('usage: mirror_probe.mjs <project> [maxPages] [--pages a,b] [--all] [--no-live]'); process.exit(2); }
+if (!proj) { console.error('usage: mirror_probe.mjs <project> [maxPages] [--pages a,b] [--all] [--no-live] [--headed-live]'); process.exit(2); }
 const pageSel = typeof flags.pages === 'string' ? flags.pages.split(',').map(s => s.trim()).filter(Boolean) : null;
 const doLive = !flags['no-live'];
 const doRepair = !flags['no-repair'];
+// LIVE captures headed (real browser window) — the only reliable way past a
+// Cloudflare/anti-bot MANAGED challenge on deep pages: headless clears the entry
+// page but gets "Just a moment…" on deeper navigations (behavioural detection,
+// not just headers). Opt-in so the default pipeline / CI / the other reference
+// stacks stay headless (no window spam, works without a display); mirror-fidelity
+// is a reported metric, not the gate (rule 35), so headless-live stays valid.
+const headedLive = !!flags['headed-live'];
 
 const mirrorDir = path.resolve(`${proj}/workflow-output/local-mirror`);
 const outDir = `${proj}/workflow-output/mirror`;
@@ -133,6 +140,74 @@ const runtimeIgnorable = (u) => manifest.residue.includes(u.startsWith(base) ? u
 const excused = (u) => isIgnorable(u) || runtimeIgnorable(u);
 const results = [];
 const browser = await chromium.launch({ headless: true });
+
+// Human-emulation identity for LIVE navigations. Bare headless Playwright sends a
+// "HeadlessChrome" UA and exposes navigator.webdriver=true — both are trivially
+// sniffed by WAF/anti-bot layers (Imperva/Incapsula on discoverasr → 403, blank
+// capture). This is the SAME real-browser fingerprint render_page.mjs used to
+// crawl the site successfully, so what got in also gets captured. Generic, not
+// site-specific (applies to every project's live fetch); the offline render is
+// untouched (it only ever hits our own 127.0.0.1 mirror server).
+const HUMAN_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+                 '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+// Only Accept-Language is forced. DO NOT put Accept / sec-ch-ua / Sec-Fetch-* here:
+// extraHTTPHeaders applies to EVERY request, so forcing the NAVIGATION values
+// (Sec-Fetch-Mode:navigate, Sec-Fetch-Dest:document) onto the SPA's content XHRs
+// makes them look forged → the WAF 403s those fetches → the page's <title> loads
+// but the body stays EMPTY (measured: deep AEM pages captured blank). Chromium
+// already emits correct, per-request sec-ch-ua + Sec-Fetch-* for a real UA — let it.
+const HUMAN_HEADERS = {
+  'Accept-Language': 'en-US,en;q=0.9',
+};
+
+// ONE persistent live context reused for every page — a real visitor keeps a
+// session, so the clearance cookie a WAF JS-challenge sets on the first page
+// carries to the rest. A fresh context per page (the old code) discarded that
+// cookie, so only page 1 got through and the rest came back as blank 403 shells.
+// Offline renders still use bare browser.newPage() (they only hit our mirror).
+// Separate browser for LIVE so it can be headed while offline stays headless.
+const liveBrowser = doLive ? await chromium.launch({ headless: !headedLive }) : null;
+const liveCtx = liveBrowser ? await liveBrowser.newContext({
+  viewport: { width: 1440, height: 900 },
+  userAgent: HUMAN_UA,
+  locale: 'en-US',
+  extraHTTPHeaders: HUMAN_HEADERS,
+}) : null;
+if (liveCtx) {
+  await liveCtx.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
+}
+
+// LIVE request filter: block the same trackers/consent/embeds the offline render
+// blocks, but NEVER the WAF's own beacon/challenge scripts (/cdn-cgi/, Incapsula,
+// Akamai, PerimeterX). Aborting those on a live nav starves the anti-bot JS
+// challenge so it can never clear. (isIgnorable folds WAF beacons in — right for
+// offline where they 404, wrong for a real live visit.)
+const liveBlock = (u) => (isAnalytics(u) || isEmbed(u) || isAdminChrome(u)) && !isWafBeacon(u);
+
+// Wait for a WAF interstitial (Cloudflare "Just a moment…", Incapsula, etc.) to
+// clear. A real browser executes the JS challenge in ~5-15s and auto-reloads to
+// the real page; the interstitial itself is quiet (networkidle fires on it) and
+// nearly empty, so without this we'd screenshot the challenge, not the page.
+// Returns true once real content is present, false on timeout.
+async function awaitChallengeClear(page, timeoutMs = 30000) {
+  const start = Date.now();
+  const stillChallenged = () => page.evaluate(() => {
+    const t = (document.title || '').toLowerCase();
+    if (t.includes('just a moment') || t.includes('attention required') ||
+        t.includes('un instant') || t.includes('checking your browser')) return true;
+    if (document.querySelector('#challenge-form, #cf-challenge-running, ' +
+        'script[src*="/cdn-cgi/challenge-platform/"], #px-captcha')) return true;
+    // solved page has real content; the interstitial body is tiny
+    return (document.body?.innerText || '').trim().length < 40;
+  }).catch(() => true); // evaluate throws mid-reload (challenge solving) → keep waiting
+  while (Date.now() - start < timeoutMs) {
+    if (!(await stillChallenged())) return true;
+    await page.waitForTimeout(1000);
+  }
+  return false;
+}
 
 // One offline render: only the local server (+ manifest-fulfilled runtime assets)
 // is reachable. Returns the open page + classified misses; caller screenshots/closes.
@@ -228,22 +303,52 @@ for (const pg of pages) {
 
     // ── 2. mirror fidelity: offline vs live (both with trackers/consent blocked) ──
     if (doLive && liveUrl[slug] && !rec.screenshotError) {
-      const lp = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      // Reuse the persistent human context (UA/locale/headers/webdriver-mask +
+      // accumulated WAF clearance cookies) so every page — not just the first —
+      // is served the real page instead of a 403 shell.
+      const lp = await liveCtx.newPage();
+      // Block trackers/consent/embeds (as the offline render does, for fidelity
+      // parity) but NEVER the WAF's own beacon/challenge scripts (/cdn-cgi/ etc.)
+      // — aborting those starves the anti-bot JS challenge so it can't clear.
       await lp.route('**/*', (route) => {
         const u = route.request().url();
-        if (u.startsWith('http') && isIgnorable(u)) return route.abort();
+        if (u.startsWith('http') && liveBlock(u)) return route.abort();
         return route.continue();
       });
       const livePng = `${outDir}/${slug}.live.png`;
       try {
-        await lp.goto(liveUrl[slug], { waitUntil: 'domcontentloaded', timeout: 45000 });
+        // Wait out any Cloudflare/WAF JS challenge BEFORE screenshotting — the
+        // interstitial is quiet so networkidle fires on it; we'd capture the
+        // near-blank challenge page otherwise. Cleared → the real (SPA) page.
+        // The managed challenge is flaky even headed (occasionally sticks on
+        // "Just a moment…"); a reload usually clears it, so retry a few times.
+        let cleared = false;
+        for (let attempt = 1; attempt <= 3 && !cleared; attempt++) {
+          if (attempt === 1) {
+            await lp.goto(liveUrl[slug], { waitUntil: 'domcontentloaded', timeout: 45000 });
+          } else {
+            await lp.waitForTimeout(1500);
+            await lp.reload({ waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
+          }
+          cleared = await awaitChallengeClear(lp, 20000);
+        }
+        if (!cleared) rec.liveChallengeStuck = true;
+        // networkidle so a client-rendered (SPA) body paints before the shot —
+        // matches render_page.mjs; SPAs poll forever so it's best-effort.
+        try { await lp.waitForLoadState('networkidle', { timeout: 15000 }); } catch {}
         try { await lp.waitForLoadState('load', { timeout: 15000 }); } catch {}
         await lp.waitForTimeout(3500);
-        await lp.screenshot({ path: livePng, fullPage: true });
+        // 60s (not the 30s default) + freeze animations: tall live pages with
+        // running CSS animations make fullPage capture miss the default deadline
+        // (seen on a 17k-px page). animations:'disabled' also stabilises the shot.
+        await lp.screenshot({ path: livePng, fullPage: true, timeout: 60000, animations: 'disabled' });
         const { sim, dims, heightDelta } = diffPixels(localPng, livePng, `${outDir}/${slug}.mfdiff.png`);
         rec.mirrorFidelity = sim; rec.dims = dims; rec.heightDelta = heightDelta;
       } catch (e) { rec.liveError = (e.message || String(e)).split('\n')[0]; }
       await lp.close();
+      // Human-paced gap between live navigations so a rate-limiter doesn't trip
+      // (the offline render of the next page also sits in this window).
+      await new Promise(r => setTimeout(r, 700 + Math.floor(Math.random() * 900)));
     }
     rec.ok = true;
   } catch (e) {
@@ -275,6 +380,8 @@ if (doRepair) {
     console.error(`  ${rec.slug}: settle re-render (warm manifest) — ${rec.realMissCount} ext miss, ${rec.localMissCount} local 404`);
   }
 }
+if (liveCtx) await liveCtx.close();
+if (liveBrowser) await liveBrowser.close();
 await browser.close();
 srv.close();
 
