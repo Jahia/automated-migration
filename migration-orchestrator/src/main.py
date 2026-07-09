@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
@@ -90,6 +90,13 @@ async def spa_middleware(request: Request, call_next):
         if ui_file.exists():
             return FileResponse(str(ui_file))
     return await call_next(request)
+
+
+@app.get("/")
+async def root():
+    # The bare root is not an API route; send humans to the web UI so hitting
+    # http://<host>:<port>/ lands on the cockpit instead of a 404 JSON body.
+    return RedirectResponse(url="/app/")
 
 
 @app.get("/health")
