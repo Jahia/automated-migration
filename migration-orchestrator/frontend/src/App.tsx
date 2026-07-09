@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom'
 import { useState } from 'react'
+import ProjectList from './components/ProjectList'
 import RunList from './components/RunList'
 import RunDetail from './components/RunDetail'
 import SchemaViewer from './components/SchemaViewer'
@@ -32,7 +33,8 @@ export default function App() {
             </span>
           </Link>
           <span className="h-5 w-px bg-[#0a3252]" />
-          <NavLink to="/" end className={navClass}>Runs</NavLink>
+          <NavLink to="/" end className={navClass}>Projets</NavLink>
+          <NavLink to="/runs" end className={navClass}>Runs</NavLink>
           <NavLink to="/zoning" className={navClass}>Zoning</NavLink>
           <NavLink to="/schema" className={navClass}>API Schema</NavLink>
           <div className="ml-auto">
@@ -41,7 +43,9 @@ export default function App() {
         </nav>
         <main className="mx-auto max-w-7xl px-4 py-6">
           <Routes>
-            <Route path="/" element={<ErrorBoundary label="Run list"><RunList /></ErrorBoundary>} />
+            <Route path="/" element={<ErrorBoundary label="Project list"><ProjectList /></ErrorBoundary>} />
+            <Route path="/projects/:project" element={<ErrorBoundary label="Project runs"><RunList /></ErrorBoundary>} />
+            <Route path="/runs" element={<ErrorBoundary label="Run list"><RunList /></ErrorBoundary>} />
             <Route path="/runs/:runId" element={<ErrorBoundary label="Run detail"><RunDetail /></ErrorBoundary>} />
             <Route path="/zoning" element={<ErrorBoundary label="Zoning"><Zoning /></ErrorBoundary>} />
             <Route path="/schema" element={<ErrorBoundary label="Schema"><SchemaViewer /></ErrorBoundary>} />

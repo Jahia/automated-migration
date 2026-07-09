@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   fetchZoningProjects, fetchZoningPages, applyZoning, fetchNodetypes, fetchViewCode,
   fetchDecisions, suppressNodeType, fetchNamespace, setNamespace,
@@ -67,12 +68,16 @@ export default function Zoning() {
   const [ns, setNs] = useState('custom') // the one JCR namespace prefix for all nodetypes
   const [cacheBust] = useState(() => Date.now()) // refetch the (regenerated) inspector page per load
   const frameRef = useRef<HTMLIFrameElement>(null)
+  const [searchParams] = useSearchParams() // ?project= deep-link from the Projects page
 
   useEffect(() => {
+    const wanted = searchParams.get('project')
     fetchZoningProjects()
       .then((ps) => {
         setProjects(ps)
-        if (ps.length && !project) setProject(ps[0].project)
+        // Prefer the ?project= deep-link if it exists in the list; else the first project.
+        const preferred = wanted && ps.some((p) => p.project === wanted) ? wanted : ps[0]?.project
+        if (preferred && !project) setProject(preferred)
       })
       .catch((e) => setErr(String(e)))
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { fetchRuns, deleteRun, pruneRuns } from '../api'
 import type { RunSummary } from '../types'
 
@@ -42,6 +42,9 @@ function formatCreatedAt(ms?: number): string {
 }
 
 export default function RunList() {
+  // When mounted at /projects/:project the list is scoped to that one project
+  // (the ProjectList grid is the landing); at /runs it shows every project.
+  const { project: projectParam } = useParams<{ project?: string }>()
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [lastPoll, setLastPoll] = useState<Date>(new Date())
@@ -99,10 +102,18 @@ export default function RunList() {
 
   if (loading) return <div className="text-gray-400">Chargement...</div>
 
+  const scoped = projectParam ? decodeURIComponent(projectParam) : null
+  const visibleRuns = scoped ? runs.filter((r) => (r.project || NO_PROJECT) === scoped) : runs
+
   return (
     <div>
+      {scoped && (
+        <Link to="/" className="mb-3 inline-block text-sm text-[#a8c1d6] hover:text-white">
+          ← Projets
+        </Link>
+      )}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Runs</h1>
+        <h1 className="text-2xl font-bold">{scoped ? scoped : 'Runs'}</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={handlePrune}
@@ -124,13 +135,13 @@ export default function RunList() {
         </div>
       )}
 
-      {runs.length === 0 ? (
+      {visibleRuns.length === 0 ? (
         <p className="text-gray-500">
-          Aucun run. Les runs sont pilotés via l'API (CONTROL-LOOP.md).
+          {scoped ? 'Aucun run pour ce projet.' : "Aucun run. Les runs sont pilotés via l'API (CONTROL-LOOP.md)."}
         </p>
       ) : (
         <div className="space-y-6">
-          {groupByProject(runs).map((group) => (
+          {groupByProject(visibleRuns).map((group) => (
             <div key={group.project}>
               <div className="flex items-baseline gap-2 mb-2">
                 <h2 className="text-sm font-semibold text-gray-300">{group.project}</h2>
