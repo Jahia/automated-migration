@@ -1,0 +1,450 @@
+{
+  "module": "sial-paris",
+  "siteUrl": "https://www.sialparis.com/fr-FR",
+  "siteKey": "sial-paris",
+  "language": "fr",
+  "capturedAt": "2026-06-16T16:45:00Z",
+  "note": "Site source: Sitecore SXA. Content extracted from live DOM via Chrome MCP. CSS downloaded directly from CDN. All class names verified against live HTML.",
+  "cssFiles": [
+    "static/css/bootstrap4.css",
+    "static/css/core-libraries.css",
+    "static/css/main-theme.css",
+    "static/css/sial-paris-theme.css"
+  ],
+  "componentInstances": [
+    {
+      "componentType": "TopBar",
+      "instanceName": "top-bar",
+      "order": 1,
+      "contentArea": "header-absolute",
+      "cssClasses": "div.component.top-bar.top-navbar.container-fluid > div.component-content > div.row.align-items-center.parent-row",
+      "fields": {
+        "communityText": "Rejoignez la communauté #SIALParis",
+        "exposeLink": "/fr-FR/exposer",
+        "exposeLinkText": "Exposez",
+        "espaceExposantLink": "https://event.sialparis.com/2026/",
+        "espaceExposantText": "Votre espace exposant",
+        "socialLinks": [
+          { "platform": "linkedin", "icon": "fa-brands fa-linkedin", "href": "https://www.linkedin.com/showcase/sial-paris/" },
+          { "platform": "instagram", "icon": "fa-brands fa-square-instagram", "href": "https://www.instagram.com/sial.paris/" },
+          { "platform": "twitter", "icon": "fa-brands fa-x-twitter", "href": "https://twitter.com/sial_paris" },
+          { "platform": "facebook", "icon": "fa-brands fa-facebook", "href": "https://www.facebook.com/sial.paris/" },
+          { "platform": "youtube", "icon": "fa-brands fa-youtube", "href": "https://www.youtube.com/user/SIALParis" },
+          { "platform": "whatsapp", "icon": "fa-brands fa-whatsapp", "href": "https://whatsapp.com/channel/0029VaGDyfY72WTz3iwyrW0x" }
+        ]
+      }
+    },
+    {
+      "componentType": "MainNavigation",
+      "instanceName": "header-navigation",
+      "order": 2,
+      "contentArea": "header-absolute",
+      "cssClasses": "div.navigation-main > div.component.navigation.initialized > div.component-content > nav > ul.clearfix > li.level1.submenu > div.navigation-title.field-navigationtitle > a",
+      "fields": {
+        "logoAlt": "Logo du SIAL Paris avec le slogan 'Inspire Food Business'",
+        "logoHref": "/fr-FR",
+        "dates": "17 - 21 octobre 2026",
+        "location": "PARIS NORD VILLEPINTE",
+        "ticketText": "Commandez votre ticket",
+        "ticketHref": "https://badge.sialparis.fr/accueil.htm",
+        "navItems": [
+          {
+            "title": "Le salon", "href": "/fr-FR/le-salon",
+            "children": [
+              { "title": "Notre histoire", "href": "/fr-FR/le-salon/notre-histoire" },
+              { "title": "Pourquoi visiter SIAL Paris", "href": "/fr-FR/le-salon/Pourquoi-visiter-SIAL-Paris" },
+              { "title": "Top buyers programme", "href": "/fr-FR/le-salon/top-acheteurs-programme" },
+              { "title": "SIAL Newsfeed & trends", "href": "/fr-FR/le-salon/SIAL-newsfeed-trends" },
+              { "title": "Nos actions RSE", "href": "/fr-FR/le-salon/nos-actions-RSE" },
+              { "title": "Notre marketplace", "href": "/fr-FR/le-salon/notre-marketplace" },
+              { "title": "Nos partenaires", "href": "/fr-FR/le-salon/nos-partenaires" }
+            ]
+          },
+          {
+            "title": "Liste des exposants 2026", "href": "/fr-FR/exposants-2026",
+            "children": [
+              { "title": "Liste des exposants 2026", "href": "/fr-FR/exposants-2026/exposants" }
+            ]
+          },
+          {
+            "title": "Temps forts", "href": "/fr-FR/temps-forts",
+            "children": [
+              { "title": "Programme", "href": "/fr-FR/temps-forts/programme-2026" },
+              { "title": "SIAL Innovation", "href": "/fr-FR/temps-forts/sial-innovation" },
+              { "title": "SIAL Talks", "href": "/fr-FR/temps-forts/SIAL-Talks" },
+              { "title": "SIAL Start-up", "href": "/fr-FR/temps-forts/SIAL-Start-up" },
+              { "title": "SIAL Summits", "href": "/fr-FR/temps-forts/SIAL-Summits" },
+              { "title": "SIAL for Change", "href": "/fr-FR/temps-forts/SIAL-for-change" },
+              { "title": "SIAL Taste", "href": "/fr-FR/temps-forts/SIAL-Taste" },
+              { "title": "La Guinguette", "href": "/fr-FR/temps-forts/La-Guinguette" },
+              { "title": "Visites guidées", "href": "/fr-FR/temps-forts/Visites-guidees" },
+              { "title": "Parcours thématiques", "href": "/fr-FR/temps-forts/Parcours-thématiques" },
+              { "title": "SIAL Bakery", "href": "/fr-FR/temps-forts/SIAL-Bakery" }
+            ]
+          },
+          {
+            "title": "Tendances", "href": "/fr-FR/tendances",
+            "children": [
+              { "title": "Actualités", "href": "/fr-FR/tendances/actualites" },
+              { "title": "Innovations sectorielles", "href": "/fr-FR/tendances/les-innovations-sectorielles" },
+              { "title": "Focus tendances", "href": "/fr-FR/tendances/focus" },
+              { "title": "Livres blancs", "href": "/fr-FR/tendances/Livres-blancs" }
+            ]
+          },
+          {
+            "title": "Infos Pratiques", "href": "/fr-FR/infos-pratiques",
+            "children": [
+              { "title": "Dates & Horaires", "href": "/fr-FR/infos-pratiques/dates-et-acces" },
+              { "title": "Tarifs", "href": "/fr-FR/infos-pratiques/tarifs-visiteurs" },
+              { "title": "Ticket VIP", "href": "/fr-FR/infos-pratiques/VIP-ticket" },
+              { "title": "Networking visiteur", "href": "/fr-FR/infos-pratiques/networking-visiteur" },
+              { "title": "Préparer ma venue", "href": "/fr-FR/infos-pratiques/preparer-ma-venue" },
+              { "title": "Mediakit", "href": "/fr-FR/infos-pratiques/Mediakit" },
+              { "title": "Commandez votre ticket", "href": "/fr-FR/infos-pratiques/commandez-votre-badge" },
+              { "title": "SIAL Off", "href": "/fr-FR/infos-pratiques/SIAL-Off" },
+              { "title": "FAQ", "href": "/fr-FR/infos-pratiques/faq" },
+              { "title": "Contacts", "href": "/fr-FR/infos-pratiques/contacts" }
+            ]
+          },
+          {
+            "title": "PRESSE", "href": "/fr-FR/medias",
+            "children": [
+              { "title": "Communiqués de presse", "href": "/fr-FR/medias/communiques-de-presse" },
+              { "title": "Médiathèque", "href": "/fr-FR/medias/mediatheque" },
+              { "title": "Contacts presse", "href": "/fr-FR/medias/contacts-presse" }
+            ]
+          }
+        ],
+        "ctaButtons": [
+          { "text": "Commandez votre ticket", "href": "/fr-FR/commandez-votre-badge" },
+          { "text": "Estimez votre stand", "href": "/fr-FR/estimez-votre-stand" }
+        ]
+      }
+    },
+    {
+      "componentType": "HeroCarousel",
+      "instanceName": "carousel",
+      "order": 3,
+      "contentArea": "main",
+      "cssClasses": "div.component.carousel.col-12 > div.component-content > div.carousel-inner > div.wrapper > ul.slides > li.slide > div.row > div.component.Slide > div.component-content",
+      "slideStructure": "img.slide-img + div > h1.field-slidesmalltitle + div.field-description.field-slidetext + a.btn.btn-solid-primary.mr-20 > span",
+      "fields": {
+        "slides": [
+          {
+            "title": "La billetterie pour SIAL Paris 2026 est ouverte !",
+            "body": "Réservez votre ticket dès aujourd'hui et profitez du rendez-vous mondial de l'innovation food pour booster votre business agroalimentaire !",
+            "ctaText": "Commandez votre ticket",
+            "ctaHref": "https://badge.sialparis.fr/accueil.htm",
+            "imgAlt": "Femme aux cheveux bouclés tenant deux rondelles de citron devant les yeux sur fond jaune avec logo SIAL Paris"
+          },
+          {
+            "title": "Chaud devant !",
+            "body": "Vous souhaitez être incollable et savoir quelle est la boisson la plus innovante du moment ? Le fruit le plus consommé en France ? Ou la part de marché du surgelé dans le monde ? Soyez au rendez-vous quotidien de la newsroom de SIAL Paris pour décrypter l'actualité de la food.",
+            "ctaText": "Accédez aux actualités agroalimentaires",
+            "ctaHref": "/fr-FR/tendances/actualites",
+            "imgAlt": "Femme en robe crème tenant un livre jaune devant son visage, assise à une table jaune décorée de tasses"
+          },
+          {
+            "title": "Découvrez notre livre blanc sur la nutrition personnalisée",
+            "body": "Le salon international de l'alimentation et NellyRodi vous donne une longueur d'avance pour analyser la transformation du marché agroalimentaire. Avec notre livre blanc, obtenez toutes les clefs pour anticiper vos prochains produits et services innovants.",
+            "ctaText": "Téléchargez le livre blanc",
+            "ctaHref": "/fr-FR/tendances/Livres-blancs/nutrition-personalisee",
+            "imgAlt": "Plateau jaune avec un plat fumant et un verre sur une table, créant une ambiance moderne et colorée"
+          }
+        ]
+      }
+    },
+    {
+      "componentType": "RichText",
+      "instanceName": "intro-text",
+      "order": 4,
+      "contentArea": "main",
+      "cssClasses": "div.component.rich-text.col-12 > div.component-content > div.container-bp.p-20.mb-20.field-description > h2.title-n2 + p + p",
+      "fields": {
+        "heading": "SIAL Paris : le rendez-vous biennal de l'agroalimentaire à ne pas manquer !",
+        "body": "<p>Des producteurs aux distributeurs, en passant par les restaurateurs et les importateurs-exportateurs, le salon de l'alimentation est le carrefour international de l'innovation alimentaire.</p><p>Multipliez les rencontres avec nos exposants et laissez-vous séduire par les tendances dans les allées du salon.</p>"
+      }
+    },
+    {
+      "componentType": "KeyFigures",
+      "instanceName": "key-figures",
+      "order": 5,
+      "contentArea": "main",
+      "cssClasses": "div.component.key-figures.container.bg-gray-1.animated-key-figures.col-12 > div.component-content > div.simple-title.col-12 > div.focus-title + h2.field-titre + div.container-bp > div.row.wrapper > div.col > div > i + div.figure-number > span.field-chiffre-N + div.field-description-N",
+      "fields": {
+        "sectionTitle": "SIAL en bref",
+        "sectionIntro": "SIAL Paris a vocation à être une source d'inspiration pour l'ensemble de la communauté food mondiale.",
+        "ctaText": "Découvrez l'histoire du SIAL Paris",
+        "ctaHref": "/fr-FR/le-salon/notre-histoire",
+        "titre": "Les chiffres clés",
+        "figures": [
+          { "icon": "fa-solid fa-flag", "number": "130", "label": "Pays exposants" },
+          { "icon": "fa-solid fa-globe", "number": "8000", "label": "Exposants" },
+          { "icon": "fa-solid fa-bullseye-arrow", "number": "10", "label": "Secteurs clés d'exposition" },
+          { "icon": "fa-solid fa-box", "number": "400000", "label": "produits exposés" },
+          { "icon": "fa-solid fa-lightbulb-gear", "number": "650", "label": "startups" }
+        ]
+      }
+    },
+    {
+      "componentType": "NewsListing",
+      "instanceName": "actus",
+      "order": 6,
+      "contentArea": "main",
+      "cssClasses": "div.component.search-results.actus.container-bp.col-12 > ul.search-result-list > li > a > div > div.labels > div > div.label-type.field-title + div.label-theme.field-title + div + img.img-cover + div.text-muted.field-date-de-publication + h3.field-title + div.field-description",
+      "fields": {
+        "sectionTitle": "Découvrez nos dernières actualités",
+        "articles": [
+          {
+            "labelType": "Actu salon",
+            "labelTheme": "SIAL For Change",
+            "date": "16/06/2026",
+            "title": "LIMBUA : la chaîne d'approvisionnement germano-kenyane qui fait figure de référence en matière de responsabilité alimentaire",
+            "description": "Le parcours de LIMBUA dans le cadre de l'initiative « SIAL For Change » montre comment la traçabilité, l'agriculture biologique et les partenariats avec les petits exploitants peuvent contribuer à la mise en place d'une chaîne d'approvisionnement alimentaire germano-kényane plus responsable.",
+            "href": "/fr-FR/tendances/actualites/LIMBUA-la-chaîne-approvisionnement-germano-kenyane",
+            "imgAlt": "Représentante de LIMBUA devant le stand macadamia lors d'un salon professionnel"
+          },
+          {
+            "labelType": "Actu marché",
+            "labelTheme": "Innovation produit",
+            "date": "15/06/2026",
+            "title": "SIAL Insights 2026 : un premier aperçu des questions qui façonnent l'industrie alimentaire",
+            "description": "SIAL Insights 2026 propose une première lecture de l'industrie alimentaire, avec dix enseignements clés pour anticiper les grandes tendances.",
+            "href": "/fr-FR/tendances/actualites/Questions-qui-façonnent-industrie-alimentaire",
+            "imgAlt": "Main tenant un œuf blanc tandis qu'une autre main utilise un petit outil sur un fond jaune vif"
+          },
+          {
+            "labelType": "Actu marché",
+            "labelTheme": "Salon",
+            "date": "09/06/2026",
+            "title": "Gâteau corse aux châtaignes : un goût naturellement sans gluten, issu de la tradition insulaire",
+            "description": "Le gâteau corse à la châtaigne de Maelle met en lumière une recette insulaire naturellement sans gluten.",
+            "href": "/fr-FR/tendances/actualites/un-goût-naturellement-sans-gluten-issu-de-la-tradition-insulaire",
+            "imgAlt": "Part de cheesecake cuit servie dans une assiette bleue avec du sucre glace et de la badiane"
+          }
+        ]
+      }
+    },
+    {
+      "componentType": "VisitorProfiles",
+      "instanceName": "quicklinks",
+      "order": 7,
+      "contentArea": "main",
+      "cssClasses": "div.component.quicklinks.container.bg-gray-1.col-12 > div.component-content > div.container-bp > div.row.justify-content-center > div > a > div + h3.field-titre",
+      "fields": {
+        "sectionTitle": "Pourquoi SIAL Paris est fait pour vous ?",
+        "profiles": [
+          { "title": "Vous êtes importateur international", "href": "/fr-FR/le-salon/votre-visite-sur-mesure/vous-etes-importateur-international" },
+          { "title": "Vous êtes distributeur", "href": "/fr-FR/le-salon/votre-visite-sur-mesure/vous-etes-distributeur" },
+          { "title": "Vous êtes acheteur restauration", "href": "/fr-FR/le-salon/votre-visite-sur-mesure/vous-etes-acheteur-dans-la-restauration" },
+          { "title": "Vous êtes industriel de l'agro-alimentaire", "href": "/fr-FR/le-salon/votre-visite-sur-mesure/vous-etes-industriel-de-l-agroalimentaire" }
+        ]
+      }
+    },
+    {
+      "componentType": "TrendsSection",
+      "instanceName": "tendances-innovations",
+      "order": 8,
+      "contentArea": "main",
+      "fields": {
+        "focusTitle": "TENDANCES ET INNOVATIONS ALIMENTAIRES",
+        "heading": "Alimentez votre stratégie avec une intelligence marché de pointe.",
+        "intro": "Explorez les ressources d'innovation de SIAL Paris, les analyses d'experts, les décryptages de tendances.",
+        "cards": [
+          {
+            "heading": "Innovations sectorielles : découvrez les innovations majeures du secteur alimentaire",
+            "body": "Plongez dans les innovations guidées par les tendances dans l'ensemble de l'industrie alimentaire.",
+            "ctaText": "En savoir plus",
+            "ctaHref": "/fr-FR/tendances/les-innovations-sectorielles",
+            "imgAlt": "SIAL Innovation"
+          },
+          {
+            "heading": "Focus tendances : repérez les évolutions majeures qui façonnent l'alimentation de demain.",
+            "body": "Découvrez des insights précis et rapides sur les tendances les plus impactantes du moment !",
+            "ctaText": "En savoir plus",
+            "ctaHref": "/fr-FR/tendances/focus",
+            "imgAlt": "SIAL Talks"
+          },
+          {
+            "heading": "Livres blancs : accédez à des insights exclusifs qui façonnent l'alimentation de demain.",
+            "body": "Plongez dans nos livres blancs élaborés par des experts pour explorer les tendances émergentes.",
+            "ctaText": "En savoir plus",
+            "ctaHref": "/fr-FR/tendances/Livres-blancs",
+            "imgAlt": "SIAL Start-up"
+          }
+        ],
+        "allContentCta": { "text": "Découvrez tous les contenus tendances et innovations", "href": "/fr-FR/tendances" }
+      }
+    },
+    {
+      "componentType": "SectorGrid",
+      "instanceName": "sectors",
+      "order": 9,
+      "contentArea": "main",
+      "cssClasses": "div.component.search-results.container-bp.sectors.col-12 > ul.search-result-list > li > a > div.grid > div.grid-icon > i + h3.grid-title.field-title + div.grid-arrow > i + div.grid-img.img-cover > img",
+      "fields": {
+        "sectionTitle": "Les secteurs",
+        "intro": "Quel que soit leur mode de conservation ou leur spécificité (produits surgelés, conserves, produits biologiques, PAI, ingrédients, produits diététiques, sans gluten, épicerie fine…)",
+        "sectors": [
+          { "icon": "fa-solid fa-meat", "title": "Viandes", "href": "/fr-FR/exposer/les-secteurs-du-salon/viandes", "imgAlt": "De la viande rouge" },
+          { "icon": "fa-sharp fa-solid fa-salad", "title": "Traiteur et snacking", "href": "/fr-FR/exposer/les-secteurs-du-salon/traiteur-snacking", "imgAlt": "Plusieurs assiettes de crevettes" },
+          { "icon": "fa-solid fa-temperature-snow", "title": "Produits surgelés", "href": "/fr-FR/exposer/les-secteurs-du-salon/produits-surgeles", "imgAlt": "Glace à l'eau avec des fruits dedans" },
+          { "icon": "fa-sharp fa-solid fa-cheese-swiss", "title": "Produits laitiers", "href": "/fr-FR/exposer/les-secteurs-du-salon/produits-laitiers", "imgAlt": "Des verres de lait" },
+          { "icon": "fa-solid fa-fish", "title": "Produits de la mer", "href": "/fr-FR/exposer/les-secteurs-du-salon/produits-de-la-mer", "imgAlt": "Fruits de mer et poissons dans un bol" },
+          { "icon": "fa-solid fa-strawberry", "title": "Céréales, légumineuses, fruits et légumes", "href": "/fr-FR/exposer/les-secteurs-du-salon/fruits-et-legumes", "imgAlt": "Petits pois dans un bol" },
+          { "icon": "fa-sharp fa-solid fa-conveyor-belt", "title": "Food Processing", "href": "/fr-FR/exposer/les-secteurs-du-salon/food-processing", "imgAlt": "Processus de fabrication d'un biscuit" },
+          { "icon": "fa-regular fa-cup-togo", "title": "Boissons", "href": "/fr-FR/exposer/les-secteurs-du-salon/boissons", "imgAlt": "Jus de pamplemousse" },
+          { "icon": "fa-solid fa-hand-holding-seedling", "title": "Bio et Bien-être", "href": "/fr-FR/exposer/les-secteurs-du-salon/bio-et-bien-etre", "imgAlt": "Feuilles de basilic" },
+          { "icon": "fa-solid fa-bowl-spoon", "title": "Epicerie", "href": "/fr-FR/exposer/les-secteurs-du-salon/epicerie", "imgAlt": "Ail, pâtes, tomate et mozzarella" }
+        ]
+      }
+    },
+    {
+      "componentType": "PictureGrid",
+      "instanceName": "picture-grid",
+      "order": 10,
+      "contentArea": "main",
+      "cssClasses": "div.component.picture-grid.container-bp.col-12 > div.component-content > div > div.card-img > img.img-cover + div.card > div.card-body > h2.text-truncate-3.field-picturegriditemtitre + div.field-description + a.btn.btn-solid-white.field-picturegriditemcta > span",
+      "fields": {
+        "cards": [
+          {
+            "title": "Espace exposant",
+            "description": "Consultez toutes les informations relatives à l'organisation de votre participation.",
+            "ctaText": "Se connecter",
+            "ctaHref": "https://event.sialparis.com/2026/",
+            "imgAlt": "Exposant de SIAL Paris avec une meule de Parmesan"
+          },
+          {
+            "title": "Espace visiteur",
+            "description": "Rejoignez la communauté mondiale des professionnels de l'alimentation.",
+            "ctaText": "En savoir plus",
+            "ctaHref": "https://badge.sialparis.fr/accueil.htm",
+            "imgAlt": "3 femmes qui regardent le plan de SIAL Paris"
+          }
+        ]
+      }
+    },
+    {
+      "componentType": "PartnersCarousel",
+      "instanceName": "partners-carrousel",
+      "order": 11,
+      "contentArea": "main",
+      "cssClasses": "div.component.partners-carrousel > div.component-content > div.swiffy-slider.slider-nav-page.slider-indicators-outside.slider-indicators-dark.slider-nav-animation > ul.slider-container > li.row > a.content.col-4.col-md-3 > img",
+      "fields": {
+        "sectionTitle": "Partenaires",
+        "ctaText": "Voir tous les partenaires",
+        "ctaHref": "/fr-FR/le-salon/nos-partenaires"
+      }
+    },
+    {
+      "componentType": "SialNetwork",
+      "instanceName": "sial-network",
+      "order": 12,
+      "contentArea": "main",
+      "fields": {
+        "heading": "INSPIRING FOOD BUSINESS WORLDWIDE",
+        "ctaText": "Découvrez SIAL Network",
+        "ctaHref": "https://www.sial-network.com/",
+        "locations": [
+          "Food & Drinks Malaysia - Kuala Lumpur",
+          "SIAL Canada - Montréal",
+          "SIAL Canada - Toronto",
+          "SIAL Paris - Paris",
+          "SIAL in China - Shanghai",
+          "SIAL in China South - Guangzhou",
+          "SIAL India - Mumbai",
+          "SIAL Interfood - Jakarta",
+          "SIAL Vietnam",
+          "Tutto Pizza international - Shanghai",
+          "Gourmet Selection - Paris",
+          "Salon du Fromage et des Produits Laitiers - Paris",
+          "Djazagro - Alger"
+        ]
+      }
+    },
+    {
+      "componentType": "Footer",
+      "instanceName": "footer",
+      "order": 13,
+      "contentArea": "footer-absolute",
+      "cssClasses": "footer > div#footer.container > div.row > div.component.footer.container-fluid.px-0 > div.component-content > div.bg-top-footer > div.grid-1 + div.bg-white > div.grid-2 + div.ml > div.field-lien",
+      "fields": {
+        "communityText": "Rejoignez la communauté #SIALParis",
+        "socialLinks": [
+          { "platform": "linkedin", "href": "https://www.linkedin.com/showcase/sial-paris/" },
+          { "platform": "instagram", "href": "https://www.instagram.com/sial.paris/" },
+          { "platform": "twitter", "href": "https://twitter.com/sial_paris" },
+          { "platform": "facebook", "href": "https://www.facebook.com/sial.paris/" },
+          { "platform": "youtube", "href": "https://www.youtube.com/user/SIALParis" },
+          { "platform": "whatsapp", "href": "https://whatsapp.com/channel/0029VaGDyfY72WTz3iwyrW0x" }
+        ],
+        "faqText": "Vous avez des questions ?",
+        "faqLinkText": "Consultez notre FAQ",
+        "faqHref": "/fr-FR/infos-pratiques/faq",
+        "newsletterPlaceholder": "Votre adresse email",
+        "newsletterSubmitText": "Envoyer",
+        "newsletterLabel": "J'accepte de recevoir la newsletter",
+        "quickLinks": [
+          { "text": "MEDIAS", "href": "/fr-FR/medias" },
+          { "text": "DEVENEZ EXPOSANT", "href": "https://event.sialparis.com/2026/" },
+          { "text": "COMMANDEZ VOTRE TICKET", "href": "https://badge.sialparis.fr/accueil.htm" }
+        ],
+        "legalLinks": [
+          { "text": "Plan du site", "href": "/fr-FR/plan-du-site" },
+          { "text": "Mentions légales & CGU", "href": "/fr-FR/mentions-legales" },
+          { "text": "Protection des données", "href": "/fr-FR/politique-de-confidentialite" },
+          { "text": "Cookies", "href": "/fr-FR/politique-cookies" },
+          { "text": "FAQ", "href": "/fr-FR/infos-pratiques/faq" },
+          { "text": "Contact", "href": "/fr-FR/infos-pratiques/contacts" }
+        ],
+        "organizer": "Organisé par",
+        "organizerLogoAlt": "logo-comexposium",
+        "organizerHref": "https://www.comexposium.fr"
+      }
+    }
+  ],
+  "subPages": [
+    {
+      "slug": "le-salon",
+      "title": "Le salon",
+      "href": "/fr-FR/le-salon",
+      "template": "basic",
+      "fields": { "note": "Content extraction pending - navigate to page to extract" }
+    },
+    {
+      "slug": "exposants-2026",
+      "title": "Liste des exposants 2026",
+      "href": "/fr-FR/exposants-2026",
+      "template": "basic",
+      "fields": { "note": "Content extraction pending" }
+    },
+    {
+      "slug": "temps-forts",
+      "title": "Temps forts",
+      "href": "/fr-FR/temps-forts",
+      "template": "basic",
+      "fields": { "note": "Content extraction pending" }
+    },
+    {
+      "slug": "tendances",
+      "title": "Tendances",
+      "href": "/fr-FR/tendances",
+      "template": "basic",
+      "fields": { "note": "Content extraction pending" }
+    },
+    {
+      "slug": "infos-pratiques",
+      "title": "Infos Pratiques",
+      "href": "/fr-FR/infos-pratiques",
+      "template": "basic",
+      "fields": { "note": "Content extraction pending" }
+    },
+    {
+      "slug": "medias",
+      "title": "PRESSE",
+      "href": "/fr-FR/medias",
+      "template": "basic",
+      "fields": { "note": "Content extraction pending" }
+    }
+  ]
+}

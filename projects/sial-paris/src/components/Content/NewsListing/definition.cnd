@@ -1,0 +1,5 @@
+[sialp:newsListing] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList
+ - heading (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ - ctaLabel (string) i18n
+ - maxItems (long) = '3'

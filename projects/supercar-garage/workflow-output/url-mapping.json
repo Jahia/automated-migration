@@ -1,0 +1,525 @@
+{
+  "matched": [
+    {
+      "oldUrl": "/fr-FR",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home",
+      "vanityPath": "/fr-FR",
+      "matchType": "home"
+    },
+    {
+      "oldUrl": "/en",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home",
+      "vanityPath": "/en",
+      "matchType": "home"
+    },
+    {
+      "oldUrl": "/fr-FR/evenement",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/evenement",
+      "vanityPath": "/fr-FR/evenement",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/show",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/evenement",
+      "vanityPath": "/en/show",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/actualites",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/actualites",
+      "vanityPath": "/fr-FR/actualites",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/news",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/actualites",
+      "vanityPath": "/en/news",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/infos-pratiques",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques",
+      "vanityPath": "/fr-FR/infos-pratiques",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/pratical-info",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques",
+      "vanityPath": "/en/pratical-info",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/exposants-et-animations",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/exposants-et-animations",
+      "vanityPath": "/fr-FR/exposants-et-animations",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/exhibitors-and-events",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/exposants-et-animations",
+      "vanityPath": "/en/exhibitors-and-events",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/billetterie",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/billetterie",
+      "vanityPath": "/fr-FR/billetterie",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/ticketing",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/billetterie",
+      "vanityPath": "/en/ticketing",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/espace-exposant",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/espace-exposant",
+      "vanityPath": "/fr-FR/espace-exposant",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/exhibitor-area",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/espace-exposant",
+      "vanityPath": "/en/exhibitor-area",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse",
+      "vanityPath": "/fr-FR/presse",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse",
+      "vanityPath": "/en/press",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/evenement/les-univers",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/les-univers",
+      "vanityPath": "/fr-FR/evenement/les-univers",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/show/the-sectors",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/les-univers",
+      "vanityPath": "/en/show/the-sectors",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/evenement/scene-live",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/scene-live",
+      "vanityPath": "/fr-FR/evenement/scene-live",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/show/scene-live",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/scene-live",
+      "vanityPath": "/en/show/scene-live",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/evenement/sponsors-et-partenaires",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/sponsors-et-partenaires",
+      "vanityPath": "/fr-FR/evenement/sponsors-et-partenaires",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/show/sponsors-and-partners",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/sponsors-et-partenaires",
+      "vanityPath": "/en/show/sponsors-and-partners",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/evenement/Design-in-Motion",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/design-in-motion",
+      "vanityPath": "/fr-FR/evenement/Design-in-Motion",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/show/Design-in-Motion",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/evenement/design-in-motion",
+      "vanityPath": "/en/show/Design-in-Motion",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/actualites/etudiant",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/etudiant",
+      "vanityPath": "/fr-FR/actualites/etudiant",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/news/etudiant",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/etudiant",
+      "vanityPath": "/en/news/etudiant",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/actualites/the-ultimate-review",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/the-ultimate-review",
+      "vanityPath": "/fr-FR/actualites/the-ultimate-review",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/news/the-ultimate-review",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/the-ultimate-review",
+      "vanityPath": "/en/news/the-ultimate-review",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/actualites/the-ultimate-review-2",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/the-ultimate-review-2",
+      "vanityPath": "/fr-FR/actualites/the-ultimate-review-2",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/news/the-ultimate-review-2",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/the-ultimate-review-2",
+      "vanityPath": "/en/news/the-ultimate-review-2",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/actualites/ultimate-supercar-garage-en-images",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/ultimate-supercar-garage-en-images",
+      "vanityPath": "/fr-FR/actualites/ultimate-supercar-garage-en-images",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/news/ultimate-supercar-garage-en-images",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/actualites/ultimate-supercar-garage-en-images",
+      "vanityPath": "/en/news/ultimate-supercar-garage-en-images",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/infos-pratiques/FAQ",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques/faq",
+      "vanityPath": "/fr-FR/infos-pratiques/FAQ",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/pratical-info/FAQ",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques/faq",
+      "vanityPath": "/en/pratical-info/FAQ",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/infos-pratiques/date-acces-plan",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques/date-acces-plan",
+      "vanityPath": "/fr-FR/infos-pratiques/date-acces-plan",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/pratical-info/dates-access-map",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques/date-acces-plan",
+      "vanityPath": "/en/pratical-info/dates-access-map",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/infos-pratiques/comment-venir-au-salon",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques/comment-venir-au-salon",
+      "vanityPath": "/fr-FR/infos-pratiques/comment-venir-au-salon",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/pratical-info/how-to-get-to-the-exhibition",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/infos-pratiques/comment-venir-au-salon",
+      "vanityPath": "/en/pratical-info/how-to-get-to-the-exhibition",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/exposants-et-animations/liste-des-exposants",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/exposants-et-animations/liste-des-exposants",
+      "vanityPath": "/fr-FR/exposants-et-animations/liste-des-exposants",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/exhibitors-and-events/exhibitor-list",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/exposants-et-animations/liste-des-exposants",
+      "vanityPath": "/en/exhibitors-and-events/exhibitor-list",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/exposants-et-animations/calendrier-des-animations",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/exposants-et-animations/calendrier-des-animations",
+      "vanityPath": "/fr-FR/exposants-et-animations/calendrier-des-animations",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/exhibitors-and-events/events",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/exposants-et-animations/calendrier-des-animations",
+      "vanityPath": "/en/exhibitors-and-events/events",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/billetterie/acheter-mon-ticket",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/billetterie/acheter-mon-ticket",
+      "vanityPath": "/fr-FR/billetterie/acheter-mon-ticket",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/ticketing/buy-my-ticket",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/billetterie/acheter-mon-ticket",
+      "vanityPath": "/en/ticketing/buy-my-ticket",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/billetterie/groupes-cse",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/billetterie/groupes-cse",
+      "vanityPath": "/fr-FR/billetterie/groupes-cse",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/ticketing/groups-cse",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/billetterie/groupes-cse",
+      "vanityPath": "/en/ticketing/groups-cse",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/espace-exposant/offres-de-stand-ultimate-supercar-garage",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/espace-exposant/offres-de-stand-ultimate-supercar-garage",
+      "vanityPath": "/fr-FR/espace-exposant/offres-de-stand-ultimate-supercar-garage",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/exhibitor-area/stand-offers",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/espace-exposant/offres-de-stand-ultimate-supercar-garage",
+      "vanityPath": "/en/exhibitor-area/stand-offers",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/espace-exposant/pourquoi-exposer",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/espace-exposant/pourquoi-exposer",
+      "vanityPath": "/fr-FR/espace-exposant/pourquoi-exposer",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/exhibitor-area/why-exhibit",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/espace-exposant/pourquoi-exposer",
+      "vanityPath": "/en/exhibitor-area/why-exhibit",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse",
+      "vanityPath": "/fr-FR/presse/communique-de-presse",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/press-release",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse",
+      "vanityPath": "/en/press/press-release",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/accreditation-influence",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/accreditation-influence",
+      "vanityPath": "/fr-FR/presse/accreditation-influence",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/accreditation-influence",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/accreditation-influence",
+      "vanityPath": "/en/press/accreditation-influence",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/accreditation-presse",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/accreditation-presse",
+      "vanityPath": "/fr-FR/presse/accreditation-presse",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/accreditation-presse",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/accreditation-presse",
+      "vanityPath": "/en/press/accreditation-presse",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/kit-media",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/kit-media",
+      "vanityPath": "/fr-FR/presse/kit-media",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/kit-media",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/kit-media",
+      "vanityPath": "/en/press/kit-media",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse/annonce",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/annonce",
+      "vanityPath": "/fr-FR/presse/communique-de-presse/annonce",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/press-release/annonce",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/annonce",
+      "vanityPath": "/en/press/press-release/annonce",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse/constructeurs",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/constructeurs",
+      "vanityPath": "/fr-FR/presse/communique-de-presse/constructeurs",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/press-release/constructeurs",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/constructeurs",
+      "vanityPath": "/en/press/press-release/constructeurs",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse/billetterie",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/billetterie",
+      "vanityPath": "/fr-FR/presse/communique-de-presse/billetterie",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/press-release/ticketing",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/billetterie",
+      "vanityPath": "/en/press/press-release/ticketing",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse/cp-bilan-usg26",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/cp-bilan-usg26",
+      "vanityPath": "/fr-FR/presse/communique-de-presse/cp-bilan-usg26",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/press-release/cp-bilan-usg26",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/cp-bilan-usg26",
+      "vanityPath": "/en/press/press-release/cp-bilan-usg26",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse/ULTIMATE-SUPERCAR-GARAGE-UNE-JOURNEE-PRESSE-RYTHMEE-PAR-DES-REVELATIONS-MONDIALES",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/ultimate-supercar-garage-une-journee-presse-rythmee-par-des-revelations-mondiales",
+      "vanityPath": "/fr-FR/presse/communique-de-presse/ULTIMATE-SUPERCAR-GARAGE-UNE-JOURNEE-PRESSE-RYTHMEE-PAR-DES-REVELATIONS-MONDIALES",
+      "matchType": "direct"
+    },
+    {
+      "oldUrl": "/en/press/press-release/Supercar-revelations-mondiales",
+      "lang": "en",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/ultimate-supercar-garage-une-journee-presse-rythmee-par-des-revelations-mondiales",
+      "vanityPath": "/en/press/press-release/Supercar-revelations-mondiales",
+      "matchType": "en-alias"
+    },
+    {
+      "oldUrl": "/fr-FR/presse/communique-de-presse/tendance-supercar",
+      "lang": "fr",
+      "jahiaPath": "/sites/supercar-garage/home/presse/communique-de-presse/tendance-supercar",
+      "vanityPath": "/fr-FR/presse/communique-de-presse/tendance-supercar",
+      "matchType": "direct"
+    }
+  ],
+  "unmatched": [
+    {
+      "url": "/fr-FR/Recherche",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/fr-FR/plan-du-site",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/en/sitemap",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/fr-FR/mentions-legales",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/en/legal-terms",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/fr-FR/protection-donnees",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/en/privacy-policy",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/fr-FR/cookies",
+      "reason": "utility page - no Jahia node"
+    },
+    {
+      "url": "/en/cookies",
+      "reason": "utility page - no Jahia node"
+    }
+  ]
+}

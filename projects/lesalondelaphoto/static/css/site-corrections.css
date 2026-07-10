@@ -1,0 +1,40 @@
+/* site-corrections.css — loaded LAST to win the cascade.
+ *
+ * Jahia re-aggregates the imported theme stylesheets into one file, which changed
+ * the rule order: a `body{font-size:12px}` rule and the Meyer reset's
+ * `font-size:100%` end up overriding the intended base sizes, so on the live page
+ * body computed 12px and h2 collapsed to 12px. The original site (measured from the
+ * MHTML) is body 16px, h2 32px/800, h3 24px/700. Restore those measured values.
+ * These mirror rules already present in the theme — we only re-assert their order. */
+
+body { font-size: 16px; font-family: Roboto, Arial, sans-serif; }
+
+/* top bar sits on a black background — icons/links must be white (they were
+ * falling back to the UA default link blue, rgb(0,0,238)) */
+.top-bar a, .top-bar .socials a, .top-bar .socials i,
+.top-bar .call-back, .top-bar .call-back i, .top-bar .search i { color: #fff; }
+
+h1 { font-size: 2.5rem; font-weight: 900; line-height: 1.1; }
+h2 { font-size: 2rem; font-weight: 800; line-height: 1.35; }
+h3 { font-size: 1.5rem; font-weight: 700; line-height: 1.35; }
+
+/* picture-grid cards: titles 32/800, subtitles 24/700 (measured from reference) */
+.picture-grid .card-body h2 { font-size: 2rem; font-weight: 800; line-height: 1.2; }
+.picture-grid .card-body h3 { font-size: 1.5rem; font-weight: 700; }
+
+/* hero slide title 32/800 */
+.carousel-inner .Slide h2, .field-slidesmalltitle { font-size: 2rem; font-weight: 800; }
+
+/* carousel: the bootstrap `.row` negative margins (-15px each side) push the slide
+ * exactly 30px past the viewport at EVERY width -> horizontal scroll. The slide is a
+ * single full-width item, not a multi-column row, so zero those margins at the source
+ * (eliminating the overflow, not just clipping it) so it adapts to any screen size. */
+.carousel-inner .row { margin-left: 0; margin-right: 0; }
+.carousel-inner .Slide,
+.carousel-inner .component-content,
+.slide-img { max-width: 100%; }
+.slide-img { width: 100%; height: auto; display: block; }
+.carousel-inner { overflow: hidden; }
+
+/* belt-and-suspenders: never allow the page itself to scroll sideways */
+html, body { max-width: 100%; overflow-x: hidden; }

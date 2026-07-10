@@ -1,0 +1,19 @@
+{
+  "_README": "Per-project pixel-parity config, consumed by orchestration/probes/pixel.sh. hideSelectors are applied to BOTH sides (reference + local) before the screenshot: third-party widgets the migration will never reproduce (Chatbase chat bubble) and symmetric floating chrome. pageOverrides relax the threshold for pages whose STATIC reference cannot show client-rendered listing cards (SXA search results render empty in the crawl DOM, while the migrated page correctly shows articles - a structural reference limitation, not a fidelity defect; those pages are covered by the structural fidelity + content gates instead).",
+  "maxDiffPct": 2.0,
+  "referenceOrigin": "https://www.lesalondelaphoto.com",
+  "hideSelectors": [
+    "#chatbase-message-bubbles",
+    "#chatbase-bubble-button",
+    ".go-to-top-wrapper"
+  ],
+  "pageOverrides": {
+    "actualite-photo/actus": {
+      "maxDiffPct": 25.0
+    },
+    "actualite-photo/agenda-photo": {
+      "maxDiffPct": 25.0
+    }
+  },
+  "noiseFloorPct": 0.0
+}

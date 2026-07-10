@@ -667,3 +667,51 @@ If Jahia rejects the type definition (e.g. breaking change), use the **Installed
 - JavaScript modules monorepo: https://github.com/Jahia/javascript-modules
 
 > For CND questions about native mixins (e.g. does `jmix:nolive` exist?), fetch the nodetypes directory above to verify before using.
+
+
+---
+
+## Component reuse — map onto existing types, do not multiply them (moved from AGENTS.md §2b)
+
+Jahia integration pattern: **a content type is reused across many pages; page
+variety comes from views, not new types.** When you discover a new page, you do
+NOT create a component per section. You map each section onto an existing
+`<ns>:` type. This module already ships a full component library.
+
+Order of preference when fitting a discovered section:
+
+1. **Reuse an existing type as-is.** Same fields → same type. Just place a node.
+1b. **Set a layout property** (best UX). If the section differs only by a
+   per-instance toggle (image left/right, columns, colour, size), the type should
+   carry a `(string, choicelist) < …` layout property the view branches on — the
+   contributor flips it in Content Editor. No new view, no new type. Prefer this.
+2. **Add a new view to an existing type.** Markup is **structurally** different
+   but the properties match → add `<variant>.server.tsx` next to
+   `default.server.tsx`, selected at placement (e.g. `newsArticle`: `default`,
+   `card`, `fullPage`). No CND change. (Use a view, not a property, only when the
+   markup truly diverges — not for a simple left/right flip.)
+3. **Extend an existing type** with an optional property only if a field is
+   genuinely missing and the type is otherwise the right fit.
+4. **Create a new type** - last resort. Only when no existing type's property
+   shape fits. This is a deliberate decision: `STOP` and return `status: "halt"`
+   describing the section and why nothing fits, so the operator approves it and
+   the baseline is updated.
+
+Before mapping, list the catalog:
+`bash orchestration/probes/inventory.sh <project_path> <namespace>` - prints
+every type and its existing views.
+
+This is enforced, **per project** (agnostic). After the type set is approved
+(Gate 1), the content-types step writes the project's own baseline:
+`bash orchestration/probes/inventory.sh <project_path> <ns> --write projects/<project>/component-baseline.txt`.
+The content step then runs
+`bash orchestration/probes/no-new-types.sh <project_path> <ns> projects/<project>/component-baseline.txt`;
+it fails if content/page discovery introduces a type not in that project's
+baseline. New views never add a type, so they pass. Two other reuse gates run at
+content-types time: `dup-shapes.sh` (no two types share a property shape) and
+`cnd-review.sh`. To legitimately add a type, the operator approves the `halt` and
+the per-project baseline is regenerated with `inventory.sh --write`.
+(`orchestration/component-baseline.txt` is sial-paris legacy — not used by new
+projects.)
+
+---

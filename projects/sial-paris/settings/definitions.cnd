@@ -1,0 +1,14 @@
+<jnt = 'http://www.jahia.org/jahia/nt/1.0'>
+<jmix = 'http://www.jahia.org/jahia/mix/1.0'>
+<sialp = 'https://www.jahia.org/sialp/nt/1.0'>
+<sialpmix = 'https://www.jahia.org/sialp/mix/1.0'>
+
+// Base component mixin — all droppable content types extend this
+[sialpmix:component] > jmix:droppableContent, jmix:accessControllableContent mixin
+
+// Page-area component mixin — types droppable in page areas extend this
+[sialpmix:pageComponent] > sialpmix:component mixin
+
+// This mixin is used to define which content is allowed to be returned by the JcrQuery content type. Add this mixin
+// to your content type to be able to select it from the "type" props of a JcrQuery content
+[sialpmix:queryContent] mixin

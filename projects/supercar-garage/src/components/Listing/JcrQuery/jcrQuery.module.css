@@ -1,0 +1,67 @@
+.wrapper {
+  width: 100%;
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+}
+
+.editInfo {
+  background: #f0f0f0;
+  border: 1px dashed #999;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1.5rem;
+}
+
+.heading {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.seeAll {
+  font-size: 0.95rem;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.seeAll:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.empty {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

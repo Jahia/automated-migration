@@ -321,6 +321,40 @@ def detect_sxa(htmltext):
 
 _ASSET_REF_RE = re.compile(r'(?<![\w/-])(\.?/?)((?:runtime-)?assets/)')
 
+# ── giant inline data-URIs -> materialized static assets (2026-07-06) ──
+# A skeleton holding a multi-MB base64 image blows the loader's 200_000-char
+# JCR write cap: the property is silently TRUNCATED and the image + all
+# trailing markup vanish from the render (observed: chelseafc 1.1MB + 2.6MB
+# skeletons -> two missing card images, whole-page pixel cascade). Decode any
+# data-URI >= 64KB to a sha1-named file in the mirror assets dir (the same dir
+# import_assets copies to module static) and reference it like any other asset.
+_DATA_URI_DIR = None   # set by main(): <proj>/workflow-output/local-mirror/assets
+_DATA_URI_RE = re.compile(
+    r'(src=["\'])(data:image/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]{65536,}))(["\'])')
+_DATA_URI_EXT = {"png": "png", "jpeg": "jpg", "jpg": "jpg", "gif": "gif",
+                 "webp": "webp", "svg+xml": "svg"}
+
+
+def _materialize_data_uris(html, base):
+    if not _DATA_URI_DIR or "data:image" not in html:
+        return html
+    import base64 as _b64
+    import hashlib as _hl
+
+    def sub(m):
+        try:
+            data = _b64.b64decode(m.group(4))
+        except Exception:
+            return m.group(0)
+        name = _hl.sha1(data).hexdigest()[:16] + "." + _DATA_URI_EXT[m.group(3)]
+        dest = os.path.join(_DATA_URI_DIR, name)
+        if not os.path.isfile(dest):
+            with open(dest, "wb") as f:
+                f.write(data)
+        return m.group(1) + base + "assets/" + name + m.group(5)
+
+    return _DATA_URI_RE.sub(sub, html)
+
 # runtime-manifest URL map (P3): source URLs the mirror serves from its local
 # runtime-assets copies (Sitecore /-/media/..., JS-composed CDN paths). The
 # LIVE page has no offline resolver — every mapped URL must point at the
@@ -361,12 +395,88 @@ def rewrite_asset_refs(html, base):
     (absolute source paths) are rewritten too, raw and attr-escaped forms."""
     if not base or not html:
         return html
+    html = _materialize_data_uris(html, base)
     html = _ASSET_REF_RE.sub(lambda m: base + m.group(2), html)
     for k in sorted(RUNTIME_URL_MAP, key=len, reverse=True):
         if k in html or k.replace("&", "&amp;") in html:
             tgt = base + RUNTIME_URL_MAP[k]
             html = html.replace(k, tgt).replace(k.replace("&", "&amp;"), tgt)
     return html
+
+
+_NAV_SWAP_MARKER = os.environ.get("EXTRACT_NAV_SWAP", "")
+
+
+def _excise_nav(html):
+    """Remove the source main-nav wrapper <div> (balanced div scan, pure string
+    surgery — bs4 reserialization is not byte-idempotent on this markup) and
+    plant __NAV_SLOT__ where it stood. Returns (html, ok)."""
+    i = html.find(f'<div class="{_NAV_SWAP_MARKER}')
+    if i < 0:
+        return html, False
+    depth = 0
+    end = -1
+    for m in re.finditer(r"<(/?)div\b", html[i:], re.I):
+        if m.group(1):
+            depth -= 1
+            if depth == 0:
+                gt = html.find(">", i + m.start())
+                if gt < 0:
+                    return html, False
+                end = gt + 1
+                break
+        else:
+            depth += 1
+    if end < 0:
+        return html, False
+    return html[:i] + "__NAV_SLOT__" + html[end:], True
+
+
+def navify(out, ns):
+    """AIStartupKit rule 19 (tree-driven navigation): swap the FROZEN source
+    nav bar for a typed {ns}:mainNavigation child rendered from the page tree.
+    Applies to every instance whose skeleton carries the configured nav wrapper
+    (EXTRACT_NAV_SWAP, e.g. asr-main-navigation--wrapper) — the per-page inline
+    chrome header on this AEM SPA. Fields/media whose markers sat inside the
+    excised region are dropped so the contribution gate sees no dead props."""
+    if not _NAV_SWAP_MARKER:
+        return 0
+    swapped = 0
+    for inst in out:
+        sk = inst.get("skeleton") or ""
+        if _NAV_SWAP_MARKER not in sk:
+            continue
+        # the source header carries the wrapper TWICE (desktop + mobile menu).
+        # First occurrence -> the tree-driven nav slot; the rest are dropped
+        # (the mobile drawer is a JS widget; the 1440px fidelity render never
+        # shows it — mobile nav is a follow-up on the component itself).
+        new_sk, ok = _excise_nav(sk)
+        if not ok:
+            continue
+        while True:
+            again, more = _excise_nav(new_sk)
+            if not more:
+                break
+            new_sk = again.replace("__NAV_SLOT__", "", 1)
+        children = inst.setdefault("children", [])
+        idx = len(children)
+        new_sk = new_sk.replace("__NAV_SLOT__", "{{child:%d}}" % idx)
+        inst["skeleton"] = new_sk
+        f_marks = set(re.findall(r"\{\{f:([^}]+)\}\}", new_sk))
+        inst["fields"] = {k: v for k, v in (inst.get("fields") or {}).items()
+                          if k in f_marks}
+        med_marks = set(re.findall(r"\{\{media:([^}]+)\}\}", new_sk))
+        inst["media"] = [m for m in (inst.get("media") or [])
+                         if m.get("name") in med_marks]
+        if "{{link:href}}" not in new_sk:
+            inst["link"] = None
+        children.append({"navChild": True, "nodeType": f"{ns}:mainNavigation",
+                         "fields": {}, "skeleton": "",
+                         "skeletonSubs": [], "skeletonMissed": []})
+        inst["skeletonSubs"] = sorted(inst["fields"]) + sorted(
+            k for ch in children for k in (ch.get("fields") or {}))
+        swapped += 1
+    return swapped
 
 
 def _library_atom(plan, parent_idx, facts, name, base):
@@ -684,13 +794,24 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
         if not d["ok"]:
             lift_stats["byteFail"] += 1
             return None
-        if not d["fields"] and not d.get("media") and not d.get("link"):
+        def _has(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        if not _has(d) and not any(_has(ch) for ch in d["children"]):
             return None
+        # decompose can emit {{child:N}} markers even with allow_items=False
+        # (structural non-item children). Dropping d["children"] left those
+        # markers phantom — recompose rendered holes. Carry the child payloads.
         return {"type": "rawHtml", "parent": None, "passthrough": True,
                 "fields": {k: rewrite_asset_refs(v, base)
                            for k, v in d["fields"].items()},
                 "skeleton": rewrite_asset_refs(d["skeleton"], base),
-                "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                "children": [{"fields": {k: rewrite_asset_refs(v, base)
+                                         for k, v in ch["fields"].items()},
+                              "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                              **payload_extras(ch)} for ch in d["children"]],
+                "skeletonSubs": sorted(d["fields"]) + sorted(
+                    k for ch in d["children"] for k in ch["fields"]),
+                "skeletonMissed": [],
                 **payload_extras(d),
                 "images": [], "links": []}
 
@@ -896,12 +1017,30 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     from bs4 import BeautifulSoup, NavigableString, Tag
     ov = overrides or {}
     base = ov.get("assetBase") or ""
+    # contribution dial (G1): library kinds listed here skip LR promotion and
+    # fall back to the SKELETON path, whose decompose lifts their text into
+    # editable body fields. Library atoms keep text VERBATIM (title/image/link
+    # only editable) — right for logoWall (no text), wrong for text-heavy
+    # carousels/tabs (observed: 72% of a city page's visible text locked in
+    # carousel verbatim). From overrides `noLibraryKinds` or the
+    # EXTRACT_NO_LIBRARY_KINDS env (comma-separated), e.g. "carousel,tabs".
+    no_lib_kinds = set(ov.get("noLibraryKinds")
+                       or [s.strip() for s in
+                           os.environ.get("EXTRACT_NO_LIBRARY_KINDS", "").split(",")
+                           if s.strip()])
     itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
     container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
                        if c.get("isContainer") and c.get("childType")}
     # P6.3: the project content namespace (asr) — the library recognizer emits
     # ns:logoWall / ns:logo etc. Derived from the manifest passthroughType.
     ns = ((manifest or {}).get("passthroughType") or "ns:x").split(":")[0]
+
+    def lr_recognize(el):
+        """LR.recognize gated by the noLibraryKinds contribution dial."""
+        plan = LR.recognize(el, ns)
+        if plan is not None and plan.get("kind") in no_lib_kinds:
+            return None
+        return plan
 
     def role_for(vision_name):
         # vision name -> role key present in instanceTypeMap (norm_name, the
@@ -991,12 +1130,23 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         if not d["ok"]:
             lift_stats["byteFail"] += 1
             return None
-        if not d["fields"] and not d.get("media") and not d.get("link"):
+        def _has(pl):
+            return pl.get("fields") or pl.get("media") or pl.get("link")
+        if not _has(d) and not any(_has(ch) for ch in d["children"]):
             return None
+        # same child-marker contract as raw_lifted_instance: decompose can emit
+        # {{child:N}} even with allow_items=False — carry the child payloads or
+        # recompose renders holes (phantom markers).
         return {"type": "rawHtml", "parent": None, "passthrough": True,
                 "fields": {k: rewrite_asset_refs(v, base) for k, v in d["fields"].items()},
                 "skeleton": rewrite_asset_refs(d["skeleton"], base),
-                "skeletonSubs": sorted(d["fields"]), "skeletonMissed": [],
+                "children": [{"fields": {k: rewrite_asset_refs(v, base)
+                                         for k, v in ch["fields"].items()},
+                              "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                              **payload_extras(ch)} for ch in d["children"]],
+                "skeletonSubs": sorted(d["fields"]) + sorted(
+                    k for ch in d["children"] for k in ch["fields"]),
+                "skeletonMissed": [],
                 **payload_extras(d), "images": [], "links": []}
 
     def promote_live(vision_name, el):
@@ -1018,7 +1168,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         except Exception:
             _leaves0 = 0
         # P6.3 GENERIC LIBRARY RECOGNIZER — try to map onto the base library.
-        plan = LR.recognize(el, ns)
+        plan = lr_recognize(el)
         if plan is not None:
             emit_library_plan(plan)
             return None, _leaves0
@@ -1142,6 +1292,12 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         for r in inner:
             k = root_kind.get(id(r))
             role_seq.append(role_for(k[1]) if k and k[0] == "component" else "rawHtml")
+        # vision-classified CHROME roots nested inside the wrapper (AEM SPA: header/
+        # footer live in the content container). They load inline (byte-faithful)
+        # but are tagged so contribution math treats them as chrome, not content —
+        # nav/header text is tree-driven in Jahia, never contributor richtext.
+        chrome_seq = [bool((root_kind.get(id(r)) or ("", ""))[0] == "chrome")
+                      for r in inner]
         # P6.3: BEFORE decompose_group_with_items mutates the inner roots, try to
         # map each onto the base library (fidelity-first). A matched root becomes a
         # library-native COMPOSABLE child (logoWall + typed atoms) instead of a
@@ -1150,7 +1306,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         lib_plans = []
         for r in inner:
             k = root_kind.get(id(r))
-            plan = LR.recognize(r, ns) if (k and k[0] == "component") else None
+            plan = lr_recognize(r) if (k and k[0] == "component") else None
             lib_plans.append(plan)
             if plan is None and k and k[0] == "component":
                 library_gaps.append((role_for(k[1]), LR.library_gap_reason(r)))
@@ -1192,8 +1348,14 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 "type": plan["kind"], "nodeType": plan["nodeType"],
                 "parent": cont_idx, "libraryPlan": True, "promoted": True,
                 "atomType": plan["atomType"], "container": plan["container"],
-                # verbatim root markup -> byte-exact {{child:N}} splice on LIVE
-                "skeleton": rewrite_asset_refs(ch["skeleton"], base),
+                # verbatim root markup -> byte-exact {{child:N}} splice on LIVE.
+                # ch["skeleton"] is the TEMPLATED skeleton (decompose already moved
+                # the field values into ch["fields"]) — storing it with fields={}
+                # rendered literal {{f:*}} holes. Recompose it back to verbatim.
+                "skeleton": rewrite_asset_refs(
+                    SE.recompose_group(ch["skeleton"], ch.get("fields") or {}, [],
+                                       media=ch.get("media"), link=ch.get("link")),
+                    base),
                 "skeletonSubs": [], "skeletonMissed": [],
                 "fields": {}, "images": [], "links": [],
             })
@@ -1217,6 +1379,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 # skeleton == its verbatim markup, byte-identical on LIVE + EDIT.
                 out.append({
                     "type": "rawHtml", "parent": cont_idx, "passthrough": True,
+                    "chromeNested": (chrome_seq[n] if n < len(chrome_seq) else False),
                     "fields": {}, "skeleton": rewrite_asset_refs(ch["skeleton"], base),
                     "skeletonSubs": [], "skeletonMissed": [],
                     "media": [], "mediaTotal": 0, "link": None, "linkTotal": 0,
@@ -1225,6 +1388,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 continue
             out.append({
                 "type": role, "parent": cont_idx, "promoted": True,
+                "chromeNested": (chrome_seq[n] if n < len(chrome_seq) else False),
                 "fields": rw_fields(ch["fields"]),
                 "skeleton": rewrite_asset_refs(ch["skeleton"], base),
                 **payload_extras(ch),
@@ -1247,15 +1411,28 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
     #   * a root-free wrapper -> lift text runs live | verbatim
     #   * a text node (incl. whitespace) -> verbatim (bytes contract)
     from bs4 import Comment
+    # Consecutive non-Tag body children (whitespace runs, comments) MERGE into
+    # ONE raw instance per gap. They are pixel-invisible but each used to load
+    # as its own anonymous rawHtml node — 828 whitespace + 383 comment nodes
+    # across 20 pages made the jContent tree unreadable (2026-07-06 component-
+    # model doctrine). Merging keeps the bytes contract intact: concatenation
+    # in document order reconstructs the body exactly.
+    pend = []
+
+    def _flush_pend():
+        t = "".join(pend)
+        pend.clear()
+        if t:
+            out.append(raw_instance(t))
+
     for child in list(body.children):
         if not isinstance(child, Tag):
             # bs4 str(Comment) yields the BARE text — the <!-- --> markers must be
             # re-wrapped or comment content becomes VISIBLE text and the page body
             # is no longer byte-exact (rule 32; same fix as page_shell's ser()).
-            t = f"<!--{child}-->" if isinstance(child, Comment) else str(child)
-            if t:  # preserve ALL text incl. whitespace (bytes contract)
-                out.append(raw_instance(t))
+            pend.append(f"<!--{child}-->" if isinstance(child, Comment) else str(child))
             continue
+        _flush_pend()
         if id(child) in root_ids:
             _emit_root(child)
             continue
@@ -1265,10 +1442,12 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             emit_container_live(child, inner)
             continue
         out.append(raw_lifted_live(child) or raw_instance(str(child)))
+    _flush_pend()
 
     # empty-leaf accounting for the loader (containers keep, empty leaves flagged).
     # Library atoms carry their content in imageFile/imgOrig/href (not fields/
     # images/links) — they are NEVER empty (a real editable node the loader wires).
+    navify(out, ns)
     parents = {i["parent"] for i in out if i.get("parent") is not None}
     for idx, i in enumerate(out):
         if i.get("libraryPlan") or i.get("libraryAtom"):
@@ -1337,6 +1516,10 @@ def main():
     # reference modules only.
     force_sxa = "--adapter" in sys.argv and "sxa" in sys.argv
     proj = f"projects/{project}"
+    global _DATA_URI_DIR
+    _DATA_URI_DIR = os.path.join(proj, "workflow-output", "local-mirror", "assets")
+    if not os.path.isdir(_DATA_URI_DIR):
+        _DATA_URI_DIR = None
     pages = captured_pages(proj)
     if not pages:
         sys.exit(f"extract_content: no captured pages under {proj}/.reference")

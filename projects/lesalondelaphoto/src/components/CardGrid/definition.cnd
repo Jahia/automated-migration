@@ -1,0 +1,4 @@
+[lsp:cardGrid] > jnt:content, lspmix:pageComponent
+ - heading (string) i18n
+ - columns (string, choicelist) = '3' autocreated < '2', '3', '4'
+ + * (lsp:hero)

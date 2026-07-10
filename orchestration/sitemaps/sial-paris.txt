@@ -1,0 +1,48 @@
+# SIAL Paris target sitemap - paths relative to /sites/sial-paris/home
+# NODE NAMES ARE LOWERCASE: Jahia lowercases jnt:page node names on create, so
+# these must be lowercase to match the live tree (and what content.sh renders).
+# Original mixed-case display URLs (SIAL-Talks, Livres-blancs) are restored as
+# vanity URLs in step 13, not as node names. One path per line; home = home page.
+home
+
+# --- le-salon ---
+le-salon
+le-salon/top-acheteurs-programme
+le-salon/pourquoi-visiter-sial-paris
+le-salon/sial-newsfeed-trends
+le-salon/nos-partenaires
+
+# --- existing sections kept (per scope decision) ---
+les-exposants
+medias
+
+# --- temps-forts ---
+temps-forts
+temps-forts/sial-talks
+temps-forts/sial-summits
+
+# --- tendances ---
+tendances
+tendances/actualites
+tendances/focus
+tendances/focus/proteines
+tendances/livres-blancs
+tendances/livres-blancs/sial-insights-2024
+
+# --- infos-pratiques ---
+infos-pratiques
+infos-pratiques/dates-et-acces
+infos-pratiques/tarifs-visiteurs
+infos-pratiques/vip-ticket
+infos-pratiques/sial-off
+infos-pratiques/faq
+infos-pratiques/contacts
+
+# --- exposer (NEW top-level section) ---
+exposer
+exposer/je-veux-exposer
+exposer/je-veux-exposer/je-suis-une-start-up
+exposer/les-secteurs-du-salon
+exposer/les-secteurs-du-salon/boissons-sans-alcool
+exposer/augmentez-votre-visibilite
+exposer/augmentez-votre-visibilite/outils-de-communication-sial-paris

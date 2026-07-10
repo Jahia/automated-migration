@@ -1,0 +1,517 @@
+{
+  "run_id": "run_1783159873020",
+  "model": "deepseek/deepseek-v4-flash",
+  "timestamp": "2026-07-04T10:13:43Z",
+  "total": {
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "tokens_cache": 0,
+    "cost_input": 0.0,
+    "cost_output": 0.0,
+    "cost_cache": 0.0,
+    "cost_total": 0.0,
+    "model": "deepseek/deepseek-v4-flash",
+    "pricing": {
+      "input_per_1m": 0.07,
+      "output_per_1m": 0.28,
+      "cache_read_per_1m": 0.014
+    }
+  },
+  "steps": [
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_connect",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 45.536865234375
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_crawl",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 162.904052734375
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_extract_blocks",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 139.455810546875
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_template_cluster",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 128.06689453125
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_component_discover",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 131.572998046875
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_component_model",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 720.10205078125
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_html_fragments",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": 134.67138671875
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_content_extract",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_asset_inventory",
+      "story_id": "story_analyze",
+      "epic_id": "epic_foundation",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_scaffold",
+      "story_id": "story_scaffold",
+      "epic_id": "epic_scaffold_assets",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_assets",
+      "story_id": "story_assets",
+      "epic_id": "epic_scaffold_assets",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_content_types",
+      "story_id": "story_content_types",
+      "epic_id": "epic_content_model",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_navigation",
+      "story_id": "story_navigation",
+      "epic_id": "epic_content_model",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_jcr_query",
+      "story_id": "story_listing",
+      "epic_id": "epic_content_model",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_grid_row",
+      "story_id": "story_listing",
+      "epic_id": "epic_content_model",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_components",
+      "story_id": "story_components",
+      "epic_id": "epic_components_templates",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_templates",
+      "story_id": "story_templates",
+      "epic_id": "epic_components_templates",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_deploy",
+      "story_id": "story_templates",
+      "epic_id": "epic_components_templates",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_site",
+      "story_id": "story_templates",
+      "epic_id": "epic_components_templates",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_media",
+      "story_id": "story_content",
+      "epic_id": "epic_content_quality",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_content_load",
+      "story_id": "story_content",
+      "epic_id": "epic_content_quality",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_content",
+      "story_id": "story_content",
+      "epic_id": "epic_content_quality",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_review",
+      "story_id": "story_review",
+      "epic_id": "epic_content_quality",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_accessibility",
+      "story_id": "story_review",
+      "epic_id": "epic_content_quality",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_visual_diff",
+      "story_id": "story_visual_diff",
+      "epic_id": "epic_fidelity_golive",
+      "duration_ms": null
+    },
+    {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cache": 0,
+      "cost_input": 0.0,
+      "cost_output": 0.0,
+      "cost_cache": 0.0,
+      "cost_total": 0.0,
+      "model": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1m": 0.07,
+        "output_per_1m": 0.28,
+        "cache_read_per_1m": 0.014
+      },
+      "step_id": "step_vanity",
+      "story_id": "story_vanity",
+      "epic_id": "epic_fidelity_golive",
+      "duration_ms": null
+    }
+  ],
+  "step_count": 26
+}

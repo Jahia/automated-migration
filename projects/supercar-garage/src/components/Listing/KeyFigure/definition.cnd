@@ -1,0 +1,4 @@
+[usg:keyFigure] > jnt:content, usgmix:component
+ - value (string) mandatory
+ - label (string) i18n mandatory
+ - iconClass (string)

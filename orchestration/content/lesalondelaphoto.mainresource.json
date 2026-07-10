@@ -1,0 +1,21 @@
+{
+  "_README": "Declares the jmix:mainResource content architecture for this source. mainResource units (news articles, agenda items) are NOT pages — they are content nodes created inside a jnt:contentFolder AFTER media import, then referenced by a listing page's lsp:jcrQuery.startNode. Human-editable. Consumed by orchestration/lib/load_main_resources.py and gated by orchestration/probes/startnode.sh. urlPrefixes are matched against each content-load page's source URL (resolved from the crawl cache tree); listingPages are the sitemap page slugs whose jcrQuery.startNode must point at this folder.",
+  "contentsBase": "contents",
+  "chromeTypes": ["top-bar", "header-navigation", "plain-html", "navigation", "image-de-fond", "breadcrumb", "snippet", "previous-next", "footer", "link"],
+  "titleType": "title",
+  "bodyTypes": ["content", "rich-text", "video-content-block"],
+  "folders": {
+    "articles": {
+      "type": "lsp:newsArticle",
+      "urlPrefixes": ["actualite-photo/actus"],
+      "listingPages": ["actus", "actualite-photo/actus", "actualites", "actualite-photo"],
+      "fieldMap": {"title": "titre", "publishDate": "date-de-publication", "summary": "sous-titre"}
+    },
+    "agenda": {
+      "type": "lsp:agendaItem",
+      "urlPrefixes": ["actualite-photo/agenda-photo"],
+      "listingPages": ["agenda-photo", "actualite-photo/agenda-photo"],
+      "fieldMap": {"title": "titre", "date": "date-de-publication", "location": "sous-titre"}
+    }
+  }
+}

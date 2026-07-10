@@ -1,0 +1,6 @@
+[usg:pressRelease] > jnt:content, usgmix:component, mix:title, jmix:mainResource, jmix:tagged
+ - publishDate (date)
+ - image (weakreference, picker[type='image']) < jmix:image
+ - summary (string, richtext) i18n
+ - bodyContent (string, richtext) i18n
+ - pressContact (string)

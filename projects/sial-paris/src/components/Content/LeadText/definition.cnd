@@ -1,0 +1,2 @@
+[sialp:leadText] > jnt:content, sialpmix:pageComponent
+ - text (string, richtext) i18n

@@ -1,0 +1,79 @@
+.pricingTable {
+  padding: 3rem 0;
+}
+
+.pricingHeading {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.pricingIntro {
+  margin-bottom: 2rem;
+  color: var(--color-text-muted, #555);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border, #ddd);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.emptyCorner {
+  background: transparent;
+  border: 1px solid var(--color-border, #ddd);
+}
+
+.columnHeader {
+  background: var(--color-primary, #0a3161);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.row:nth-child(even) {
+  background: var(--color-surface-alt, #f5f5f5);
+}
+
+.rowLabel {
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--color-surface, #fafafa);
+}
+
+.cell {
+  color: var(--color-text, #222);
+}
+
+.pricingNote {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted, #777);
+}
+
+.ctaWrapper {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+}

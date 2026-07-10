@@ -1,0 +1,4 @@
+[lsp:editorialBlock] > jnt:content, lspmix:pageComponent, lspmix:media
+ - heading (string) i18n mandatory
+ - body (string, richtext) i18n
+ - imagePosition (string, choicelist) = 'left' autocreated < 'left', 'right'

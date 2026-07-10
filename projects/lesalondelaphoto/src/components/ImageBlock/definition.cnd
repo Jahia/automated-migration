@@ -1,0 +1,2 @@
+[lsp:imageBlock] > jnt:content, lspmix:pageComponent, lspmix:media
+ - caption (string) i18n

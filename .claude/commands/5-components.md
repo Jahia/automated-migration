@@ -205,6 +205,16 @@ export const CMPreview = ({ children }: { children: ReactNode }) => (
 
 Skip if these files already exist.
 
+### `cm.server.tsx` — REQUIRED for EVERY content type (jContent preview)
+
+Every component — not only `needsFullPage`/`mainResource` ones — must ship a `cm.server.tsx` (`name: "cm"`, `componentType: "view"`) that wraps the node in `CMPreview`, so it previews standalone in the jContent editor. **Fastest path — run the scaffolder once; it generates all of them plus `CMPreview.tsx` (derived from `Layout.tsx`):**
+
+```bash
+python3 orchestration/lib/scaffold_cm_views.py "$PROJECT_DIR"
+```
+
+For a `needsFullPage` type the `cm` view renders the `fullPage` view; for every other type it renders the `default` view. `components-all.sh` FAILS any content type missing its `cm` view (and fails if `CMPreview.tsx` is absent).
+
 **Also check if the module uses `useGQLQuery`** (GraphQL queries, not just `useJCRQuery`). If any component uses GraphQL queries, create the OSGi authorization config:
 
 ```bash
@@ -286,16 +296,11 @@ Exact HTML structure this component must output (replace {placeholders} with pro
 
 ## Extra files required when needsFullPage is true
 
-If `Needs full page: true`, create these files IN ADDITION to `default.server.tsx`:
+If `Needs full page: true`, create this file IN ADDITION to `default.server.tsx`:
 1. `fullPage.server.tsx` — `name: "fullPage"`, `componentType: "view"` — full article/detail layout
-2. `cm.server.tsx` — `name: "cm"`, `componentType: "view"` — jContent editor preview, wraps fullPage in CMPreview:
-   ```tsx
-   import { CMPreview } from "../../templates/CMPreview.jsx";
-   jahiaComponent(
-     { componentType: "view", nodeType: "ns:type", name: "cm", displayName: "..." },
-     (_, { currentNode }) => <CMPreview><Render node={currentNode as JCRNodeWrapper} view="fullPage" /></CMPreview>
-   );
-   ```
+
+The `cm.server.tsx` (jContent preview) view is **NOT** specific to `needsFullPage` — it is required for EVERY content type (see "`cm.server.tsx` — REQUIRED for EVERY content type" above, and `scaffold_cm_views.py`). For a `needsFullPage` type the scaffolder wires its `cm` view to `fullPage`; otherwise to `default`.
+
 Also add `jmix:mainResource` and `jmix:visibleInContentTree` to the CND supertypes.
 The unified `src/templates/MainResource/default.server.tsx` is already created by the orchestrator — do NOT recreate it.
 ```

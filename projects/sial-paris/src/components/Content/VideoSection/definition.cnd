@@ -1,0 +1,5 @@
+[sialp:videoSection] > jnt:content, sialpmix:pageComponent
+ - heading (string) i18n
+ - tagline (string) i18n
+ - videoUrl (string)
+ - thumbnailImage (weakreference, picker[type='image'])

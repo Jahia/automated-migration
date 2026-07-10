@@ -1,0 +1,11 @@
+[sialp:personCard] > jnt:content
+ - photo (weakreference, picker[type='image'])
+ - name (string) i18n
+ - role (string) i18n
+ - bio (string, richtext) i18n
+ - linkLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:peopleGrid] > jnt:content, sialpmix:pageComponent, mix:title, jmix:list, jmix:renderableList, jmix:cache orderable
+ - intro (string, richtext) i18n
+ + * (sialp:personCard) = sialp:personCard

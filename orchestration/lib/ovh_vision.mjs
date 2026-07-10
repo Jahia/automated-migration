@@ -8,8 +8,21 @@ import path from 'path';
 import { PNG } from 'pngjs';
 import { appendUsage, normalizeOpenAIUsage } from './llm_ledger.mjs';
 
-const OVH_URL = 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions';
-export const OVH_VISION_MODEL = 'Qwen2.5-VL-72B-Instruct';
+// Provider override (VISION_* env, injected into probes via the repo .env.local):
+// point the segmentation at any OpenAI-compatible endpoint. Text-only endpoints
+// (DeepSeek rejects the `image_url` content variant outright with a 400) must also
+// set VISION_TEXT_ONLY=1 so the screenshot part is dropped from the request — the
+// numbered outline (tag/class, geometry, BG/LEAF flags, snippets) carries the call.
+const VISION_URL = process.env.VISION_BASE_URL
+  ? process.env.VISION_BASE_URL.replace(/\/+$/, '') + '/chat/completions'
+  : 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions';
+export const OVH_VISION_MODEL = process.env.VISION_MODEL || 'Qwen2.5-VL-72B-Instruct';
+export const VISION_TEXT_ONLY = process.env.VISION_TEXT_ONLY === '1';
+// Per-call abort. 180s fits OVH vision; a text-only endpoint emitting the full
+// components JSON for a 400+ block outline can legitimately run longer.
+const VISION_TIMEOUT_MS = Number(process.env.VISION_TIMEOUT_MS) || 180000;
+const VISION_PROVIDER = !process.env.VISION_BASE_URL ? 'ovh'
+  : VISION_URL.includes('deepseek') ? 'deepseek-direct' : 'custom';
 
 // ── LLM usage ledger wiring ───────────────────────────────────────
 // ovh_vision doesn't own a project context. The ONLY in-code caller today is
@@ -48,6 +61,7 @@ export function resolveLedgerProject(explicit) {
 }
 
 export function ovhKey() {
+  if (process.env.VISION_API_KEY) return process.env.VISION_API_KEY;
   if (process.env.OVH_API_KEY) return process.env.OVH_API_KEY;
   try {
     const cfg = fs.readFileSync(path.join(os.homedir(), '.config/opencode/opencode.jsonc'), 'utf8');
@@ -56,7 +70,7 @@ export function ovhKey() {
     const keys = [...seg.matchAll(/"apiKey"\s*:\s*"([^"]+)"/g)].map(m => m[1]);
     if (keys.length) return keys[keys.length - 1];
   } catch { /* fall through */ }
-  throw new Error('no OVH API key ($OVH_API_KEY or opencode.jsonc kepler block)');
+  throw new Error('no vision API key ($VISION_API_KEY, $OVH_API_KEY or opencode.jsonc kepler block)');
 }
 
 // Downscale a PNG buffer to <= maxW wide and <= maxH tall by an INTEGER box average
@@ -85,19 +99,30 @@ export function downscalePng(buf, maxW = 820, maxH = 4000) {
 
 // One vision+text call. `text` is the prompt, `pngBuf` the (already-downscaled) image.
 // Returns the assistant's raw string. maxTokens generous (the model reasons + emits JSON).
-export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
+// VISION_MAX_TOKENS overrides the default cap: a 500-block outline (discoverasr home)
+// legitimately needs > 8000 output tokens for its components JSON — DeepSeek returns
+// EMPTY content when json_object output is truncated at max_tokens (observed 2026-07-06:
+// tokens_out == 8000 exactly, 0-char reply).
+const VISION_MAX_TOKENS = Number(process.env.VISION_MAX_TOKENS) || 8000;
+export async function ovhVision(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
   const key = ovhKey();
   const content = [{ type: 'text', text }];
-  if (pngBuf) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });
-  const body = JSON.stringify({ model, max_tokens: maxTokens, temperature, messages: [{ role: 'user', content }] });
+  if (pngBuf && !VISION_TEXT_ONLY) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });
+  const body = JSON.stringify({
+    model, max_tokens: maxTokens, temperature,
+    // JSON-mode: DeepSeek's v4 models burn the budget in reasoning_content and can
+    // return an EMPTY content (or prose) without it. Prompts already demand JSON.
+    ...(process.env.VISION_JSON === '1' ? { response_format: { type: 'json_object' } } : {}),
+    messages: [{ role: 'user', content }],
+  });
   const project = resolveLedgerProject(ledgerProject);
   const callerName = caller || `ovh_vision:${(process.argv[1] && path.basename(process.argv[1])) || 'unknown'}`;
   const t0 = Date.now();
-  const resp = await fetch(OVH_URL, {
+  const resp = await fetch(VISION_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body,
-    signal: AbortSignal.timeout(180000),
+    signal: AbortSignal.timeout(VISION_TIMEOUT_MS),
   });
   // Ledger EVERY call that produced a response — success AND failed-with-response
   // (the call was billed regardless). Only a thrown network error (no response)
@@ -105,7 +130,7 @@ export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 
   const record = (usage, extraMeta) => {
     const u = normalizeOpenAIUsage(usage);
     appendUsage(project, {
-      provider: 'ovh', caller: callerName, model,
+      provider: VISION_PROVIDER, caller: callerName, model,
       tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_cache: u.tokens_cache,
       usage_missing: u.usage_missing,
       meta: { duration_ms: Date.now() - t0, ...(extraMeta || {}) },
@@ -114,7 +139,7 @@ export async function ovhVision(text, pngBuf, { maxTokens = 8000, temperature = 
   if (!resp.ok) {
     const errText = (await resp.text()).slice(0, 300);
     record(null, { status: resp.status, error: true });
-    throw new Error(`OVH ${resp.status}: ${errText}`);
+    throw new Error(`${VISION_PROVIDER} ${resp.status}: ${errText}`);
   }
   const d = await resp.json();
   record(d.usage, { status: resp.status });

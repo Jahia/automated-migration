@@ -1,0 +1,10 @@
+[sialp:keyFigure] > jnt:content
+ - icon (string)
+ - number (string)
+ - unit (string) i18n
+ - label (string) i18n
+
+[sialp:keyFigures] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - overline (string) i18n
+ - heading (string) i18n
+ + * (sialp:keyFigure)

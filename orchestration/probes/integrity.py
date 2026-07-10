@@ -152,21 +152,32 @@ class Jahia:
         return out.get("data") or {}
 
     def page_children(self, site: str, workspace: str) -> list[str]:
-        """jnt:page children of /sites/<site>/home (the flat page tree)."""
+        """jnt:page DESCENDANTS of /sites/<site>/home — the tree may be
+        hierarchical (sitemap-driven nav sections, AIStartupKit rule 19), so a
+        flat children query under-reports moved pages."""
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "/sites/%s/home") { '
-             'children(typesFilter: {types: ["jnt:page"]}) { nodes { name } } } } }'
+             'descendants(typesFilter: {types: ["jnt:page"]}) { nodes { name } } } } }'
              % (workspace, site))
         d = self.gql(q)
         node = (d.get("jcr") or {}).get("nodeByPath")
         if not node:
             return []
-        return [n["name"] for n in node["children"]["nodes"]]
+        return [n["name"] for n in node["descendants"]["nodes"]]
+
+    def _page_base(self, site: str, page_name: str) -> str:
+        """JCR path of a page node: /home for "home", else the sitemap-resolved
+        hierarchical path (orchestration/sitemaps/<project>.txt — nav sections,
+        AIStartupKit rule 19) with the flat /home/<name> fallback."""
+        if page_name == "home":
+            return f"/sites/{site}/home"
+        rel = _sitemap_paths().get(page_name.lower(), page_name)
+        return f"/sites/{site}/home/{rel}"
 
     def main_area_count(self, site: str, page_name: str, workspace: str) -> int | None:
         """Recursive count of content descendants under a page's /main area.
         Returns None when the /main area node does not exist yet (Jahia lazy-
         creates it) — distinct from 0 (area exists, empty)."""
-        path = f"/sites/{site}/home/{page_name}/main"
+        path = f"{self._page_base(site, page_name)}/main"
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
              'descendants { nodes { name } } } } }' % (workspace, path))
         try:
@@ -187,7 +198,7 @@ class Jahia:
         stale LIVE node keeps its OLD uuid while the reload's EDIT node has a NEW
         one (observed live: 925 EDIT-vs-LIVE uuid mismatches from a silently
         aborted purge)."""
-        path = f"/sites/{site}/home/{page_name}/main"
+        path = f"{self._page_base(site, page_name)}/main"
         q = ('{ jcr(workspace: %s) { nodeByPath(path: "%s") { '
              'children { nodes { name uuid } } } } }' % (workspace, path))
         try:
@@ -215,6 +226,30 @@ class Jahia:
 
 
 # ── expectations (mechanical, artifact-derived) ──────────────────────────────
+_SITEMAP_CACHE: dict | None = None
+_SITEMAP_PROJECT: str | None = None
+
+
+def _sitemap_paths() -> dict:
+    """leaf page name (lowercase) -> relative path under /home, from
+    orchestration/sitemaps/<project>.txt (empty when absent = flat tree)."""
+    global _SITEMAP_CACHE
+    if _SITEMAP_CACHE is not None:
+        return _SITEMAP_CACHE
+    out: dict = {}
+    proj = (_SITEMAP_PROJECT or "").split("/")[-1]
+    try:
+        for line in open(os.path.join(REPO_ROOT, "orchestration", "sitemaps", f"{proj}.txt")):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            out[line.split("/")[-1].lower()] = line
+    except OSError:
+        pass
+    _SITEMAP_CACHE = out
+    return out
+
+
 def load_json(path: str, default=None):
     try:
         with open(path) as f:
@@ -229,12 +264,25 @@ def expected_pages(pp: str) -> list[str]:
     "home" which maps to /home itself (no distinct child node)."""
     inv = load_json(os.path.join(REPO_ROOT, pp, "workflow-output", "page-inventory.json"), {})
     names = []
+    hs = home_slug(pp)
     for p in inv.get("pages", []):
         slug = p.get("slug")
-        if not slug or slug == "home":
+        if not slug or slug == "home" or slug == hs:
             continue
         names.append(slug)
     return names
+
+
+def home_slug(pp: str) -> str | None:
+    """The inventory slug that IS the site home (url == siteUrl; fallback: first
+    crawled page) — same rule as load_content._home_slug / create_pages. That
+    slug maps to /sites/<site>/home itself, never /home/<slug>."""
+    inv = load_json(os.path.join(REPO_ROOT, pp, "workflow-output", "page-inventory.json"), {})
+    site_url = (inv.get("siteUrl") or "").rstrip("/")
+    for p in inv.get("pages", []):
+        if (p.get("url") or "").rstrip("/") == site_url:
+            return p.get("slug")
+    return inv["pages"][0].get("slug") if inv.get("pages") else None
 
 
 def expected_instances(project: str) -> dict[str, int]:
@@ -250,6 +298,11 @@ def expected_instances(project: str) -> dict[str, int]:
         top = [i for i in insts if not i.get("area") and i.get("parent") is None]
         child_items = sum(len(i.get("children") or []) for i in insts if not i.get("area"))
         out[slug] = len(top) + child_items
+    # the home slug's content lives under /home/main — remap it to "home" so
+    # every downstream check (which special-cases "home") resolves the path.
+    hs = home_slug(os.path.join("projects", project))
+    if hs and hs != "home" and hs in out:
+        out["home"] = out.pop(hs)
     return out
 
 
@@ -459,6 +512,8 @@ def main() -> int:
     a = ap.parse_args()
 
     pp = a.project_path.rstrip("/")
+    global _SITEMAP_PROJECT
+    _SITEMAP_PROJECT = pp
     report = run(pp, a.site, a.phase, a.min_ratio)
 
     out_dir = os.path.join(REPO_ROOT, pp, "workflow-output")

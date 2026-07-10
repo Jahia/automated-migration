@@ -1,0 +1,3 @@
+[usg:imageBlock] > jnt:content, usgmix:pageComponent
+ - image (weakreference, picker[type='image']) mandatory < jmix:image
+ - alt (string) i18n

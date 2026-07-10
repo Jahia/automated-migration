@@ -32,6 +32,21 @@ type JCRNode = {
   getNodes: () => { hasNext: () => boolean; nextNode: () => JCRNode };
 };
 
+/** True when the child carries a `skeleton` property (string-composable);
+ *  false = a typed VIEW child (e.g. mainNavigation) that must render through
+ *  Jahia's pipeline (<Render node/>) on LIVE as well as EDIT. */
+export const hasSkeletonProp = (n: JCRNode): boolean => {
+  try {
+    const it = n.getProperties();
+    while (it.hasNext()) {
+      if (String(it.nextProperty().getName()) === "skeleton") return true;
+    }
+  } catch {
+    /* unreadable */
+  }
+  return false;
+};
+
 export const escapeHtml = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 export const escapeAttr = (s: string): string =>
@@ -145,6 +160,7 @@ export function nodePayload(node: JCRNode): Payload {
         else if (name === "jcr:title") values.title = p.getString();
         else if (name === "linkLabel") values.linkLabel = p.getString();
         else if (name === "body" || /^body\d+$/.test(name)) values[name] = p.getString();
+        else if (name === "label" || /^label\d+$/.test(name)) values[name] = p.getString();
         else if (/^image\d*Orig$/.test(name)) origs[name.replace(/Orig$/, "")] = p.getString();
         else if (/^image\d*OrigRef$/.test(name)) origRefs[name.replace(/OrigRef$/, "")] = p.getString();
         else if (/^image\d*$/.test(name)) chosen[name] = p.getNode();

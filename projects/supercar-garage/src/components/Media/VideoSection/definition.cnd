@@ -1,0 +1,4 @@
+[usg:videoSection] > jnt:content, usgmix:pageComponent
+ - j:linkType (string, choicelist[linkTypeInitializer]) mandatory
+ - caption (string) i18n
+ - description (string, richtext) i18n

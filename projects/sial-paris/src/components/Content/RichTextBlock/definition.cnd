@@ -1,0 +1,4 @@
+[sialp:richTextBlock] > jnt:content, sialpmix:pageComponent
+ - overline (string) i18n
+ - heading (string) i18n
+ - body (string, richtext) i18n

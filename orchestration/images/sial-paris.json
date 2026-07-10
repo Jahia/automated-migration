@@ -1,0 +1,127 @@
+{
+  "_README": "Per-page image manifest captured from the reference site via browser (the headless loop agent cannot fetch the bot-blocked site). Run orchestration/images/import.py to import each via the global jahia-image-proxy servlet; it writes sial-paris.imported.json (page -> imported JCR node paths) which the content step references. Keys are sitemap page paths (lowercase). src is relative to base.",
+  "destRoot": "/sites/sial-paris/files/migrated",
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "pages": {
+    "infos-pratiques": [
+      {"src": "banner/SIAL-Paris-dates-acces.jpg", "file": "banner-infos-pratiques.jpg", "role": "hero"},
+      {"src": "commun/Kiwi-fond-noir-585X550px.jpg", "file": "kiwi-fond-noir.jpg", "role": "section"}
+    ],
+    "infos-pratiques/dates-et-acces": [
+      {"src": "banner/SIAL-Paris-dates-acces.jpg", "file": "banner-dates-acces.jpg", "role": "hero"},
+      {"src": "commun/Kiwi-fond-noir-585X550px.jpg", "file": "kiwi-fond-noir.jpg", "role": "section"}
+    ],
+    "infos-pratiques/tarifs-visiteurs": [
+      {"src": "infos-pratiques/Banner-tarifs.jpg", "file": "banner-tarifs.jpg", "role": "hero"},
+      {"src": "infos-pratiques/Tarifs-2026.jpg", "file": "tarifs-2026.jpg", "role": "section"},
+      {"src": "infos-pratiques/admission-terms.jpg", "file": "admission-terms.jpg", "role": "section"},
+      {"src": "infos-pratiques/VISA.jpg", "file": "visa.jpg", "role": "section"},
+      {"src": "infos-pratiques/vestiaire-SIAL-Paris.jpg", "file": "vestiaire-sial-paris.jpg", "role": "section"}
+    ],
+    "infos-pratiques/vip-ticket": [
+      {"src": "infos-pratiques/badge-VIP/SIAL-Le-Club.jpg", "file": "sial-le-club.jpg", "role": "hero"},
+      {"src": "infos-pratiques/badge-VIP/lounge-sial-evenement-discussions.jpg", "file": "lounge-sial.jpg", "role": "section"}
+    ],
+    "infos-pratiques/sial-off": [
+      {"src": "infos-pratiques/SIAL-Off/Banner-SIAL-Off.jpg", "file": "banner-sial-off.jpg", "role": "hero"},
+      {"src": "infos-pratiques/SIAL-Off/Explore-an-exclusive-selection-of-the-most-soughtafter-spots-in-the-city-chosen-for-their-vibrant-at.jpg", "file": "explore-spots.jpg", "role": "section"}
+    ],
+    "infos-pratiques/faq": [
+      {"src": "banner/SIAL-Paris-FAQ-banner.jpg", "file": "banner-faq.jpg", "role": "hero"},
+      {"src": "infos-pratiques/SIAL-Paris-FAQ-Visiteur-pp.jpg", "file": "faq-visiteur.jpg", "role": "section"},
+      {"src": "infos-pratiques/SIAL-Paris-FAQ-Exposant-pp.jpg", "file": "faq-exposant.jpg", "role": "section"}
+    ],
+    "infos-pratiques/contacts": [
+      {"src": "banner/banner-SIAL-Paris-contacts.jpg", "file": "banner-contacts.jpg", "role": "hero"},
+      {"src": "Contacts/cb-Alexandra-Benmoussa.jpg", "file": "alexandra-benmoussa.jpg", "role": "person"},
+      {"src": "Contacts/Valentina-Giudici.jpg", "file": "valentina-giudici.jpg", "role": "person"},
+      {"src": "Contacts/cb-Audrey-Ashworth.jpg", "file": "audrey-ashworth.jpg", "role": "person"}
+    ],
+    "le-salon": [
+      {"src": "le-salon/Notre-histoire/SIAL-Paris-Notre-Histoire.jpg", "file": "notre-histoire.jpg", "role": "hero"},
+      {"src": "le-salon/Notre-histoire/SIAL-Innovation.jpg", "file": "sial-innovation.jpg", "role": "section"}
+    ],
+    "le-salon/top-acheteurs-programme": [
+      {"src": "le-salon/Top-Buyer/reunion-professionnels-salon-pro.jpg", "file": "top-buyer-hero.jpg", "role": "hero"},
+      {"src": "le-salon/Top-Buyer/Why-join-the-Top-Buyers-programme.jpg", "file": "why-join.jpg", "role": "section"},
+      {"src": "le-salon/Top-Buyer/How-to-apply.jpg", "file": "how-to-apply.jpg", "role": "section"}
+    ],
+    "le-salon/pourquoi-visiter-sial-paris": [
+      {"src": "le-salon/Why-visit/why-visit.jpg", "file": "why-visit.jpg", "role": "hero"},
+      {"src": "le-salon/Why-visit/SIAL-Paris-salon-ideal-business-notoriete.jpg", "file": "salon-ideal-business.jpg", "role": "section"},
+      {"src": "le-salon/Why-visit/SIAL-un-salon-different-des-autres.jpg", "file": "salon-different.jpg", "role": "section"}
+    ],
+    "le-salon/sial-newsfeed-trends": [
+      {"src": "banner/Article-newsfeed--trends.jpg", "file": "banner-newsfeed.jpg", "role": "hero"}
+    ],
+    "le-salon/nos-partenaires": [
+      {"src": "banner/banner-SIAL-Paris-contacts.jpg", "file": "banner-partenaires.jpg", "role": "hero"}
+    ],
+    "temps-forts/sial-talks": [
+      {"src": "temps-forts/SIAL-Talks/banniere-SIAL-Talks.jpg", "file": "banner-sial-talks.jpg", "role": "hero"},
+      {"src": "temps-forts/SIAL-Talks/sial-talks-espace-conferences.jpg", "file": "espace-conferences.jpg", "role": "section"},
+      {"src": "temps-forts/SIAL-Talks/Key-speakers/key-speakers-push.jpg", "file": "key-speakers.jpg", "role": "section"}
+    ],
+    "temps-forts/sial-summits": [
+      {"src": "temps-forts/SIAL-SUMMITS/2026/table-ronde-sial-conference-public.jpg", "file": "banner-summits.jpg", "role": "hero"},
+      {"src": "temps-forts/SIAL-SUMMITS/2026/champ-ble-coucher-soleil.jpg", "file": "champ-ble.jpg", "role": "section"},
+      {"src": "temps-forts/SIAL-SUMMITS/IA-picture-grid.jpg", "file": "ia-grid.jpg", "role": "section"}
+    ],
+    "tendances": [
+      {"src": "temporaire/banner-jaune-2000x560.jpg", "file": "banner-tendances.jpg", "role": "hero"}
+    ],
+    "tendances/actualites": [
+      {"src": "Cleverdis/main-verre-cocktail-concombre-menthe.jpg", "file": "actualites-hero.jpg", "role": "hero"},
+      {"src": "Cleverdis/2026/04/mango_sticky_rice_420x250.jpg", "file": "mango-sticky-rice.jpg", "role": "section"},
+      {"src": "Cleverdis/2026/03/orange-miroir-jus-fond-bleu_clean.jpg", "file": "orange-jus.jpg", "role": "section"}
+    ],
+    "tendances/focus": [
+      {"src": "tendance/focus-tendances/orange-assiette-couvert.jpg", "file": "focus-hero.jpg", "role": "hero"}
+    ],
+    "tendances/focus/proteines": [
+      {"src": "tendance/focus-tendances/proteines/proteines-oeufs-jaune.jpg", "file": "proteines-hero.jpg", "role": "hero"},
+      {"src": "tendance/focus-tendances/proteines/proteines-viande-rouge-fond-rose.jpg", "file": "proteines-viande.jpg", "role": "section"},
+      {"src": "tendance/focus-tendances/proteines/pates-proteines-barilla.jpg", "file": "proteines-pates.jpg", "role": "section"}
+    ],
+    "tendances/livres-blancs": [
+      {"src": "temporaire/banner-jaune-2000x560.jpg", "file": "banner-livres-blancs.jpg", "role": "hero"},
+      {"src": "tendance/lp/nouvelle-ere-alimentation-nellyrodi/livre-blanc-tendances-et-mutations-food.jpg", "file": "lb-mutations.jpg", "role": "section"},
+      {"src": "tendance/lp/Livre-blanc-vegetal/livre-blanc-tendances-vegetales-push.jpg", "file": "lb-vegetal.jpg", "role": "section"}
+    ],
+    "tendances/livres-blancs/sial-insights-2024": [
+      {"src": "tendance/lp/SIAL-Insights-2024/SIAL-Insights-2024-555x450.jpg", "file": "insights-2024-hero.jpg", "role": "hero"},
+      {"src": "tendance/lp/SIAL-Insights-2024/SIAL_INSIGHTS_2024_MOCKUP_555x600.jpg", "file": "insights-2024-mockup.jpg", "role": "section"}
+    ],
+    "exposer/les-secteurs-du-salon": [
+      {"src": "temporaire/banner-jaune-2000x560.jpg", "file": "banner-secteurs.jpg", "role": "hero"},
+      {"src": "commun/Kiwi-fond-noir-585X550px.jpg", "file": "kiwi-fond-noir.jpg", "role": "section"}
+    ],
+    "exposer/augmentez-votre-visibilite": [
+      {"src": "rubrique-X/Augmentez-la-visibilite/Outils-de-com/Visuel-Outils-de-Comm.jpg", "file": "outils-comm-hero.jpg", "role": "hero"},
+      {"src": "rubrique-X/Augmentez-la-visibilite/Outils-de-com/Lecteur-de-badges.jpg", "file": "lecteur-badges.jpg", "role": "section"},
+      {"src": "rubrique-X/Augmentez-la-visibilite/Outils-de-com/Maj-VAS-2026/invitation-cards-sial-jaune.jpg", "file": "invitation-cards.jpg", "role": "section"}
+    ],
+    "temps-forts": [
+      {"src": "banner/SIAL-Innovation-tendances-et-innovations-alimentaires-banner.jpg", "file": "banner-temps-forts.jpg", "role": "hero"},
+      {"src": "temps-forts/SIAL-Innovation/SIAL-Innovation-tendances-et-innovations-alimentaires-icb.jpg", "file": "sial-innovation-icb.jpg", "role": "section"}
+    ],
+    "exposer/je-veux-exposer": [
+      {"src": "banner/SIAL-Paris-pourquoi-exposer-banner.jpg", "file": "banner-je-veux-exposer.jpg", "role": "hero"},
+      {"src": "rubrique-X/ROI-business-discussion.jpg", "file": "roi-business.jpg", "role": "section"},
+      {"src": "rubrique-X/plateforme-mondiale.jpg", "file": "plateforme-mondiale.jpg", "role": "section"}
+    ],
+    "exposer/je-veux-exposer/je-suis-une-start-up": [
+      {"src": "rubrique-X/start-up/le-start-up-village-du-salon-SIAL-Paris.jpg", "file": "startup-village.jpg", "role": "hero"},
+      {"src": "rubrique-X/start-up/rencontre-sur-un-stand-dans-le-village-start-up-sial-paris.jpg", "file": "startup-stand.jpg", "role": "section"}
+    ],
+    "exposer/les-secteurs-du-salon/boissons-sans-alcool": [
+      {"src": "rubrique-X/Secteurs-60-ans/Boissons/Boisson-sans-alcool/boissons-sans-alcool-banniere.jpg", "file": "banner-boissons.jpg", "role": "hero"},
+      {"src": "rubrique-X/Secteurs/Beverages/main-tient-bubble-tea.jpg", "file": "bubble-tea.jpg", "role": "section"}
+    ],
+    "exposer/augmentez-votre-visibilite/outils-de-communication-sial-paris": [
+      {"src": "rubrique-X/Augmentez-la-visibilite/Outils-de-com/Visuel-Outils-de-Comm.jpg", "file": "outils-comm-hero.jpg", "role": "hero"},
+      {"src": "rubrique-X/Augmentez-la-visibilite/Outils-de-com/Lecteur-de-badges.jpg", "file": "lecteur-badges.jpg", "role": "section"},
+      {"src": "rubrique-X/Augmentez-la-visibilite/Outils-de-com/Maj-VAS-2026/invitation-cards-sial-jaune.jpg", "file": "invitation-cards.jpg", "role": "section"}
+    ]
+  }
+}

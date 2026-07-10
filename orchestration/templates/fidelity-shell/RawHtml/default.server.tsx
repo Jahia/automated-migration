@@ -5,6 +5,7 @@ import {
   childNodesOf,
   chunkTopLevel,
   composeNode,
+  hasSkeletonProp,
   nodePayload,
   sanitizeFragment,
   substitutePayload,
@@ -41,9 +42,20 @@ jahiaComponent(
       editMode = false;
     }
 
-    // ── EDIT/PREVIEW: interleave <Render> per {{child:N}} so typed children
-    //    (library containers/atoms) are reachable edit frames (rule 28 / G6b) ──
-    if (editMode && typeof props.skeleton === "string" && props.skeleton) {
+    // A typed VIEW child (no skeleton prop — e.g. the tree-driven
+    // mainNavigation) must render through Jahia's pipeline on LIVE too:
+    // string composition would splice nothing for it.
+    let hasViewChild = false;
+    try {
+      hasViewChild = childNodesOf(node).some((k) => !hasSkeletonProp(k));
+    } catch {
+      hasViewChild = false;
+    }
+
+    // ── EDIT/PREVIEW (or LIVE with a view child): interleave <Render> per
+    //    {{child:N}} so typed children render via their views and are
+    //    reachable edit frames (rule 28 / G6b) ──
+    if ((editMode || hasViewChild) && typeof props.skeleton === "string" && props.skeleton) {
       const p = nodePayload(node);
       const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
       if (html.includes("{{child:")) {

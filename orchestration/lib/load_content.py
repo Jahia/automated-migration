@@ -40,7 +40,7 @@ Usage:
   python3 orchestration/lib/load_content.py <project> <site> [--page home] [--limit N] \
       [--clean] [--force-rebuild] [--dry] [--locale en] [--chrome-from home|auto]
 """
-import hashlib, json, os, sys
+import hashlib, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_client import MCP
 import provenance  # stamps load-ledger.json
@@ -286,6 +286,71 @@ class Loader:
                     return x["jcrPath"]
         return None
 
+    def _href_map(self):
+        """source path (lowercase, no trailing /) -> Jahia page URL. Built from
+        page-inventory (crawled pages) + the sitemap (hierarchy + section
+        aliases like /en/offers -> the offers section page). Rewiring internal
+        anchors is AIStartupKit rule 8/G5: frozen source hrefs navigate off-site
+        or 404 on the migrated site (915 residue anchors observed)."""
+        if hasattr(self, "_href_map_cache"):
+            return self._href_map_cache
+        m = {}
+        rel_of = {}   # leaf slug -> sitemap rel path
+        try:
+            for line in open(f"orchestration/sitemaps/{self.project}.txt"):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                rel_of[line.split("/")[-1].lower()] = line
+        except OSError:
+            pass
+        try:
+            inv = load_json(f"projects/{self.project}/workflow-output/page-inventory.json", {})
+            site_url = (inv.get("siteUrl") or "").rstrip("/")
+            for p in inv.get("pages", []):
+                slug, url = p.get("slug"), (p.get("url") or "").rstrip("/")
+                if not slug or not url:
+                    continue
+                src_path = url[len(site_url.rsplit("/en", 1)[0]):] if "/en" in site_url else url
+                # normalize to the site-relative /en/... form
+                if src_path.startswith("http"):
+                    from urllib.parse import urlparse
+                    src_path = urlparse(src_path).path
+                if url.rstrip("/") == site_url:
+                    tgt = f"/sites/{self.site}/home.html"
+                else:
+                    rel = rel_of.get(slug.lower(), slug)
+                    tgt = f"/sites/{self.site}/home/{rel}.html"
+                m[src_path.lower().rstrip("/")] = tgt
+        except Exception:
+            pass
+        # section pages without a crawled counterpart: /en/<leaf> alias
+        for leaf, rel in rel_of.items():
+            key = f"/en/{leaf}"
+            if key not in m and not leaf.startswith("en_"):
+                m[key] = f"/sites/{self.site}/home/{rel}.html"
+        self._href_map_cache = m
+        return m
+
+    _HREF_RE = re.compile(r'href="((?:https?://[^/"]+)?(/en(?:/[^"?#]*)?))([^"]*)"')
+
+    def _rewire_hrefs(self, text):
+        """Rewrite internal source anchors (href="/en/..." and the absolute
+        form) to Jahia page URLs when the path maps to a migrated page;
+        unknown paths stay verbatim (external world unchanged)."""
+        if not text or "/en" not in text:
+            return text
+        hm = self._href_map()
+
+        def sub(mo):
+            path = mo.group(2).lower().rstrip("/") or "/en"
+            tgt = hm.get(path)
+            if not tgt:
+                return mo.group(0)
+            return f'href="{tgt}{mo.group(3)}"'
+
+        return self._HREF_RE.sub(sub, text)
+
     def promoted_props(self, payload, pdef, nodetype):
         """P2.5-D EXPLICIT contract for skeleton nodes (parent or item).
         The TYPE declares only the hidden `skeleton`; every editor-facing field
@@ -302,9 +367,10 @@ class Loader:
         f = payload.get("fields", {})
         # skeleton set ONLY when present: a skeletonOrig-only typed node (zone bridge MVP) must
         # not receive an empty `skeleton` prop on a type that does not declare it (ConstraintViolation).
+        # Internal anchors in the skeleton are rewired to Jahia page paths (nav pass).
         create_props = {}
         if payload.get("skeleton"):
-            create_props["skeleton"] = payload["skeleton"][:200_000]
+            create_props["skeleton"] = self._rewire_hrefs(payload["skeleton"])[:200_000]
         if payload.get("skeletonOrig"):
             create_props["skeletonOrig"] = payload["skeletonOrig"][:200_000]
         mixins, post = [], {}
@@ -336,7 +402,17 @@ class Loader:
             n = k[len("body"):]
             slot(f"{mixns}:contribBody{n}", k, {k})
             if k in avail:
-                post[k] = v[:200_000]
+                post[k] = self._rewire_hrefs(v)[:200_000]
+        for k, v in f.items():
+            # lift_labels plain-text fields (label, label2, ...) — same per-node
+            # slot pattern as bodies; unmapped they were silently DROPPED and
+            # every {{f:labelN}} skeleton marker rendered empty (ground-truth red).
+            if not k.startswith("label") or not v:
+                continue
+            n = k[len("label"):]
+            slot(f"{mixns}:contribLabel{n}", k, {k})
+            if k in avail:
+                post[k] = v[:1000]
         for m in payload.get("media") or []:
             nm = m["name"]
             n = nm[len("image"):]
@@ -532,8 +608,12 @@ class Loader:
         # manifest props: title, text, html, skeleton...), then order-zip the
         # leftovers (v1 sxa field names -> heading first, etc.)
         fields = {k: v.strip() for k, v in inst.get("fields", {}).items() if v and v.strip()}
+        # internal anchors in verbatim html payloads point at the SOURCE site —
+        # same rewiring as promoted skeletons (rule 8: content owns the URLs)
+        if fields.get("html"):
+            fields["html"] = self._rewire_hrefs(fields["html"])
         if inst.get("skeleton"):
-            fields["skeleton"] = inst["skeleton"]
+            fields["skeleton"] = self._rewire_hrefs(inst["skeleton"])
         LONG = {"html", "skeleton"}  # verbatim markup — never truncate to 5k
         used_props, used_fields = set(), set()
         for name, val in fields.items():
@@ -653,14 +733,18 @@ class Loader:
         return n
 
     # ── A2 reconcile: page-granular incident resume ("what is already done") ──
+    # bump when LOADER semantics change what reaches the JCR for an unchanged
+    # payload (e.g. rev 2: internal-anchor rewiring) — forces reconcile REBUILDs.
+    LOADER_REV = 3
+
     @staticmethod
     def _plan_hash(pdata):
         """sha256 of the page's CANONICAL plan slice (sort_keys + compact
-        separators over content['pages'][slug]) — a changed plan invalidates
-        the ledger entry and forces a REBUILD of that page only."""
+        separators over content['pages'][slug]) — a changed plan OR a loader
+        semantics rev invalidates the ledger entry and REBUILDs that page."""
         blob = json.dumps(pdata, sort_keys=True, separators=(",", ":"),
                           ensure_ascii=False)
-        return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+        return hashlib.sha256((f"r{Loader.LOADER_REV}|" + blob).encode("utf-8")).hexdigest()
 
     def _area_children(self, area_path, workspace):
         """{name: uuid} of the area's DIRECT children in a workspace (read-only
@@ -696,6 +780,8 @@ class Loader:
         to the DAM, a write). Deterministic names ({shortType}-{slug}-{idx})
         are what make page-granular reconciliation possible at all."""
         names = []
+        nested = {}           # top-level container name -> [expected child names]
+        names_by_idx = {}     # top-level instance idx -> its node name
         would_create = set()  # instance idx that get created (any parent)
         for idx, inst in enumerate(instances):
             if inst.get("area"):
@@ -717,9 +803,18 @@ class Loader:
             would_create.add(idx)
             pi = inst.get("parent")
             if pi is not None and pi in would_create:
-                continue  # nests under its container — not a main-area child
+                # nests under its container — not a main-area child. Record the
+                # expectation under its TOP-LEVEL container name so reconcile can
+                # verify nested completeness (2026-07-05 lesson: every nested
+                # create failed on a missing CND child definition, yet the page
+                # read "structurally complete" from the top-level count alone).
+                pname = names_by_idx.get(pi)
+                if pname is not None:
+                    nested.setdefault(pname, []).append(f"{nt.split(':')[-1]}-{page}-{idx}")
+                continue
             names.append(f"{nt.split(':')[-1]}-{page}-{idx}")
-        return names
+            names_by_idx[idx] = f"{nt.split(':')[-1]}-{page}-{idx}"
+        return names, nested
 
     def _reconcile_verdict(self, page, pdata, main_area):
         """A2 verdict — confront the ledger with EDIT reality. EDIT-ONLY
@@ -738,7 +833,7 @@ class Loader:
         plan_hash = self._plan_hash(pdata)
         version_ok = bool(entry) and entry.get("toolVersion") == LEDGER_TOOL_VERSION
         hash_ok = bool(entry) and entry.get("planHash") == plan_hash and version_ok
-        expected = self._expected_main_children(page, pdata.get("instances", []), main_area)
+        expected, exp_nested = self._expected_main_children(page, pdata.get("instances", []), main_area)
         edit = self._area_children(main_area, "EDIT") or {}
         info = {"expected": len(expected), "edit": len(edit),
                 "hashOk": hash_ok, "bootstrap": entry is None}
@@ -753,6 +848,17 @@ class Loader:
                               f"{len(surplus)} surplus top-level node(s)")
             info["missing"], info["surplus"] = missing[:5], surplus[:5]
             return "REBUILD", info
+        # nested completeness: a container's typed children live UNDER it and are
+        # invisible to the top-level count (2026-07-05: constraint-violated child
+        # creates left childless containers behind an "ALIGNED" verdict forever).
+        for cname, kids in exp_nested.items():
+            got = self._area_children(f"{main_area}/{cname}", "EDIT") or {}
+            kmiss = sorted(set(kids) - set(got))
+            if kmiss:
+                info["reason"] = (f"EDIT incomplete: container {cname} missing "
+                                  f"{len(kmiss)} nested child(ren)")
+                info["missing"] = kmiss[:5]
+                return "REBUILD", info
         info["reason"] = "EDIT structurally complete"
         return "ALIGNED", info
 
@@ -1034,20 +1140,30 @@ class Loader:
             # (the skeleton view splices child i into marker i)
             if kids and path:
                 cnt = self.child_type.get(nt)
-                if not cnt:
-                    print(f"  !! {nt} carries {len(kids)} item(s) but no childType "
+                untyped = [ch for ch in kids if not ch.get("nodeType")]
+                if not cnt and untyped:
+                    print(f"  !! {nt} carries {len(untyped)} item(s) but no childType "
                           f"in manifest — markers would render EMPTY", file=sys.stderr)
                     self.prop_misses.append((nt, "childType"))
-                else:
-                    cpdef = self.props_of(cnt)
+                if cnt or any(ch.get("nodeType") for ch in kids):
                     for n, ch in enumerate(kids):
-                        cprops, cmix, cpost = self.promoted_props(ch, cpdef, cnt)
+                        # a child payload may carry its OWN nodeType (navify's
+                        # {ns}:mainNavigation tree-driven child); manifest
+                        # childType stays the default for skeleton items
+                        cnt_ch = ch.get("nodeType") or cnt
+                        if not cnt_ch:
+                            continue
+                        if ch.get("navChild"):
+                            cprops, cmix, cpost = {}, [], {}
+                        else:
+                            cpdef = self.props_of(cnt_ch)
+                            cprops, cmix, cpost = self.promoted_props(ch, cpdef, cnt_ch)
                         try:
                             import time
                             rc = None
                             for attempt in range(4):
                                 try:
-                                    rc = self.m.create(path, cnt, cprops,
+                                    rc = self.m.create(path, cnt_ch, cprops,
                                                        name=f"item-{n + 1}", locale=self.locale)
                                     break
                                 except Exception as ce:
@@ -1059,10 +1175,11 @@ class Loader:
                             cpath = rc.get("path") if isinstance(rc, dict) else None
                             if cpath:
                                 created += 1
-                                self.apply_payload(cpath, cmix, cpost, ch, cnt)
+                                if not ch.get("navChild"):
+                                    self.apply_payload(cpath, cmix, cpost, ch, cnt_ch)
                                 # no publish — EDIT-only (final act publishes)
                         except Exception as e:
-                            print(f"  ! item-{n + 1} ({cnt}) under {name} failed: {e}",
+                            print(f"  ! item-{n + 1} ({cnt_ch}) under {name} failed: {e}",
                                   file=sys.stderr)
             # no per-parent publish, no area sweep — EDIT-only (Julian
             # 2026-07-04): the single final publication (publish_site.sh,

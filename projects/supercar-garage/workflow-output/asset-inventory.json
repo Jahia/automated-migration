@@ -1,0 +1,1729 @@
+{
+  "sourceUrl": "https://www.ultimate-supercar-garage.com/fr-FR",
+  "totalImages": 104,
+  "baseCdnPath": "/-/media",
+  "sourcePlatform": "Sitecore SXA Media Library",
+  "images": [
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/CP/cp-billeterie.jpg",
+      "filename": "cp-billeterie.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/scene-live",
+        "/en/show/the-sectors",
+        "/fr-FR",
+        "/fr-FR/evenement/les-univers",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Logo-404/logo-comexposium-transparent.png",
+      "filename": "logo-comexposium-transparent.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/exhibitor-area",
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/events",
+        "/en/exhibitors-and-events/exhibitor-list",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/en/news",
+        "/en/pratical-info",
+        "/en/pratical-info/FAQ",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/dates-access-map",
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/en/press",
+        "/en/show",
+        "/en/show/Design-in-Motion",
+        "/en/show/le-salon",
+        "/en/show/scene-live",
+        "/en/show/sponsors-and-partners",
+        "/en/show/the-sectors",
+        "/en/ticketing",
+        "/en/ticketing/buy-my-ticket",
+        "/en/ticketing/groups-cse",
+        "/fr-FR",
+        "/fr-FR/actualites",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/acheter-mon-ticket",
+        "/fr-FR/billetterie/groupes-cse",
+        "/fr-FR/cookies",
+        "/fr-FR/espace-exposant",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/Design-in-Motion",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/les-univers",
+        "/fr-FR/evenement/scene-live",
+        "/fr-FR/evenement/sponsors-et-partenaires",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/calendrier-des-animations",
+        "/fr-FR/exposants-et-animations/liste-des-exposants",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/FAQ",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon",
+        "/fr-FR/infos-pratiques/date-acces-plan",
+        "/fr-FR/mentions-legales",
+        "/fr-FR/plan-du-site",
+        "/fr-FR/presse",
+        "/fr-FR/protection-donnees"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Logo-404/logo-retromobile-transparent.png",
+      "filename": "logo-retromobile-transparent.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/exhibitor-area",
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/events",
+        "/en/exhibitors-and-events/exhibitor-list",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/en/news",
+        "/en/pratical-info",
+        "/en/pratical-info/FAQ",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/dates-access-map",
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/en/press",
+        "/en/show",
+        "/en/show/Design-in-Motion",
+        "/en/show/le-salon",
+        "/en/show/scene-live",
+        "/en/show/sponsors-and-partners",
+        "/en/show/the-sectors",
+        "/en/ticketing",
+        "/en/ticketing/buy-my-ticket",
+        "/en/ticketing/groups-cse",
+        "/fr-FR",
+        "/fr-FR/actualites",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/acheter-mon-ticket",
+        "/fr-FR/billetterie/groupes-cse",
+        "/fr-FR/cookies",
+        "/fr-FR/espace-exposant",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/Design-in-Motion",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/les-univers",
+        "/fr-FR/evenement/scene-live",
+        "/fr-FR/evenement/sponsors-et-partenaires",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/calendrier-des-animations",
+        "/fr-FR/exposants-et-animations/liste-des-exposants",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/FAQ",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon",
+        "/fr-FR/infos-pratiques/date-acces-plan",
+        "/fr-FR/mentions-legales",
+        "/fr-FR/plan-du-site",
+        "/fr-FR/presse",
+        "/fr-FR/protection-donnees"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Logo-404/logo-supercar-encadre.png",
+      "filename": "logo-supercar-encadre.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/exhibitor-area",
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/events",
+        "/en/exhibitors-and-events/exhibitor-list",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/en/news",
+        "/en/pratical-info",
+        "/en/pratical-info/FAQ",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/dates-access-map",
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/en/press",
+        "/en/show",
+        "/en/show/Design-in-Motion",
+        "/en/show/le-salon",
+        "/en/show/scene-live",
+        "/en/show/sponsors-and-partners",
+        "/en/show/the-sectors",
+        "/en/ticketing",
+        "/en/ticketing/buy-my-ticket",
+        "/en/ticketing/groups-cse",
+        "/fr-FR",
+        "/fr-FR/actualites",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/acheter-mon-ticket",
+        "/fr-FR/billetterie/groupes-cse",
+        "/fr-FR/cookies",
+        "/fr-FR/espace-exposant",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/Design-in-Motion",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/les-univers",
+        "/fr-FR/evenement/scene-live",
+        "/fr-FR/evenement/sponsors-et-partenaires",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/calendrier-des-animations",
+        "/fr-FR/exposants-et-animations/liste-des-exposants",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/FAQ",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon",
+        "/fr-FR/infos-pratiques/date-acces-plan",
+        "/fr-FR/mentions-legales",
+        "/fr-FR/plan-du-site",
+        "/fr-FR/presse",
+        "/fr-FR/protection-donnees"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Logo-404/logo-supercar-fond-noir.png",
+      "filename": "logo-supercar-fond-noir.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/exhibitor-area",
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/events",
+        "/en/exhibitors-and-events/exhibitor-list",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/en/news",
+        "/en/pratical-info",
+        "/en/pratical-info/FAQ",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/dates-access-map",
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/en/press",
+        "/en/show",
+        "/en/show/Design-in-Motion",
+        "/en/show/le-salon",
+        "/en/show/scene-live",
+        "/en/show/sponsors-and-partners",
+        "/en/show/the-sectors",
+        "/en/ticketing",
+        "/en/ticketing/buy-my-ticket",
+        "/en/ticketing/groups-cse",
+        "/fr-FR",
+        "/fr-FR/actualites",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/acheter-mon-ticket",
+        "/fr-FR/billetterie/groupes-cse",
+        "/fr-FR/cookies",
+        "/fr-FR/espace-exposant",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/Design-in-Motion",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/les-univers",
+        "/fr-FR/evenement/scene-live",
+        "/fr-FR/evenement/sponsors-et-partenaires",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/calendrier-des-animations",
+        "/fr-FR/exposants-et-animations/liste-des-exposants",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/FAQ",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon",
+        "/fr-FR/infos-pratiques/date-acces-plan",
+        "/fr-FR/mentions-legales",
+        "/fr-FR/plan-du-site",
+        "/fr-FR/presse",
+        "/fr-FR/protection-donnees"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/LOGO-RICHARD-MILLE-noir.png",
+      "filename": "LOGO-RICHARD-MILLE-noir.png",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/Aston-Martin-logo.png",
+      "filename": "Aston-Martin-logo.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/Bentley-logo-svg-vectorsvg.png",
+      "filename": "Bentley-logo-svg-vectorsvg.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/Lamborghini-logo.png",
+      "filename": "Lamborghini-logo.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/Maserati-Logo.png",
+      "filename": "Maserati-Logo.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/Pagani-Logo.jpg",
+      "filename": "Pagani-Logo.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/alfa-romeo-logo.jpg",
+      "filename": "alfa-romeo-logo.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/logo-constructeur-Charles-Pozzi-Ferrari-Ultimate-Supercar-Garage-part.png",
+      "filename": "logo-constructeur-Charles-Pozzi-Ferrari-Ultimate-Supercar-Garage-part.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/contructeurs/logo-constructeur-bugatti-Ultimate-Supercar-Garage-part.png",
+      "filename": "logo-constructeur-bugatti-Ultimate-Supercar-Garage-part.png",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/logo-partenaire-SupercarOwnerCircle-Ultimate-Supercar-Garage-part.png",
+      "filename": "logo-partenaire-SupercarOwnerCircle-Ultimate-Supercar-Garage-part.png",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/partenaires-media/RTL-logo.jpg",
+      "filename": "RTL-logo.jpg",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/partenaires-media/lefigaro-logo.jpg",
+      "filename": "lefigaro-logo.jpg",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/partenaires-media/logo-luxe-infinity.png",
+      "filename": "logo-luxe-infinity.png",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/partenaires-media/sport-auto-classique-logo.png",
+      "filename": "sport-auto-classique-logo.png",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Partenaires/partenaires-media/sport-auto-logo.png",
+      "filename": "sport-auto-logo.png",
+      "pagesUsed": [
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/image-banner-title-bugatti-ultimatesupercargarage26.jpg",
+      "filename": "image-banner-title-bugatti-ultimatesupercargarage26.jpg",
+      "pagesUsed": [
+        "/en/news",
+        "/fr-FR/actualites"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/infos-pratiques-banner.jpg",
+      "filename": "infos-pratiques-banner.jpg",
+      "pagesUsed": [
+        "/en/pratical-info",
+        "/en/pratical-info/Infos-Pratiques",
+        "/fr-FR/infos-pratiques"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/presse-influence-salon-ultimate-supercar-garage-banner.jpg",
+      "filename": "presse-influence-salon-ultimate-supercar-garage-banner.jpg",
+      "pagesUsed": [
+        "/en/press",
+        "/fr-FR/presse"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/rassemblement-supercars.jpg",
+      "filename": "rassemblement-supercars.jpg",
+      "pagesUsed": [
+        "/en/show",
+        "/en/show/Design-in-Motion",
+        "/en/show/le-salon",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/Design-in-Motion",
+        "/fr-FR/evenement/le-salon"
+      ],
+      "componentAssociation": [
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/transport-hebergement-banner.jpg",
+      "filename": "transport-hebergement-banner.jpg",
+      "pagesUsed": [
+        "/en/exhibitor-area",
+        "/en/pratical-info",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/fr-FR/espace-exposant",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/vue-de-paris-banner.jpg",
+      "filename": "vue-de-paris-banner.jpg",
+      "pagesUsed": [
+        "/en/show",
+        "/en/show/le-salon",
+        "/en/ticketing",
+        "/fr-FR/billetterie",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/le-salon"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:heroCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/billetterie-banner.jpg",
+      "filename": "billetterie-banner.jpg",
+      "pagesUsed": [
+        "/en/ticketing",
+        "/en/ticketing/buy-my-ticket",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/acheter-mon-ticket"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/enfant-ado.jpg",
+      "filename": "enfant-ado.jpg",
+      "pagesUsed": [
+        "/en/ticketing/buy-my-ticket",
+        "/fr-FR/billetterie/acheter-mon-ticket"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/groupeetcse.jpg",
+      "filename": "groupeetcse.jpg",
+      "pagesUsed": [
+        "/en/ticketing",
+        "/en/ticketing/groups-cse",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/groupes-cse"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/situation-de-handicap.png",
+      "filename": "situation-de-handicap.png",
+      "pagesUsed": [
+        "/en/ticketing/buy-my-ticket",
+        "/fr-FR/billetterie/acheter-mon-ticket"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/soiree-lancement.jpg",
+      "filename": "soiree-lancement.jpg",
+      "pagesUsed": [
+        "/en/ticketing/buy-my-ticket",
+        "/fr-FR/billetterie/acheter-mon-ticket"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/favicon-32.jpg",
+      "filename": "favicon-32.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/en/exhibitor-area",
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/events",
+        "/en/exhibitors-and-events/exhibitor-list",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/en/news",
+        "/en/pratical-info",
+        "/en/pratical-info/FAQ",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/dates-access-map",
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/en/press",
+        "/en/show",
+        "/en/show/Design-in-Motion",
+        "/en/show/le-salon",
+        "/en/show/scene-live",
+        "/en/show/sponsors-and-partners",
+        "/en/show/the-sectors",
+        "/en/ticketing",
+        "/en/ticketing/buy-my-ticket",
+        "/en/ticketing/groups-cse",
+        "/fr-FR",
+        "/fr-FR/actualites",
+        "/fr-FR/billetterie",
+        "/fr-FR/billetterie/acheter-mon-ticket",
+        "/fr-FR/billetterie/groupes-cse",
+        "/fr-FR/cookies",
+        "/fr-FR/espace-exposant",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/Design-in-Motion",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/les-univers",
+        "/fr-FR/evenement/scene-live",
+        "/fr-FR/evenement/sponsors-et-partenaires",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/calendrier-des-animations",
+        "/fr-FR/exposants-et-animations/liste-des-exposants",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/FAQ",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon",
+        "/fr-FR/infos-pratiques/date-acces-plan",
+        "/fr-FR/mentions-legales",
+        "/fr-FR/plan-du-site",
+        "/fr-FR/presse",
+        "/fr-FR/protection-donnees"
+      ],
+      "componentAssociation": [
+        "usg:layout"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/Exposants-echange-raisons-Ultimate-Supercar-Garage-cbv.jpg",
+      "filename": "Exposants-echange-raisons-Ultimate-Supercar-Garage-cbv.jpg",
+      "pagesUsed": [
+        "/en/exhibitor-area",
+        "/fr-FR/espace-exposant"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/banner-exposants/banniere-exposants.jpg",
+      "filename": "banniere-exposants.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:heroCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/offre-de-stand/artisans-lounge.jpg",
+      "filename": "artisans-lounge.jpg",
+      "pagesUsed": [
+        "/en/show/the-sectors",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/offre-de-stand/stand-pagani.jpg",
+      "filename": "stand-pagani.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/pourquoi-exposer/exposants-discussion.jpg",
+      "filename": "exposants-discussion.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/best-photos-2026.jpg",
+      "filename": "best-photos-2026.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:imageBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/AVP.jpg",
+      "filename": "AVP.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/fr-FR"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/meilleures-photos-2026.jpg",
+      "filename": "meilleures-photos-2026.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/fr-FR"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/pivot-scene-live.jpg",
+      "filename": "pivot-scene-live.jpg",
+      "pagesUsed": [
+        "/en/show",
+        "/en/show/le-salon",
+        "/en/show/scene-live",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/pivot-sponsors-partenaires.jpg",
+      "filename": "pivot-sponsors-partenaires.jpg",
+      "pagesUsed": [
+        "/en/show",
+        "/en/show/le-salon",
+        "/en/show/sponsors-and-partners",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/sponsors-et-partenaires"
+      ],
+      "componentAssociation": [
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/stand-constructeurs.jpg",
+      "filename": "stand-constructeurs.jpg",
+      "pagesUsed": [
+        "/en/show",
+        "/en/show/le-salon",
+        "/en/show/the-sectors",
+        "/fr-FR/evenement",
+        "/fr-FR/evenement/le-salon",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/stoccarda.jpg",
+      "filename": "stoccarda.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/fr-FR"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/hp-block-1.jpg",
+      "filename": "hp-block-1.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/artisans-du-luxe.jpg",
+      "filename": "artisans-du-luxe.jpg",
+      "pagesUsed": [
+        "/en/show/the-sectors",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/clubs-de-supercars.jpg",
+      "filename": "clubs-de-supercars.jpg",
+      "pagesUsed": [
+        "/en/show/the-sectors",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:imageBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/constructeurs.jpg",
+      "filename": "constructeurs.jpg",
+      "pagesUsed": [
+        "/en/show/Design-in-Motion",
+        "/fr-FR/evenement/Design-in-Motion"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/constructeurss.jpg",
+      "filename": "constructeurss.jpg",
+      "pagesUsed": [
+        "/en/show/the-sectors",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/galerie-art.jpg",
+      "filename": "galerie-art.jpg",
+      "pagesUsed": [
+        "/en/show/the-sectors",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/preparateurs-et-marchants.jpg",
+      "filename": "preparateurs-et-marchants.jpg",
+      "pagesUsed": [
+        "/en/show/the-sectors",
+        "/fr-FR/evenement/les-univers"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live-presentation.jpg",
+      "filename": "scene-live-presentation.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/bloc-infos.jpg",
+      "filename": "bloc-infos.jpg",
+      "pagesUsed": [
+        "/en/show/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/design-in-motion.jpg",
+      "filename": "design-in-motion.jpg",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Aston-martin.png",
+      "filename": "miniature-Aston-martin.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Bentley.png",
+      "filename": "miniature-Bentley.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Bottegafuoriserie.png",
+      "filename": "miniature-Bottegafuoriserie.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Bugatti.png",
+      "filename": "miniature-Bugatti.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Donkervoort.png",
+      "filename": "miniature-Donkervoort.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Eccentrica.png",
+      "filename": "miniature-Eccentrica.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-HWA.png",
+      "filename": "miniature-HWA.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Lotus.png",
+      "filename": "miniature-Lotus.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Mignatta.png",
+      "filename": "miniature-Mignatta.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Pagani.png",
+      "filename": "miniature-Pagani.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-RML.png",
+      "filename": "miniature-RML.png",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/presentation-scenelive.jpg",
+      "filename": "presentation-scenelive.jpg",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/scenelive.jpg",
+      "filename": "scenelive.jpg",
+      "pagesUsed": [
+        "/en/show/scene-live",
+        "/fr-FR/evenement/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/soiree-avp.jpg",
+      "filename": "soiree-avp.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/vue-de-paris-large.jpg",
+      "filename": "vue-de-paris-large.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:imageBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/Plan-Porte-de-verailles.png",
+      "filename": "Plan-Porte-de-verailles.png",
+      "pagesUsed": [
+        "/en/pratical-info/dates-access-map",
+        "/fr-FR/infos-pratiques/date-acces-plan"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/Plan-USG.png",
+      "filename": "Plan-USG.png",
+      "pagesUsed": [
+        "/en/pratical-info/dates-access-map",
+        "/fr-FR/infos-pratiques/date-acces-plan"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/accommodation-is-at-the-heart-of-every-event-bnetwork-specialiste-hbergement-icb.jpg",
+      "filename": "accommodation-is-at-the-heart-of-every-event-bnetwork-specialiste-hbergement-icb.jpg",
+      "pagesUsed": [
+        "/en/pratical-info/how-to-get-to-the-exhibition"
+      ],
+      "componentAssociation": [
+        "usg:infoCard"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/hebergement-est-au-cceur-de-chaque-vnement-bnetwork-spcialiste-hbergement-icb.jpg",
+      "filename": "hebergement-est-au-cceur-de-chaque-vnement-bnetwork-spcialiste-hbergement-icb.jpg",
+      "pagesUsed": [
+        "/fr-FR/infos-pratiques/comment-venir-au-salon"
+      ],
+      "componentAssociation": [
+        "usg:infoCard"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/transport-en-commun-paris-ultimate-supercar-garage-icb.jpg",
+      "filename": "transport-en-commun-paris-ultimate-supercar-garage-icb.jpg",
+      "pagesUsed": [
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon"
+      ],
+      "componentAssociation": [
+        "usg:infoCard"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/venir-a-velo-ultimate-supercar-garage-icb.jpg",
+      "filename": "venir-a-velo-ultimate-supercar-garage-icb.jpg",
+      "pagesUsed": [
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon"
+      ],
+      "componentAssociation": [
+        "usg:infoCard"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/venir-en-avion-ultimate-supercar-garage-icb.jpg",
+      "filename": "venir-en-avion-ultimate-supercar-garage-icb.jpg",
+      "pagesUsed": [
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon"
+      ],
+      "componentAssociation": [
+        "usg:infoCard"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/venir-en-voiture-ultimate-supercar-garage-icb.jpg",
+      "filename": "venir-en-voiture-ultimate-supercar-garage-icb.jpg",
+      "pagesUsed": [
+        "/en/pratical-info/how-to-get-to-the-exhibition",
+        "/fr-FR/infos-pratiques/comment-venir-au-salon"
+      ],
+      "componentAssociation": [
+        "usg:infoCard"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/logo-comexposium-transparent.png",
+      "filename": "logo-comexposium-transparent.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/logo-retromobile-transparent.png",
+      "filename": "logo-retromobile-transparent.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/logo-supercar-fond-noir.png",
+      "filename": "logo-supercar-fond-noir.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/alfa-romeo.png",
+      "filename": "alfa-romeo.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/aston-martin.png",
+      "filename": "aston-martin.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/bentley.png",
+      "filename": "bentley.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/bugatti.png",
+      "filename": "bugatti.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/ferrari.png",
+      "filename": "ferrari.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/lamborghini.png",
+      "filename": "lamborghini.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/maserati.png",
+      "filename": "maserati.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/pagani.png",
+      "filename": "pagani.png",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:partnerLogo",
+        "usg:partnersCarousel"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/pourquoi-exposer/Exposition-supercar-luxe-noir-et-blanc-icb.jpg",
+      "filename": "Exposition-supercar-luxe-noir-et-blanc-icb.jpg",
+      "pagesUsed": [
+        "/en/exhibitor-area",
+        "/fr-FR/espace-exposant"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/accreditation-influence.jpg",
+      "filename": "accreditation-influence.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/accreditation-presse.jpg",
+      "filename": "accreditation-presse.jpg",
+      "pagesUsed": [
+        "/en/press",
+        "/fr-FR/presse"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/communique-de-presse.jpg",
+      "filename": "communique-de-presse.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/communique-presse-ultimate-supercar-garage-icb-2.jpg",
+      "filename": "communique-presse-ultimate-supercar-garage-icb-2.jpg",
+      "pagesUsed": [
+        "/en/press",
+        "/fr-FR/presse"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/influence-photo.jpg",
+      "filename": "influence-photo.jpg",
+      "pagesUsed": [
+        "/en/press",
+        "/fr-FR/presse"
+      ],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/kit-media.jpg",
+      "filename": "kit-media.jpg",
+      "pagesUsed": [],
+      "componentAssociation": [
+        "usg:imgContentBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/media-kit/Supercar-facebook-EN.jpg",
+      "filename": "Supercar-facebook-EN.jpg",
+      "pagesUsed": [
+        "/en/press"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/media-kit/Supercar-facebook-FR.jpg",
+      "filename": "Supercar-facebook-FR.jpg",
+      "pagesUsed": [
+        "/fr-FR/presse"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/SOC/soc-3.jpg",
+      "filename": "soc-3.jpg",
+      "pagesUsed": [
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/events",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/calendrier-des-animations"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/banner-teaser.jpg",
+      "filename": "banner-teaser.jpg",
+      "pagesUsed": [
+        "/en/pratical-info",
+        "/en/pratical-info/FAQ",
+        "/en/pratical-info/Infos-Pratiques",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/FAQ"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/banniere-ultimate.jpg",
+      "filename": "banniere-ultimate.jpg",
+      "pagesUsed": [
+        "/en/exhibitors-and-events",
+        "/en/exhibitors-and-events/exhibitor-list",
+        "/en/exhibitors-and-events/exposants-animations",
+        "/fr-FR/cookies",
+        "/fr-FR/exposants-et-animations",
+        "/fr-FR/exposants-et-animations/liste-des-exposants",
+        "/fr-FR/mentions-legales",
+        "/fr-FR/plan-du-site",
+        "/fr-FR/protection-donnees"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner",
+        "usg:sectionHub"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/image-teaser.png",
+      "filename": "image-teaser.png",
+      "pagesUsed": [
+        "/en/show/scene-live"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "png"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/paris-noir-blanc.jpg",
+      "filename": "paris-noir-blanc.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/fr-FR"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/ultimate-spot/moteur-bugatti.jpg",
+      "filename": "moteur-bugatti.jpg",
+      "pagesUsed": [
+        "",
+        "/en",
+        "/fr-FR"
+      ],
+      "componentAssociation": [
+        "usg:editorialBlock"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    },
+    {
+      "cdnPath": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/ultimate-spot/plan.jpg",
+      "filename": "plan.jpg",
+      "pagesUsed": [
+        "/en/pratical-info",
+        "/en/pratical-info/Infos-Pratiques",
+        "/en/pratical-info/dates-access-map",
+        "/fr-FR/infos-pratiques",
+        "/fr-FR/infos-pratiques/date-acces-plan"
+      ],
+      "componentAssociation": [
+        "usg:heroBanner"
+      ],
+      "width": null,
+      "height": null,
+      "format": "jpg"
+    }
+  ]
+}

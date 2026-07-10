@@ -1,0 +1,4 @@
+[usg:heroCarousel] > jnt:content, usgmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - timeout (long)
+ - transition (string)
+ + * (usg:heroSlide) = usg:heroSlide

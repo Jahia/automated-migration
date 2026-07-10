@@ -708,6 +708,60 @@ def lift_bodies(scope, banned_ids, cap=18, min_chars=8):
     return fields
 
 
+_LABEL_PARENTS = {"a", "span", "strong", "em", "b", "label", "div", "li",
+                  "td", "th", "figcaption", "small", "cite", "dt", "dd"}
+_LABEL_SKIP_ANCESTORS = {"script", "style", "title", "noscript", "select",
+                         "textarea", "option", "svg"}
+
+
+def lift_labels(scope, banned_ids, cap=30, min_len=2, max_len=80):
+    """Residual short text nodes -> PLAIN {{f:labelN}} single-line fields.
+
+    lift_bodies refuses any subtree holding a NEVER_IN_BODY control - right for
+    RICHTEXT (form controls inside a body prop would be mangled by the editor),
+    but it leaves mega-menu property links, card-title divs and utility labels
+    frozen in the skeleton (observed: 5.1K chars of property-name anchors on one
+    page, poisoned by a single embedded search <input>). A plain TEXT prop has
+    no such constraint: replace each text NODE with a marker (lead/trail
+    whitespace preserved, exactly like lift_title) and store the stripped value.
+    recompose's _esc_text substitution is byte-identical for bs4-serialized
+    text; the group byte self-check remains the safety net. Longest-first cap,
+    names in document order (label, label2, ...)."""
+    from bs4 import NavigableString
+    cands = []
+    for tn in scope.find_all(string=True):
+        if type(tn) is not NavigableString:      # Comment/CData/Doctype: never
+            continue
+        if id(tn) in banned_ids:
+            continue
+        par = tn.parent
+        if par is None or par.name not in _LABEL_PARENTS:
+            continue
+        if any(p.name in _LABEL_SKIP_ANCESTORS for p in tn.parents):
+            continue
+        raw = str(tn)
+        core = raw.strip()
+        if not (min_len <= len(core) <= max_len) or "{{" in core:
+            continue
+        if not re.search(r"\w", core):           # bare separators ("|", "-")
+            continue
+        cands.append(tn)
+    if len(cands) > cap:  # keep the longest `cap`, back in document order
+        keep = sorted(sorted(range(len(cands)),
+                             key=lambda i: -len(str(cands[i]).strip()))[:cap])
+        cands = [cands[i] for i in keep]
+    fields = {}
+    for n, tn in enumerate(cands):
+        raw = str(tn)
+        core = raw.strip()
+        name = "label" if n == 0 else f"label{n + 1}"
+        lead = raw[:len(raw) - len(raw.lstrip())]
+        trail = raw[len(raw.rstrip()):]
+        tn.replace_with(NavigableString(lead + FIELD_MARK % name + trail))
+        fields[name] = core
+    return fields
+
+
 def find_repeated_items(group):
     """Outermost element whose children hold >=3 same-signature content-bearing
     Tags — those are the container's ITEMS (each becomes a child node)."""
@@ -755,6 +809,7 @@ def decompose_group(group, allow_items=True, run_cap=18, min_chars=8,
         f.update(lift_bodies(scope, banned, cap=run_cap, min_chars=min_chars))
         media, media_total = lift_media(scope, banned)
         link, link_total = lift_link(scope, banned, f)
+        f.update(lift_labels(scope, banned))
         return {"fields": f, "media": media, "mediaTotal": media_total,
                 "link": link, "linkTotal": link_total}
 

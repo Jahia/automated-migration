@@ -1,0 +1,9 @@
+[sialp:partnerLogo] > jnt:content
+ - logo (weakreference, picker[type='image'])
+ - logoExternalUrl (string)
+ - partnerName (string)
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:partnersCarousel] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ + * (sialp:partnerLogo) = sialp:partnerLogo

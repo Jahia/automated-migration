@@ -111,6 +111,20 @@ jahiaComponent(
 
 ---
 
+## Step 4b: `cm` (jContent preview) views — REQUIRED for EVERY content type
+
+Every content type must ship a `cm.server.tsx` (`name: "cm"`, `componentType: "view"`) so editors can preview it standalone in the jContent back-office panel (no page Layout ⇒ unstyled without this). Each `cm` view wraps the node in the shared `src/templates/CMPreview.tsx` wrapper, which loads the module CSS cascade without header/footer chrome. This is **not** `mainResource`-specific.
+
+Run the deterministic scaffolder once (idempotent — never overwrites an existing file):
+
+```bash
+python3 orchestration/lib/scaffold_cm_views.py <project_path>
+```
+
+It ensures `CMPreview.tsx` (auto-derived from `Layout.tsx`'s CSS cascade) and writes a `cm.server.tsx` for every concrete content type — wiring the `fullPage` view where it exists, else the `default` view. **`components-all.sh` fails any content type missing its `cm` view (and fails if `CMPreview.tsx` is absent)**, so run the scaffolder before that gate.
+
+---
+
 ## Step 5: Per-component agent prompt template
 
 Each agent receives a self-contained prompt. Include `.claude/agents/component-implementer.md` path so the agent loads its rules:
@@ -339,6 +353,7 @@ A `fullPage` view that is missing or broken will show a blank page when editors 
 - [ ] Every label key has a companion `ui.tooltip` key
 - [ ] `yarn build` succeeds with no TypeScript errors
 - [ ] Components with `needsFullPage: true` have `default.server.tsx` AND `fullPage.server.tsx`
+- [ ] EVERY content type has a `cm.server.tsx` (`name: "cm"`) + `src/templates/CMPreview.tsx` exists — run `python3 orchestration/lib/scaffold_cm_views.py <project_path>` (enforced by `components-all.sh`)
 - [ ] JCRQuery and GridRow components present in the module
 - [ ] Navigation component uses JCR tree (no hardcoded links)
 - [ ] Every image-rendering component has a `FALLBACK_IMAGES` constant and uses it

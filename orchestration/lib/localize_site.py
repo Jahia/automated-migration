@@ -269,6 +269,8 @@ class Localizer:
         return text.encode("utf-8")
 
     # ── HTML: rewrite every asset reference to the local mirror ─────
+    _SRCSET_DESC = re.compile(r"^\d+(?:\.\d+)?[wx]$")
+
     def _srcset(self, value, base):
         out = []
         for part in re.split(r",\s+", value.strip()):
@@ -276,13 +278,20 @@ class Localizer:
             if not seg:
                 continue
             bits = seg.split()
-            absu = urllib.parse.urljoin(base, bits[0])
+            # srcset URLs may carry UNENCODED SPACES (malformed but browser-tolerated;
+            # seen on AEM DAM paths: ".../SEO Article 2 Thumbnail.jpg 320w"). The
+            # descriptor is the trailing NNNw/N.Nx token — everything before it is
+            # the URL, spaces included; a naive bits[0] truncates at the first space.
+            if len(bits) > 1 and self._SRCSET_DESC.match(bits[-1]):
+                url_raw, desc = " ".join(bits[:-1]), [bits[-1]]
+            else:
+                url_raw, desc = " ".join(bits), []
+            absu = urllib.parse.urljoin(base, url_raw.replace(" ", "%20"))
             if absu.startswith("data:"):
                 out.append(seg)
                 continue
             nm = self.register(absu, "img")
-            bits[0] = ("assets/" + nm) if nm else absu
-            out.append(" ".join(bits))
+            out.append(" ".join([("assets/" + nm) if nm else absu] + desc))
         return ", ".join(out)
 
     _AS_KIND = {"style": "css", "script": "js", "font": "font", "image": "img"}
@@ -301,6 +310,10 @@ class Localizer:
 
         for link in soup.find_all("link"):
             rel = " ".join(link.get("rel", [])).lower()
+            # dns-prefetch/preconnect hrefs are bare origins, not assets — and
+            # "prefetch" as a substring test would match "dns-prefetch".
+            if set(rel.split()) & {"dns-prefetch", "preconnect"}:
+                continue
             if not link.get("href") or not any(k in rel for k in ("stylesheet", "icon", "preload", "prefetch", "apple-touch")):
                 continue
             kind = "css" if "stylesheet" in rel else self._AS_KIND.get((link.get("as") or "").lower(), "img")

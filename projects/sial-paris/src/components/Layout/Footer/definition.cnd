@@ -1,0 +1,20 @@
+[sialp:footerLink] > jnt:content
+ - label (string) i18n
+ - footerGroup (string, choicelist[cta,legal,faq]) = legal
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:footer] > jnt:content, sialpmix:component, jmix:hiddenType
+ - communityText (string) i18n
+ - faqText (string) i18n
+ - newsletterHeading (string) i18n
+ - newsletterPlaceholder (string) i18n
+ - newsletterLabel (string) i18n
+ - gdprText (string, richtext) i18n
+ - organisedByLabel (string) i18n
+ - sialLogo (weakreference, picker[type='image'])
+ - comexposiumLogo (weakreference, picker[type='image'])
+ - stockfoodLogo (weakreference, picker[type='image'])
+ - copyrightText (string) i18n
+ - submitButtonLabel (string) i18n
+ + * (sialp:socialLink) = sialp:socialLink
+ + * (sialp:footerLink) = sialp:footerLink

@@ -1,0 +1,250 @@
+import {
+  buildNodeUrl,
+  jahiaComponent,
+  RenderChildren,
+  useServerContext,
+} from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import type { JCRSessionWrapper } from "org.jahia.services.content";
+import type { FooterSectionProps } from "./types.js";
+
+function resolveLinkHref(node: JCRNodeWrapper): string {
+  try {
+    if (!node.hasProperty("j:linkType")) return "#";
+    const type = node.getProperty("j:linkType").getString();
+    if (type === "internal" && node.hasProperty("j:linknode")) {
+      return buildNodeUrl(node.getProperty("j:linknode").getNode() as JCRNodeWrapper);
+    }
+    if (type === "external" && node.hasProperty("j:url")) {
+      return node.getProperty("j:url").getString() ?? "#";
+    }
+  } catch (_) {}
+  return "#";
+}
+
+function getStringProp(node: JCRNodeWrapper, name: string): string {
+  try {
+    return node.hasProperty(name) ? node.getProperty(name).getString() : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function resolveLegalPageUrl(
+  session: JCRSessionWrapper,
+  siteKey: string,
+  slug: string,
+): string | undefined {
+  try {
+    const path = `/sites/${siteKey}/home/${slug}`;
+    if (session.nodeExists(path)) {
+      return buildNodeUrl(session.getNode(path) as JCRNodeWrapper);
+    }
+  } catch (_) {}
+  return undefined;
+}
+
+/** Standalone view for usg:ctaButton used as a footer link item. */
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "usg:ctaButton",
+    displayName: "CTA Button",
+  },
+  (_, { currentNode }: { currentNode: JCRNodeWrapper }) => {
+    const href = resolveLinkHref(currentNode);
+    const label = getStringProp(currentNode, "ctaLabel");
+    if (!label) return null;
+    return (
+      <div className="field-lien">
+        <a href={href}>{label}</a>
+      </div>
+    );
+  },
+);
+
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "usg:footerSection",
+    displayName: "Footer Section",
+  },
+  (props: FooterSectionProps) => {
+    const { renderContext, jcrSession } = useServerContext();
+    const siteKey = renderContext.getSite().getName();
+
+    const legalPlanSiteUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "plan-du-site");
+    const legalMentionsUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "mentions-legales");
+    const legalDataUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "protection-donnees");
+    const legalCookiesUrl = resolveLegalPageUrl(jcrSession as JCRSessionWrapper, siteKey, "cookies");
+
+    return (
+      <footer>
+        {/* `#footer` is REQUIRED — the entire footer theme is scoped under it
+            (`#footer .bg-top-footer .grid-1` …). Without it the footer is unstyled. */}
+        <div id="footer">
+          <div className="container">
+            <div className="row">
+              <div className="component footerm2 container-fluid px-0 col-12">
+                <div className="component-content">
+          <div className="bg-top-footer">
+            <div className="grid-1">
+              {/* Social links column — each usg:socialLink renders one <a> */}
+              <div className="socials">
+                {props.socialHeading && (
+                  <div className="field-texte-reseaux-sociaux">{props.socialHeading}</div>
+                )}
+                <RenderChildren filter="usg:socialLink" />
+              </div>
+
+              {/* CTA links column — each usg:ctaButton renders one <div class="field-lien"> */}
+              <div className="link-container">
+                <RenderChildren filter="usg:ctaButton" />
+              </div>
+
+              {/* Newsletter form */}
+              <div className="form-control-checkbox">
+                {props.newsletterLabel && (
+                  <div className="field-texte-newsletter">{props.newsletterLabel}</div>
+                )}
+                <div className="row">
+                  <form method="post">
+                    <input
+                      type="email"
+                      name="newsletter-email"
+                      placeholder={props.newsletterPlaceholder ?? ""}
+                      aria-label={props.newsletterLabel ?? "Email"}
+                      maxLength={255}
+                    />
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="newsletter-optin"
+                        value="true"
+                        aria-label={props.newsletterConsentLabel ?? "J'accepte de recevoir la newsletter"}
+                      />
+                      {props.newsletterConsentLabel && (
+                        <span>{props.newsletterConsentLabel}</span>
+                      )}
+                    </label>
+                    {props.newsletterSubmitLabel && (
+                      <input
+                        type="submit"
+                        value={props.newsletterSubmitLabel}
+                      />
+                    )}
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* White section: main logo + partner logos + legal links */}
+          <div className="bg-white">
+            <div className="grid-2">
+              {/* Partner logo 1 */}
+              {props.partnerLogo1 && (
+                <div>
+                  <div className="img-logo">
+                    <div>
+                      <img
+                        src={buildNodeUrl(props.partnerLogo1)}
+                        alt={props.partnerLabel1 ?? ""}
+                        loading="lazy"
+                        style={{ maxHeight: "90px" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Partner logo 2 */}
+              {props.partnerLogo2 && (
+                <div>
+                  <div className="img-container">
+                    {props.partnerLabel2 && (
+                      <div className="field-texte-1">{props.partnerLabel2}</div>
+                    )}
+                    <div>
+                      <img
+                        src={buildNodeUrl(props.partnerLogo2)}
+                        alt={props.partnerLabel2 ?? ""}
+                        className="img-cover"
+                        loading="lazy"
+                        style={{ maxHeight: "90px" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Partner logo 3 */}
+              {props.partnerLogo3 && (
+                <div>
+                  <div className="img-container">
+                    {props.partnerLabel3 && (
+                      <div className="field-texte-2">{props.partnerLabel3}</div>
+                    )}
+                    <div>
+                      <img
+                        src={buildNodeUrl(props.partnerLogo3)}
+                        alt={props.partnerLabel3 ?? ""}
+                        className="img-cover"
+                        loading="lazy"
+                        style={{ maxHeight: "90px" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Legal links */}
+          <div className="ml">
+            {props.legalPlanSite && (
+              <div className="field-lien">
+                {legalPlanSiteUrl ? (
+                  <a href={legalPlanSiteUrl}>{props.legalPlanSite}</a>
+                ) : (
+                  <span>{props.legalPlanSite}</span>
+                )}
+              </div>
+            )}
+            {props.legalMentions && (
+              <div className="field-lien">
+                {legalMentionsUrl ? (
+                  <a href={legalMentionsUrl}>{props.legalMentions}</a>
+                ) : (
+                  <span>{props.legalMentions}</span>
+                )}
+              </div>
+            )}
+            {props.legalData && (
+              <div className="field-lien">
+                {legalDataUrl ? (
+                  <a href={legalDataUrl}>{props.legalData}</a>
+                ) : (
+                  <span>{props.legalData}</span>
+                )}
+              </div>
+            )}
+            {props.legalCookies && (
+              <div className="field-lien">
+                {legalCookiesUrl ? (
+                  <a href={legalCookiesUrl}>{props.legalCookies}</a>
+                ) : (
+                  <span>{props.legalCookies}</span>
+                )}
+              </div>
+            )}
+          </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    );
+  },
+);

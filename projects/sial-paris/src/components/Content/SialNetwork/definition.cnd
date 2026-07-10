@@ -1,0 +1,12 @@
+[sialp:networkEvent] > jnt:content
+ - eventName (string)
+ - city (string)
+ - eventDates (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:sialNetwork] > jnt:content, sialpmix:pageComponent, jmix:list, jmix:renderableList orderable
+ - heading (string) i18n
+ - image (weakreference, picker[type='image'])
+ - ctaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+ + * (sialp:networkEvent) = sialp:networkEvent

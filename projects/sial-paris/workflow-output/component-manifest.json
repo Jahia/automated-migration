@@ -1,0 +1,337 @@
+{
+  "module": "sial-paris",
+  "namespace": "sial",
+  "siteUrl": "https://www.sparis.com/fr-FR",
+  "analyzedAt": "2026-06-16",
+  "components": [
+    {
+      "id": "main-navigation",
+      "name": "Main Navigation",
+      "cndType": "sial:mainNavigation",
+      "areaType": "absolute",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "3-level mega menu with 6 top-level items. Uses Jahia Navigation Menu component over the JCR page tree.",
+      "fields": [],
+      "notes": "Built via getChildNodes on home page - no content type needed, pure navigation from page tree"
+    },
+    {
+      "id": "hero-carousel",
+      "name": "Hero Carousel",
+      "cndType": "sial:heroCarousel",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": true,
+      "description": "Full-width hero section with 3 auto-rotating slides. Each slide has background image, event-themed badge, heading H1, body text, and a CTA button.",
+      "fields": [
+        { "name": "slides", "type": "child-node", "childType": "sial:heroSlide", "multiple": true, "orderable": true }
+      ]
+    },
+    {
+      "id": "hero-slide",
+      "name": "Hero Slide",
+      "cndType": "sial:heroSlide",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": true,
+      "description": "Single slide within the hero carousel",
+      "fields": [
+        { "name": "backgroundImage", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "badge", "type": "string", "i18n": true },
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "body", "type": "text", "i18n": true },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false },
+        { "name": "j:linknode", "type": "weakreference", "i18n": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true }
+      ]
+    },
+    {
+      "id": "intro-text",
+      "name": "Intro Text Block",
+      "cndType": "sial:introText",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Centered text block: overline label, H2 heading, and rich text body. Used for editorial introductions.",
+      "fields": [
+        { "name": "overline", "type": "string", "i18n": true },
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "body", "type": "richtext", "i18n": true }
+      ]
+    },
+    {
+      "id": "key-figures",
+      "name": "Key Figures",
+      "cndType": "sial:keyFigures",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Stats band with 5 numbered figures. Each figure has a number, unit, and label.",
+      "fields": [
+        { "name": "figures", "type": "child-node", "childType": "sial:keyFigure", "multiple": true, "orderable": true }
+      ]
+    },
+    {
+      "id": "key-figure",
+      "name": "Key Figure Item",
+      "cndType": "sial:keyFigure",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Single stat: number + unit + label",
+      "fields": [
+        { "name": "number", "type": "string", "i18n": false },
+        { "name": "unit", "type": "string", "i18n": true },
+        { "name": "label", "type": "string", "i18n": true }
+      ]
+    },
+    {
+      "id": "news-listing",
+      "name": "Latest News Listing",
+      "cndType": "sial:newsListing",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": true,
+      "description": "Auto-queried listing of 3 latest news articles. Has section heading and a View All CTA.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true }
+      ],
+      "mixins": ["jmix:list", "jmix:renderableList", "jmix:cache"]
+    },
+    {
+      "id": "news-article",
+      "name": "News Article",
+      "cndType": "sial:newsArticle",
+      "areaType": "none",
+      "needsFullPage": true,
+      "useCtaChildNode": false,
+      "description": "Individual news article with thumbnail, category tag, date, title, excerpt. Has a full-page detail view.",
+      "fields": [
+        { "name": "thumbnail", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "category", "type": "string", "i18n": true },
+        { "name": "publishDate", "type": "date", "i18n": false },
+        { "name": "title", "type": "string", "i18n": true },
+        { "name": "excerpt", "type": "text", "i18n": true },
+        { "name": "body", "type": "richtext", "i18n": true }
+      ],
+      "mixins": ["jmix:mainResource"]
+    },
+    {
+      "id": "visitor-profiles",
+      "name": "Visitor Profiles",
+      "cndType": "sial:visitorProfiles",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "4-column grid showing visitor profile types (Distributeur, Industriel, Restaurateur, Grand public). Each card has icon, heading, description, and a link.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "profiles", "type": "child-node", "childType": "sial:visitorProfile", "multiple": true, "orderable": true }
+      ]
+    },
+    {
+      "id": "visitor-profile",
+      "name": "Visitor Profile Card",
+      "cndType": "sial:visitorProfile",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": true,
+      "description": "Single visitor profile: icon, heading, description, CTA link",
+      "fields": [
+        { "name": "icon", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "description", "type": "text", "i18n": true },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true }
+      ]
+    },
+    {
+      "id": "trends-section",
+      "name": "Trends Section",
+      "cndType": "sial:trendsSection",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": true,
+      "description": "3-column card grid showcasing food industry trends. Section heading, editorial intro, 3 trend cards, View All CTA.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "intro", "type": "text", "i18n": true },
+        { "name": "cards", "type": "child-node", "childType": "sial:trendCard", "multiple": true, "orderable": true },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false },
+        { "name": "ctaLabel", "type": "string", "i18n": true }
+      ]
+    },
+    {
+      "id": "trend-card",
+      "name": "Trend Card",
+      "cndType": "sial:trendCard",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": true,
+      "description": "Single trend card: tag, image, heading, excerpt, read more link",
+      "fields": [
+        { "name": "tag", "type": "string", "i18n": true },
+        { "name": "image", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "excerpt", "type": "text", "i18n": true },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false }
+      ]
+    },
+    {
+      "id": "video-section",
+      "name": "Video Section",
+      "cndType": "sial:videoSection",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Full-width video embed section with optional heading overlay. Supports YouTube and Vimeo.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "videoUrl", "type": "string", "i18n": false },
+        { "name": "thumbnailImage", "type": "weakreference", "picker": "image", "i18n": false }
+      ]
+    },
+    {
+      "id": "sectors-section",
+      "name": "Sectors Section",
+      "cndType": "sial:sectorsSection",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Grid of food industry sectors with icons/images and labels. Used to showcase the show's domain coverage.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "sectors", "type": "child-node", "childType": "sial:sectorItem", "multiple": true, "orderable": true }
+      ]
+    },
+    {
+      "id": "sector-item",
+      "name": "Sector Item",
+      "cndType": "sial:sectorItem",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Single sector: icon/image + label",
+      "fields": [
+        { "name": "icon", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "label", "type": "string", "i18n": true }
+      ]
+    },
+    {
+      "id": "cta-cards",
+      "name": "CTA Dual Cards",
+      "cndType": "sial:ctaDualCards",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Two large CTA cards side by side: Exposant and Visiteur. Each has background image, heading, and primary CTA button.",
+      "fields": [
+        { "name": "leftHeading", "type": "string", "i18n": true },
+        { "name": "leftImage", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "leftCtaLabel", "type": "string", "i18n": true },
+        { "name": "leftJ:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false },
+        { "name": "rightHeading", "type": "string", "i18n": true },
+        { "name": "rightImage", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "rightCtaLabel", "type": "string", "i18n": true },
+        { "name": "rightJ:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false }
+      ]
+    },
+    {
+      "id": "partners-carousel",
+      "name": "Partners Carousel",
+      "cndType": "sial:partnersCarousel",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Horizontal auto-scrolling logo carousel with 40+ partner logos. Has a section heading.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "logos", "type": "child-node", "childType": "sial:partnerLogo", "multiple": true, "orderable": true }
+      ]
+    },
+    {
+      "id": "partner-logo",
+      "name": "Partner Logo",
+      "cndType": "sial:partnerLogo",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Single partner: logo image + optional link + alt text",
+      "fields": [
+        { "name": "logo", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "partnerName", "type": "string", "i18n": false },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false }
+      ]
+    },
+    {
+      "id": "sial-network",
+      "name": "SIAL Network",
+      "cndType": "sial:sialNetwork",
+      "areaType": "area",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "World map + grid of 13 worldwide SIAL events (SIAL Paris, SIAL Canada, SIAL China, etc.) with country flags and dates.",
+      "fields": [
+        { "name": "heading", "type": "string", "i18n": true },
+        { "name": "events", "type": "child-node", "childType": "sial:networkEvent", "multiple": true, "orderable": true }
+      ]
+    },
+    {
+      "id": "network-event",
+      "name": "Network Event",
+      "cndType": "sial:networkEvent",
+      "areaType": "child",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Single SIAL network event: city, country flag, name, dates, link",
+      "fields": [
+        { "name": "eventName", "type": "string", "i18n": false },
+        { "name": "city", "type": "string", "i18n": false },
+        { "name": "flag", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "eventDates", "type": "string", "i18n": true },
+        { "name": "j:linkType", "type": "string", "choicelist": "linkTypeInitializer", "i18n": false }
+      ]
+    },
+    {
+      "id": "footer",
+      "name": "Footer",
+      "cndType": "sial:footer",
+      "areaType": "absolute",
+      "needsFullPage": false,
+      "useCtaChildNode": false,
+      "description": "Site footer: social links, FAQ link, newsletter signup (email + GDPR checkbox + submit), footer nav, SIAL + Comexposium logos, legal links.",
+      "fields": [
+        { "name": "newsletterHeading", "type": "string", "i18n": true },
+        { "name": "newsletterPlaceholder", "type": "string", "i18n": true },
+        { "name": "gdprText", "type": "richtext", "i18n": true },
+        { "name": "sialLogo", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "comexposiumLogo", "type": "weakreference", "picker": "image", "i18n": false },
+        { "name": "copyrightText", "type": "string", "i18n": true }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "home",
+      "name": "Home Template",
+      "file": "home.server.tsx",
+      "description": "Full home page with hero carousel, all sections"
+    },
+    {
+      "id": "basic",
+      "name": "Basic Page Template",
+      "file": "basic.server.tsx",
+      "description": "Standard interior page with header/footer and main area"
+    },
+    {
+      "id": "main-resource",
+      "name": "Main Resource Template",
+      "file": "MainResource/default.server.tsx",
+      "description": "Full-page template for news articles"
+    }
+  ],
+  "absoluteAreas": ["header", "footer"],
+  "totalComponents": 21
+}

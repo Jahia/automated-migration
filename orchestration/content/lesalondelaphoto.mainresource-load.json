@@ -1,0 +1,64 @@
+{
+  "folders": {
+    "articles": {
+      "path": "/sites/lesalondelaphoto/contents/articles",
+      "type": "lsp:newsArticle"
+    },
+    "agenda": {
+      "path": "/sites/lesalondelaphoto/contents/agenda",
+      "type": "lsp:agendaItem"
+    }
+  },
+  "listingPages": {
+    "actus": "/sites/lesalondelaphoto/contents/articles",
+    "actualite-photo/actus": "/sites/lesalondelaphoto/contents/articles",
+    "actualites": "/sites/lesalondelaphoto/contents/articles",
+    "actualite-photo": "/sites/lesalondelaphoto/contents/articles",
+    "agenda-photo": "/sites/lesalondelaphoto/contents/agenda",
+    "actualite-photo/agenda-photo": "/sites/lesalondelaphoto/contents/agenda"
+  },
+  "articles": [
+    {
+      "path": "/sites/lesalondelaphoto/contents/articles/studio-tech-phototrend-juin-2026",
+      "type": "lsp:newsArticle",
+      "folder": "articles",
+      "source": "studio-tech-phototrend-juin-2026"
+    },
+    {
+      "path": "/sites/lesalondelaphoto/contents/articles/etre-publie-dans-un-magazine-photo",
+      "type": "lsp:newsArticle",
+      "folder": "articles",
+      "source": "etre-publie-dans-un-magazine-photo"
+    },
+    {
+      "path": "/sites/lesalondelaphoto/contents/articles/appareil-photo-pour-debuter",
+      "type": "lsp:newsArticle",
+      "folder": "articles",
+      "source": "appareil-photo-pour-debuter"
+    },
+    {
+      "path": "/sites/lesalondelaphoto/contents/articles/nouvelles-pratiques-pro",
+      "type": "lsp:newsArticle",
+      "folder": "articles",
+      "source": "nouvelles-pratiques-pro"
+    },
+    {
+      "path": "/sites/lesalondelaphoto/contents/articles/ia-workflow-photographe",
+      "type": "lsp:newsArticle",
+      "folder": "articles",
+      "source": "ia-workflow-photographe"
+    },
+    {
+      "path": "/sites/lesalondelaphoto/contents/articles/affiche-salon-de-la-photo-paris-2026",
+      "type": "lsp:newsArticle",
+      "folder": "articles",
+      "source": "affiche-salon-de-la-photo-paris-2026"
+    },
+    {
+      "path": "/sites/lesalondelaphoto/contents/agenda/lee-miller",
+      "type": "lsp:agendaItem",
+      "folder": "agenda",
+      "source": "lee-miller"
+    }
+  ]
+}

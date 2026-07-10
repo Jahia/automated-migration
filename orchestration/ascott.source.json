@@ -1,0 +1,9 @@
+{
+  "source": "aem",
+  "scores": {
+    "sitecore-sxa": 3,
+    "aem": 17
+  },
+  "sampled": 8,
+  "note": "agnostic: media/content/verification work on any HTML; this picks the adapter"
+}

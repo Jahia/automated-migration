@@ -1,0 +1,459 @@
+{
+  "sourceUrl": "https://www.ultimate-supercar-garage.com/fr-FR",
+  "pagesExtracted": 53,
+  "extractionDate": "2026-06-25",
+  "pages": [
+    {
+      "url": "/fr-FR",
+      "title": "Ultimate Supercar Garage",
+      "isHome": true,
+      "language": "fr",
+      "alternateLanguage": "/en",
+      "metaDescription": "Le plus beau garage éphémère du monde dédié aux supercars modernes",
+      "heroBanner": {
+        "componentType": "usg:heroCarousel",
+        "slides": [
+          {
+            "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/vue-de-paris-banner.jpg",
+            "smallTitle": "Ultimate Supercar Garage",
+            "body": "Le rendez-vous de référence de l'univers des supercars modernes",
+            "ctaLabel": "Découvrir l'expérience",
+            "ctaLink": "/fr-FR/evenement/les-univers"
+          }
+        ]
+      },
+      "quickLinks": {
+        "componentType": "usg:quickLinks",
+        "backgroundColor": "bg-gray-1",
+        "cards": [
+          { "iconClass": "fa-ticket-simple", "title": "M'inscrire pour 2027", "link": "https://dweb.typeform.com/to/bKR7YAo6" },
+          { "iconClass": "fa-store", "title": "Exposer en 2027", "link": "https://dweb.typeform.com/to/qWLrDbZe" },
+          { "iconClass": "fa-list", "title": "Les exposants", "link": "/fr-FR/exposants-et-animations/liste-des-exposants" },
+          { "iconClass": "fa-microphone-stand", "title": "Les animations", "link": "/fr-FR/exposants-et-animations/calendrier-des-animations" }
+        ]
+      },
+      "video": {
+        "componentType": "usg:videoSection",
+        "videoUrl": "https://www.youtube.com/watch?v=5hh2y8Ws7AQ"
+      },
+      "sections": [
+        { "componentType": "usg:sectionTitle", "heading": "Le plus beau garage éphémère du monde dédié aux supercars modernes" },
+        { "componentType": "usg:richText", "body": "<h3>Le rendez-vous de référence de l'univers des supercars modernes</h3><p>Constructeurs, artisans du luxe automobile, marchands d'exception et préparateurs se rassemblent pour former l'écosystème de la supercar contemporaine.</p>" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Découvrir l'expérience", "linkTarget": "/fr-FR/evenement/les-univers" },
+        {
+          "componentType": "usg:keyFigures",
+          "heading": "Quelques Chiffres de 2026",
+          "animated": true,
+          "figures": [
+            { "value": "63 450", "label": "Visiteurs" },
+            { "value": "46", "label": "Constructeurs et artisans exposants" },
+            { "value": "3", "label": "Jours d'événement" },
+            { "value": "1 985", "label": "Journalistes accrédités" },
+            { "value": "87 220 000", "label": "Audience digitale de l'événement" }
+          ]
+        },
+        {
+          "componentType": "usg:editorialBlock",
+          "view": "rightImg",
+          "heading": "Un événement tourné vers l'avenir",
+          "body": "<p>Ultimate Supercar Garage n'est pas un salon automobile comme les autres. C'est une plateforme de rencontre et d'échange entre les acteurs de l'industrie automobile de luxe, les passionnés et les curieux.</p>",
+          "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/hp-block-1.jpg"
+        },
+        { "componentType": "usg:imageBlock", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/vue-de-paris-large.jpg" },
+        {
+          "componentType": "usg:editorialBlock",
+          "view": "rightImg",
+          "heading": "Une expérience immersive",
+          "body": "<p>Ultimate Supercar Garage propose une immersion totale dans l'univers des supercars, avec des mises en scène spectaculaires, des expositions interactives et des rencontres exclusives.</p>",
+          "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/soiree-avp.jpg"
+        },
+        {
+          "componentType": "usg:editorialBlock",
+          "view": "default",
+          "heading": "L'univers des supercars à portée de main",
+          "body": "<p>L'Ultimate Supercar Garage réunit en un même lieu les supercars les plus exclusives du moment.</p><ul><li>Preview soirée : Mardi 3 février 2027</li><li>Ouverture au public : Du 4 au 8 février 2027</li></ul>",
+          "ctaLabel": "Découvrez le programme 2026",
+          "ctaLink": "/fr-FR/evenement/scene-live",
+          "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live-presentation.jpg"
+        },
+        { "componentType": "usg:imageBlock", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/best-photos-2026.jpg" },
+        { "componentType": "usg:richText", "heading": "Découvrez la liste des exposants de 2026" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Voir la liste des exposants 2026", "linkTarget": "/fr-FR/exposants-et-animations/liste-des-exposants" },
+        {
+          "componentType": "usg:partnersCarousel",
+          "partnerLogos": [
+            { "name": "Alfa Romeo", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/alfa-romeo.png", "linkUrl": null },
+            { "name": "Aston Martin", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/aston-martin.png", "linkUrl": null },
+            { "name": "Bentley", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/bentley.png", "linkUrl": null },
+            { "name": "Bugatti", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/bugatti.png", "linkUrl": null },
+            { "name": "Charles Pozzi Ferrari", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/ferrari.png", "linkUrl": null },
+            { "name": "Lamborghini", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/lamborghini.png", "linkUrl": null },
+            { "name": "Maserati", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/maserati.png", "linkUrl": null },
+            { "name": "Pagani", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/partenaires/pagani.png", "linkUrl": null }
+          ]
+        },
+        {
+          "componentType": "usg:editorialBlock",
+          "view": "verticalImage",
+          "heading": "Prenez part à l'expérience dès l'ouverture!",
+          "body": "Soyez les premiers informés de l'ouverture de la billetterie 2027.",
+          "ctaLabel": "M'inscrire pour 2027",
+          "ctaLink": "https://dweb.typeform.com/to/bKR7YAo6",
+          "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/CP/cp-billeterie.jpg"
+        }
+      ]
+    },
+    {
+      "url": "/fr-FR/evenement",
+      "title": "L'évènement Ultimate Supercar Garage",
+      "language": "fr",
+      "heroBanner": {
+        "componentType": "usg:heroBanner",
+        "view": "default",
+        "heading": "Découvrez le rendez-vous dédié au phénomène Supercar",
+        "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/vue-de-paris-banner.jpg"
+      },
+      "sectionHub": {
+        "componentType": "usg:sectionHub",
+        "cards": [
+          { "title": "Les univers", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/stand-constructeurs.jpg", "description": "Ultimate Supercar Garage déploie un écosystème unique où la supercar se vit sous toutes ses formes.", "link": "/fr-FR/evenement/les-univers" },
+          { "title": "Scène Live", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/pivot-scene-live.jpg", "description": "La scène live s'impose comme le véritable moteur de l'événement.", "link": "/fr-FR/evenement/scene-live" },
+          { "title": "Sponsors & Partenaires", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/pivot-sponsors-partenaires.jpg", "description": "Découvrez les marques et institutions qui accompagnent Ultimate Supercar Garage.", "link": "/fr-FR/evenement/sponsors-et-partenaires" },
+          { "title": "Design in Motion", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/rassemblement-supercars.jpg", "description": "À travers son Design in Motion, le plus beau garage éphémère invite à redécouvrir la genèse de ces œuvres d'art sur roues.", "link": "/fr-FR/evenement/Design-in-Motion" }
+        ]
+      }
+    },
+    {
+      "url": "/fr-FR/evenement/les-univers",
+      "title": "Les univers",
+      "language": "fr",
+      "heroBanner": { "heading": "Les univers", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/stand-constructeurs.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "Ultimate Supercar Garage déploie un écosystème unique où la supercar se vit sous toutes ses formes. Constructeurs visionnaires, marchands d'exception, artisans du luxe automobile, préparateurs et univers lifestyle composent une expérience où héritage, création et émotion dialoguent sans frontière." },
+        { "componentType": "usg:editorialBlock", "view": "default", "heading": "CONSTRUCTEURS", "subheading": "Les signatures qui dessinent les supercars d'aujourd'hui", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/constructeurss.jpg", "body": "<p>Ultimate Supercar Garage réunit, en un même lieu, les constructeurs les plus désirables de la scène supercar contemporaine. Bugatti, Pagani, Aston Martin, Ferrari, Maserati... des maisons iconiques aux signatures affirmées, réunies autour d'une même exigence : faire de l'automobile une œuvre de design et de technologie.</p>" },
+        { "componentType": "usg:editorialBlock", "view": "rightImg", "heading": "ARTISANS DU LUXE AUTOMOBILE", "subheading": "Là où l'artisanat façonne l'exception", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/artisans-du-luxe.jpg", "body": "<p>Ultimate Supercar Garage met en lumière une sélection rare de créateurs qui proposent une nouvelle vision de la supercar contemporaine.</p>", "ctaLabel": "Découvrir les artisans du luxe automobile", "ctaLink": "/fr-FR/exposants-et-animations/liste-des-exposants" },
+        { "componentType": "usg:editorialBlock", "view": "default", "heading": "PRÉPARATEURS & MARCHANDS D'EXCEPTION", "subheading": "Les références du marché supercar", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/preparateurs-et-marchants.jpg", "body": "<p>Les plus prestigieux marchands européens spécialisés dans les supercars et hypercars contemporaines sont réunis.</p>" },
+        { "componentType": "usg:richText", "heading": "CLUBS DE SUPERCARS", "body": "<h3>La passion partagée</h3><p>Ultimate Supercar Garage accueille les clubs de supercars les plus exclusifs.</p>" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Découvrir les clubs de supercar", "linkTarget": "/fr-FR/exposants-et-animations/liste-des-exposants" },
+        { "componentType": "usg:imageBlock", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/clubs-de-supercars.jpg" },
+        { "componentType": "usg:editorialBlock", "view": "verticalImage", "heading": "GALERIE \"ART OF LIFE\"", "subheading": "L'expérience supercar à chaque instant", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/les-univers/galerie-art.jpg", "body": "<p>Plus qu'un véhicule, une supercar est une expérience. Une émotion. Un art de vivre.</p>" },
+        { "componentType": "usg:editorialBlock", "view": "verticalImage", "heading": "Devenir exposant", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/offre-de-stand/artisans-lounge.jpg", "body": "Positionnez votre marque parmi les constructeurs et artisans.", "ctaLabel": "Découvrez nos offres exposants", "ctaLink": "/fr-FR/espace-exposant" },
+        { "componentType": "usg:editorialBlock", "view": "verticalImage", "heading": "Prenez part à l'expérience dès l'ouverture !", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/CP/cp-billeterie.jpg", "body": "Soyez les premiers informés de l'ouverture de la billetterie 2027.", "ctaLabel": "M'inscrire pour 2027", "ctaLink": "https://dweb.typeform.com/to/bKR7YAo6" }
+      ]
+    },
+    {
+      "url": "/fr-FR/evenement/scene-live",
+      "title": "Scène Live",
+      "language": "fr",
+      "heroBanner": { "heading": "Scène Live", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/evenement/pivot-scene-live.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "<p>Au cœur de l'Ultimate Supercar Garage, la scène live s'impose comme le véritable moteur de l'événement. Lancements en avant-première de supercars, rencontres avec des designers de renommée mondiale, interventions d'influenceurs — la scène rythmera chaque journée.</p>" },
+        { "componentType": "usg:editorialBlock", "view": "default", "heading": "Au cœur de l'expérience", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/presentation-scenelive.jpg", "body": "<p>Cœur battant de l'Ultimate Supercar Garage, la Scène Live transforme la présentation automobile en expérience spectaculaire.</p>" },
+        { "componentType": "usg:editorialBlock", "view": "rightImg", "heading": "Révélations exclusives", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/scenelive.jpg", "body": "<p>Lors de la 1ère édition, des maisons prestigieuses comme Bugatti et Donkervoort ont choisi cette scène pour dévoiler leur dernier modèle.</p>" },
+        { "componentType": "usg:editorialBlock", "view": "default", "heading": "Design in Motion : Paris vibre au rythme du design de supercar", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/design-in-motion.jpg", "body": "<p>Fil conducteur de la Scène Live, le design s'impose comme le langage central.</p>" },
+        { "componentType": "usg:keyFigures", "heading": null, "figures": [
+          { "value": "17", "label": "Supercars sur scène" },
+          { "value": "14", "label": "Heures d'animations" },
+          { "value": "9", "label": "Sessions Design in Motion" },
+          { "value": "40", "label": "Intervenants internationaux" }
+        ]},
+        { "componentType": "usg:sectionTitle", "heading": "Revoir les présentations de l'édition 2026" },
+        {
+          "componentType": "usg:partnersCarousel",
+          "partnerLogos": [
+            { "name": "Aston Martin", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Aston-martin.png", "linkUrl": "https://youtu.be/S7UbPlrRvWc" },
+            { "name": "Lotus", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Lotus.png", "linkUrl": "https://youtu.be/9weH8vkBRe4" },
+            { "name": "Eccentrica", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Eccentrica.png", "linkUrl": "https://youtu.be/F7mugVuuGWY" },
+            { "name": "Bentley", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Bentley.png", "linkUrl": null },
+            { "name": "Bottega Fuoriserie", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Bottegafuoriserie.png", "linkUrl": "https://youtu.be/st2qJLF3awo" },
+            { "name": "Bugatti", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Bugatti.png", "linkUrl": "https://youtu.be/f6FBzaVQlSY" },
+            { "name": "Donkervoort", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Donkervoort.png", "linkUrl": "https://youtu.be/PW1BY8hEZY0" },
+            { "name": "HWA", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-HWA.png", "linkUrl": "https://youtu.be/1QdfzNeG_CU" },
+            { "name": "Mignatta", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Mignatta.png", "linkUrl": "https://youtu.be/MnPkbE9QV6Y" },
+            { "name": "Pagani", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-Pagani.png", "linkUrl": "https://youtu.be/RQZZjuJNmBA" },
+            { "name": "RML", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-visiteurs/scene-live/minia-youtube/miniature-RML.png", "linkUrl": "https://youtu.be/c5bhMjwqaJQ" }
+          ]
+        },
+        { "componentType": "usg:editorialBlock", "view": "verticalImage", "heading": "Prêt à vous faire rêver ?", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/CP/cp-billeterie.jpg", "body": "Soyez informés en exclusivité de l'ouverture de la billetterie 2027.", "ctaLabel": "M'inscrire pour 2027", "ctaLink": "https://dweb.typeform.com/to/bKR7YAo6" }
+      ]
+    },
+    {
+      "url": "/fr-FR/actualites",
+      "title": "Actualités Ultimate Supercar Garage",
+      "language": "fr",
+      "metaDescription": "Restez connecté à l'Ultimate Supercar Garage : annonces des exposants, avant-premières, animations, coulisses et événements exclusifs autour des supercars modernes.",
+      "heroBanner": { "view": "default", "heading": "Actualités Ultimate Supercar Garage – Dernières infos de l'événement", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/vue-de-paris-banner.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "<b>Restez connecté à l'Ultimate Supercar Garage : annonces des exposants, avant-premières, animations, coulisses et événements exclusifs.</b>" },
+        { "componentType": "usg:richText", "body": "<p>Retrouvez ici toutes les actualités de l'événement.</p>" },
+        {
+          "componentType": "usg:facetFilter",
+          "facets": ["Thèmes", "Type"],
+          "searchConfig": { "pageSize": 6, "defaultSortOrder": "Date-de-publication,Descending", "loadMore": true }
+        }
+      ],
+      "isListingPage": true,
+      "listingType": "newsArticle",
+      "hasDynamicContent": true,
+      "note": "Cards rendered client-side by SXA search-results JS. Individual article detail pages not crawlable."
+    },
+    {
+      "url": "/fr-FR/presse",
+      "title": "Espace Presse",
+      "language": "fr",
+      "heroBanner": { "view": "small", "heading": "Accréditation, communiqués & dossiers de presse", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/vue-de-paris-banner.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "<b>Retrouvez ici toutes les informations presse de l'événement.</b>" },
+        { "componentType": "usg:richText", "body": "<p>Cet espace vous donne accès aux communiqués de presse, aux dossiers de presse, et aux accréditations pour l'événement.</p>" },
+        { "componentType": "usg:imgContentBlock", "view": "default", "iconClass": "fa-paperclip", "heading": "Communiqués de presse", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/communique-de-presse.jpg", "body": "<p>Retrouvez tous les communiqués de presse de l'événement.</p>", "ctaLabel": "Découvrir", "ctaLink": "/fr-FR/presse/communique-de-presse" },
+        { "componentType": "usg:imgContentBlock", "view": "alt", "iconClass": "fa-id-badge", "heading": "Accréditation influence", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/accreditation-influence.jpg", "body": "<p>Demandez votre accréditation influence pour couvrir l'événement.</p>", "ctaLabel": "Voir", "ctaLink": "/fr-FR/presse/accreditation-influence" },
+        { "componentType": "usg:imgContentBlock", "view": "default", "iconClass": "fa-id-badge", "heading": "Accréditation presse", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/accreditation-presse.jpg", "body": "<p>Demandez votre accréditation presse.</p><p><b>À noter : la journée du jeudi 29/01 vous est en partie réservée.</b></p>", "ctaLabel": "S'accréditer", "ctaLink": "/fr-FR/presse/accreditation-presse" },
+        { "componentType": "usg:imgContentBlock", "view": "alt", "iconClass": "", "heading": "Média Kit", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/presse/kit-media.jpg", "body": null, "ctaLabel": "Accédez au Média Kit", "ctaLink": "/fr-FR/presse/kit-media" }
+      ]
+    },
+    {
+      "url": "/fr-FR/billetterie",
+      "title": "Billetterie",
+      "language": "fr",
+      "heroBanner": { "view": "default", "heading": "Découvrez le rendez-vous dédié au phénomène Supercar", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/_banner-visiteurs/vue-de-paris-banner.jpg" },
+      "sectionHub": {
+        "componentType": "usg:sectionHub",
+        "cards": [
+          { "title": "Billetterie Ultimate Supercar Garage", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/billetterie-banner.jpg", "description": "L'expérience hypersportive commence ici. Accédez à l'Ultimate Supercar Garage avec un billet dédié !", "link": "/fr-FR/billetterie/acheter-mon-ticket" },
+          { "title": "Groupes & CSE", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/groupeetcse.jpg", "description": "Faites une réservation groupée pour Ultimate Supercar Garage. Offre uniquement valable pour les groupes & CSE", "link": "/fr-FR/billetterie/groupes-cse" }
+        ]
+      }
+    },
+    {
+      "url": "/fr-FR/billetterie/acheter-mon-ticket",
+      "title": "Billetterie Ultimate Supercar Garage",
+      "language": "fr",
+      "heroBanner": { "view": "default", "heading": "Vos billets pour l'événement Ultimate Supercar Garage", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/billetterie-banner.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "L'expérience hypersportive commence ici. Accédez à l'Ultimate Supercar Garage avec un billet dédié !" },
+        { "componentType": "usg:richText", "heading": "Ultimate Supercar Garage revient en 2027 : soyez averti(e) !", "body": "<p>Merci d'avoir participé à la première édition de l'Ultimate Supercar Garage en 2026 ! Rendez-vous du 3 au 7 février 2027 à Paris Expo - Porte de Versailles.</p>" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Être averti pour l'édition 2027", "linkTarget": "https://dweb.typeform.com/to/bKR7YAo6" },
+        { "componentType": "usg:imgContentBlock", "view": "alt", "heading": "Soirée avant-première", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/soiree-lancement.jpg", "body": "<p>Faites vivre un moment d'exception à vos clients et proches en les conviant à la soirée avant-première le mardi 2 février 2027 de 18h à 23h.</p><ul><li>Accès exclusif en avant-première</li><li>Cocktail et bar à champagne Deutz</li><li>Orchestre symphonique et DJ set</li></ul>" },
+        { "componentType": "usg:imgContentBlock", "view": "default", "heading": "Jeune & enfants", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/enfant-ado.jpg", "body": "<p>Vivez l'expérience Ultimate Supercar en famille !</p><ul><li>Jeunes (-16 ans) : En vente sur place uniquement</li><li>Enfants (-12 ans) : GRATUIT</li></ul>" },
+        { "componentType": "usg:imgContentBlock", "view": "alt", "heading": "En situation de handicap", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/situation-de-handicap.png", "body": "<p>L'événement accueille tous ses visiteurs dans les meilleures conditions.</p>", "ctaLabel": "Les engagements d'accessibilité", "ctaLink": "https://www.retromobile.com/fr-FR/infos-pratiques/nos-engagements-accessibilite" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Poser ma question", "linkTarget": "https://bit.ly/hotlinecxpm" }
+      ]
+    },
+    {
+      "url": "/fr-FR/billetterie/groupes-cse",
+      "title": "Groupes & CSE",
+      "language": "fr",
+      "heroBanner": { "view": "default", "heading": "Groupes & CSE", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/billetterie/groupeetcse.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "Faites une réservation groupée pour l'Ultimate Supercar Garage. Offre uniquement valable pour les groupes & CSE." },
+        { "componentType": "usg:richText", "heading": "Achat", "body": "<p>Tarif adulte GROUPE / CSE : 15€/personne<br>Gratuit pour les moins de 12 ans</p>" },
+        { "componentType": "usg:richText", "heading": "Réservation", "body": "<p>Éditez votre devis et réservez vos e-billets en ligne. Tarif Groupe & CSE : 15€/personne. Gratuit pour les moins de 12 ans. Pour toute question : [email protected]</p>" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Télécharger notre RIB", "linkTarget": "/-/media/Files/SUPERCAR-PDF/RIB-RETROMOBILE-ADRESSE-COURBEVOIE-CERTIFIE.pdf" },
+        { "componentType": "usg:richText", "heading": "Bon de commande" },
+        { "componentType": "usg:ctaBanner", "ctaLabel": "Télécharger le bon de commande", "linkTarget": "/-/media/Files/SUPERCAR-PDF/BDC-USG-2026.pdf" }
+      ]
+    },
+    {
+      "url": "/fr-FR/infos-pratiques/FAQ",
+      "title": "FAQ",
+      "language": "fr",
+      "heroBanner": { "view": "default", "heading": "FAQ", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/banner-teaser.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "<b>Découvrez les questions les plus fréquemment posées par nos visiteurs.</b>" },
+        {
+          "componentType": "usg:plainHtml",
+          "note": "Tabbed FAQ with 3 tabs (Billet, Accès, Vie pratique) containing 11 questions total. Implement as custom FAQ component with tab navigation + accordion Q&A items."
+        }
+      ],
+      "faqItems": [
+        { "tab": "Billet", "question": "Où peut-on acheter un billet ?", "answer": "Achetez vos billets en ligne en amont de l'évènement ou directement à l'entrée du salon." },
+        { "tab": "Billet", "question": "Existe-t-il des tarifs préférentiels pour les groupes ?", "answer": "Oui, pour les Comités d'Entreprises et groupes supérieurs à 10, le prix est de 15€/personne." },
+        { "tab": "Billet", "question": "Les billets sont-ils échangeables ou remboursables ?", "answer": "Non, les billets ne sont ni repris, ni échangés. Ils ne sont pas nominatifs." },
+        { "tab": "Accès", "question": "Quels sont les horaires d'ouverture ?", "answer": "Jeudi 29 janvier : 10h-20h30 | Vendredi 30 : 10h-22h | Samedi 31 : 10h-20h30 | Dimanche 01 février : 10h-19h" },
+        { "tab": "Accès", "question": "Comment stationner mon véhicule ?", "answer": "Parkings 6 et 7 à proximité. Tarif : 51,70€ par jour." },
+        { "tab": "Vie pratique", "question": "Les enfants sont-ils acceptés ?", "answer": "Oui, accompagnés d'un adulte. Gratuit pour les moins de 12 ans." },
+        { "tab": "Vie pratique", "question": "Les animaux sont-ils acceptés ?", "answer": "Non, à l'exception des chiens d'assistance." },
+        { "tab": "Vie pratique", "question": "Un service de restauration est-il disponible ?", "answer": "Oui, différentes offres de restauration sont proposées sur l'événement." }
+      ]
+    },
+    {
+      "url": "/fr-FR/infos-pratiques/date-acces-plan",
+      "title": "Date - Accès - Plan",
+      "language": "fr",
+      "heroBanner": { "view": "small", "heading": "Date, Accès, Plan", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/ultimate-spot/plan.jpg" },
+      "sections": [
+        { "componentType": "usg:richText", "body": "<b>Préparez votre venue à l'Ultimate Supercar Garage: consultez le plan, informez-vous sur les horaires et les accès.</b>" },
+        {
+          "componentType": "usg:infoCard",
+          "cards": [
+            { "iconClass": "fa-calendar-days", "title": "Dates & horaires", "body": "<ul><li>Mercredi 3 février 2027 : 10h-20h30</li><li>Jeudi 4 février 2027 : 10h-20h30</li><li>Vendredi 5 février 2027 : 10h-22h</li><li>Samedi 6 février 2027 : 10h-20h30</li><li>Dimanche 7 février 2027 : 10h-19h</li></ul>" },
+            { "iconClass": "fa-map-location-dot", "title": "Adresse", "body": "<p>Parc des expositions Paris Portes de Versailles, 1 Pl. de la Porte de Versailles, 75015 Paris</p>", "ctaLabel": "Découvrir le plan d'accès", "ctaLink": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/Plan-Porte-de-verailles.png" },
+            { "iconClass": "fa-lights-holiday", "title": "Soirée et nocturnes", "body": "<ul><li>Avant-première : mardi 2 février 2027, 18h-23h</li><li>Nocturne : vendredi 5 février jusqu'à 22h</li></ul>" }
+          ]
+        },
+        { "componentType": "usg:imgContentBlock", "view": "default", "heading": "Plan 2026", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/infos-pratiques/Plan-USG.png", "ctaLabel": "Découvrez le plan 2026", "ctaLink": "/-/media/Files/SUPERCAR-PDF/PLAN-SIMPLIFIE-2026-VFVEN.pdf" },
+        { "componentType": "usg:richText", "heading": "Coordonnées GPS" },
+        { "componentType": "usg:plainHtml", "note": "Google Maps embed iframe" },
+        { "componentType": "usg:sectionTitle", "heading": "Calculez votre impact transport en un clic" },
+        { "componentType": "usg:richText", "body": "<p>Choisissez le mode de transport le plus écologique avec l'ADEME.</p>" },
+        { "componentType": "usg:plainHtml", "note": "impactco2.fr transport iframe widget" }
+      ]
+    },
+    {
+      "url": "/fr-FR/exposants-et-animations",
+      "title": "Exposants et animations",
+      "language": "fr",
+      "noHero": true,
+      "sectionHub": {
+        "componentType": "usg:sectionHub",
+        "cards": [
+          { "title": "Liste des exposants 2026", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/banniere-ultimate.jpg", "link": "/fr-FR/exposants-et-animations/liste-des-exposants" },
+          { "title": "Liste des animations 2026", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/SOC/soc-3.jpg", "link": "/fr-FR/exposants-et-animations/calendrier-des-animations" }
+        ]
+      }
+    },
+    {
+      "url": "/fr-FR/exposants-et-animations/liste-des-exposants",
+      "title": "Liste des exposants 2026",
+      "language": "fr",
+      "heroBanner": { "view": "small", "heading": "Liste des exposants 2026", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/banniere-ultimate.jpg" },
+      "isDynamicPage": true,
+      "dynamicSource": "Connect2 platform (connect2Loader.js)",
+      "note": "Exhibitor data loaded client-side via Connect2 JS API. Zero server-rendered exhibitor cards in cache. Exhibitor import will require Connect2 API integration or manual data entry."
+    },
+    {
+      "url": "/fr-FR/exposants-et-animations/calendrier-des-animations",
+      "title": "Liste des animations 2026",
+      "language": "fr",
+      "heroBanner": { "view": "small", "heading": "Liste des animations 2026", "backgroundImage": "/-/media/Project/Comexposium-Master1/Master1-Supercar/supercar/SOC/soc-3.jpg" },
+      "isDynamicPage": true,
+      "dynamicSource": "Connect2 platform (connect2Loader.js)",
+      "note": "Event data loaded client-side via Connect2 JS API. Zero server-rendered event cards in cache."
+    },
+    {
+      "url": "/fr-FR/espace-exposant",
+      "title": "Espace Exposant",
+      "language": "fr",
+      "heroCarousel": {
+        "componentType": "usg:heroCarousel",
+        "slides": [
+          {
+            "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/banner-exposants/banniere-exposants.jpg",
+            "smallTitle": "Devenez exposant à l'Ultimate Supercar Garage 2027",
+            "body": "Rejoignez les plus grands constructeurs et artisans du luxe automobile.",
+            "ctaLabel": "Exposer pour l'événement",
+            "ctaLink": "https://dweb.typeform.com/to/qWLrDbZe"
+          }
+        ]
+      },
+      "sections": [
+        { "componentType": "usg:videoContentBlock", "heading": "Entrez dans l'univers de l'Ultimate Supercar Garage", "videoUrl": "https://www.youtube.com/watch?v=5hh2y8Ws7AQ", "body": "Découvrez l'expérience exposant." },
+        { "componentType": "usg:editorialBlock", "view": "verticalImage", "heading": "Nos offres de stands", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/offre-de-stand/stand-pagani.jpg", "body": "Découvrez nos différentes offres de stands.", "ctaLabel": "Plus d'informations", "ctaLink": "/fr-FR/espace-exposant/offres-de-stand-ultimate-supercar-garage" },
+        { "componentType": "usg:editorialBlock", "view": "verticalImage", "heading": "Pourquoi exposer à l'Ultimate Supercar Garage ?", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/hp-exposants/pourquoi-exposer/exposants-discussion.jpg", "body": "L'Ultimate Supercar Garage offre une visibilité unique.", "ctaLabel": "En savoir plus", "ctaLink": "/fr-FR/espace-exposant/pourquoi-exposer" },
+        {
+          "componentType": "usg:keyFigures",
+          "heading": "Les chiffres clés",
+          "animated": true,
+          "figures": [
+            { "value": "63 450", "label": "Visiteurs" },
+            { "value": "34", "label": "Âge moyen" },
+            { "value": "96%", "label": "Satisfaction" },
+            { "value": "87 220 000", "label": "Audience digitale" },
+            { "value": "1 985", "label": "Journalistes" }
+          ]
+        },
+        { "componentType": "usg:sectionTitle", "heading": "Les dates clés de votre participation" },
+        {
+          "componentType": "usg:timelineCards",
+          "cards": [
+            { "title": "Mai 2026", "description": "<p>Ouverture des inscriptions exposants</p>" },
+            { "title": "Septembre 2026", "description": "<p>Validation des emplacements</p>" },
+            { "title": "Octobre 2026", "description": "<p>Briefing exposants</p>" },
+            { "title": "Novembre 2026", "description": "<p>Transmission des informations techniques</p>" },
+            { "title": "Décembre 2026", "description": "<p>Finalisation des stands</p>" },
+            { "title": "Janvier-Février 2027", "description": "<p>Montage et événement</p>" }
+          ]
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "mainNav": {
+      "sections": [
+        {
+          "label": "L'événement",
+          "url": "/fr-FR/evenement",
+          "children": [
+            { "label": "Le salon", "url": "/fr-FR/evenement/le-salon" },
+            { "label": "Les univers", "url": "/fr-FR/evenement/les-univers" },
+            { "label": "Scène Live", "url": "/fr-FR/evenement/scene-live" },
+            { "label": "Sponsors & Partenaires", "url": "/fr-FR/evenement/sponsors-et-partenaires" },
+            { "label": "Design in Motion", "url": "/fr-FR/evenement/Design-in-Motion" }
+          ]
+        },
+        { "label": "Actualités", "url": "/fr-FR/actualites", "children": [] },
+        {
+          "label": "Infos Pratiques",
+          "url": "/fr-FR/infos-pratiques",
+          "children": [
+            { "label": "FAQ", "url": "/fr-FR/infos-pratiques/FAQ" },
+            { "label": "Date, Accès, Plan", "url": "/fr-FR/infos-pratiques/date-acces-plan" },
+            { "label": "Comment venir", "url": "/fr-FR/infos-pratiques/comment-venir-au-salon" }
+          ]
+        },
+        {
+          "label": "Exposants & animations",
+          "url": "/fr-FR/exposants-et-animations",
+          "children": [
+            { "label": "Liste des exposants 2026", "url": "/fr-FR/exposants-et-animations/liste-des-exposants" },
+            { "label": "Liste des animations 2026", "url": "/fr-FR/exposants-et-animations/calendrier-des-animations" }
+          ]
+        },
+        {
+          "label": "Billetterie",
+          "url": "/fr-FR/billetterie",
+          "children": [
+            { "label": "Acheter mon ticket", "url": "/fr-FR/billetterie/acheter-mon-ticket" },
+            { "label": "Groupes et CSE", "url": "/fr-FR/billetterie/groupes-cse" }
+          ]
+        }
+      ],
+      "mobileCtas": [
+        { "label": "M'inscrire pour 2027", "url": "https://dweb.typeform.com/to/bKR7YAo6", "iconClass": "fa-ticket-simple" },
+        { "label": "Exposer", "url": "https://dweb.typeform.com/to/qWLrDbZe", "iconClass": "fa-store" }
+      ]
+    },
+    "headerDate": "3 - 7 FEV. 2027",
+    "headerVenue": "PARIS EXPO PORTE DE VERSAILLES",
+    "logoUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/Logo-404/logo-supercar-encadre.png",
+    "socialLinks": [
+      { "platform": "instagram", "url": "https://www.instagram.com/ultimatesupercargarage/" },
+      { "platform": "facebook", "url": "https://www.facebook.com/people/Ultimate-Supercar-Garage/61576492233738/" },
+      { "platform": "tiktok", "url": "https://www.tiktok.com/@ultimatesupercargarage" },
+      { "platform": "linkedin", "url": "https://www.linkedin.com/company/ultimate-supercar-garage/" },
+      { "platform": "youtube", "url": "https://www.youtube.com/@UltimateSupercarGarage" }
+    ]
+  },
+  "footer": {
+    "socialHeading": "Rejoindre la communauté #UltimateSupercarGarage",
+    "newsletterLabel": "Newsletter :",
+    "newsletterPlaceholder": "Votre adresse email",
+    "newsletterConsentLabel": "J'accepte de recevoir la newsletter",
+    "newsletterSubmitLabel": "Envoyer",
+    "partnerLogos": [
+      { "name": "Ultimate Supercar Garage", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/logo-supercar-fond-noir.png", "linkUrl": "/" },
+      { "name": "Rétromobile", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/logo-retromobile-transparent.png", "label": "En collaboration avec Rétromobile", "linkUrl": "https://www.retromobile.com/fr-FR/" },
+      { "name": "Comexposium", "imageUrl": "/-/media/Project/Comexposium-Master1/Master1-Supercar/logo-comexposium-transparent.png", "label": "Un salon organisé par :", "linkUrl": "https://www.comexposium.com/" }
+    ],
+    "legalLinks": [
+      { "label": "Plan du site", "url": "/fr-FR/plan-du-site" },
+      { "label": "Mentions légales & CGU", "url": "/fr-FR/mentions-legales" },
+      { "label": "Protection des données", "url": "/fr-FR/protection-donnees" },
+      { "label": "Cookies", "url": "/fr-FR/cookies" }
+    ],
+    "utilityLinks": [
+      { "label": "ESPACE PRESSE", "url": "/fr-FR/presse" },
+      { "label": "EXPOSER À L'ÉVÉNEMENT", "url": "/fr-FR/espace-exposant" }
+    ]
+  }
+}

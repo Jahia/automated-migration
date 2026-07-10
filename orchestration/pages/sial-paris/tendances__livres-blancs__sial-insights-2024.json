@@ -1,0 +1,53 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "tendances/livres-blancs/sial-insights-2024",
+  "hero": {
+    "heading": "SIAL Insights 2024",
+    "subtitle": "Toutes les tendances alimentaires mondiales de 2024 rassemblées dans un seul guide à télécharger — gratuitement.",
+    "image": "tendance/lp/SIAL-Insights-2024/SIAL-Insights-2024-555x450.jpg",
+    "imgFile": "sial-insights-2024-hero.jpg"
+  },
+  "intro": {
+    "overline": "LIVRE BLANC",
+    "heading": "Prenez le pouls de l'alimentation mondiale",
+    "body": "<p>Nous avons décrypté pour vous les enjeux et les tendances clefs de l'industrie agroalimentaire. Notre livre blanc est une ressource indispensable pour votre veille et votre stratégie dans le secteur. Et c'est gratuit !</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Pourquoi télécharger SIAL Insights 2024 ?",
+      "image": "tendance/lp/SIAL-Insights-2024/SIAL_INSIGHTS_2024_MOCKUP_555x600.jpg",
+      "imgFile": "sial-insights-2024-mockup.jpg",
+      "imageAlt": "Couverture du livre blanc SIAL Insights 2024",
+      "body": [
+        "<ul><li><strong>Satisfaire les attentes et besoins des consommateurs</strong> — découvrez la synthèse des enjeux de l'agroalimentaire de demain, dans le monde entier.</li><li><strong>Devancer vos concurrents</strong> — anticipez les évolutions de comportements alimentaires selon les différents marchés mondiaux.</li><li><strong>Économisez un temps précieux</strong> — obtenez facilement toutes les informations essentielles dont vous avez besoin.</li></ul>"
+      ]
+    },
+    {
+      "heading": "À découvrir dans l'édition 2024",
+      "dark": true,
+      "body": [
+        "<ul><li>Une analyse approfondie et une vision claire des défis alimentaires mondiaux.</li><li>Des statistiques détaillées pour décoder les tendances du secteur agroalimentaire.</li><li>L'analyse de nos experts des comportements et des attentes des consommateurs internationaux.</li></ul>",
+        "<p>Nos experts vous dévoilent les quatre tendances 2024 :</p>",
+        "<ul><li><strong>De l'émotion</strong> — la place centrale du plaisir.</li><li><strong>Du lien</strong> — l'alimentation est aussi et surtout une affaire collective.</li><li><strong>De l'attention</strong> — l'assiette comme lieu d'attention à soi et au monde.</li><li><strong>La FoodTech</strong> — alimentation &amp; technologie, c'est déjà demain.</li></ul>"
+      ]
+    },
+    {
+      "heading": "Un guide co-créé avec trois cabinets experts",
+      "image": "tendance/lp/SIAL-Insight-2022/Karin-Perrot-Kantar-partenaire-SIAL-pl.jpg",
+      "imgFile": "sial-insights-expert-kantar.jpg",
+      "imageAlt": "Karin Perrot, Directrice Experte Food chez Kantar",
+      "body": [
+        "<p>En 2024, à l'occasion de ses 60 ans, SIAL Paris s'associe à trois cabinets experts du secteur pour proposer un guide exclusif qui affirme la place centrale de l'alimentation dans nos vies :</p>",
+        "<ul><li><strong>L'étude Food 360</strong>, réalisée tous les deux ans par Kantar pour SIAL Paris sur les attentes des consommateurs.</li><li><strong>Le Baromètre Mondial de l'Innovation</strong> réalisé par ProtéinesXTC.</li><li><strong>Le panel CREST</strong> (Consumer Report on Eating Share Trends) réalisé par Circana sur la restauration hors domicile et la grande distribution.</li></ul>",
+        "<p><strong>Karin Perrot</strong>, Directrice Experte Food chez Kantar, partenaire de SIAL Paris depuis 2012 avec Food 360, étude internationale de référence sur les enjeux alimentaires. <strong>Xavier Terlet</strong>, expert Tendances &amp; Innovation chez ProtéinesXTC, partenaire historique de SIAL Paris, analyse chaque année les produits alimentaires lancés dans le monde. <strong>Maria Bertoch</strong> et <strong>Emily Mayer</strong>, expertes Foodservice et études chez Circana, suivent la restauration hors domicile dans douze pays (panel CREST, plus de 180 000 répondants par an) ainsi que les données de sortie de caisse de plus de 20 000 points de vente.</p>"
+      ]
+    },
+    {
+      "heading": "Votre ticket pour SIAL Paris",
+      "dark": true,
+      "body": [
+        "<p>SIAL Paris est le salon incontournable sur les enjeux de l'alimentation dans le monde entier. Nous travaillons main dans la main avec tous les acteurs de l'agroalimentaire. Rejoignez vos pairs du 17 au 21 octobre 2026 à Paris Nord Villepinte.</p>"
+      ]
+    }
+  ]
+}

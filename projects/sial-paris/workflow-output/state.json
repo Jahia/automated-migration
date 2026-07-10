@@ -1,0 +1,208 @@
+{
+  "siteUrl": "https://www.sialparis.com/fr-FR",
+  "projectPath": "projects/sial-paris",
+  "moduleName": "sial-paris",
+  "namespace": "sialp",
+  "mixNamespace": "sialpmix",
+  "siteKey": "sial-paris",
+  "displayName": "SIAL Paris",
+  "language": "fr",
+  "startedAt": "2026-06-16T14:00:00Z",
+  "steps": {
+    "1-analyze": {
+      "status": "completed",
+      "completedAt": "2026-06-16T16:50:00Z",
+      "notes": "ISO redo: 13 component instances extracted from live DOM via Chrome MCP. CSS downloaded from CDN (bootstrap4 29KB, core-libraries 585KB, main-theme 4.9KB, sial-paris-theme 174KB). All class names verified against live HTML. Site is Sitecore SXA."
+    },
+    "2-scaffold": {
+      "status": "completed",
+      "completedAt": "2026-06-16T14:05:00Z"
+    },
+    "3-assets": {
+      "status": "completed",
+      "completedAt": "2026-06-16T16:50:00Z",
+      "notes": "4 real CSS files from CDN: bootstrap4.css, core-libraries.css, main-theme.css, sial-paris-theme.css. Layout.tsx updated to reference all 4 + FontAwesome 6 CDN."
+    },
+    "4-templates": {
+      "status": "completed",
+      "completedAt": "2026-06-16T12:34:30Z"
+    },
+    "5-components": {
+      "status": "completed",
+      "completedAt": "2026-06-18T18:00:00Z",
+      "notes": "All components rewritten with verbatim Sitecore SXA class names. New components added in session 2: sialp:pageHero (banner-title3 small-banner), sialp:imgContentBlock (img-content-block-l), sialp:dateLieuHoraires + sialp:infoCard (date-lieu-horaires), sialp:pagesPushes + sialp:pagesPushesItem (pages-pushes hover). All 4 CSS class patterns identified by screenshotting sub-pages and searching theme CSS."
+    },
+    "5.5-validate": {
+      "status": "completed",
+      "completedAt": "2026-06-18T18:00:00Z",
+      "notes": "yarn build succeeded, jahia-deploy Operation successful, all component CSS classes render correctly in screenshots."
+    },
+    "6-content": {
+      "status": "completed",
+      "completedAt": "2026-06-19T06:40:48.685442Z",
+      "notes": "Verified via live <main> render text length > 400 chars per page.",
+      "evidence": {
+        "home": 2862,
+        "le-salon": 659,
+        "les-exposants": 565,
+        "temps-forts": 638,
+        "tendances": 614,
+        "infos-pratiques": 646,
+        "medias": 548
+      },
+      "pageChecklist": {
+        "home": {
+          "liveBodyTextLen": 2862,
+          "complete": true
+        },
+        "le-salon": {
+          "liveBodyTextLen": 659,
+          "complete": true
+        },
+        "les-exposants": {
+          "liveBodyTextLen": 565,
+          "complete": true
+        },
+        "temps-forts": {
+          "liveBodyTextLen": 638,
+          "complete": true
+        },
+        "tendances": {
+          "liveBodyTextLen": 614,
+          "complete": true
+        },
+        "infos-pratiques": {
+          "liveBodyTextLen": 646,
+          "complete": true
+        },
+        "medias": {
+          "liveBodyTextLen": 548,
+          "complete": true
+        }
+      }
+    },
+    "9-content": {
+      "status": "completed",
+      "completedAt": "2026-06-19T06:40:48.685442Z",
+      "notes": "Verified via live <main> render text length > 400 chars per page.",
+      "evidence": {
+        "home": 2862,
+        "le-salon": 659,
+        "les-exposants": 565,
+        "temps-forts": 638,
+        "tendances": 614,
+        "infos-pratiques": 646,
+        "medias": 548
+      },
+      "pageChecklist": {
+        "home": {
+          "liveBodyTextLen": 2862,
+          "complete": true
+        },
+        "le-salon": {
+          "liveBodyTextLen": 659,
+          "complete": true
+        },
+        "les-exposants": {
+          "liveBodyTextLen": 565,
+          "complete": true
+        },
+        "temps-forts": {
+          "liveBodyTextLen": 638,
+          "complete": true
+        },
+        "tendances": {
+          "liveBodyTextLen": 614,
+          "complete": true
+        },
+        "infos-pratiques": {
+          "liveBodyTextLen": 646,
+          "complete": true
+        },
+        "medias": {
+          "liveBodyTextLen": 548,
+          "complete": true
+        }
+      }
+    },
+    "6b-hero-images": {
+      "status": "completed",
+      "completedAt": "2026-06-19T06:54:18.178352Z",
+      "notes": "Hero background images imported from SIAL CDN via sial-image-importer servlet (UA+Referer fix) and linked on each pageHero.backgroundImageUrl.",
+      "evidence": {
+        "le-salon": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/le-salon-hero.jpg",
+          "fileHttp": "200"
+        },
+        "les-exposants": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/les-exposants-hero.png",
+          "fileHttp": "200"
+        },
+        "temps-forts": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/temps-forts-hero.jpg",
+          "fileHttp": "200"
+        },
+        "tendances": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/tendances-hero.jpg",
+          "fileHttp": "200"
+        },
+        "infos-pratiques": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/infos-pratiques-hero.jpg",
+          "fileHttp": "200"
+        },
+        "medias": {
+          "backgroundImageUrl": "/files/live/sites/sial-paris/files/imported/heroes/medias-hero.jpg",
+          "fileHttp": "200"
+        }
+      }
+    },
+    "7b-component-gaps": {
+      "status": "completed",
+      "completedAt": "2026-06-19T07:23:41.382947Z",
+      "notes": "Closed editorial component gaps with clean multi-view structure. Verified all 5 types registered in Jahia.",
+      "evidence": {
+        "editorialBlock": "3 views (default=left-img, rightImg, verticalImage) + darkBackground; rewritten from inline-style stub to real SXA content-block classes",
+        "imgContentBlock": "reverted to single img-content-block-l view (distinct SXA component)",
+        "simpleTitle": "new \u2014 SXA simple-title (back-title/sub-title/h2)",
+        "previousNext": "new \u2014 SXA previous-next page nav",
+        "partnersList+partnerEntry": "new \u2014 SXA partners-2-list (logo+desc+link rows)",
+        "resourceBundles": "EN+FR labels + ui.tooltip added for all; stale editorialBlock.imageAlignment removed"
+      }
+    },
+    "home-carousel-fix": {
+      "status": "completed",
+      "completedAt": "2026-06-19T07:35:03.324886Z",
+      "notes": "Carousel nav rewritten: prev/next as <a.prev-text/.next-text> (matching SXA), working click handlers + auto-advance + wraparound scoped per carousel, removed dead empty slider-indicators and broken dot logic. Chevrons overridden to Unicode angles (FontAwesome legacy family had broken URL). Verified next-click advances slides."
+    },
+    "home-iso-pass": {
+      "status": "in_progress",
+      "updatedAt": "2026-06-22T08:22:56.800876Z",
+      "notes": "Authoritative section-by-section diff (reference vs Jahia) done. Reference home = 20 components; ours = 11.",
+      "diff_fixed": [
+        "Hero carousel nav + 3 slides aligned to reference (distinct images, headings, body, CTA)",
+        "KeyFigures numbers (130/8000/10/400000/650) \u2014 were unset",
+        "Partners carousel: 0 -> 77 partnerLogo (imported via servlet, nodes created, published; 77 confirmed in DOM)",
+        "Pourquoi SIAL: 4 visitorProfile blocks were empty -> populated headings (importateur/distributeur/acheteur/industriel) + icons; verified in DOM",
+        "SIAL en bref: added real img-content-block (image le-sial-en-bref.jpg + body + 'D\u00e9couvrez l'histoire' CTA) at top after intro; retitled mislabeled key-figures to 'Les chiffres cl\u00e9s'; reordered /main to reference order",
+        "TENDANCES: rewrote trendsSection view to real SXA mosaic (header + col-l large card + col-r 2 cards + CTA); added imageExternalUrl to trendCard; set 3 images (SIAL-Innovation/Summits/start-up) + full card content. Verified mosaic+3 imgs in live HTML",
+        "Partners: rewrote to swiffy-slider carousel (slider-container + nav buttons), re-added swiffy JS to Layout; 77 logos in a paged sliding strip. Verified swiffy markup + JS + 77 logos in live HTML",
+        "Top bar: topBar node existed but was empty. Populated communityText '#SIALParis', Exposez + Votre espace exposant CTAs, and 6 editable socialLink children (LinkedIn/Instagram/X/Facebook/YouTube/WhatsApp, FA brand icons + external URLs). All editable in Content Editor (sialp:topBar > sialp:socialLink). Verified in live HTML."
+      ],
+      "diff_remaining": [
+        "MISSING: 'SIAL en bref' img-content-block (image+text+'D\u00e9couvrez l'histoire' CTA) between intro and news. We mislabeled key-figures as 'SIAL en bref' \u2014 should be retitled 'Les chiffres cl\u00e9s' and the real img-content-block added.",
+        "TENDANCES ET INNOVATIONS ALIMENTAIRES: reference is content.mosaic with 3 cards (Innovations sectorielles / Focus tendances / Livres blancs) + final CTA 'D\u00e9couvrez tous les contenus'. Ours renders as image-list \u2014 verify 3-card content present/styled.",
+        "News listing: 3 cards share one LIMBUA image (need 3 distinct: g\u00e2teau corse, SIAL Insights, LIMBUA). Should be jmix:mainResource under /contents/news + jcrQuery teasers.",
+        "Standalone simple-title section headers (reference has them as separate components before listings).",
+        "Verify visitor-profiles (Pourquoi SIAL) 4 cards, sectors, cta-dual, sial-network vs reference."
+      ],
+      "sial_network": "OK \u2014 heading + 13 salon items match reference; minor: missing 'D\u00e9couvrez SIAL Network' CTA link",
+      "build_note": "Module requires Node >=22 (v22.21.0 via nvm). cwd resets drop it -> build fails 'styleText' from node:util on Node 18. Prefix PATH with ~/.nvm/versions/node/v22.21.0/bin.",
+      "icon_caveat": "Social icons use FA brand classes (fa-brands fa-*). FA brand font is @font-face-mapped in Layout, but FA glyph rendering unverified visually (Chrome extension was down); risk of tofu like the earlier carousel chevrons \u2014 verify when Chrome reconnects."
+    }
+  },
+  "harnessFixes": [
+    "migration-workflow: verified-completion gate + per-page checklist probe",
+    "09-create-content: corrected image-importer endpoint (jahia-image-proxy 404 -> /modules/sial/import-image), documented bulk-import + mandatory locale on content.update",
+    "sial-image-importer: downloadImage now sends browser UA + Referer (was bot UA, blocked by CDN)"
+  ]
+}

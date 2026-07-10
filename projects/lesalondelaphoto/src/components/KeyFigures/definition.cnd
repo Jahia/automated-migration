@@ -1,0 +1,9 @@
+[lsp:keyFigures] > jnt:content, lspmix:pageComponent
+ - chiffre1 (string) i18n mandatory
+ - description1 (string) i18n mandatory
+ - chiffre2 (string) i18n mandatory
+ - description2 (string) i18n mandatory
+ - chiffre3 (string) i18n mandatory
+ - description3 (string) i18n mandatory
+ - chiffre4 (string) i18n mandatory
+ - description4 (string) i18n mandatory

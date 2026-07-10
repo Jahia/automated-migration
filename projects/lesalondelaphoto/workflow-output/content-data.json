@@ -1,0 +1,502 @@
+[
+  {
+    "page": "Home",
+    "url": "/fr-FR",
+    "pageType": "home",
+    "sections": [
+      {
+        "type": "sectionTitle",
+        "title": "Nos dernières actualités photo"
+      },
+      {
+        "type": "sectionTitle",
+        "title": "(Re)découvrez le programme de l'édition 2025"
+      },
+      {
+        "type": "sectionTitle",
+        "title": "Nos partenaires"
+      },
+      {
+        "type": "cardGrid",
+        "cards": [
+          {
+            "title": "Priorité &#224; la manipulation, aux tests et &#224; votre inventivité ",
+            "description": ""
+          },
+          {
+            "title": "Conférences et invités",
+            "description": ""
+          },
+          {
+            "title": "4 jours pour booster votre activité professionnelle",
+            "description": ""
+          },
+          {
+            "title": "Pour tous les go&#251;ts",
+            "description": ""
+          },
+          {
+            "title": "Conférences par des créateurs de contenus",
+            "description": ""
+          },
+          {
+            "title": "L'événement inédit pour la 2ᵉ année consécutive",
+            "description": ""
+          }
+        ]
+      },
+      {
+        "type": "promoBlock",
+        "heading": "A vos marques, pr&#234;ts, shootez !",
+        "link": "https://www.youtube.com/@salondelaphotoparis",
+        "cta": "S'abonner à la chaîne Youtube"
+      }
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/reveal-visuel-2026/banner-key-visual-2026.jpg?rev=05058d1fb591483f94c242a3a0b83bc8&w=2000&hash=E4DA6D86AF3594B062765B7A36179D73",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/exposition-photos-banner.jpg?rev=4a26c26b721b420597504042a859e939&w=2000&hash=F429B6EE7327F7F87DD3045A7B976B2D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/zooms-2026/banner-zooms.jpg?rev=f8c6545533a94589bdacb160b5759cd8&w=2000&hash=19E88CAB57B789B3EFBFDFD061B49D47",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/banner-lee-miller.jpg?rev=d4ec1f9d7f9f407f9a94ba8d5fbc4327&w=2000&hash=5E310506D4889EB0FD4C3CCBD4758ADD",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/home-live-2024/photos-spots.jpg?rev=f598230f964f46eaa8100ee20432cd7f&w=700&hash=ADEFFB06FB19DB034E64D61B5F46D435",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/home-live-2024/grandes-rencontres.jpg?rev=2031f3064817438884a7bfb71ea356b5&w=700&hash=4CD272E823F1A16CAA7BFF0EFA5399F4",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/home-live-2024/atelier-test-photo.jpg?rev=39039ca52e2f4beb9b4d7eabf38b3759&w=700&hash=6EA3DA4E46A5ED7449F8968936567806",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/home-live-2024/renard-neige.jpg?rev=cd439278b3b749579272e15327766b8b&w=700&hash=6ED88EFA3DBBEB5A9F31A651EE4EF745",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/home-live-2024/escrime-forget-sldp.jpg?rev=5cddd2a8ecac49a880a76611552d933f&w=700&hash=137E6A6B183CB9C13685FC9EDBE498D9",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/home-live-2024/bievres-materiel-photo-ancien.jpg?rev=a781df4941d447b8be234303695e92e0&w=700&hash=B68476503740D0C7A49671C001416A24",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-circulations-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=dbaca6f1d6004b219ba8a16858aead4f&amp;hash=FAB1B57E11367E5B7340FF57F4E08DCF",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-fbp-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=f2975733ca2e430ab624995c43b46c23&amp;hash=C63241C4E9E5E95F4111873BD85FEB94",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-festival-internationnal-de-la-photo-culinaire-part.jpg?h=142&amp;iar=0&amp;w=192&amp;rev=bfedda8d72fe4ccb87f200facc936fd7&amp;hash=1ED5652762934F8C0B62F665A86BA431",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-ministere-de-la-culture-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=203ed7846af44fe69ba85a8abb530a91&amp;hash=90BE73AA863D0442E91B0BDFB0FDDFDE",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-montier-festival-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=50b8ebf6c4844349b492fd3ee9984e2d&amp;hash=EEB340EA22DB67332BDEA5FDC1AC1620",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-picto-part.jpg?h=72&amp;iar=0&amp;w=240&amp;rev=105d47e3f2604ca683733353e640d226&amp;hash=7647CA81105808ACE2A5049A279DF465",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-ratp-part.png?h=125&amp;iar=0&amp;w=197&amp;rev=452b132a700d48788a2e4e5f9e105bcd&amp;hash=E6543D7F89A35B8ADB290C0FEBE02A86",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-competence-photo-part.jpg?h=125&amp;iar=0&amp;w=316&amp;rev=478bb9cc1cb74a9185d8400bef295e1a&amp;hash=19D890FCB166251136C2DE45AE2F1D30",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-chasseur-d-images-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=c0e646abe48c4f8c87735cb25e4b854f&amp;hash=DE544E24758ED460E78139F6913F8244",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-de-air-part.jpg?h=88&amp;iar=0&amp;w=240&amp;rev=f2968fd678464622987b014bdc54ad5b&amp;hash=A518115AC6FFA3509E1A30C321F29BED",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-fisheye-part.jpg?h=74&amp;iar=0&amp;w=240&amp;rev=336b518636d2420fb571779f68a56a5a&amp;hash=B4210700E95969DCD9B429FAEF4F5802",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-le-parisien-we-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=6baa319b87e14e808155e6b9ca7e210f&amp;hash=ECD2329E3F9F55E81EE92A47757F87A2",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-like-la-revue-part.jpg?h=126&amp;iar=0&amp;w=230&amp;rev=ca90c9d0bc3b460f8dc780d6a2f24e87&amp;hash=747BEFDC97C238142742CAC2B944DD71",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-nat-images-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=974d6519de854842950b443b8f941841&amp;hash=F02B56A05FF79208030E70EC165297AA",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-openeye.jpg?h=70&amp;iar=0&amp;w=240&amp;rev=da47b3ae3efb4002af97c3c21a5d2a32&amp;hash=BE48AD3E98631B6AF4E7E629A2D6CA84",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-photo-magazine-part.jpg?h=86&amp;iar=0&amp;w=240&amp;rev=7876c5f97f754035a0ae83c871170bad&amp;hash=1D7853FA0366E88F1E88A46EC016C632",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-polka-magazine-part.png?h=125&amp;iar=0&amp;w=197&amp;rev=3b82f4a1216e4aeea209537c5459c002&amp;hash=985353E0A0B35936F49420986DB0E202",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-profession-photographe-part.jpg?h=86&amp;iar=0&amp;w=240&amp;rev=37a57be1b60e4faea62cf5bbb124a0ba&amp;hash=35B1EA23E5EB8D190E138E19EB6ADDAD",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-reponses-photo-part.jpg?h=34&amp;iar=0&amp;w=96&amp;rev=d112bc51798b4cbf985b116c7dfa97f9&amp;hash=9B5DC1E7FFE5C83B75CD988B42562327",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-3DVF-part.jpg?h=128&amp;iar=0&amp;w=240&amp;rev=1c9809942b264cecac302f29ceee0726&amp;hash=4BC133E6347B4E29784955DF3A947543"
+    ],
+    "partnerImages": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-circulations-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=dbaca6f1d6004b219ba8a16858aead4f&amp;hash=FAB1B57E11367E5B7340FF57F4E08DCF",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-fbp-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=f2975733ca2e430ab624995c43b46c23&amp;hash=C63241C4E9E5E95F4111873BD85FEB94",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-festival-internationnal-de-la-photo-culinaire-part.jpg?h=142&amp;iar=0&amp;w=192&amp;rev=bfedda8d72fe4ccb87f200facc936fd7&amp;hash=1ED5652762934F8C0B62F665A86BA431",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-ministere-de-la-culture-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=203ed7846af44fe69ba85a8abb530a91&amp;hash=90BE73AA863D0442E91B0BDFB0FDDFDE",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-montier-festival-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=50b8ebf6c4844349b492fd3ee9984e2d&amp;hash=EEB340EA22DB67332BDEA5FDC1AC1620",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-picto-part.jpg?h=72&amp;iar=0&amp;w=240&amp;rev=105d47e3f2604ca683733353e640d226&amp;hash=7647CA81105808ACE2A5049A279DF465",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-ratp-part.png?h=125&amp;iar=0&amp;w=197&amp;rev=452b132a700d48788a2e4e5f9e105bcd&amp;hash=E6543D7F89A35B8ADB290C0FEBE02A86",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-competence-photo-part.jpg?h=125&amp;iar=0&amp;w=316&amp;rev=478bb9cc1cb74a9185d8400bef295e1a&amp;hash=19D890FCB166251136C2DE45AE2F1D30",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-chasseur-d-images-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=c0e646abe48c4f8c87735cb25e4b854f&amp;hash=DE544E24758ED460E78139F6913F8244",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-de-air-part.jpg?h=88&amp;iar=0&amp;w=240&amp;rev=f2968fd678464622987b014bdc54ad5b&amp;hash=A518115AC6FFA3509E1A30C321F29BED",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-fisheye-part.jpg?h=74&amp;iar=0&amp;w=240&amp;rev=336b518636d2420fb571779f68a56a5a&amp;hash=B4210700E95969DCD9B429FAEF4F5802",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-le-parisien-we-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=6baa319b87e14e808155e6b9ca7e210f&amp;hash=ECD2329E3F9F55E81EE92A47757F87A2",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-like-la-revue-part.jpg?h=126&amp;iar=0&amp;w=230&amp;rev=ca90c9d0bc3b460f8dc780d6a2f24e87&amp;hash=747BEFDC97C238142742CAC2B944DD71",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-nat-images-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=974d6519de854842950b443b8f941841&amp;hash=F02B56A05FF79208030E70EC165297AA",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-openeye.jpg?h=70&amp;iar=0&amp;w=240&amp;rev=da47b3ae3efb4002af97c3c21a5d2a32&amp;hash=BE48AD3E98631B6AF4E7E629A2D6CA84",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-photo-magazine-part.jpg?h=86&amp;iar=0&amp;w=240&amp;rev=7876c5f97f754035a0ae83c871170bad&amp;hash=1D7853FA0366E88F1E88A46EC016C632",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-polka-magazine-part.png?h=125&amp;iar=0&amp;w=197&amp;rev=3b82f4a1216e4aeea209537c5459c002&amp;hash=985353E0A0B35936F49420986DB0E202",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-profession-photographe-part.jpg?h=86&amp;iar=0&amp;w=240&amp;rev=37a57be1b60e4faea62cf5bbb124a0ba&amp;hash=35B1EA23E5EB8D190E138E19EB6ADDAD",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/presse/logo-reponses-photo-part.jpg?h=34&amp;iar=0&amp;w=96&amp;rev=d112bc51798b4cbf985b116c7dfa97f9&amp;hash=9B5DC1E7FFE5C83B75CD988B42562327",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-3DVF-part.jpg?h=128&amp;iar=0&amp;w=240&amp;rev=1c9809942b264cecac302f29ceee0726&amp;hash=4BC133E6347B4E29784955DF3A947543",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-artistikrezo-part.jpg?h=116&amp;iar=0&amp;w=240&amp;rev=2b344c5623e146519a09a0acef8878db&amp;hash=038DCAD4D31D9A2301A59B5B1A169EDA",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-faut-pas-pousser-les-iso-part.jpg?h=125&amp;iar=0&amp;w=197&amp;rev=00d1b052f04b4878a47a0507b23d20ac&amp;hash=6C8FDE7D016D38EF1E5E352621A3FBE5",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/logo-mickael-bonnami-photographe-part.png?h=125&amp;iar=0&amp;w=197&amp;rev=97d9014da0a247d7ae75aa42416013c3&amp;hash=BFFC5109C92E9F001060B57A35AC5C1A",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/web/Logo-phototrend.jpg?h=64&amp;iar=0&amp;w=240&amp;rev=4355cf6a4d53403d99845a1564805d4c&amp;hash=6F417FE054B45CB5E55AE56413BD2C98"
+    ]
+  },
+  {
+    "page": "Actualités (Conseils)",
+    "url": "/fr-FR/actualite-photo/actus",
+    "pageType": "listing",
+    "contentType": "NewsArticle",
+    "articles": [],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/visiteur-renseigne-stand-banner.jpg?rev=613937be2eea488bbdf6e3a1e1b59f3d&w=2000&hash=2A1956A9DF4F74B61B99D54BCAD2D2CE"
+    ]
+  },
+  {
+    "page": "Le Salon de la Photo dévoile son nouveau visuel 2025",
+    "url": "/fr-FR/actualite-photo/actus/affiche-salon-de-la-photo-paris-2025",
+    "pageType": "detail",
+    "contentType": "NewsArticle",
+    "fields": {
+      "title": "Le Salon de la Photo dévoile son nouveau visuel 2025",
+      "publishDate": "12 octobre 2025",
+      "body": "Pour l'édition 2025, c'est le regard singulier de Claire Guarry qui s'exprime. Révélée lors des Zooms, Prix de la Presse 2024, elle a été choisie pour concevoir le visuel officiel de cette nouvelle édition.\n\nEn travaillant en étroite collaboration avec l'équipe du Salon de la Photo, Claire Guarry a mis son talent au service de la création d'un visuel qui reflète l'esprit du salon avec, comme modèles, son compagnon et son fils dans le décor urbain californien.\n\nAvec une esthétique vintage assumée, la photographe tente d'insuffler un sentiment de nostalgie à ses images. \"Même si je suis heureuse de vivre ici, nous serons toujours des expatriés aux États-Unis. Un jour, sans doute, nous repartirons. En attendant, San Francisco est une ville qui m'inspire… J'adore ce contraste entre l'urbain et la côte Pacifique : les surfeurs qui déambulent dans les rues, les enfants qui se promènent sur le macadam, les enseignes un peu vieillottes, le tram qui ne passe pas loin. Je m'applique aussi à donner à mes photos un caractère sensoriel, qu'il y ait de la matière, de la texture, que l'on ressente, à travers l'image, la douceur d'une peau, son odeur, le vent de l'océan.\" L.M.\n\nDouceur de vivre, amour, joie… Voilà ce qui ressort des images de Claire Guarry.\n\n\"Je n'ai jamais étudié la photographie de manière académique\", explique-t-elle à Polka. \"J'ai appris en documentant l'enfance de mes bambins ainsi que mon évolution en tant que mère. Comme j'avais toujours mon appareil sur moi, je captais des moments spontanés. C'était très inspirant de les observer, surtout quand ils avaient 2 ou 3 ans, un &acirc;ge o&ugrave; ils sont sans filtre, complètement libres.\"",
+      "summary": "Pour l'édition 2025, c'est le regard singulier de Claire Guarry qui s'exprime. Révélée lors des Zooms, Prix de la Presse 2024, elle a été choisie pour concevoir le visuel officiel de cette nouvelle éd"
+    },
+    "fullPageFields": {
+      "bodyContent": "Pour l'édition 2025, c'est le regard singulier de Claire Guarry qui s'exprime. Révélée lors des Zooms, Prix de la Presse 2024, elle a été choisie pour concevoir le visuel officiel de cette nouvelle édition.\n\nEn travaillant en étroite collaboration avec l'équipe du Salon de la Photo, Claire Guarry a mis son talent au service de la création d'un visuel qui reflète l'esprit du salon avec, comme modèles, son compagnon et son fils dans le décor urbain californien.\n\nAvec une esthétique vintage assumée, la photographe tente d'insuffler un sentiment de nostalgie à ses images. \"Même si je suis heureuse de vivre ici, nous serons toujours des expatriés aux États-Unis. Un jour, sans doute, nous repartirons. En attendant, San Francisco est une ville qui m'inspire… J'adore ce contraste entre l'urbain et la côte Pacifique : les surfeurs qui déambulent dans les rues, les enfants qui se promènent sur le macadam, les enseignes un peu vieillottes, le tram qui ne passe pas loin. Je m'applique aussi à donner à mes photos un caractère sensoriel, qu'il y ait de la matière, de la texture, que l'on ressente, à travers l'image, la douceur d'une peau, son odeur, le vent de l'océan.\" L.M.\n\nDouceur de vivre, amour, joie… Voilà ce qui ressort des images de Claire Guarry.\n\n\"Je n'ai jamais étudié la photographie de manière académique\", explique-t-elle à Polka. \"J'ai appris en documentant l'enfance de mes bambins ainsi que mon évolution en tant que mère. Comme j'avais toujours mon appareil sur moi, je captais des moments spontanés. C'était très inspirant de les observer, surtout quand ils avaient 2 ou 3 ans, un &acirc;ge o&ugrave; ils sont sans filtre, complètement libres.\"\n\nD'abord au numérique, Claire Guarry revient, à l'occasion du premier confinement en 2020, à une pratique argentique qui lui tient à c&oelig;ur. \"C'est une manière radicalement différente de travailler, plus respectueuse de chaque prise de vue. Les pixels qui remplacent le grain, les cartes mémoire remplies de données… Moi qui n'aime pas gaspiller cela me correspond mieux.\" Léonor Matet, Polka Magazine\n\nLe Salon de la Photo 2025 promet d'être une édition inoubliable de l'art visuel de la photographie. Préparez-vous à être transporté dans un monde d'images saisissantes et d'émotions intenses et explorons ensemble les merveilles de la photographie au Salon de la Photo du 9 au 12 octobre 2025 Grande Halle de la Villette !\n\nL'art photographique contemporain est ici célébré dans toutes ses dimensions. De la photographie colorée qui capte l'énergie d'une rue animée à la photographie vintage qui joue sur la nostalgie des textures passées, le Salon s'impose comme une vitrine exceptionnelle de la diversité des pratiques. On y retrouve des talents en photographie argentique, en numérique, mais aussi des artistes qui mêlent les deux pour enrichir leur propos visuel.\n\nCette année, l'affiche salon incarne cette pluralité : elle témoigne de l'influence de la photographie urbaine, tout en invitant à une lecture sensible et poétique du quotidien. Claire Guarry, photographe urbaine assumée, nous transporte dans un univers o&ugrave; la ville devient un décor vivant, presque cinématographique. Son approche sensorielle donne une nouvelle dimension à l'exposition de photo présentée au public.\n\nLe Salon de la Photo ne se limite pas à une simple vitrine d'images : c'est une rencontre avec ceux qui font la photographie aujourd'hui. Entre conférences, ateliers et rencontres avec les auteurs, les visiteurs auront l'occasion d'approfondir leur passion, de découvrir les secrets de fabrication d'un cliché marquant, et de repartir avec l'envie d'expérimenter eux-mêmes. Que l'on soit amateur d'art ou professionnel de l'image, cet évènement est un rendez-vous à ne pas manquer.\n\nRendez-vous du 9 au 12 octobre 2025 à la Grande Halle de la Villette pour vivre cette immersion unique dans le monde de la photographie !",
+      "image": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/reveal-visuel-2025/banner-visuel-2025.jpeg?rev=ae385f65104748a3a23de5197eeb450a&w=2000&hash=F23E54D7CC521BDFA92677C8623BFA9D"
+    },
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/reveal-visuel-2025/banner-visuel-2025.jpeg?rev=ae385f65104748a3a23de5197eeb450a&w=2000&hash=F23E54D7CC521BDFA92677C8623BFA9D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/reveal-visuel-2025/affiche-salon-de-la-photo-2025.jpg?h=992&amp;iar=0&amp;w=701&amp;rev=38fa0ccbde1b4d93af4d280aa6d7c384&amp;hash=F1E222A2E5FDE79D664B3017828321EE",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/reveal-visuel-2025/480x480-claire-guarry.jpg?rev=e648f9f2bcf440128026f90806da4004"
+    ]
+  },
+  {
+    "page": "Comment retoucher des photos avec l'intelligence artificielle",
+    "url": "/fr-FR/actualite-photo/actus/retouche-photo-ia",
+    "pageType": "detail",
+    "contentType": "NewsArticle",
+    "fields": {
+      "title": "Comment retoucher des photos avec l'intelligence artificielle",
+      "publishDate": "",
+      "body": "Cet événement dévoile les incroyables possibilités offertes par l’IA pour transformer vos images avec précision et rapidité. Une opportunité unique d’explorer les outils et les logiciels de retouche photo innovants qui façonnent le futur de la photographie !\n\nL’intelligence artificielle s’impose comme un outil incontournable pour les professionnels de l’image. Des logiciels de retouche photo comme Photoshop et Lightroom simplifient des tâches complexes et permettent d'obtenir des résultats impressionnants en quelques clics. De la suppression d’éléments indésirables à la transformation complète d’un décor, l’IA offre une nouvelle approche créative et efficace. De plus, les images générées par l’IA permettent d’explorer des concepts totalement inédits.\n\nAvec l’essor des outils d’édition basés sur l’IA, même les amateurs peuvent accéder à des fonctionnalités auparavant réservées aux professionnels. Les applications comme Remini, FaceTune ou Lensa utilisent l’IA pour améliorer les selfies, restaurer des photos anciennes ou ajouter des effets spectaculaires. Cette démocratisation de la retouche photo ouvre de nouvelles perspectives pour les créateurs de contenu, les influenceurs et les passionnés de photographie.\n\nLeur approche de la photographie est à la croisée entre l'art et la technologie. Elles montrent comment l'IA améliore la qualité des photos, mais aussi stimule la créativité en offrant de nouvelles perspectives d'édition. Que ce soit pour améliorer les portraits ou transformer les paysages, leur ma&icirc;trise de l'IA leur permet d'explorer de nouveaux styles visuels.\n\nL'IA offre de nouvelles fonctionnalités, comme ajouter des fleurs printanières à une photo hivernale en un clic, sans se soucier des saisons. La technologie image corrige les vêtements froissés pour un rendu parfait et répare les photos ab&icirc;mées par des imperfections ou des distractions. Cette avancée est particulièrement utile lors de shootings, o&ugrave; les éléments parasites (photographes intrusifs, objets indésirables) peuvent être supprimés immédiatement. Gr&acirc;ce à l'IA en ligne, ces outils sont accessibles à tous, même sans logiciel spécifique.",
+      "summary": "Cet événement dévoile les incroyables possibilités offertes par l’IA pour transformer vos images avec précision et rapidité. Une opportunité unique d’explorer les outils et les logiciels de retouche p"
+    },
+    "fullPageFields": {
+      "bodyContent": "Cet événement dévoile les incroyables possibilités offertes par l’IA pour transformer vos images avec précision et rapidité. Une opportunité unique d’explorer les outils et les logiciels de retouche photo innovants qui façonnent le futur de la photographie !\n\nL’intelligence artificielle s’impose comme un outil incontournable pour les professionnels de l’image. Des logiciels de retouche photo comme Photoshop et Lightroom simplifient des tâches complexes et permettent d'obtenir des résultats impressionnants en quelques clics. De la suppression d’éléments indésirables à la transformation complète d’un décor, l’IA offre une nouvelle approche créative et efficace. De plus, les images générées par l’IA permettent d’explorer des concepts totalement inédits.\n\nAvec l’essor des outils d’édition basés sur l’IA, même les amateurs peuvent accéder à des fonctionnalités auparavant réservées aux professionnels. Les applications comme Remini, FaceTune ou Lensa utilisent l’IA pour améliorer les selfies, restaurer des photos anciennes ou ajouter des effets spectaculaires. Cette démocratisation de la retouche photo ouvre de nouvelles perspectives pour les créateurs de contenu, les influenceurs et les passionnés de photographie.\n\nLeur approche de la photographie est à la croisée entre l'art et la technologie. Elles montrent comment l'IA améliore la qualité des photos, mais aussi stimule la créativité en offrant de nouvelles perspectives d'édition. Que ce soit pour améliorer les portraits ou transformer les paysages, leur ma&icirc;trise de l'IA leur permet d'explorer de nouveaux styles visuels.\n\nL'IA offre de nouvelles fonctionnalités, comme ajouter des fleurs printanières à une photo hivernale en un clic, sans se soucier des saisons. La technologie image corrige les vêtements froissés pour un rendu parfait et répare les photos ab&icirc;mées par des imperfections ou des distractions. Cette avancée est particulièrement utile lors de shootings, o&ugrave; les éléments parasites (photographes intrusifs, objets indésirables) peuvent être supprimés immédiatement. Gr&acirc;ce à l'IA en ligne, ces outils sont accessibles à tous, même sans logiciel spécifique.\n\nSi certains craignent que l'IA ne remplace les retoucheurs professionnels, elle s'impose plutôt comme un outil complémentaire puissant. Elle offre la possibilité de développer de nouvelles compétences et d'élargir son champ d'action.\n\nEn valorisant le savoir-faire des professionnels, l'IA permet de proposer des prestations plus techniques et adaptées. Elle constitue également un levier de rentabilité en optimisant le temps de travail. De plus, les conseils photo basés sur l'IA aident les photographes à perfectionner leurs clichés et à obtenir des images plus impactantes.\n\nToutefois, l'essor de l'IA en retouche photo soulève des questions éthiques. La facilité avec laquelle l'IA peut modifier une image amène à se questionner sur l'authenticité des clichés. Les retouches excessives peuvent fausser la perception de la réalité, notamment dans la photographie de mode et la publicité. De plus, la question du droit d'auteur et de la propriété des images générées par l'IA est un débat en cours.\n\nLes professionnels doivent donc adopter une approche responsable et transparente lorsqu'ils utilisent ces technologies. L'IA doit être vue comme un outil de progrès, et non pour tromper ou altérer la vérité d'une image.\n\nL'intelligence artificielle est une technologie intuitive qui devient facile à utiliser avec un peu de pratique. De nombreux tutoriels sur YouTube permettent d'apprendre rapidement à exploiter tout son potentiel. Que ce soit pour l'é photo IA ou pour des retouches avancées, ces ressources sont essentielles pour ma&icirc;triser ces outils.\n\nRegardez dès maintenant la conférence Lolita Charlet X Roxanne Farhat - Comment utiliser l'IA en retouche photo ? et découvrez comment transformer vos photos comme un véritable professionnel !",
+      "image": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/retouche-photo-ia/banner-retouche-photo.png?rev=19b458a97cff4dc38f6a945b1106f6d2&w=2000&hash=57665A91A5861666AEE9A78661DAA63F"
+    },
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/retouche-photo-ia/banner-retouche-photo.png?rev=19b458a97cff4dc38f6a945b1106f6d2&w=2000&hash=57665A91A5861666AEE9A78661DAA63F",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/retouche-photo-ia/480x480-lolita-charlet.png?rev=96ac9aaea30643c6b6dcfc233b42a45b&w=555&hash=322D13FFB3B3E7DDB346ABA9ECFE6B9D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/retouche-photo-ia/480x480-roxanne.png?rev=e16a56dea3da48b1adc8ef6d30fdefe5&w=555&hash=F7D8100BB77AC19D144D9776389A9C06",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/retouche-photo-ia/480x480-photoshop-(1).png?rev=aba7344e55a44bc9b0727d0eb729d2ea&w=555&hash=900EBD26610E05ECAD05FF181B8F5799",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/actu/retouche-photo-ia/480x480-photoshop.png?rev=184c96c7b9694fd39400017b77b62161&w=555&hash=F0286925A7F33C4F4FF57E9F563D38E1"
+    ]
+  },
+  {
+    "page": "Lee Miller",
+    "url": "/fr-FR/actualite-photo/agenda-photo/lee-miller",
+    "pageType": "detail",
+    "contentType": "AgendaItem",
+    "fields": {
+      "title": "Lee Miller",
+      "location": "Musée d'Art Moderne de Paris",
+      "body": "Née en 1907 à Poughkeepsie (États-Unis) et décédée en 1977 à Chiddingly (Royaume-Uni),\nLee Miller fut tour à tour mannequin, artiste surréaliste, portraitiste, photographe de mode et\ncorrespondante de guerre accréditée par l’armée américaine. Longtemps reléguée au rôle\nd’égérie, elle est aujourd’hui reconnue comme l’une des grandes photographes du XXe siècle.\n\nL’exposition retrace l’ensemble de son parcours exceptionnel, de ses débuts à New York à son\nengagement en Europe pendant la Seconde Guerre mondiale, en passant par son immersion\ndans le Paris surréaliste, son séjour en Égypte et sa vie à Londres. Elle met en lumière une\noeuvre d’une remarquable richesse, où cohabitent expérimentations formelles, audace visuelle\net engagement politique.\n\nFigure majeure de l’avant-garde photographique des années 1920 à 1940, Lee Miller fréquente\nd’abord la scène new-yorkaise avant de rejoindre Paris en 1929. Elle y côtoie les artistes du\nmouvement surréaliste et collabore étroitement avec Man Ray, avec qui elle explore notamment\nla technique de la solarisation. Son regard singulier, novateur et affranchi des conventions,\nrenouvelle profondément la représentation des objets et de la matière."
+    },
+    "fullPageFields": {
+      "bodyContent": "Née en 1907 à Poughkeepsie (États-Unis) et décédée en 1977 à Chiddingly (Royaume-Uni),\nLee Miller fut tour à tour mannequin, artiste surréaliste, portraitiste, photographe de mode et\ncorrespondante de guerre accréditée par l’armée américaine. Longtemps reléguée au rôle\nd’égérie, elle est aujourd’hui reconnue comme l’une des grandes photographes du XXe siècle.\n\nL’exposition retrace l’ensemble de son parcours exceptionnel, de ses débuts à New York à son\nengagement en Europe pendant la Seconde Guerre mondiale, en passant par son immersion\ndans le Paris surréaliste, son séjour en Égypte et sa vie à Londres. Elle met en lumière une\noeuvre d’une remarquable richesse, où cohabitent expérimentations formelles, audace visuelle\net engagement politique.\n\nFigure majeure de l’avant-garde photographique des années 1920 à 1940, Lee Miller fréquente\nd’abord la scène new-yorkaise avant de rejoindre Paris en 1929. Elle y côtoie les artistes du\nmouvement surréaliste et collabore étroitement avec Man Ray, avec qui elle explore notamment\nla technique de la solarisation. Son regard singulier, novateur et affranchi des conventions,\nrenouvelle profondément la représentation des objets et de la matière.\n\nMarquée durablement par ces expériences, Lee Miller poursuit néanmoins son travail avec une\nprécision et une intensité rares. De retour à Londres après la guerre, elle continue de collaborer\navec Vogue, tout en se consacrant davantage à des portraits. Ce n'est qu'après sa disparition,\nen 1977, que l'ampleur de son oeuvre est pleinement redécouverte. La mise au jour de plus de\n60 000 négatifs, tirages et documents personnels, aujourd'hui conservés au sein des Lee Miller\nArchives, a permis de révéler toute la portée de son travail.\n\nCette rétrospective rend hommage à une artiste libre, audacieuse et profondément engagée,\ndont l'oeuvre continue de résonner avec force aujourd'hui.\n\nLa réservation d’un billet avant toute visite demeure vivement recommandée sur\nwww.billetterie-parismusees.paris.fr",
+      "image": "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/banner-lee-miller.jpg?rev=d4ec1f9d7f9f407f9a94ba8d5fbc4327&w=2000&hash=5E310506D4889EB0FD4C3CCBD4758ADD",
+      "link": "http://www.mam.paris.fr"
+    },
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/banner-lee-miller.jpg?rev=d4ec1f9d7f9f407f9a94ba8d5fbc4327&w=2000&hash=5E310506D4889EB0FD4C3CCBD4758ADD",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/lee-miller.jpg?h=910&amp;iar=0&amp;w=720&amp;rev=9308e6d57e9c4db194490813a463543b&amp;hash=012ADEF63C48251BCB4B70BED21A9E90",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/solarised-photographs-vogue-studio.jpg?h=910&amp;iar=0&amp;w=720&amp;rev=7cb74947f6494cf1899a496edfd13a7f&amp;hash=9E8B1428C6AF0F312F589E00675679DB",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/mannequin-elizabeth-cowell.jpg?h=910&amp;iar=0&amp;w=720&amp;rev=599a509751d1447eab6c30c3058c2d1b&amp;hash=4230D1C28C25D9BC16FD423006DCA6AC",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/agenda/lee-miller/remington-silent.jpg?h=910&amp;iar=0&amp;w=720&amp;rev=7fd094043aec402fb1f6c8824ec1db81&amp;hash=C60A651CE4CD1A005C4034848F554408"
+    ]
+  },
+  {
+    "page": "Découvrez le Salon Photo & Vidéo",
+    "url": "/fr-FR/salon/a-propos",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "DÉCOUVREZ LE SALON PHOTO & VIDÉO",
+      "body": "L'image est reine et la pratique de la photographie et de la vidéo en France n'a jamais été aussi dynamique. Depuis 2007, le Salon Photo & Vidéo propose aux photographes tous les produits et services leur permettant de pratiquer leur passion ou leur métier.\n\nAu fil des éditions, les attentes de nos publics ont évolué et, d'une foisonnante exposition de toutes les innovations technologiques, le salon est devenu un lieu d'expression de toutes les photographies, de partage d'expériences et d'expertises très diverses et depuis peu les expériences liées à la prise de vue s'y sont multipliées. C'est pourquoi le Salon Photo & Vidéo a investi depuis 2022 la Grande Halle de la Villette pour ainsi devenir le plus grand Studio Photo & Vidéo&nbsp;jamais installé.\n\nDans cet ancien temple du commerce parisien, les marques ont à leur disposition de multiples possibilités d'expression pour présenter leurs technologies et savoir-faire, mais&nbsp;aussi leurs talents, affirmer leurs valeurs et fédérer leurs communautés.\n\nDu 08 au 11 octobre 2026 de 10h à 19h, les photographes, vidéastes, créateurs de contenus, amateurs experts, néophytes ou professionnels vivent dans ce lieu magique une expérience inédite et ont ainsi tous les moyens de satisfaire leurs besoins / envies / attentes : de s'exposer, de rêver, s'inspirer, s'équiper, de (se) rencontrer, de partager, de se former, de se perfectionner, d'expérimenter, de travailler.\n\nLa Grande Halle de La Villette - Parc des expositions, Paris\n\nDu 8 au 11 octobre 2026, au c&oelig;ur des lumières de l'été indien"
+    },
+    "headings": [
+      "Le rendez-vous pour vivre, créer et progresser en photo & vidéo",
+      "Le Salon Photo & Vidéo",
+      "Pour les photographes / vidéastes une expérience de visite inédite",
+      "Des contenus culturels, pédagogiques et techniques, leviers d’attractivité pour la communauté",
+      "Au programme du 08 au 11 octobre 2026",
+      "La Villette, au carrefour de la technologie et de la culture"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/visiteur-photo-banner.jpg?rev=7402816a3fd7410b9cfa9cb82df75586&w=2000&hash=76FB10AE2B87DF5D764374FABCABFF5D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/decouvrir-salon/file-visiteurs-salon-pg.jpg?rev=d7c8df84134240848034f15c21d904aa&w=555&hash=26D44679A1D71BB4BD3C7E1890575DE3",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/decouvrir-salon/visiteur-teste-appareil-photo-pg.jpg?rev=ab1490ea33a94ee2849d83ad3cfc4419&w=555&hash=5329A1FAE51EAE0FE8F152CA590FEBA2",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/decouvrir-salon/visiteur-photo-pg.jpg?rev=fd4914a696ea413798c2852e38ee8f3c&w=555&hash=7633CF41A2EE96F27D495E7DFFD89EDC"
+    ]
+  },
+  {
+    "page": "Qui expose ?",
+    "url": "/fr-FR/salon/qui-expose",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "QUI EXPOSE ?",
+      "body": "L'image est reine et la pratique de la photographie et de la vidéo en France n'a jamais été aussi dynamique. Le Salon Photo & Vidéo propose aux photographes et vidéastes tous les produits et services leur permettant de pratiquer leur passion ou leur métier !\n\nLe plus grand Studio Photo & Vidéo éphémère prendra ses quartiers dans un haut lieu historique et culturel : la rencontre entre les marques et photographes / vidéastes, amateurs et professionnels, sera au cœur du dispositif qui permettra à tous de vivre une expérience inédite. L’événement se tiendra début octobre, à une période encore lumineuse, idéale pour pratiquer la photo et la vidéo tout en découvrant les dernières nouveautés.\n\nQue vous soyez photographe ou vidéaste professionnel amateur ou professionnel, ou&nbsp;créateur de contenus, cet événement est fait pour vous. Le Salon Photo & Vidéo vous proposera une offre de produits et services incomparable pour intensifier votre inspiration et vous accompagner dans le développement de votre activité.\n\n114 exposants et 4000m2 de stands sont réunis au Salon Photo & Vidéo&nbsp;à la Grande Halle de la Villette : Venez rencontrer les fabricants d’équipements et matériels pour la photo et la vidéo, fabricants d’accessoires, écoles (formation professionnelle), agences de voyages spécialisées dans l’expérience image.\n\nDe la photo à la vidéo, venez tester les équipements, dans toutes les situations, pour tout type d’image (portait, paysage, macro, sport, culinaire, nu…)."
+    },
+    "headings": [
+      "Le Salon Photo & Vidéo, le rendez-vous pour vivre, créer et progresser en photo & vidéo",
+      "Pour les photographes / vidéastes une expérience de visite inédite",
+      "L'offre de produits et services la plus complète",
+      "Le matériel de prise de vue",
+      "Les accessoires",
+      "L’impression, le développement de photos, les projections"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/vue-ensemble-salon-banner.jpg?rev=527864664ba94ba7bb0a5d75520f5d77&w=2000&hash=4F28C441C0FA8BD74549449D6EEBC43E",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-expose/entree-visiteurs-cb.jpg?rev=cb9a9573acea47efa4708d682ba68597",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-expose/homme-photo-abeilles-icb.jpg?rev=315316834a524852a7fad0ae01c1e58c&w=555&hash=E6FDBDF175F212C2D80E0EAE9F2D138B",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-expose/visiteur-exposant-accesoires-icb.jpg?rev=80c5e84300a640618beedf786036179d&w=555&hash=243812360BE8C68E38FDB4229CB30F22",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-expose/impression-photo-icb.jpg?rev=3ac36454787544b68559f6b5fb5cdbc3&w=555&hash=D90EEF326FA9CC48791A58035554A8D0"
+    ]
+  },
+  {
+    "page": "Qui visite ?",
+    "url": "/fr-FR/salon/qui-visite",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "QUI VISITE ?",
+      "body": "Le plus grand Studio Photo & Vidéo éphémère prendra ses quartiers dans un haut lieu historique et culturel : la rencontre entre les marques et photographes / vidéastes, amateurs et professionnels, sera au c&oelig;ur du dispositif qui permettra à tous de vivre une expérience inédite. L'événement se tiendra début octobre, à une période encore lumineuse, idéale pour pratiquer la photo et la vidéo tout en découvrant les dernières nouveautés.\n\n37 000 visiteurs sont attendus (74% amateurs et 23% professionnels).\n\nLes objectifs principaux des visiteurs sont :\n\nProfessionnels de la photo et de la vidéo, distributeurs et utilisateurs de matériel « pro » : le Salon Photo & Vidéo est l’espace où découvrir, tester et s’inspirer.\n\n4 journées très précieuses où les attendent les plus grandes marques internationales, de la prise de vue à l’impression en passant par le traitement de l’image, tous les accessoires, l’équipement des studios de prise de vue, le matériel de photofinishing mais aussi le Village de vente et la Librairie, les Grandes rencontres, des expositions inédites, le dialogue avec les associations professionnelles et toute la presse photo.\n\nLa nouvelle génération a grandi avec un appareil photo et une caméra à portée de main."
+    },
+    "headings": [
+      "Le Salon Photo & Vidéo, le rendez-vous pour vivre, créer et progresser en photo & vidéo",
+      "Pour les photographes / vidéastes une expérience de visite inédite",
+      "Le plus grand rassemblement des passionnés de la photo et de la vidéo",
+      "La photo et la vidéo, un loisir &#224; la portée de tous"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/file-visiteurs-salon-banner.jpg?rev=ed96a770ec80446ab688b524229a3e95&w=2000&hash=A190A77AAF7CA1386814E68EFC757A8D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-visite/entree-visisteurs-cb.jpg?rev=1223dba95b724c1c8d3d0f11facb4177",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-visite/conference-public-cb.jpg?rev=b50a4c400bd84067a044750ea4d266ca",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/qui-visite/exposition-photos-cb.jpg?rev=3baabd892f414bed9efca1feab2d0c01"
+    ]
+  },
+  {
+    "page": "Nos Partenaires",
+    "url": "/fr-FR/salon/partenaires",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "NOS PARTENAIRES",
+      "body": ""
+    },
+    "headings": [],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/objectifs-appareil-photo-banner.jpg?rev=045f35a883a44cd593aac9882e1021b4&w=2000&hash=72C310724F2403CC0C2827B28BE0EE8F",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-ministere-de-la-culture-part.jpg?rev=203ed7846af44fe69ba85a8abb530a91&w=305&hash=88364D3472AC218401A4384A42B87C5E",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-montier-festival-part.jpg?rev=50b8ebf6c4844349b492fd3ee9984e2d&w=305&hash=16AEFA48DBA078019C218273C935DC0D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-picto-part.jpg?rev=105d47e3f2604ca683733353e640d226&w=305&hash=6513F697D24023D189FABA79B1FA9A00",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-prix-bayeux-part.jpg?rev=4555a5e511ef44efa43282ca89e9d2c9&w=305&hash=0974D033229C63FEBAA414E8CE485D14"
+    ]
+  },
+  {
+    "page": "Dates, Accès, Plan",
+    "url": "/fr-FR/infos-pratiques/dates-acces-horaires",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "DATES, ACC&#200;S, PLAN",
+      "body": "Grande Halle de la Villette\n\n211 Av. Jean Jaurès\n\nChoisissez le mode de transport le plus écologique pour vous rendre au Salon, avec l'ADEME.\n\nUn vestiaire est à votre disposition sur le Salon Photo & Vidéo. Vous pouvez y déposer vêtements (3€), accessoires (4€) et bagages (5€).\n\nExplorez l'offre de restauration proposée par La Guinguette et découvrez 5 food trucks ouverts de 10h à 16h30 ainsi qu'un bar ouvert de 10h à 19h sous le péristyle de la Grande Halle de la Villette !\n\nL’accès réservé aux personnes à mobilité réduite se fait par l’entrée « Professionnels & Presse »."
+    },
+    "headings": [
+      "Dates et horaires",
+      "Lieu",
+      "La billetterie est ouverte",
+      "Calculez votre impact transport en un clic",
+      "Déposez vos affaires aux vestiaires",
+      "Les points de restauration"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/mains-femme-clavier-pc-banner.jpg?rev=e2ef1df957a94453b9e7c2aed345ee10&w=2000&hash=FB151B666DA4D3F3C0D620B318AC0E92",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/offre-restauration.png?rev=eb15dc70bcae4040905e28cfef089f4e&w=555&hash=B7370A776B164C7980451953E4A04523",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/acces-pmr.png?rev=bcb6504a10374a89b646c224d495ff56&w=555&hash=24A48BB9911A2321CE25A0BDBA6868AE",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/hotline/salon-de-la-photo-agent-client.jpg?rev=029bcc936bb44fcd8dea923c22af9b94&w=555&hash=64C970370A1F6F680F64BE2889CAD9D1"
+    ]
+  },
+  {
+    "page": "FAQ Visiteur",
+    "url": "/fr-FR/infos-pratiques/faq",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "FAQ VISITEUR",
+      "body": "La consigne se situe à l'entrée du salon, les tarifs sont les suivants :\n\nVeuillez remplir ci-dessous le formulaire d'aide Poser ma question en veillant à sélectionner correctement le Salon Photo & Vidéo et à détailler votre problème.\n\nNous vous répondrons dans les plus brefs délais."
+    },
+    "headings": [
+      "Sommaire",
+      "Le salon",
+      "Infos pratiques",
+      "Préparer ma visite sur le salon",
+      "Au programme",
+      "Accessibilité"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/participation-conference-banner.jpg?rev=ba7a062f5188411a9a443793e8aa0842&w=2000&hash=2F275E11BF8FFF0C4C7CB906DC9B1571",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/salon/hotline/salon-de-la-photo-agent-client.jpg?rev=029bcc936bb44fcd8dea923c22af9b94&w=555&hash=64C970370A1F6F680F64BE2889CAD9D1"
+    ]
+  },
+  {
+    "page": "Photo Pass",
+    "url": "/fr-FR/infos-pratiques/photo-pass",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "PHOTO PASS",
+      "body": "Que vous soyez à la recherche d’un spot iconique, d’un lieu insolite à capturer, d’une pause gourmande entre deux prises ou encore d’une bonne adresse pour faire réparer votre matériel : ce guide est fait pour vous.\n\nDécouvrez ici les lieux qui nous inspirent, testés et approuvés pour enrichir votre expérience visuelle et humaine."
+    },
+    "headings": [
+      "PHOTO PASS : Nos meilleures adresses pour dénicher les spots, saveurs et inspirations qui font vibrer l'image !",
+      "Les adresses du Salon Photo & Vidéo",
+      "Découvrez les différents lieux recommandés par le Salon Photo & Vidéo",
+      "Les partenaires du Photo Pass du Salon Photo & Vidéo"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/Off/banner-photopass.jpg?rev=5863dde88abe465a881d933d17d75856&w=2000&hash=A43E8515D979A0C09863E5DB3FB990E3",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/Off/555x555-photopass.png?rev=8f656c60f2e8467ca756a79d648223a6",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/salon/logo-circulations-part.jpg?rev=dbaca6f1d6004b219ba8a16858aead4f&w=305&hash=53BB2E7062C2268F6D39472F6ED7DB20",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/photopass/logo-harcourt.jpg?rev=fe2eb27870cb421c990b9adf8917c576&w=305&hash=41D2EB8815DE05705589BF7A0054DAB4",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/partenaires-photo/photopass/logo-bievres.jpg?rev=f1802dd125a24e92905fdedc1c2330fb&w=305&hash=9B8E92D75F970081288AAA6D0AC8CB6E"
+    ]
+  },
+  {
+    "page": "La Grande Expo",
+    "url": "/fr-FR/animations-ateliers/expositions-photos/grande-expo",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "LA GRANDE EXPO",
+      "body": "&Agrave; l'occasion du bicentenaire de la naissance de la photographie, célébré en 2026-2027, le Salon de la Photo & Vidéo, en partenariat avec le musée Nicéphore Niépce, présente une grande exposition consacrée à l'histoire des appareils photographiques, de leurs origines à nos jours. &Agrave; travers des pièces de collection exceptionnelles, ce parcours retrace deux siècles d'innovations techniques et d'évolutions esthétiques.\n\nLe parcours est jalonné d'appareils et de tirages d'époque ou des reproductions de photographies créées gr&acirc;ce à cette invention longtemps disputée entre les partisans de Nicéphore Niépce - qui, suite à ses expériences dans les années 1820 a réussi à faire fixer l'image qui se forme dans la camera obscura - et Daguerre, qui « offre » au monde son procédé en 1839. Un parcours pédagogique qui mènera le visiteur à découvrir les nombreux procédés qui se sont succédé tout au long du 19ème siècle jusqu'à l'essor de la photographie moderne argentique, se traduisant par la démocratisation du médium avec les premiers appareils destinés au « grand public » puis l'essor de la photographie en couleurs, avant l'avènement des appareils numériques.\n\nLa richesse des collections du musée Nicéphore Niépce de Chalon-sur-Saône à la fois en appareils photos historiques (près de 20.000) mais également en négatifs ou tirages photographiques (plus de 4 millions de phototypes) permet retracer l'évolution de la photographie ainsi que les nombreux essais et expérimentations qui ont été nécessaires à l'élaboration d'un procédé accessible à tous.\n\nL'invention en 1851 des plaques au collodion, humide dans un premier temps, puis sec par la suite abaisse le temps de pose et simplifie la préparation des supports ainsi que leur développement. L'arrivée dans les années 1880 du gélatino-bromure d'argent sur plaque de verre puis sur support souple à l'initiative de Georges Eastman accélère la démocratisation du médium. Les photographes ont de plus grandes facilités à se déplacer, principalement avec des appareils plus légers. Ces appareils étaient utilisés par de nombreux photographes voyageurs pour capturer les images de pays lointains, contribuant aussi à l'essor de la carte postale."
+    },
+    "headings": [
+      "200 ans derrière l'objectif, Appareils photo : 1826-2026"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/exposition-photos-banner.jpg?rev=4a26c26b721b420597504042a859e939&w=2000&hash=F429B6EE7327F7F87DD3045A7B976B2D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Grande-Expo-2026/chambre-niepce.jpg?h=480&amp;iar=0&amp;w=1120&amp;rev=d91acbcccc6d4665abb17196f1b3ae8b&amp;hash=CA8FFD869CAE6077FFC81962C8E33B31",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Grande-Expo-2026/autoportrait-daguerreotypiste.jpg?h=480&amp;iar=0&amp;w=1120&amp;rev=1a688331ed614630be9fa1cbf50c1f87&amp;hash=2609CB9D80D31F8E018C100AC260C59C",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Grande-Expo-2026/chambre-voyage.jpg?h=480&amp;iar=0&amp;w=1120&amp;rev=3a52e04742494f2d84656f9c248705a6&amp;hash=F58C9B58E0C769E3EB4FDDC339CA6334",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Grande-Expo-2026/brownie-box.jpg?h=480&amp;iar=0&amp;w=1120&amp;rev=bebdc80dd89e4d0e8249806dc8ec5583&amp;hash=23ED90222A310DC1629B4BBB87951F53"
+    ]
+  },
+  {
+    "page": "Les Zooms",
+    "url": "/fr-FR/animations-ateliers/expositions-photos/zooms",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "LES ZOOMS",
+      "body": "Depuis 2010, la Salon Photo & Vidéo, en collaboration avec le salon CP+ (Yokohama au Japon), met en lumière les talents des photographes émergents à travers son prestigieux concours Les ZOOMS. Deux prix y sont décernés, l'un par le public et l'autre par la presse.\n\nPlacé sous la présidence de Sophie Zénon, photographe plasticienne, le jury est composé de neuf professionnels de la presse (rédacteurs photo, rédacteurs en chef, directeurs de la photographie et de la rédaction) chacun ayant sélectionné un(e) photographe professionnel(le) émergent(e), français(e) ou résidant en France, encore peu connu(e) du grand public.\n\nNicolas Fagot appartient à l'univers des photographes capables de transformer un simple instant en émotion durable. Son travail ne se limite pas à capturer des images : il révèle des atmosphères, des silences. Il transforme le quotidien en poésie visuelle.\nChasseur d'Images a repéré son regard sensible qui capte l'émotion brute, la lumière juste et l'instant vrai. Il se concentre sur la rue et tout ce qui reste statique en s'adaptant ainsi aux imprévus qui se présentent à lui.\nSon élément phare, le plein soleil. Il ne fait pas de photo s'il n'y en a pas, cela l'ennuie. « Il lui faut cette grosse bo&icirc;te qui donnera des aplats de lumière et de couleurs, des ombres très tranchées ». Un combo de motifs et de couleurs qui s'assemblent et qui l'inspirent !\nCette approche intuitive, toujours nourrie par l'observation dans la lumière, révèle une photographie vivante, élégante et accessible, o&ugrave; chaque image raconte une histoire avec justesse et intensité. Le temps est en quelque sorte suspendu.\nAvec passion et exigence, Nicolas Fagot montre que la photographie n'est pas seulement un art de l'image, mais un art du regard.\nSon talent réside autant dans sa ma&icirc;trise technique que dans sa capacité à créer une relation authentique avec son environnement. Nous avons apprécié sa personnalité simple et sa signature unique. Derrière chacune de ses images, on imagine un regard profondément sensible, attentif aux détails et aux silhouettes mis en valeur par la lumière ; cet assemblage devient sous son objectif une matière vivante, la rue prend vie pour créer des Instants de lumière…\n\nÉcrit par Nadège Cogné pour Chasseur d'Images.\n\nJulia Neguer est une photographe dont le travail s'inscrit dans une tradition ancienne de la photographie : celle du voyage, non comme simple déplacement, mais comme expérience intérieure.\n\nAller vers le monde, c'est accepter de ne pas tout comprendre, de regarder sans posséder, de laisser les lieux et les rencontres déposer en nous leur part d'inconnu."
+    },
+    "headings": [
+      "Qu'est-ce que les ZOOMS ?",
+      "Découvrez les photographes sélectionnés",
+      "Découvrez leurs séries photo",
+      "Sélection Chasseur d'Images - Nicolas Fagot",
+      "Sélection Compétence Photo - Julia Neguer",
+      "Sélection De l’Air - Elsa Brau Mouret"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/zooms-2026/banner-zooms.jpg?rev=f8c6545533a94589bdacb160b5759cd8&w=2000&hash=19E88CAB57B789B3EFBFDFD061B49D47",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/zooms-2025/Logo-SDLP-Les-zooms-2025.jpg?rev=2a3767e419c0458ca0e92659519ee682&w=555&hash=F5211DF9585BDA16C4795FE7228C8AD5",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/zooms-2026/serie-photo-nicolas-fagot.jpg?rev=b9f03bc36c9e4ac285807bdab47f95d9",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/zooms-2026/serie-photo-julia-neguer.jpg?rev=3adeac65f4ab4a8c849476f10a063a16",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/zooms-2026/serie-photo-elsa-brau-mouret.jpg?rev=86f8139c11f34a5f8a729a2af4cd03e1"
+    ]
+  },
+  {
+    "page": "Le Forum des Pros",
+    "url": "/fr-FR/animations-ateliers/rencontres-photo/forum-pros",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "LE FORUM DES PROS",
+      "body": "Le Salon Photo & Vidéo revient avec un espace incontournable pour tous les professionnels de l'image : le Forum des Pros. Pendant quatre jours, cet espace dédié vous propose un programme riche de conférences et de rencontres photo et vidéo, avec l’objectif clair de vous aider à faire évoluer votre activité de photographe et vidéaste professionnel, affirmer votre image de marque, et développer votre chiffre d’affaires.\nOrganisé en collaboration avec la FFPMI, l’UPP, l'AFNUM et le magazine Profession Photographe, ce cycle de conférences vous offre un véritable concentré d’expertises. Vous y trouverez des conseils concrets, des retours d’expérience et des éclairages juridiques pour nourrir votre réflexion, affiner vos pratiques, et, surtout, relever les défis du métier de photographe et vidéaste aujourd’hui.\n\nLe Salon Photo & Vidéo revient avec un espace clé pour les pros de l’image : le Forum des Pros.\n\nOrganisé en partenariat avec la FFPMI, l’UPP, l’AFNUM et le magazine Profession Photographe, ce cycle de conférences accompagne les photographes dans le développement, la diversification et la sécurisation de leur activité.\n\nParmi les grandes thématiques abordées :\n\nVous y trouverez des conseils concrets, des retours d’expérience et des outils pratiques pour faire évoluer votre activité dans un secteur en constante mutation.\n\nAu c&oelig;ur de ce programme : l'accompagnement des photographes et vidéastes à toutes les étapes de leur activité. Les conférences proposent des clés concrètes pour mieux comprendre les réalités du métier, faire évoluer son modèle économique et adapter sa pratique aux enjeux de 2026."
+    },
+    "headings": [
+      "Le Forum des Pros : 4 jours pour booster votre activité de photographe & vidéaste professionnel",
+      "",
+      "Des thématiques essentielles pour les photographes & vidéastes professionnels",
+      "Formation, conseils et retours d'expérience",
+      "Prendre la parole, affirmer sa présence",
+      "Pourquoi venir au Forum des Pros ?"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/forum-visiteurs-banner.jpg?rev=4ccb2100eb8a4f959b67d67f95915fa0&w=2000&hash=E43BA931E2D2DD60E1F7D9DD6DA3FAE8",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/forum-des-pros/480x480-programme-conferences.jpg?rev=157dac8c46b74877a798625ccbba0a24&w=555&hash=454C410B452D57CAA26B8741AF39727C",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/forum-des-pros/480x480-forum-des-pros.jpg?rev=101c711ad3474dd6b7b05fa6fa0a4f60&w=555&hash=E0E4BFDBBAD061E9F009262B33C65EC7"
+    ]
+  },
+  {
+    "page": "Les Photos Spots",
+    "url": "/fr-FR/animations-ateliers/animations/photos-spots",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "LES PHOTOS SPOTS DU SALON",
+      "body": "Priorité à la manipulation, aux tests et à votre inventivité !\n\nPour chaque photo spot, le salon crée les conditions d'une mise en scène qui vous offrira tout le cadre nécessaire pour réaliser la photo de votre choix. Conçus comme des « ateliers » immersifs, vous pourrez vous tester à différentes techniques de photographie seul ou accompagné de bénévoles de la Fédération Photographie de France.&nbsp;&nbsp;\n\nPendant 4 jours, le Salon de la Photo sera le plus grand studio photo éphémère !\n\nLes différents photos spots présents en 2025\n\nDécouvrez la photographie de nature avec l'exposition de Montier Festival Photo&nbsp;située en Mezzanine 8.&nbsp;Plus d'informations à venir...\n\nDécouvrez ou redécouvrez la macrophotographie à travers différents petits sujets à photographier&nbsp;: le sable et les coquillages, les fleurs, les pierres/roches, l'eau, la plume, les agrumes, les personnages de LEGO etc."
+    },
+    "headings": [
+      "Vivez l'expérience de la Photo dans tous ses états",
+      "Les différents photos spots présents en 2025"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/visiteur-photo-banner.jpg?rev=7402816a3fd7410b9cfa9cb82df75586&w=2000&hash=76FB10AE2B87DF5D764374FABCABFF5D",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Photos-Spots/photo-spots.jpg?rev=0c312bd34cad492a8318a4c3854a0ff2&w=555&hash=92E439060590F534EFC76F9E2F12DCE7",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Photos-Spots/SDLPPicto-Astrophotographie--Nature.jpg?h=350&amp;iar=0&amp;w=360&amp;rev=375ccd957fac4d7097c1f8029169dc8d&amp;hash=37B1FA571FD1D8D3B14B07191AF77188",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Photos-Spots/Pictos-spots-Macro.jpg?h=350&amp;iar=0&amp;w=360&amp;rev=9c96a01aeaa442b7881ddbddb2369263&amp;hash=1A5D75144CEDB042086603447C2401F7",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/animations-ateliers/Photos-Spots/Pictos-spots-Light-Painting.jpg?h=350&amp;iar=0&amp;w=360&amp;rev=e2886337c7fb4fcabd0588c0d9044a7a&amp;hash=125BBBE064710A1D2955A41D1AB05918"
+    ]
+  },
+  {
+    "page": "Billetterie",
+    "url": "/fr-FR/billetterie",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "TARIFS",
+      "body": "Achetez votre billet pour le Salon Photo & Vidéo 2026.\n\nDemandez votre accréditation pour le salon et rencontrez vos pairs."
+    },
+    "headings": [
+      "Sélectionnez quel type de billet vous souhaitez.",
+      "Visiteur Grand Public",
+      "Visiteur professionnel",
+      "Vous êtes un visiteur Grand Public ?",
+      "Vous êtes un professionnel du secteur ?",
+      "Vous êtes un créateur de contenus ou un journaliste du secteur de la photographie ?"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/femme-appareil-photo-banner.jpg?rev=acb8f119053d42ff9ef7b9e386df549e&w=2000&hash=6C2138DAE304B262FCC2D91F42F8EDD1",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/billetterie/billetterie-gp.jpg?rev=e4643b3206c24813b11554d780eecfc1&w=700&hash=483AE1A2AB52F9C1AC48DB1C1C5BCAD7",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/billetterie/billetterie-pro.jpg?rev=3710365e2216486f8f3c3136a767cabf&w=700&hash=FE710F9664A558D6DEC724CDDF222F3B",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/billetterie/femme-appareil-photo-profil.jpg?rev=d2385b167d844db4b3023d14ec5696cb&w=555&hash=22F987E1B89A059078F1054CCB128523",
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/infos-pratiques/billetterie/homme-test-appareil-photo.jpg?rev=34e2d065e4b141468dd035a358cd5050&w=700&hash=B6CE29421663D4154A9D74EAE8D15B7D"
+    ]
+  },
+  {
+    "page": "Mentions Légales et CGU",
+    "url": "/fr-FR/mentions-legales-et-cgu",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "MENTIONS LÉGALES ET CGU",
+      "body": "Comexposium, Société par Actions Simplifiée, au capital de 60 000 000 €, immatriculée au Registre du Commerce et des Sociétés de Nanterre, sous le numéro 316 780 519, dont le siège social est situé 17 Quai du Président Paul Doumer - 92400 Courbevoie. Tél. : +33 (O)1 76 77 11 11\n\nLe Directeur de la publication est M. Pablo Nakhlé Cerruti.\n\nSitecore SA dont le siège social est situé Vester Farimagsgade 3, 5 1606, 1606 København, Danemark\n\nTél. : + 45 70 23 66 60\n\nCrédits : Comexposium – iStockPhoto\n\nCastelis\n9 Rue Maurice Grandcoing, 94200 Ivry-sur-Seine"
+    },
+    "headings": [
+      "Mentions légales",
+      "&nbsp;",
+      "Conditions générales d'utilisation du site"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/monsieur-essaye-l-appareil-banner.jpg?rev=fa92d43ee7b541caa144335aea872c7d&w=2000&hash=FAD4005C2E3C68BE62ED2D742FAD47E0"
+    ]
+  },
+  {
+    "page": "Politique de Confidentialité",
+    "url": "/fr-FR/protection-donnees",
+    "pageType": "content",
+    "contentType": "EditorialBlock",
+    "fields": {
+      "heading": "POLITIQUE DE CONFIDENTIALITÉ",
+      "body": "Le Groupe Comexposium apporte une attention particulière à la protection des données à caractère personnel. Il s'agit d'une condition essentielle de la relation de confiance que le Groupe Comexposium souhaite établir avec tous ceux qui lui confient leurs données à caractère personnel.\n\nLa présente politique de protection des Données à caractère personnel (Ci-après la « Politique ») énonce les pratiques et les conditions dans lesquelles la société Comexposium (Ci-après la « Société ») traite vos Données à caractère personnel.\n\nLa présente Politique s'applique lorsque vos Données sont collectées sur les sites Internet édités par les entités du Groupe Comexposium (Ci-après les « Sites ») ainsi que dans le cadre vos relations, de quelque nature qu'elles soient, avec la Société.\n\nLes Données à caractère personnel (ci-après les « Données ») sont toute information se rapportant à une personne physique identifiée ou identifiable  ; est réputée être une «personne physique identifiable» une personne physique qui peut être identifiée, directement ou indirectement, notamment par référence à un identifiant, tel qu'un nom, un numéro d'identification, des données de localisation, un identifiant en ligne, ou à un ou plusieurs éléments spécifiques propres à son identité physique, physiologique, génétique, psychique, économique, culturelle ou sociale ; tel que ce terme est défini par la réglementation en vigueur.\n\nEn fonction de la façon dont vous interagissez avec la Société et de la finalité de cette interaction, la Société est susceptible de collecter les Données suivantes\n\n2.1. En fonction de la façon dont vous interagissez avec la Société, cette dernière est susceptible de collecter vos Données selon les modalités décrites comme suit."
+    },
+    "headings": [
+      "POLITIQUE DE CONFIDENTIALITE DE NOTRE SITE INTERNET",
+      "1 – Quelles sont les données collectées?",
+      "2 – Comment vos données sont-elles collectées ?",
+      "3 – Pourquoi vos données sont-elles collectées ?",
+      "4 – A qui vos données sont-elles destinées?",
+      "5 – Comment vos données sont-elles protégées ?"
+    ],
+    "images": [
+      "/-/media/Project/Comexposium-Master1/Master1-Photo/banner-visiteurs/monsieur-essaye-l-appareil-banner.jpg?rev=fa92d43ee7b541caa144335aea872c7d&w=2000&hash=FAD4005C2E3C68BE62ED2D742FAD47E0"
+    ]
+  }
+]

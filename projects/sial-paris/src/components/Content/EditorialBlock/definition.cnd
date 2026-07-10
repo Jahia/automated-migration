@@ -1,0 +1,9 @@
+[sialp:editorialBlock] > jnt:content, sialpmix:pageComponent
+ - heading (string) i18n
+ - body (string, richtext) i18n
+ - image (weakreference, picker[type='image'])
+ - imageExternalUrl (string)
+ - imageAlt (string) i18n
+ - ctaLabel (string) i18n
+ - ctaUrl (string)
+ - darkBackground (boolean) = false

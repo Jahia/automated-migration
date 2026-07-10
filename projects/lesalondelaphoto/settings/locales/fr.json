@@ -1,0 +1,22 @@
+{
+  "agendaItem.learnMore": "En savoir plus",
+  "common.seeAll": "Voir tout",
+  "externalEmbed.noEmbedUrl": "Aucune URL d'intégration fournie",
+  "footer.joinCommunity": "Rejoignez-nous sur les réseaux sociaux",
+  "footer.siteLogoAlt": "Logo du Salon de la Photo",
+  "jcrQuery.defaultView": "Vue par défaut",
+  "jcrQuery.filterAll": "Tous",
+  "jcrQuery.filterLabel": "Filtrer par catégorie",
+  "jcrQuery.item": "élément",
+  "jcrQuery.items": "éléments",
+  "jcrQuery.loadMore": "Voir plus",
+  "jcrQuery.loadMoreCount": "Voir {{count}} de plus",
+  "jcrQuery.noResult": "Aucun résultat trouvé",
+  "jcrQuery.under": "sous",
+  "jcrQuery.view": "Vue",
+  "mainNav.brandLine1": "Salon de la Photo",
+  "mainNav.brandLine2": "Paris 2026",
+  "mainNav.siteLogoAlt": "Logo du Salon de la Photo",
+  "mainNav.tickets": "Billetterie",
+  "promoBlock.videoEyebrow": "À ne pas manquer"
+}

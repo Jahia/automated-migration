@@ -1,0 +1,22 @@
+/* Edit-mode: stack all slides vertically so editors can reach each one */
+.editStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.editSlide {
+  position: relative;
+  outline: 2px dashed rgba(0, 120, 212, 0.4);
+  outline-offset: -2px;
+}
+
+/* Placeholder shown when the carousel has no slides yet */
+.emptyHint {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  border: 2px dashed #ccc;
+}

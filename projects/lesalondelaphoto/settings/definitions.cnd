@@ -1,0 +1,46 @@
+<jcr = 'http://www.jcp.org/jcr/1.0'>
+<nt = 'http://www.jcp.org/jcr/nt/1.0'>
+<mix = 'http://www.jcp.org/jcr/mix/1.0'>
+<j = 'http://www.jahia.org/jahia/1.0'>
+<jnt = 'http://www.jahia.org/jahia/nt/1.0'>
+<jmix = 'http://www.jahia.org/jahia/mix/1.0'>
+<lsp = 'https://jahia.com/lesalondelaphoto/nt/1.0'>
+<lspmix = 'https://jahia.com/lesalondelaphoto/mix/1.0'>
+
+// Base component mixin — all components extend this
+[lspmix:component] > jmix:droppableContent, jmix:accessControllableContent mixin
+
+// Page component mixin — for components placed in page Areas
+[lspmix:pageComponent] > lspmix:component mixin
+
+// lsp:ctaButton is defined in its own component dir (src/components/CtaButton/
+// definition.cnd, which also ships its view) — NOT duplicated here. A type
+// declared twice in the aggregated CND makes Jahia's reader throw on install.
+
+// CTA mixin — shared link + label fields for primary CTAs
+[lspmix:cta] mixin
+ - ctaLabel (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+
+// Media mixin — shared image fields
+[lspmix:media] mixin
+ - image (weakreference, picker[type='image']) < jmix:image
+ - imageAltText (string) i18n
+
+// Footer link child node — used inside lsp:footer
+[lsp:footerLink] > jnt:content, lspmix:component
+ - label (string) i18n mandatory
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
+
+
+// Site theme mixin — add to the site node (jnt:virtualsite) so editors can
+// re-theme the whole site by overriding the :root tokens.
+[lspmix:siteTheme] mixin
+ - themePrimaryColor (string)
+ - themeSecondaryColor (string)
+ - themeAccentColor (string)
+ - themeTextColor (string)
+ - themeBackgroundColor (string)
+ - themeFontHeading (string)
+ - themeFontBody (string)
+ - themeOverrideCss (weakreference, picker[type='file'])

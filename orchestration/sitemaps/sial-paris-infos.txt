@@ -1,0 +1,8 @@
+# infos-pratiques section only - proof run (content + pre-imported images)
+infos-pratiques
+infos-pratiques/dates-et-acces
+infos-pratiques/tarifs-visiteurs
+infos-pratiques/vip-ticket
+infos-pratiques/sial-off
+infos-pratiques/faq
+infos-pratiques/contacts

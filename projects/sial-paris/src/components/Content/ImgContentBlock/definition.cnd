@@ -1,0 +1,9 @@
+[sialp:imgContentBlock] > jnt:content, sialpmix:pageComponent
+ - image (weakreference, picker[type='image'])
+ - imageExternalUrl (string)
+ - imageAlt (string) i18n
+ - watermarkWord (string) i18n
+ - heading (string) i18n
+ - body (string, richtext) i18n
+ - ctaLabel (string) i18n
+ - ctaUrl (string)

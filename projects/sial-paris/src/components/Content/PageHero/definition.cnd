@@ -1,0 +1,6 @@
+[sialp:pageHero] > jnt:content, sialpmix:pageComponent
+ - heading (string) i18n
+ - subtitle (string, textarea) i18n
+ - backgroundImage (weakreference, picker[type='image'])
+ - backgroundImageUrl (string)
+ - backgroundColor (string, choicelist) = 'navy' < 'navy', 'yellow', 'white', 'light'

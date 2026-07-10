@@ -1,0 +1,3 @@
+[lsp:accordionItem] > jnt:content, lspmix:component, jmix:hiddenType
+ - title (string) i18n mandatory
+ - body (string, richtext) i18n mandatory

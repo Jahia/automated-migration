@@ -7,6 +7,14 @@ the source page title, the module's `basic` template, and en+fr titles (rule:
 all modules ship en+fr minimum). Publishes each page. Idempotent: existing
 pages are kept (title refreshed), never duplicated.
 
+SITEMAP-AWARE (nav doctrine, 2026-07-06): when orchestration/sitemaps/
+<project>.txt exists, each slug's canonical path resolves THROUGH it (same
+convention as load_content._slug_to_jcr_path) — a page build_nav_tree.py moved
+under its section (/home/brands/en_citadines) is found there, never recreated
+flat. New pages are still created flat when the sitemap parent is absent
+(fresh DB: build_nav_tree restructures afterward). --check gates on the
+sitemap-resolved paths.
+
 Usage: create_pages.py <project> <site> [--template basic] [--locale en]
        [--limit N] [--dry]
 """
@@ -16,6 +24,21 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp_client import MCP  # noqa: E402
+
+
+def sitemap_map(project):
+    """leaf slug (lowercase) -> sitemap rel path; {} when no sitemap file."""
+    out = {}
+    try:
+        for line in open(f"orchestration/sitemaps/{project}.txt"):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            out[line.split("/")[-1].lower()] = line
+            out[line.lower()] = line
+    except FileNotFoundError:
+        pass
+    return out
 
 
 def main():
@@ -32,18 +55,36 @@ def main():
     inv_path = f"projects/{project}/workflow-output/page-inventory.json"
     inv = json.load(open(inv_path))
     pages = [p for p in inv.get("pages", []) if p.get("slug")]
+    # the crawl's HOME page slug is rarely "home" (discoverasr: "en", url ==
+    # siteUrl). It must map to /sites/<site>/home itself, never /home/<slug> —
+    # same rule as load_content._home_slug (loader wrote /home/main while a
+    # spurious empty /home/en page failed the integrity belt).
+    site_url = (inv.get("siteUrl") or "").rstrip("/")
+    hs = next((q["slug"] for q in inv.get("pages", [])
+               if (q.get("url") or "").rstrip("/") == site_url), None)
+    if hs is None and inv.get("pages"):
+        hs = inv["pages"][0].get("slug")
+    for q in pages:
+        if q.get("slug") == hs:
+            q["slug"] = "home"
     if limit:
         pages = pages[:limit]
 
     m = MCP(project)
+    smap = sitemap_map(project)
+
+    def page_path(slug):
+        if slug == "home":
+            return f"/sites/{site}/home"
+        rel = smap.get(slug.lower(), slug)
+        return f"/sites/{site}/home/{rel}"
 
     if check:
         # Gate mode (M4 live find): content.get on /home alone passes with an
         # empty home skeleton — assert the WHOLE inventory tree exists in JCR.
         missing = []
         for p in pages:
-            slug = p["slug"]
-            path = f"/sites/{site}/home" if slug == "home" else f"/sites/{site}/home/{slug}"
+            path = page_path(p["slug"])
             try:
                 m.get(path, locale=locale)
             except Exception:
@@ -71,7 +112,7 @@ def main():
                 except Exception as e:
                     print(f"  ! home title: {e}", file=sys.stderr)
             continue
-        path = f"/sites/{site}/home/{slug}"
+        path = page_path(slug)   # sitemap-resolved (nav-moved pages found in place)
         if dry:
             print(f"  [dry] {path} <- jnt:page tpl={template} '{title[:60]}'")
             created += 1
@@ -81,8 +122,19 @@ def main():
             m.get(path, locale=locale)
         except Exception:
             exists = False
+        flat = f"/sites/{site}/home/{slug}"
+        if not exists and path != flat:
+            # not at its sitemap home yet — maybe still flat (pre-nav-tree state)
+            try:
+                m.get(flat, locale=locale)
+                exists, path = True, flat
+            except Exception:
+                pass
         try:
             if not exists:
+                # create FLAT under /home (fresh DB) — build_nav_tree.py moves
+                # pages under their sitemap sections afterward.
+                path = flat
                 m.create(f"/sites/{site}/home", "jnt:page",
                          {"jcr:title": title, "j:templateName": template},
                          name=slug, locale=locale)

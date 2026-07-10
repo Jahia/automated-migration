@@ -1,0 +1,40 @@
+{
+  "module": "sial-paris",
+  "capturedAt": "2026-06-16",
+  "note": "Cloudflare blocks direct download. Assets must be captured via Chrome MCP browser. Tab ID 705482602 is open with the live site.",
+  "imagesToCapture": [
+    { "id": "hero-slide-1", "section": "Hero Carousel - Slide 1", "description": "Main hero background - trade show floor panoramic", "targetPath": "static/assets/hero-slide-1.jpg" },
+    { "id": "hero-slide-2", "section": "Hero Carousel - Slide 2", "description": "SIAL Innovation background", "targetPath": "static/assets/hero-slide-2.jpg" },
+    { "id": "hero-slide-3", "section": "Hero Carousel - Slide 3", "description": "SIAL for Change background", "targetPath": "static/assets/hero-slide-3.jpg" },
+    { "id": "logo-sial", "section": "Header + Footer", "description": "SIAL Paris primary logo", "targetPath": "static/assets/logo-sial.svg" },
+    { "id": "logo-comexposium", "section": "Footer", "description": "Comexposium logo", "targetPath": "static/assets/logo-comexposium.svg" },
+    { "id": "visitor-profile-distributeur", "section": "Visitor Profiles", "description": "Distributeur profile icon/image", "targetPath": "static/assets/profile-distributeur.svg" },
+    { "id": "visitor-profile-industriel", "section": "Visitor Profiles", "description": "Industriel profile icon/image", "targetPath": "static/assets/profile-industriel.svg" },
+    { "id": "visitor-profile-restaurateur", "section": "Visitor Profiles", "description": "Restaurateur profile icon/image", "targetPath": "static/assets/profile-restaurateur.svg" },
+    { "id": "visitor-profile-grandpublic", "section": "Visitor Profiles", "description": "Grand public profile icon/image", "targetPath": "static/assets/profile-grandpublic.svg" },
+    { "id": "cta-card-exposant", "section": "CTA Dual Cards - Left", "description": "Exposant CTA card background", "targetPath": "static/assets/cta-exposant.jpg" },
+    { "id": "cta-card-visiteur", "section": "CTA Dual Cards - Right", "description": "Visiteur CTA card background", "targetPath": "static/assets/cta-visiteur.jpg" },
+    { "id": "world-map", "section": "SIAL Network", "description": "World map showing SIAL event locations", "targetPath": "static/assets/world-map.svg" },
+    { "id": "news-thumb-1", "section": "News Listing", "description": "Article thumbnail 1", "targetPath": "static/assets/news-1.jpg" },
+    { "id": "news-thumb-2", "section": "News Listing", "description": "Article thumbnail 2", "targetPath": "static/assets/news-2.jpg" },
+    { "id": "news-thumb-3", "section": "News Listing", "description": "Article thumbnail 3", "targetPath": "static/assets/news-3.jpg" }
+  ],
+  "partnerLogos": {
+    "count": 40,
+    "note": "40+ partner logos in the carousel. Capture via Chrome JS: Array.from(document.querySelectorAll('.partners-carousel img')).map(img => img.src)",
+    "targetPath": "static/assets/partners/"
+  },
+  "fonts": {
+    "note": "Identify via Chrome DevTools > Network > Font tab. Likely custom Comexposium/SIAL brand fonts.",
+    "targetPath": "static/fonts/"
+  },
+  "css": {
+    "note": "Extract via Chrome DevTools > Sources. Main stylesheet likely at /fr-FR/_next/static/css/",
+    "targetPath": "static/css/"
+  },
+  "captureCommands": {
+    "imageUrls": "Array.from(document.querySelectorAll('img')).map(img => ({src: img.src, alt: img.alt, section: img.closest('[class*=\"section\"],[class*=\"hero\"],[class*=\"footer\"],[class*=\"header\"]')?.className || 'unknown'}))",
+    "cssUrls": "Array.from(document.querySelectorAll('link[rel=\"stylesheet\"]')).map(l => l.href)",
+    "fontUrls": "Array.from(document.querySelectorAll('link[rel=\"preload\"][as=\"font\"]')).map(l => l.href)"
+  }
+}

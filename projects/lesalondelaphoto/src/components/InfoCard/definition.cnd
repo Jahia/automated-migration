@@ -1,0 +1,3 @@
+[lsp:infoCard] > jnt:content, lspmix:pageComponent, lspmix:media
+ - titre (string) i18n mandatory
+ - description (string, richtext) i18n

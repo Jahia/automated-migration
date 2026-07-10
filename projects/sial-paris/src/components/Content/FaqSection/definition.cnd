@@ -1,0 +1,7 @@
+[sialp:faqItem] > jnt:content
+ - question (string) i18n
+ - answer (string, richtext) i18n
+
+[sialp:faqSection] > jnt:content, sialpmix:pageComponent, mix:title, jmix:list, jmix:renderableList, jmix:cache orderable
+ - intro (string, richtext) i18n
+ + * (sialp:faqItem) = sialp:faqItem

@@ -1,0 +1,18 @@
+// Auto-queries and renders content by type, as configurable cards.
+// jcr:title comes from mix:title - not declared explicitly.
+// jmix:renderableList is NOT used: it injects j:linknode/j:url and limits views to built-in ones.
+// `type` offers the generic content mixins (sialpmix:queryContent) so one
+// query component works for any migrated content, plus the concrete project types.
+[sialp:jcrQuery] > jnt:content, sialpmix:pageComponent, jmix:list, mix:title, jmix:cache
+ - type (string, choicelist[subnodetypes = 'jnt:page,sialpmix:queryContent',resourceBundle]) indexed=no mandatory
+ - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated indexed=no < 'publishDate', 'jcr:created', 'jcr:lastModified', 'j:lastPublished', 'jcr:title'
+ - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated indexed=no < 'asc', 'desc'
+ - maxItems (long) indexed=no
+ - startNode (weakreference)
+ - excludeNodes (weakreference) multiple
+ - filter (weakreference, category[autoSelectParent=false]) multiple
+ - noResultText (string) i18n indexed=no
+ - j:subNodesView (string, choicelist[templates=subnodes,resourceBundle,image,dependentProperties='type']) nofulltext
+ - j:linkType (string, choicelist[linkTypeInitializer]) indexed=no
+ - loadMore (boolean) = false indexed=no
+ - categoryFilter (boolean) = false indexed=no

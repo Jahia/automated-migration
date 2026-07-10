@@ -1,0 +1,14 @@
+/* Module-level global styles. The imported theme CSS (model-site, main-theme,
+   bootstrap4) does the heavy lifting; keep this minimal and theme-token driven. */
+:root {
+  --font-body: var(--font-01, system-ui, sans-serif);
+  --font-heading: var(--font-02, var(--font-body));
+}
+html, body { overflow-x: hidden; overflow-y: auto !important; height: auto !important; }
+body {
+  font-family: var(--font-body);
+  color: var(--color-text, #000);
+  background: var(--color-bg, #fff);
+  margin: 0;
+}
+img { max-width: 100%; height: auto; }

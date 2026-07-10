@@ -1,0 +1,58 @@
+.pageHero {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.pageHero.navy {
+  background-color: #1a2b4a;
+  color: #fff;
+}
+
+.pageHero.yellow {
+  background-color: #f5c800;
+  color: #1a2b4a;
+}
+
+.pageHero.white {
+  background-color: #fff;
+  color: #1a2b4a;
+  border-bottom: 3px solid #f5c800;
+}
+
+.pageHero.light {
+  background-color: #f5f7fa;
+  color: #1a2b4a;
+}
+
+.bgImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.25;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  padding: 3rem 2rem;
+  max-width: 860px;
+}
+
+.heading {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  opacity: 0.85;
+}

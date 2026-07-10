@@ -1,0 +1,434 @@
+{
+ "home": [
+  {
+   "file": "moteur-bugatti.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/moteur-bugatti.jpg"
+  },
+  {
+   "file": "paris-noir-blanc.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/paris-noir-blanc.jpg"
+  },
+  {
+   "file": "AVP.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/AVP.jpg"
+  },
+  {
+   "file": "stoccarda.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/stoccarda.jpg"
+  },
+  {
+   "file": "meilleures-photos-2026.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/meilleures-photos-2026.jpg"
+  },
+  {
+   "file": "alfa-romeo-logo.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/alfa-romeo-logo.jpg"
+  },
+  {
+   "file": "Aston-Martin-logo.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/Aston-Martin-logo.png"
+  },
+  {
+   "file": "Bentley-logo-svg-vectorsvg.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/Bentley-logo-svg-vectorsvg.png"
+  },
+  {
+   "file": "logo-constructeur-bugatti-Ultimate-Supercar-Garage-part.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/logo-constructeur-bugatti-Ultimate-Supercar-Garage-part.png"
+  },
+  {
+   "file": "logo-constructeur-Charles-Pozzi-Ferrari-Ultimate-Supercar-Garage-part.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/logo-constructeur-Charles-Pozzi-Ferrari-Ultimate-Supercar-Garage-part.png"
+  },
+  {
+   "file": "Lamborghini-logo.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/Lamborghini-logo.png"
+  },
+  {
+   "file": "Maserati-Logo.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/home/Maserati-Logo.png"
+  }
+ ],
+ "evenement": [
+  {
+   "file": "vue-de-paris-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement/vue-de-paris-banner.jpg"
+  },
+  {
+   "file": "stand-constructeurs.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement/stand-constructeurs.jpg"
+  },
+  {
+   "file": "pivot-scene-live.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement/pivot-scene-live.jpg"
+  },
+  {
+   "file": "pivot-sponsors-partenaires.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement/pivot-sponsors-partenaires.jpg"
+  },
+  {
+   "file": "rassemblement-supercars.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement/rassemblement-supercars.jpg"
+  }
+ ],
+ "evenement/design-in-motion": [
+  {
+   "file": "rassemblement-supercars.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-design-in-motion/rassemblement-supercars.jpg"
+  },
+  {
+   "file": "constructeurs.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-design-in-motion/constructeurs.jpg"
+  }
+ ],
+ "evenement/les-univers": [
+  {
+   "file": "stand-constructeurs.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/stand-constructeurs.jpg"
+  },
+  {
+   "file": "constructeurss.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/constructeurss.jpg"
+  },
+  {
+   "file": "artisans-du-luxe.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/artisans-du-luxe.jpg"
+  },
+  {
+   "file": "preparateurs-et-marchants.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/preparateurs-et-marchants.jpg"
+  },
+  {
+   "file": "clubs-de-supercars.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/clubs-de-supercars.jpg"
+  },
+  {
+   "file": "galerie-art.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/galerie-art.jpg"
+  },
+  {
+   "file": "artisans-lounge.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/artisans-lounge.jpg"
+  },
+  {
+   "file": "cp-billeterie.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-les-univers/cp-billeterie.jpg"
+  }
+ ],
+ "evenement/scene-live": [
+  {
+   "file": "pivot-scene-live.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/pivot-scene-live.jpg"
+  },
+  {
+   "file": "presentation-scenelive.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/presentation-scenelive.jpg"
+  },
+  {
+   "file": "scenelive.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/scenelive.jpg"
+  },
+  {
+   "file": "design-in-motion.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/design-in-motion.jpg"
+  },
+  {
+   "file": "miniature-Aston-martin.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Aston-martin.png"
+  },
+  {
+   "file": "miniature-Lotus.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Lotus.png"
+  },
+  {
+   "file": "miniature-Eccentrica.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Eccentrica.png"
+  },
+  {
+   "file": "miniature-Bentley.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Bentley.png"
+  },
+  {
+   "file": "miniature-Bottegafuoriserie.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Bottegafuoriserie.png"
+  },
+  {
+   "file": "miniature-Bugatti.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Bugatti.png"
+  },
+  {
+   "file": "miniature-Donkervoort.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-Donkervoort.png"
+  },
+  {
+   "file": "miniature-HWA.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-scene-live/miniature-HWA.png"
+  }
+ ],
+ "evenement/sponsors-et-partenaires": [
+  {
+   "file": "pivot-sponsors-partenaires.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/pivot-sponsors-partenaires.jpg"
+  },
+  {
+   "file": "logo-constructeur-bugatti-Ultimate-Supercar-Garage-part.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/logo-constructeur-bugatti-Ultimate-Supercar-Garage-part.png"
+  },
+  {
+   "file": "logo-constructeur-Charles-Pozzi-Ferrari-Ultimate-Supercar-Garage-part.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/logo-constructeur-Charles-Pozzi-Ferrari-Ultimate-Supercar-Garage-part.png"
+  },
+  {
+   "file": "alfa-romeo-logo.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/alfa-romeo-logo.jpg"
+  },
+  {
+   "file": "Aston-Martin-logo.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/Aston-Martin-logo.png"
+  },
+  {
+   "file": "Lamborghini-logo.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/Lamborghini-logo.png"
+  },
+  {
+   "file": "Maserati-Logo.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/Maserati-Logo.png"
+  },
+  {
+   "file": "Pagani-Logo.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/Pagani-Logo.jpg"
+  },
+  {
+   "file": "Bentley-logo-svg-vectorsvg.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/Bentley-logo-svg-vectorsvg.png"
+  },
+  {
+   "file": "logo-partenaire-SupercarOwnerCircle-Ultimate-Supercar-Garage-part.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/logo-partenaire-SupercarOwnerCircle-Ultimate-Supercar-Garage-part.png"
+  },
+  {
+   "file": "LOGO-RICHARD-MILLE-noir.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/LOGO-RICHARD-MILLE-noir.png"
+  },
+  {
+   "file": "RTL-logo.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/evenement-sponsors-et-partenaires/RTL-logo.jpg"
+  }
+ ],
+ "exposants-et-animations": [
+  {
+   "file": "banniere-ultimate.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/exposants-et-animations/banniere-ultimate.jpg"
+  },
+  {
+   "file": "soc-3.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/exposants-et-animations/soc-3.jpg"
+  }
+ ],
+ "exposants-et-animations/calendrier-des-animations": [
+  {
+   "file": "soc-3.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/exposants-et-animations-calendrier-des-animations/soc-3.jpg"
+  }
+ ],
+ "exposants-et-animations/liste-des-exposants": [
+  {
+   "file": "banniere-ultimate.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/exposants-et-animations-liste-des-exposants/banniere-ultimate.jpg"
+  }
+ ],
+ "espace-exposant": [
+  {
+   "file": "transport-hebergement-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/espace-exposant/transport-hebergement-banner.jpg"
+  },
+  {
+   "file": "Exposition-supercar-luxe-noir-et-blanc-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/espace-exposant/Exposition-supercar-luxe-noir-et-blanc-icb.jpg"
+  },
+  {
+   "file": "Exposants-echange-raisons-Ultimate-Supercar-Garage-cbv.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/espace-exposant/Exposants-echange-raisons-Ultimate-Supercar-Garage-cbv.jpg"
+  }
+ ],
+ "actualites": [
+  {
+   "file": "image-banner-title-bugatti-ultimatesupercargarage26.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites/image-banner-title-bugatti-ultimatesupercargarage26.jpg"
+  }
+ ],
+ "actualites/the-ultimate-review": [
+  {
+   "file": "image-actu.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review/image-actu.jpg"
+  },
+  {
+   "file": "Ferrari-SC40.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review/Ferrari-SC40.jpg"
+  },
+  {
+   "file": "Lamborghini-Manifesto.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review/Lamborghini-Manifesto.jpg"
+  },
+  {
+   "file": "Capricorn-01-Zagato.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review/Capricorn-01-Zagato.jpg"
+  },
+  {
+   "file": "Mercedes-Vision-Iconic.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review/Mercedes-Vision-Iconic.jpg"
+  }
+ ],
+ "actualites/the-ultimate-review-2": [
+  {
+   "file": "image-actu.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review-2/image-actu.jpg"
+  },
+  {
+   "file": "Bentley-Continental-GT-Supersports.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review-2/Bentley-Continental-GT-Supersports.jpg"
+  },
+  {
+   "file": "Porsche-GT3-Kit-Manthey.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review-2/Porsche-GT3-Kit-Manthey.jpg"
+  },
+  {
+   "file": "Gordon-Murray-S1-LM.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review-2/Gordon-Murray-S1-LM.png"
+  },
+  {
+   "file": "Genesis-Magma-GT-Concept.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/actualites-the-ultimate-review-2/Genesis-Magma-GT-Concept.jpg"
+  }
+ ],
+ "infos-pratiques": [
+  {
+   "file": "infos-pratiques-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques/infos-pratiques-banner.jpg"
+  },
+  {
+   "file": "banner-teaser.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques/banner-teaser.jpg"
+  },
+  {
+   "file": "plan.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques/plan.jpg"
+  },
+  {
+   "file": "transport-hebergement-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques/transport-hebergement-banner.jpg"
+  }
+ ],
+ "infos-pratiques/date-acces-plan": [
+  {
+   "file": "plan.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-date-acces-plan/plan.jpg"
+  },
+  {
+   "file": "Plan-Porte-de-verailles.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-date-acces-plan/Plan-Porte-de-verailles.png"
+  },
+  {
+   "file": "Plan-USG.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-date-acces-plan/Plan-USG.png"
+  }
+ ],
+ "infos-pratiques/comment-venir-au-salon": [
+  {
+   "file": "transport-hebergement-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-comment-venir-au-salon/transport-hebergement-banner.jpg"
+  },
+  {
+   "file": "transport-en-commun-paris-ultimate-supercar-garage-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-comment-venir-au-salon/transport-en-commun-paris-ultimate-supercar-garage-icb.jpg"
+  },
+  {
+   "file": "venir-en-voiture-ultimate-supercar-garage-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-comment-venir-au-salon/venir-en-voiture-ultimate-supercar-garage-icb.jpg"
+  },
+  {
+   "file": "venir-a-velo-ultimate-supercar-garage-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-comment-venir-au-salon/venir-a-velo-ultimate-supercar-garage-icb.jpg"
+  },
+  {
+   "file": "venir-en-avion-ultimate-supercar-garage-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-comment-venir-au-salon/venir-en-avion-ultimate-supercar-garage-icb.jpg"
+  },
+  {
+   "file": "hebergement-est-au-cceur-de-chaque-vnement-bnetwork-spcialiste-hbergement-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-comment-venir-au-salon/hebergement-est-au-cceur-de-chaque-vnement-bnetwork-spcialiste-hbergement-icb.jpg"
+  }
+ ],
+ "infos-pratiques/faq": [
+  {
+   "file": "banner-teaser.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/infos-pratiques-faq/banner-teaser.jpg"
+  }
+ ],
+ "presse": [
+  {
+   "file": "presse-influence-salon-ultimate-supercar-garage-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/presse/presse-influence-salon-ultimate-supercar-garage-banner.jpg"
+  },
+  {
+   "file": "communique-presse-ultimate-supercar-garage-icb-2.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/presse/communique-presse-ultimate-supercar-garage-icb-2.jpg"
+  },
+  {
+   "file": "influence-photo.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/presse/influence-photo.jpg"
+  },
+  {
+   "file": "accreditation-presse.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/presse/accreditation-presse.jpg"
+  },
+  {
+   "file": "Supercar-facebook-FR.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/presse/Supercar-facebook-FR.jpg"
+  }
+ ],
+ "presse/accreditation-influence": [
+  {
+   "file": "Influenceuse-film-garage-neon-supercar-icb.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/presse-accreditation-influence/Influenceuse-film-garage-neon-supercar-icb.jpg"
+  }
+ ],
+ "billetterie": [
+  {
+   "file": "vue-de-paris-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie/vue-de-paris-banner.jpg"
+  },
+  {
+   "file": "billetterie-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie/billetterie-banner.jpg"
+  },
+  {
+   "file": "groupeetcse.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie/groupeetcse.jpg"
+  }
+ ],
+ "billetterie/acheter-mon-ticket": [
+  {
+   "file": "billetterie-banner.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie-acheter-mon-ticket/billetterie-banner.jpg"
+  },
+  {
+   "file": "soiree-lancement.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie-acheter-mon-ticket/soiree-lancement.jpg"
+  },
+  {
+   "file": "enfant-ado.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie-acheter-mon-ticket/enfant-ado.jpg"
+  },
+  {
+   "file": "situation-de-handicap.png",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie-acheter-mon-ticket/situation-de-handicap.png"
+  }
+ ],
+ "billetterie/groupes-cse": [
+  {
+   "file": "groupeetcse.jpg",
+   "jcrPath": "/sites/supercar-garage/files/imported/billetterie-groupes-cse/groupeetcse.jpg"
+  }
+ ]
+}

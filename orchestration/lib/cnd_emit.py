@@ -162,6 +162,14 @@ def contrib_mixins(mixns, stats):
         out.append(f"[{mixns}:{nm}] mixin")
         out.extend(_media_lines(i + 1)[3 * i:])  # just the i-th unit's 3 lines
         out.append("")
+    max_labels = max([0] + [max(e.get("labels", 0), e.get("childLabels", 0))
+                            for e in stats.values()])
+    for i in range(max_labels):
+        nm = "contribLabel" if i == 0 else f"contribLabel{i + 1}"
+        fld = "label" if i == 0 else f"label{i + 1}"
+        out.append(f"[{mixns}:{nm}] mixin")
+        out.append(f"  - {fld} (string) i18n")
+        out.append("")
     if any_link:
         out.append(f"[{mixns}:contribLink] mixin")
         out.extend(link_lines())
@@ -260,6 +268,8 @@ def run_stats_from_content_load(path, manifest):
                                    "link": False, "childLink": False})
             e["runs"] = max(e["runs"], sum(1 for k in inst.get("fields", {})
                                            if k.startswith("body")))
+            e["labels"] = max(e.get("labels", 0), sum(1 for k in inst.get("fields", {})
+                                                      if k.startswith("label")))
             e["titles"] |= "title" in inst.get("fields", {})
             e["media"] = max(e["media"], len(inst.get("media") or []))
             e["link"] |= bool(inst.get("link"))
@@ -267,6 +277,9 @@ def run_stats_from_content_load(path, manifest):
                 e["childRuns"] = max(e["childRuns"],
                                      sum(1 for k in ch.get("fields", {})
                                          if k.startswith("body")))
+                e["childLabels"] = max(e.get("childLabels", 0),
+                                       sum(1 for k in ch.get("fields", {})
+                                           if k.startswith("label")))
                 e["childTitles"] |= "title" in ch.get("fields", {})
                 e["childMedia"] = max(e["childMedia"], len(ch.get("media") or []))
                 e["childLink"] |= bool(ch.get("link"))
@@ -292,10 +305,19 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
         "// mixins (added per node by the loader) + the hidden skeleton.",
         f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
         "  - html (string, textarea)",
+        # a {{child:N}} container IS a rawHtml node holding typed component
+        # children (emit_container_live) — without a child-node definition the
+        # content-editor form builder throws for every nested child
+        # ("Error while building edit form definition", G6 red on 12 nodes).
+        f"  + * ({mixns}:component)",
     ]
     if raw_runs or rs.get("runs") or rs.get("media") or rs.get("link"):
         raw_lines.append("  - skeleton (string, textarea) hidden")
     return [
+        "// tree-driven main navigation (AIStartupKit rule 19: nav = page tree,",
+        "// 3 levels, never frozen markup; view renders the source's own classes)",
+        f"[{ns}:mainNavigation] > jnt:content, {mixns}:component",
+        "",
         f"// listing + grid tools (editor-facing, every module ships these)",
         f"[{ns}:jcrQuery] > jnt:content, {mixns}:component, jmix:list",
         "  - query (string, textarea)",

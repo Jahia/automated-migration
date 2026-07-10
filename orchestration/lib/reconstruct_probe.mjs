@@ -232,14 +232,26 @@ const browser = await chromium.launch({ headless: true });
 for (const p of pages) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   let rec = { slug: p.slug, url: p.url };
-  const localMode = useMirror && fs.existsSync(`${mirrorDir}/${p.slug}.html`);
+  // mirror files may carry the crawl host prefix (www.example.com_en_<slug>.html)
+  const mirrorFile = fs.existsSync(`${mirrorDir}/${p.slug}.html`) ? `${p.slug}.html`
+    : (fs.readdirSync(mirrorDir).find(f => f.endsWith(`_${p.slug}.html`)) || `${p.slug}.html`);
+  const localMode = useMirror && fs.existsSync(`${mirrorDir}/${mirrorFile}`);
+  // DOCTRINE: an offline gate never silently reaches for the network — a page
+  // missing from an existing mirror is reported and excluded, not rendered live
+  // (live WAF chrome scored as 'uncaptured content': the 73% Compose failure).
+  if (useMirror && !localMode) {
+    console.error(`  ~ ${p.slug}: not in local mirror — excluded (recapture via localize_site.py)`);
+    results.push({ slug: p.slug, excluded: true, note: 'missing from local mirror' });
+    await page.close().catch(() => {});
+    continue;
+  }
   try {
     if (localMode) {
       // offline: local server continues, manifest-captured runtime assets are
       // fulfilled from disk, everything else external is blocked
       await page.route('**/*', offlineRoute(mbase, mirrorDir, runtimeManifest, null));
     }
-    await page.goto(localMode ? `${mbase}/${p.slug}.html` : p.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await page.goto(localMode ? `${mbase}/${encodeURIComponent(mirrorFile)}` : p.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     try { await page.waitForLoadState('load', { timeout: 15000 }); } catch {}
     await page.waitForTimeout(4000);
     const src = `${outDir}/${p.slug}.source.png`;
@@ -443,6 +455,7 @@ console.log(`pixelSim = % of source pixels reproduced by components ALONE (the r
 console.log(`hero imagery / spacing the TEMPLATE + asset import must supply — see diff PNG).\n`);
 let worstCov = 100, allPass = true;
 for (const r of results) {
+  if (r.excluded) { console.log(`  ${r.slug}: excluded (${r.note})`); continue; }
   if (!r.ok) { console.log(`  ${r.slug}: FAIL ${r.error}`); allPass = false; continue; }
   const flag = r.pass ? 'PASS' : 'BELOW THRESHOLD';
   console.log(`  ${r.slug.padEnd(30)} content=${r.contentCoverage}% (real-orphan ${r.realOrphanChars} chars, ignorable-chrome ${r.ignorableChars}) | pixelSim=${r.pixelSimilarity}% | ${r.nComps} comps  [${flag}]`);

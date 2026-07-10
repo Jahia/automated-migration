@@ -1,0 +1,12 @@
+[sialp:socialLink] > jnt:content
+ - iconClass (string)
+ - label (string) i18n
+ - j:linkType (string, choicelist[linkTypeInitializer])
+
+[sialp:topBar] > jnt:content, jmix:list, jmix:renderableList orderable
+ - communityText (string) i18n
+ - exposantCtaLabel (string) i18n
+ - exposantCtaUrl (string)
+ - espaceCtaLabel (string) i18n
+ - espaceCtaUrl (string)
+ + * (sialp:socialLink) = sialp:socialLink

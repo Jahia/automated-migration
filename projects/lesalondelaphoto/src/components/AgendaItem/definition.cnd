@@ -1,0 +1,5 @@
+[lsp:agendaItem] > jnt:content, lspmix:pageComponent, mix:title, jmix:mainResource, lspmix:media
+ - date (date)
+ - location (string) i18n
+ - body (string, richtext) i18n mandatory
+ - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no

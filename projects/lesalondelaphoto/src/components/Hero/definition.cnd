@@ -1,0 +1,3 @@
+[lsp:hero] > jnt:content, lspmix:pageComponent, lspmix:cta, lspmix:media
+ - heading (string) i18n mandatory
+ - subheading (string) i18n

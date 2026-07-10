@@ -1,0 +1,3 @@
+[usg:quickLinks] > jnt:content, usgmix:pageComponent
+ - backgroundColor (string)
+ + * (usg:quickLinkCard) = usg:quickLinkCard

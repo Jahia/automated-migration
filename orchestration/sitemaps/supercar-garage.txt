@@ -1,0 +1,57 @@
+# Ultimate Supercar Garage target sitemap - paths relative to /sites/supercar-garage/home
+# Source: https://www.ultimate-supercar-garage.com/sitemap.xml (fr-FR tree, the x-default canonical locale).
+# NODE NAMES ARE LOWERCASE: Jahia lowercases jnt:page node names on create, so
+# these must be lowercase to match the live tree (and what content.sh renders).
+# Original mixed-case display URLs (Design-in-Motion, Recherche) are restored as
+# vanity URLs in step 13, not as node names. One path per line; home = home page.
+# Utility/legal pages (Recherche, plan-du-site, cookies, mentions-legales,
+# protection-donnees) are deferred - add them as vanity URLs / generated pages.
+home
+
+# --- evenement (the show) ---
+evenement
+evenement/design-in-motion
+evenement/les-univers
+evenement/scene-live
+evenement/sponsors-et-partenaires
+
+# --- exposants-et-animations ---
+exposants-et-animations
+exposants-et-animations/calendrier-des-animations
+exposants-et-animations/liste-des-exposants
+
+# --- espace-exposant ---
+espace-exposant
+espace-exposant/pourquoi-exposer
+espace-exposant/offres-de-stand-ultimate-supercar-garage
+
+# --- actualites (news) ---
+actualites
+actualites/etudiant
+actualites/the-ultimate-review
+actualites/the-ultimate-review-2
+actualites/ultimate-supercar-garage-en-images
+
+# --- infos-pratiques ---
+infos-pratiques
+infos-pratiques/date-acces-plan
+infos-pratiques/comment-venir-au-salon
+infos-pratiques/faq
+
+# --- presse ---
+presse
+presse/accreditation-presse
+presse/accreditation-influence
+presse/kit-media
+presse/communique-de-presse
+presse/communique-de-presse/annonce
+presse/communique-de-presse/billetterie
+presse/communique-de-presse/constructeurs
+presse/communique-de-presse/cp-bilan-usg26
+presse/communique-de-presse/tendance-supercar
+presse/communique-de-presse/ultimate-supercar-garage-une-journee-presse-rythmee-par-des-revelations-mondiales
+
+# --- billetterie ---
+billetterie
+billetterie/acheter-mon-ticket
+billetterie/groupes-cse

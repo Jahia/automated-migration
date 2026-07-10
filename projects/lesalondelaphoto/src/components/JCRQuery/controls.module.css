@@ -1,0 +1,66 @@
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 1rem;
+  border: 1.5px solid #1b2a4a;
+  border-radius: 999px;
+  background: transparent;
+  color: #1b2a4a;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chip:hover {
+  background: rgba(27, 42, 74, 0.08);
+}
+
+.chipActive {
+  background: #1b2a4a;
+  color: #fff;
+}
+
+.loadMoreWrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.loadMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 2rem;
+  background: transparent;
+  border: 2px solid #1b2a4a;
+  border-radius: 6px;
+  color: #1b2a4a;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.loadMoreBtn:hover {
+  background: #1b2a4a;
+  color: #fff;
+}
+
+.loadMoreCount {
+  font-weight: 400;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+:global([data-lm-visible="false"]),
+:global([data-cat-visible="false"]) {
+  display: none !important;
+}

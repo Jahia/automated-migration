@@ -1,0 +1,92 @@
+{
+  "base": "https://www.sialparis.com/-/media/Project/Comexposium-Master1/Master1-sialparis/",
+  "page": "tendances/focus/proteines",
+  "hero": {
+    "heading": "La protéine au cœur des mutations",
+    "subtitle": "À l'approche du SIAL 2026, le marché mondial de la protéine continue de transformer en profondeur l'industrie agroalimentaire. Animale, végétale ou issue de nouvelles technologies, elle occupe une place clé dans les attentes des consommateurs comme dans les priorités des industriels.",
+    "image": "tendance/focus-tendances/proteines/proteines-oeufs-jaune.jpg",
+    "imgFile": "proteines-hero.jpg"
+  },
+  "intro": {
+    "overline": "FOCUS TENDANCES",
+    "heading": "L'alimentation est entrée dans l'ère de la protéine",
+    "body": "<p>Des rayons alimentaires aux discours nutritionnels, la protéine s'est imposée comme l'ingrédient central des nouvelles stratégies d'innovation. Véritable révélateur des mutations alimentaires actuelles, SIAL Paris confirme cette dynamique.</p>"
+  },
+  "blocks": [
+    {
+      "heading": "Un marché en pleine ébullition",
+      "image": "tendance/focus-tendances/proteines/proteines-viande-rouge-fond-rose.jpg",
+      "imgFile": "proteines-viande-rose.jpg",
+      "imageAlt": "Protéines animales, viande rouge",
+      "body": [
+        "<p>La protéine est devenue l'ingrédient nutritionnel le plus recherché par les consommateurs à l'échelle mondiale. Aujourd'hui, 57 % des consommateurs déclarent rechercher des protéines dans leurs snacks, devant les fibres et les vitamines. En France, 81 % des Français considèrent qu'une alimentation riche en protéines est essentielle pour la santé.</p>",
+        "<p>Pourtant, la réalité nutritionnelle mérite d'être nuancée. L'apport moyen en protéines en France atteint déjà 1,4 g par kilo de poids corporel et par jour, soit près du double des recommandations officielles de l'ANSES fixées à 0,83 g/kg/j pour un adulte en bonne santé. La majorité des Français ne manque donc pas de protéines : le véritable enjeu réside dans la qualité nutritionnelle et la diversification des sources consommées.</p>",
+        "<p>En Europe, 31 % des consommateurs se définissent comme flexitariens, et en France près d'un foyer sur deux compte au moins une personne ayant adopté ce mode de consommation. Près de 58 % des Français recherchent désormais différentes sources de protéines, et le marché des alternatives végétales devrait atteindre environ 745 millions d'euros en 2025.</p>"
+      ]
+    },
+    {
+      "heading": "Le marché des protéines en quelques chiffres",
+      "dark": true,
+      "body": [
+        "<ul><li><strong>57 %</strong> des consommateurs recherchent des protéines dans leurs snacks.</li><li><strong>81 %</strong> des Français considèrent les protéines essentielles à la santé.</li><li><strong>31 %</strong> des consommateurs européens se définissent comme flexitariens.</li><li><strong>22 %</strong> des Français déclarent avoir augmenté leur consommation de protéines végétales ces dernières années.</li></ul>"
+      ]
+    },
+    {
+      "heading": "Protéines animales vs végétales : le grand rééquilibrage",
+      "image": "tendance/focus-tendances/proteines/proteines-viande-fond-rouge-bordeaux.jpg",
+      "imgFile": "proteines-viande-bordeaux.jpg",
+      "imageAlt": "Protéines animales et végétales",
+      "body": [
+        "<p>Si la viande rouge conserve une forte valeur symbolique, les habitudes évoluent rapidement. Selon le Baromètre viande 2025 de Toluna-Harris, 53 % des Français déclarent avoir réduit leur consommation de viande au cours des trois dernières années, pour des raisons de prix, de santé, d'impact environnemental et de bien-être animal.</p>",
+        "<p>Cette évolution ne signifie pas la disparition des protéines animales, mais une transformation de leur positionnement : les marques misent désormais sur la naturalité, la qualité nutritionnelle, la traçabilité et l'absence d'ingrédients ajoutés. Du côté des produits laitiers, le skyr s'est imposé grâce à sa densité nutritionnelle et son image santé.</p>",
+        "<p>Aujourd'hui encore, les deux tiers des apports protéiques des Français proviennent des sources animales, mais les recommandations encouragent la diversification. Le marché européen des produits végétaux est en hausse de +5,1 % entre 2024 et 2025 (Circana), porté par les fruits à coque et graines (près de 50 %), les substituts aux produits laitiers (21 %) et les plats préparés végétariens (15 %). Les alternatives à la viande restent minoritaires (environ 4 %).</p>"
+      ]
+    },
+    {
+      "heading": "Une protéine devenue un marqueur du quotidien",
+      "image": "tendance/focus-tendances/proteines/yaourt-dessert-proteines-hipro.jpg",
+      "imgFile": "proteines-yaourt-hipro.jpg",
+      "imageAlt": "Desserts lactés riches en protéines",
+      "body": [
+        "<p>Longtemps associée au sport et à la performance physique, la protéine s'intègre désormais dans la consommation quotidienne. Pâtes enrichies, desserts lactés, boissons, snacks ou produits pour le petit-déjeuner : les allégations protéiques se multiplient dans toutes les catégories. La teneur en protéines devient un critère de choix aussi visible que le Nutri-Score, le bio ou l'origine des ingrédients, contribuant fortement à l'essor du snacking protéiné.</p>"
+      ]
+    },
+    {
+      "heading": "La montée en puissance des protéines durables et locales",
+      "image": "tendance/focus-tendances/proteines/legumineuses-proteines-naturelles.jpg",
+      "imgFile": "proteines-legumineuses.jpg",
+      "imageAlt": "Légumineuses, source de protéines naturelles",
+      "dark": true,
+      "body": [
+        "<p>Dans un contexte de transition alimentaire et de recherche de souveraineté agricole, de nouveaux acteurs investissent les filières françaises et les solutions plus durables. Spiruline, légumineuses, fermentation, insectes ou microalgues : les pistes d'innovation se multiplient. Des entreprises comme Accro ou Etika Spirulina développent des solutions permettant de diversifier les sources protéiques tout en limitant la dépendance aux importations de soja. Au-delà d'une tendance marketing, cette diversification pourrait devenir un enjeu stratégique majeur pour la résilience alimentaire européenne.</p>"
+      ]
+    },
+    {
+      "heading": "Le bien vieillir, un nouveau terrain d'innovation",
+      "body": [
+        "<p>Le vieillissement de la population ouvre de nouvelles perspectives. Aujourd'hui, 73 % des consommateurs mondiaux considèrent le « bien vieillir » comme une priorité importante. Les protéines jouent un rôle essentiel dans la prévention de la perte musculaire liée à l'âge (sarcopénie). Certaines marques développent déjà des offres dédiées aux seniors actifs et à la nutrition fonctionnelle positive, faisant de la nutrition santé l'un des axes de croissance les plus prometteurs.</p>"
+      ]
+    },
+    {
+      "heading": "Le risque d'une communication trompeuse",
+      "image": "tendance/focus-tendances/proteines/fermentation-bocaux-pot.jpg",
+      "imgFile": "proteines-fermentation.jpg",
+      "imageAlt": "Fermentation, source de protéines",
+      "body": [
+        "<p>L'engouement autour de la protéine entraîne certaines dérives marketing. Le « protein washing », inspiré du greenwashing, désigne les produits mettant en avant leur teneur en protéines sans réelle valeur nutritionnelle ajoutée. Or tous les produits riches en protéines ne se valent pas : la qualité dépend du profil en acides aminés essentiels, de la digestibilité et du niveau de transformation.</p>",
+        "<p>Pour les marques, trois facteurs clés de succès se dégagent : valoriser la qualité des protéines plutôt que la quantité, adopter une communication responsable et transparente, et construire une stratégie de marque cohérente sur le long terme.</p>"
+      ]
+    },
+    {
+      "heading": "Ce que le SIAL 2026 nous dira sur la protéine de demain",
+      "image": "tendance/focus-tendances/proteines/insectes-proteines-naturelles.jpg",
+      "imgFile": "proteines-insectes.jpg",
+      "imageAlt": "Insectes, source de protéines alternatives",
+      "dark": true,
+      "body": [
+        "<p>Plusieurs enjeux structurants émergent. Le premier concerne le goût : le véritable défi de la transition protéique n'est pas uniquement scientifique ou réglementaire, il est aussi sensoriel et culturel. Le deuxième porte sur l'équilibre entre promesse marketing et crédibilité, alors que les consommateurs font face à une multiplication des discours nutritionnels. Les marques qui réussiront seront celles capables de construire une relation durable fondée sur la confiance et la transparence.</p>",
+        "<p>Enfin, la question protéique dépasse le simple cadre alimentaire : elle se situe au croisement de la santé, de l'environnement, de l'agriculture et de la souveraineté alimentaire. La diversification des sources — légumineuses, insectes, algues, champignons ou fermentation — apparaît désormais comme une nécessité stratégique autant qu'une opportunité économique.</p>"
+      ]
+    }
+  ]
+}

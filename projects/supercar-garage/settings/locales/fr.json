@@ -1,0 +1,79 @@
+{
+  "common": {
+    "seeAll": "Voir tout"
+  },
+  "breadcrumb": {
+    "home": "Accueil",
+    "ariaLabel": "Fil d'Ariane"
+  },
+  "nav": {
+    "logoAriaLabel": "Ultimate Supercar Garage - Accueil",
+    "logoAlt": "Ultimate Supercar Garage",
+    "menuAriaLabel": "Navigation principale",
+    "langAriaLabel": "Sélection de langue",
+    "mobileMenuAriaLabel": "Menu"
+  },
+  "jcrQuery": {
+    "noResult": "Aucun résultat trouvé.",
+    "loadMore": "Voir plus"
+  },
+  "usg_jcrQuery": "Requête JCR",
+  "usg_jcrQuery.ui.tooltip": "Composant de listing. Interroge et affiche automatiquement le contenu par type.",
+  "usg_jcrQuery.type": "Type de contenu",
+  "usg_jcrQuery.type.ui.tooltip": "Quel contenu lister (seuls les types qui optent pour usgmix:queryContent apparaissent ici).",
+  "usg_jcrQuery.type.usg:newsArticle": "Articles",
+  "usg_jcrQuery.type.usg:pressRelease": "Communiqués de presse",
+  "usg_jcrQuery.type.jnt:page": "Pages",
+  "usg_jcrQuery.criteria": "Trier par",
+  "usg_jcrQuery.criteria.ui.tooltip": "Propriété utilisée pour ordonner les résultats.",
+  "usg_jcrQuery.criteria.jcr:created": "Date de création",
+  "usg_jcrQuery.criteria.jcr:lastModified": "Date de dernière modification",
+  "usg_jcrQuery.criteria.j:lastPublished": "Date de dernière publication",
+  "usg_jcrQuery.sortDirection": "Ordre de tri",
+  "usg_jcrQuery.sortDirection.ui.tooltip": "Croissant (plus ancien en premier) ou décroissant (plus récent en premier).",
+  "usg_jcrQuery.sortDirection.asc": "Croissant",
+  "usg_jcrQuery.sortDirection.desc": "Décroissant",
+  "usg_jcrQuery.maxItems": "Nombre maximum d'éléments",
+  "usg_jcrQuery.maxItems.ui.tooltip": "Laisser vide pour afficher tous les résultats.",
+  "usg_jcrQuery.startNode": "Portée",
+  "usg_jcrQuery.startNode.ui.tooltip": "Optionnel : limiter les résultats aux descendants de ce nœud.",
+  "usg_jcrQuery.filter": "Filtre de catégorie",
+  "usg_jcrQuery.filter.ui.tooltip": "Optionnel : afficher uniquement les éléments tagués avec ces catégories.",
+  "usg_jcrQuery.noResultText": "Message d'absence de résultat",
+  "usg_jcrQuery.noResultText.ui.tooltip": "Texte affiché quand aucun élément ne correspond à la requête.",
+  "usg_jcrQuery.j:linkType": "Lien voir tout",
+  "usg_jcrQuery.j:linkType.ui.tooltip": "Lien optionnel affiché en haut à droite du listing (ex. « Voir tous les articles »).",
+  "usg_jcrQuery.loadMore": "Activer voir plus",
+  "usg_jcrQuery.loadMore.ui.tooltip": "Affiche un bouton « Voir plus » au lieu d'afficher tous les résultats d'un coup.",
+  "usg_jcrQuery.categoryFilter": "Filtres de catégorie",
+  "usg_jcrQuery.categoryFilter.ui.tooltip": "Affiche des puces de filtre de catégorie au-dessus du listing.",
+  "usg_gridRow": "Grille",
+  "usg_gridRow.ui.tooltip": "Conteneur de mise en page qui organise les composants enfants dans une grille CSS responsive.",
+  "usg_gridRow.columns": "Colonnes",
+  "usg_gridRow.columns.ui.tooltip": "Nombre de colonnes de la grille (1 à 4).",
+  "usg_gridRow.columns.1": "1 colonne",
+  "usg_gridRow.columns.2": "2 colonnes",
+  "usg_gridRow.columns.3": "3 colonnes",
+  "usg_gridRow.columns.4": "4 colonnes",
+  "facetFilter": {
+    "reset": "Réinitialiser",
+    "clearFilter": "Effacer le filtre : {{label}}",
+    "editHint": {
+      "title": "Filtre par facettes",
+      "description": "{{count}} facette(s) configurée(s). Les listes déroulantes sont alimentées dynamiquement depuis l'index de recherche à l'exécution."
+    }
+  },
+  "usg_facetFilter": "Filtre par facettes",
+  "usg_facetFilter.ui.tooltip": "Barre de filtres interactive. Chaque entrée est séparée par des barres verticales : champ|libellé|signature|endpoint.",
+  "usg_facetFilter.facets": "Facettes",
+  "usg_facetFilter.facets.ui.tooltip": "Une entrée par liste déroulante. Format : nomChamp|Libellé|signature|/lang/sxa/search/facets/",
+  "pressRelease": {
+    "badge": "Communiqué de presse"
+  },
+  "newsArticle": {
+    "badge": "Actualité"
+  },
+  "sectionHub": {
+    "readMore": "Lire la suite"
+  }
+}

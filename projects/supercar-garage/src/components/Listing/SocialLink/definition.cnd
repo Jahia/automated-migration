@@ -1,0 +1,4 @@
+[usg:socialLink] > jnt:content, usgmix:component
+ - platform (string, choicelist) mandatory < 'facebook', 'twitter', 'instagram', 'youtube', 'linkedin', 'tiktok'
+ - iconClass (string) mandatory
+ - j:linkType (string, choicelist[linkTypeInitializer]) mandatory
