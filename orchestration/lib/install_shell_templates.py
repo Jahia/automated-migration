@@ -65,6 +65,59 @@ def main():
     n_views = 0
     if a.manifest:
         m = json.load(open(a.manifest))
+
+        # SEMANTIC archetype model (redesign §10): emit one semantic view per
+        # archetype (renders jcr:title / richtext / DAM image / CTA / children)
+        # instead of skeleton {{f:}} views. The tree-driven MainNavigation view +
+        # RawHtml passthrough already ship above; skip them here.
+        if m.get("model") == "archetype":
+            sem = open(os.path.join(SRC, "SemanticView.tsx.template"), encoding="utf-8").read()
+
+            # clean stale per-component view dirs (e.g. a prior skeleton run's 40
+            # one-off types) so the module is PURELY the semantic archetype set.
+            # Keep the shell-shipped views + shared helpers.
+            keep = {"RawHtml", "MainNavigation"}
+            for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
+                for ntx in [c["nodeType"]] + ([c["childType"]["nodeType"]]
+                                              if isinstance(c.get("childType"), dict)
+                                              and c["childType"].get("nodeType") else []):
+                    s = ntx.split(":")[-1]
+                    keep.add(f"{s[0].upper()}{s[1:]}")
+            comp_root = f"{module}/src/components"
+            for entry in os.listdir(comp_root):
+                p = os.path.join(comp_root, entry)
+                if os.path.isdir(p) and entry not in keep:
+                    import shutil
+                    shutil.rmtree(p)
+
+            def write_semantic(nt, display, view_name="default"):
+                nonlocal n_views
+                short = nt.split(":")[-1]
+                comp_dir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
+                os.makedirs(comp_dir, exist_ok=True)
+                out = (sem.replace("$NODETYPE", nt)
+                          .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
+                          .replace("$VIEWNAME", view_name)
+                          .replace("$SHORT", short))
+                fn = "default.server.tsx" if view_name == "default" else f"{view_name}.server.tsx"
+                with open(f"{comp_dir}/{fn}", "w", encoding="utf-8") as f:
+                    f.write(out)
+                n_views += 1
+
+            for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
+                nt = c["nodeType"]
+                if nt.endswith(":mainNavigation") or nt.endswith(":rawHtml"):
+                    continue  # tree-driven nav + passthrough views ship in the shell
+                write_semantic(nt, c.get("name"))
+                if c.get("needsMainResource"):
+                    write_semantic(nt, c.get("name"), view_name="fullPage")
+                child = c.get("childType")
+                if isinstance(child, dict) and child.get("nodeType"):
+                    write_semantic(child["nodeType"], child.get("name"))
+            print(f"[install_shell_templates] fidelity shell (ns={a.ns}) -> {module}/src "
+                  f"(Layout, basic template, RawHtml + tree nav; {n_views} SEMANTIC view(s))")
+            return
+
         tpl = open(os.path.join(SRC, "SkeletonView.tsx.template"), encoding="utf-8").read()
 
         def write_view(nt, display):
