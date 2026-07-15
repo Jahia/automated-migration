@@ -132,24 +132,51 @@ def main():
     surf = _node_field_surface(manifest)
     passthrough = manifest.get("passthroughType")
 
-    n_sem = n_pass = 0
+    # The skeleton content-load carries a large passthrough tail (whitespace,
+    # wrapper markup, chrome fragments) needed for BYTE fidelity — the semantic
+    # model does not want those as rawHtml editor nodes. DROP passthrough with no
+    # real visible text; keep only substantial uncovered content (>= MIN_VIS
+    # visible chars) as rawHtml. Dropping shifts indices, so parents are remapped
+    # (a semantic section whose wrapper is dropped becomes a top-level page node).
+    MIN_VIS = 24
+
+    def _visible(html):
+        if not html or "<" not in html:
+            return re.sub(r"\s+", " ", (html or "")).strip()
+        soup = BeautifulSoup(html, "lxml")
+        for el in soup.find_all(["script", "style", "noscript", "template"]):
+            el.extract()
+        return re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
+
+    n_sem = n_pass = n_drop = 0
     for page in data.get("pages", {}).values():
-        new = []
+        transformed = []                       # (keep: bool, instance | None)
         for inst in page.get("instances", []):
             if inst.get("area"):
-                new.append(inst)                     # chrome singleton — untouched
+                transformed.append((True, inst))          # chrome singleton — untouched
                 continue
             node = itm.get((inst.get("type") or "").lower())
             typed = (inst.get("promoted") or inst.get("skeleton")) and node and node != passthrough
             if typed:
-                new.append(_semanticize_instance(inst, node, surf))
+                transformed.append((True, _semanticize_instance(inst, node, surf)))
                 n_sem += 1
-            else:
-                # uncovered region -> verbatim passthrough (nothing dropped)
-                new.append({"type": "rawHtml", "passthrough": True,
-                            "fields": {"html": (inst.get("fields") or {}).get("html", "")}})
+            elif len(_visible((inst.get("fields") or {}).get("html", ""))) >= MIN_VIS:
+                transformed.append((True, {"type": "rawHtml", "passthrough": True,
+                                           "fields": {"html": (inst.get("fields") or {}).get("html", "")}}))
                 n_pass += 1
-        page["instances"] = new
+            else:
+                transformed.append((False, None))         # whitespace/markup/chrome — DROP
+                n_drop += 1
+        # compact + remap parent indices (dropped parent -> top-level)
+        remap, kept = {}, []
+        for oldi, (keep, ins) in enumerate(transformed):
+            if keep:
+                remap[oldi] = len(kept)
+                kept.append(ins)
+        for ins in kept:
+            if ins.get("parent") is not None:
+                ins["parent"] = remap.get(ins["parent"])   # None if the wrapper was dropped
+        page["instances"] = kept
 
     data["adapter"] = "semantic"
     data["model"] = "archetype"
