@@ -41,14 +41,16 @@ TEXTAREA = "string, textarea"
 # resource-bundle text. j:linknode/j:url are NEVER declared (linkTypeInitializer).
 SHARED_MIXINS = {
     "cta": {
+        # j:linkType (not a custom ctaType): matches the loader's link wiring and
+        # soprahr's convention; linkTypeInitializer injects j:linknode/j:url.
         "fields": [
-            f("ctaType", "string, choicelist[linkTypeInitializer]"),   # = 'none' autocreated (emitted by cnd)
+            f("j:linkType", "string, choicelist[linkTypeInitializer]"),   # = 'none' autocreated
             f("ctaLabel", "string", i18n=True),
         ],
         "labels": {
             "": "Call to Action",
-            "ctaType": "Link",
-            "ctaType.ui.tooltip": "Where the button links: an internal page, an external URL, or none.",
+            "j:linkType": "Link",
+            "j:linkType.ui.tooltip": "Where the button links: an internal page, an external URL, or none.",
             "ctaLabel": "Button Label",
             "ctaLabel.ui.tooltip": "Text on the button. Leave blank to use the target page title.",
         },
@@ -92,23 +94,23 @@ SHARED_MIXINS = {
 # typed childType (containers), view names, and mainResource flag.
 def _card_child():
     return {"key": "card", "name": "Card", "title": True,
-            "mixins": ["media", "cta"], "fields": [f("text", RICHTEXT, i18n=True)]}
+            "mixins": ["media", "cta"], "fields": [f("body", RICHTEXT, i18n=True)]}
 
 
 ARCHETYPES = {
     # ── content ──────────────────────────────────────────────────────────
     "hero": {"name": "Hero", "title": True, "mixins": ["media", "cta"],
-             "fields": [f("subtitle", RICHTEXT, i18n=True)],
+             "fields": [f("body", RICHTEXT, i18n=True)],  # richtext body (loader-compat)
              "views": ["default", "textUp", "textDown"]},
     "mediaText": {"name": "Media & Text", "title": True, "mixins": ["media", "cta"],
-                  "fields": [f("text", RICHTEXT, i18n=True)],
+                  "fields": [f("body", RICHTEXT, i18n=True)],
                   "layout": {"name": "layout", "default": "imageRight", "values": ["imageRight", "imageLeft"]},
                   "views": ["default"]},
     "teaserCard": {"name": "Teaser Card", "title": True, "mixins": ["media", "cta"],
-                   "fields": [f("text", RICHTEXT, i18n=True)],
+                   "fields": [f("body", RICHTEXT, i18n=True)],
                    "views": ["default", "compact"]},
     "banner": {"name": "Banner", "title": True, "mixins": ["media", "cta"],
-               "fields": [f("text", RICHTEXT, i18n=True)],
+               "fields": [f("body", RICHTEXT, i18n=True)],
                "views": ["default"]},
     "statCallout": {"name": "Stat Callout", "title": False, "mixins": [],
                     "fields": [f("value", "string", i18n=True), f("unit", "string", i18n=True),
@@ -253,8 +255,8 @@ def _mixin_field_line(fld):
     line = f"  - {fld['name']} ({fld['type']})"
     if fld["name"] in ("image", "ogImage") and "weakreference" in fld["type"]:
         line += " < jmix:image"
-    if fld["name"] == "ctaType":
-        line += " = 'none' autocreated"
+    if "linkTypeInitializer" in fld["type"]:
+        line += " = 'none' autocreated indexed=no"
     if fld.get("i18n"):
         line += " i18n"
     return line
