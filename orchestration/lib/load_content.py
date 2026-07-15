@@ -769,6 +769,22 @@ class Loader:
         return {n["name"]: n.get("uuid")
                 for n in ((node.get("children") or {}).get("nodes")) or []}
 
+    def _promoted_loadable(self, inst):
+        """Side-effect-free: would a promoted/skeleton instance WRITE anything?
+
+        The skeleton model rode the `skeleton` prop at create time; the archetype
+        (semantic) model rides POST props (jcr:title, body) + mixins + media/link
+        applied AFTER create, so an empty create-payload does NOT mean empty. This
+        proxy mirrors promoted_props' output without its DAM writes, so the create
+        loop and the reconcile make the IDENTICAL keep/skip decision (else every
+        semantic leaf is expected-but-skipped -> perpetual REBUILD)."""
+        if inst.get("skeleton") or inst.get("skeletonOrig"):
+            return True
+        if inst.get("media") or inst.get("link") or inst.get("children"):
+            return True
+        f = inst.get("fields") or {}
+        return any(isinstance(v, str) and v.strip() for v in f.values())
+
     def _expected_main_children(self, page, instances, main_area):
         """The top-level node NAMES load_page WOULD create in the page's main
         area — the SAME iteration surface and skip conditions as the create
@@ -795,11 +811,14 @@ class Loader:
             pdef = self.props_of(nt)
             if not pdef.get("exists"):
                 continue
-            if not (inst.get("promoted") or inst.get("skeleton")):
-                is_container = any(c.get("nodeType") == nt and c.get("isContainer")
-                                   for c in self.manifest.get("components", []))
-                if not self.map_props(page, inst, pdef) and not is_container:
-                    continue  # empty leaf — load_page skips it too
+            is_container = any(c.get("nodeType") == nt and c.get("isContainer")
+                               for c in self.manifest.get("components", []))
+            if inst.get("promoted") or inst.get("skeleton"):
+                loadable = self._promoted_loadable(inst)
+            else:
+                loadable = bool(self.map_props(page, inst, pdef))
+            if not loadable and not is_container:
+                continue  # empty leaf — load_page skips it too
             would_create.add(idx)
             pi = inst.get("parent")
             if pi is not None and pi in would_create:
@@ -1081,12 +1100,17 @@ class Loader:
             if inst.get("promoted") or inst.get("skeleton"):
                 # typed skeleton instance OR lifted anonymous raw block (P2.5)
                 props, mixins, post = self.promoted_props(inst, pdef, nt)
+                # archetype model keeps content in post/mixins/media/link (set
+                # AFTER create), not in the skeleton create-props — so judge
+                # emptiness the SAME way the reconcile does, never on create-props
+                loadable = self._promoted_loadable(inst)
             else:
                 props = self.map_props(page, inst, pdef)
+                loadable = bool(props)
             is_container = any(c.get("nodeType") == nt and c.get("isContainer")
                                for c in self.manifest.get("components", []))
             # skip empty leaves, but ALWAYS create containers (they hold children)
-            if not props and not is_container:
+            if not loadable and not is_container:
                 skip("empty")
                 continue
             parent = parent_for(idx, inst, nt)
