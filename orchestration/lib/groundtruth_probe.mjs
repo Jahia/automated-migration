@@ -123,7 +123,12 @@ const previewPath = (slug) => {
 const masksFile = `${wo}/groundtruth-masks.json`;
 const masks = fs.existsSync(masksFile) ? JSON.parse(fs.readFileSync(masksFile, 'utf8')) : [];
 const masksFor = (slug) => masks.filter(m => m.page === '*' || m.page === slug);
-const maskCss = (slug) => masksFor(slug).map(m => `${m.selector}{visibility:hidden !important}`).join('\n');
+// display:none, NOT visibility:hidden — masked-by-design regions (replaced
+// chrome, notification bar) must leave the FLOW on both sides; hidden-but-
+// space-keeping masks left every downstream section vertically offset and the
+// diff counted the whole shifted page (observed: enterprise 50.9% for a close
+// reproduction, 2026-07-16).
+const maskCss = (slug) => masksFor(slug).map(m => `${m.selector}{display:none !important}`).join('\n');
 
 // semantic share (quality dial, reported not gated in P1)
 const shares = Object.entries(contentLoad.pages)
