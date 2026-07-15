@@ -56,6 +56,14 @@ def build_plan(p):
         return f"Run: {body} || true"
     K = p.get("per_cluster", 3)  # legacy knob — per-page doctrine ignores it (--all-pages)
     SEGMENTATION = p.get("segmentation", "vision")
+    # CONTENT_LOCALES — the locale(s) the migration actually LOADS content in
+    # (load_content --locale). The site is created en,fr so editors CAN add FR
+    # later, but a source-faithful migration only loads what the SOURCE has, so
+    # publish-parity must assert translation parity across the LOADED locales,
+    # not a hardcoded en,fr (an English-only source has no FR content to load —
+    # demanding FR there checks the wrong thing). Defaults to the primary "en".
+    CLOC = (p.get("content_locales") or "en").strip()
+    PRIMARY_LOCALE = CLOC.split(",")[0]
     PP = f"projects/{P}"
     URI = f"https://jahia.com/{P}/nt/1.0"
     common = {"project": P, "project_path": PP, "namespace": NS,
@@ -328,18 +336,18 @@ def build_plan(p):
         # alone passes with an empty home skeleton — the gate must count the
         # ACTUAL page tree against the crawl inventory.
         step("step_pages", "Create pages from the crawl inventory (en+fr, published)", "build",
-             [f"Run: python3 orchestration/lib/create_pages.py {P} {SITE} --template basic --locale en",
+             [f"Run: python3 orchestration/lib/create_pages.py {P} {SITE} --template basic --locale {PRIMARY_LOCALE}",
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_mcp"]),
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
         # build_nav_tree restructures the flat crawl tree per the project
         # sitemap (sections, moves, L1 order); no-op when no sitemap exists.
         step("step_nav", "Navigation tree per sitemap (sections, moves, L1 order)", "build",
-             [f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale en",
+             [f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale {PRIMARY_LOCALE}",
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
-             [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
+             [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale {PRIMARY_LOCALE}",
               # blocking under ARCH: the page's main area has content children in
               # LIVE (the engine integrity belt does the deeper page-tree diff).
               *([f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"] if ARCH else []),
@@ -348,7 +356,11 @@ def build_plan(p):
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],
              deps=["step_nav"]),
         step("step_publish_parity", "default vs live parity", "publish",
-             [f"PROBE: bash orchestration/probes/publish-parity.sh {PP} {SITE} en,fr"],
+             # parity across the LOADED content locales (CLOC), not the site's
+             # full language set — a source-faithful migration only loads what
+             # the source has; FR translation of the migrated copy is a separate,
+             # post-migration task, so it must not block publication here.
+             [f"PROBE: bash orchestration/probes/publish-parity.sh {PP} {SITE} {CLOC}"],
              deps=["step_content_load"]),
         step("step_edit_frame", "Pages editable in jContent", "verify",
              [f"PROBE: bash orchestration/probes/edit-frame.sh {PP} {SITE} en"],
@@ -449,6 +461,11 @@ def main():
                          "semantic CND/views + content→field mapper; fidelity gates demote "
                          "to advisory, cnd-review becomes blocking")
     ap.add_argument("--repo-dir", default=".")
+    ap.add_argument("--content-locales", default="en",
+                    help="CSV of locales content is LOADED in (load_content --locale + "
+                         "publish-parity scope). A source-faithful migration loads only "
+                         "the source's languages; the site is still created en,fr so "
+                         "editors can translate later. Default: en")
     ap.add_argument("--out")
     a = ap.parse_args()
     params = {
@@ -460,6 +477,7 @@ def main():
         "max_pages": a.max_pages, "threshold": a.threshold,
         "per_cluster": a.per_cluster,
         "segmentation": a.segmentation,
+        "content_locales": a.content_locales,
         "model": a.model, "repo_dir": a.repo_dir,
     }
     plan = build_plan(params)
