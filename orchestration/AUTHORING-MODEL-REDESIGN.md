@@ -175,6 +175,19 @@ review HTML so a human can see drift, but a pixel delta no longer fails a run. (
   labels. Ship `authoring_*` gates as *warn* first.
 - **P2 — semantic extractor.** Archetype DOM→field mapper; images/links out of richtext; real
   child nodes. Flip `semantic-fields` + `editability` gates to blocking.
+  - **P1 core DONE + validated (2026-07-15):** `archetypes.py` (16-archetype library +
+    cta/media/seo mixins + `classify_region`), `segment2manifest --archetypes` (74 SingPost
+    region names → 10 semantic types), `cnd_emit` semantic path — emitted CND **passes
+    check-cnd 1.00**; always-emits the tree-driven nav + jcrQuery/cols/section tools.
+  - **P2 remaining (needs a live Jahia build-test loop — cannot be validated offline):**
+    (1) **semantic views** — the tree-driven `MainNavigation` view ALREADY ships in the
+    fidelity shell; the 13 content archetypes (hero/mediaText/cardGrid/article/…) + siteHeader
+    + footer need semantic `.server.tsx` (render `jcr:title` heading, richtext body,
+    `buildNodeUrl` cta, DAM-image `jcr:title` alt, `<RenderChildren>`, mainResource `fullPage`);
+    (2) **content→field mapper** in extract/load — map each region's lifted content onto the
+    archetype's semantic fields + typed child nodes, drop skeleton; (3) archetype **labels**
+    in `gen_bundles`. THEN flip `gen_plan step_group` to `--archetypes` + gates to blocking
+    and re-run SingPost `--clean` to prove it in the jContent editor.
 - **P3 — structured content + nav + chrome-drop.** mainResource wiring, tree-driven nav only,
   consent/analytics drop-list. Flip those gates to blocking.
 - **P4 — theme import + gate flip.** Tokenize CSS to theme; demote fidelity gates to advisory;
