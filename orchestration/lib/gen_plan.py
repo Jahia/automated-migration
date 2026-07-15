@@ -44,6 +44,16 @@ def build_plan(p):
     P, URL, NS, MIXNS = p["project"], p["url"], p["ns"], p["mixns"]
     SITE, MODULE, TITLE = p["site"], p["module"], p["title"]
     N, THR = p["max_pages"], p["threshold"]
+    ARCH = p.get("archetypes", False)
+    # archetype (semantic) model: fidelity gates (byte-exact compose / pixel
+    # reconstruct / skeleton component-coverage) DEMOTE to advisory — the semantic
+    # model deliberately drifts from source pixels; authoring gates (cnd-review)
+    # become blocking. `adv` wraps a probe as a non-gating Run: under the arch model.
+    def adv(probe):
+        if not ARCH:
+            return probe
+        body = probe.split(":", 1)[1].strip() if ":" in probe else probe
+        return f"Run: {body} || true"
     K = p.get("per_cluster", 3)  # legacy knob — per-page doctrine ignores it (--all-pages)
     SEGMENTATION = p.get("segmentation", "vision")
     PP = f"projects/{P}"
@@ -155,8 +165,10 @@ def build_plan(p):
                     SEG_PROBE],
                    deps=["step_semantic"], max_attempts=2),
             "strategies": seg_strategies},
-           step("step_group", "Vision -> manifest + contribution dial", "build",
-                [f"Run: python3 orchestration/lib/segment2manifest.py {P} --ns {NS}",
+           step("step_group", ("Vision -> SEMANTIC archetype manifest" if ARCH
+                                else "Vision -> manifest + contribution dial"), "build",
+                [f"Run: python3 orchestration/lib/segment2manifest.py {P} --ns {NS} --mixns {MIXNS}"
+                 + (" --archetypes" if ARCH else ""),
                  f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
                  f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
                  f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json"],
@@ -193,12 +205,17 @@ def build_plan(p):
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
         step("step_content_extract", "Content-load payload + partition/contribution/component gates", "build",
              [f"Run: python3 orchestration/lib/extract_content.py {P}",
+              # archetype model: map the skeleton content-load onto the semantic
+              # archetype field surface (title/body/image/cta + typed children).
+              *([f"Run: python3 orchestration/lib/semanticize_content.py {P} "
+                 f"--manifest {PP}/workflow-output/component-manifest.json"] if ARCH else []),
               f"PROBE: python3 orchestration/probes/partition.py {P}",
               f"PROBE: python3 orchestration/probes/contribution.py {P}",
               # component-model gate (2026-07-06): visible text must live in
               # TYPED components — fragment soup (one big rawHtml blob per
-              # page) can never pass again.
-              f"PROBE: python3 orchestration/probes/component_coverage.py {P}"],
+              # page) can never pass again. Advisory under the archetype model
+              # (its typed-share notion is skeleton-specific).
+              adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],
              deps=["step_naming"]),
         # COMPOSE GATE (ASSIST-PLAN): pre-Jahia qualitative gate — the extracted
         # content must re-compose each page EXACTLY as the Jahia LIVE views will
@@ -208,7 +225,7 @@ def build_plan(p):
         # payload's accounting, this replays the LIVE composition end-to-end.
         step("step_compose_gate", "Compose gate (byte-exact vs mirror + side-by-side)", "verify",
              [f"Run: python3 orchestration/lib/compose_probe.py {PP}",
-              f"PROBE: bash orchestration/probes/compose.sh {PP}",
+              adv(f"PROBE: bash orchestration/probes/compose.sh {PP}"),
               f"Gate: compose review at {PP}/workflow-output/compose/compose-review.html"],
              deps=["step_content_extract"]),
         step("step_cnd", "Emit CND + view plan (wired-only sizing)", "build",
@@ -218,7 +235,7 @@ def build_plan(p):
               f"PROBE: test -s {PP}/workflow-output/views.json"],
              deps=["step_content_extract", "step_compose_gate"]),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
-             [f"PROBE[900]: node orchestration/lib/reconstruct_probe.mjs {PP} 10 {THR}",
+             [adv(f"PROBE[900]: node orchestration/lib/reconstruct_probe.mjs {PP} 10 {THR}"),
               "Gate: present worst pages + semantic share, return status halt."],
              deps=["step_cnd"]),
     ]
@@ -251,7 +268,10 @@ def build_plan(p):
               # antipatterns. WARN-FIRST (|| true) during P1: it reports violations
               # in the step log without gating, until the semantic emitter (task
               # #24) can pass it. FLIP to `PROBE:` (blocking) once it does.
-              f"Run: bash orchestration/probes/cnd-review.sh {PP} || true"],
+              # AUTHORING lint: BLOCKING under the archetype model (the semantic
+              # CND passes check-cnd 1.00); advisory (warn) under skeleton.
+              (f"PROBE: bash orchestration/probes/cnd-review.sh {PP}" if ARCH
+               else f"Run: bash orchestration/probes/cnd-review.sh {PP} || true")],
              deps=["step_scaffold"]),
         # P5.6: editor-UI field labels + ui.tooltip keys, EN+FR (rule 18 / i18n.md)
         # — these are AUTHORING-INTERFACE chrome strings, the ONE sanctioned EN/FR
@@ -315,7 +335,7 @@ def build_plan(p):
              [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
               f"PROBE: python3 orchestration/probes/partition.py {P}",
               f"PROBE: python3 orchestration/probes/contribution.py {P}",
-              f"PROBE: python3 orchestration/probes/component_coverage.py {P}"],
+              adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],
              deps=["step_nav"]),
         step("step_publish_parity", "default vs live parity", "publish",
              [f"PROBE: bash orchestration/probes/publish-parity.sh {PP} {SITE} en,fr"],
@@ -414,6 +434,10 @@ def main():
     ap.add_argument("--model", default="opencode/deepseek-v4-flash")
     ap.add_argument("--segmentation", choices=["vision", "heuristic"], default="vision",
                     help="component-model arm: vision (P2 A/B winner, default) or heuristic")
+    ap.add_argument("--archetypes", action="store_true",
+                    help="SEMANTIC authoring model (redesign §10): archetype manifest + "
+                         "semantic CND/views + content→field mapper; fidelity gates demote "
+                         "to advisory, cnd-review becomes blocking")
     ap.add_argument("--repo-dir", default=".")
     ap.add_argument("--out")
     a = ap.parse_args()
@@ -422,6 +446,7 @@ def main():
         "mixns": a.mixns or f"{a.ns}mix", "site": a.site,
         "module": a.module or a.project,
         "title": a.title or f"{a.site} (migrated)",
+        "archetypes": a.archetypes,
         "max_pages": a.max_pages, "threshold": a.threshold,
         "per_cluster": a.per_cluster,
         "segmentation": a.segmentation,
