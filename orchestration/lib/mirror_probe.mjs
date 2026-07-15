@@ -62,7 +62,7 @@ const residue = new Set(mirror.residue || []);
 //  EMBED — hosts that also serve VISIBLE content (video thumbnails, embed images, map
 //    tiles, marketing forms). Blocking these can leave a visible hole, so they are NOT
 //    silently excused: counted as `embedBlocked` and surfaced for a per-project waiver.
-const ANALYTICS_HOST = /(^|\.)(google-analytics|googletagmanager|doubleclick|linkedin|twitter|hotjar|segment|trustarc|onetrust|cookiebot|cookielaw|sentry|datadog|optimizely|visualwebsiteoptimizer|clarity\.ms|adservice|osano|usercentrics|didomi|canarytokens|snowplow|mixpanel|amplitude|newrelic|nr-data)\.|(^|\.)obs\.|(^|\.)consent\./i;
+const ANALYTICS_HOST = /(^|\.)(google-analytics|googletagmanager|googlesyndication|doubleclick|linkedin|twitter|hotjar|segment|trustarc|onetrust|cookiebot|cookielaw|sentry|datadog|optimizely|visualwebsiteoptimizer|clarity\.ms|adservice|clickcease|osano|usercentrics|didomi|canarytokens|snowplow|mixpanel|amplitude|newrelic|nr-data)\.|(^|\.)obs\.|(^|\.)consent\./i;
 // EMBED = hosts whose content is inherently a third-party EMBED (video players, map
 // tiles, marketing forms). NOT CDNs that serve first-party-equivalent assets a
 // self-contained mirror must localize: fonts.gstatic.com (Google Fonts woff2!) and
