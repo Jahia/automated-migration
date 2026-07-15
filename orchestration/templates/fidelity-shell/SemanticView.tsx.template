@@ -1,17 +1,17 @@
-import {
-  buildNodeUrl,
-  jahiaComponent,
-  useServerContext,
-  RenderChildren,
-} from "@jahia/javascript-modules-library";
+import { jahiaComponent, useServerContext } from "@jahia/javascript-modules-library";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
+import ArchetypeSection from "../ArchetypeSection.js";
+import { resolveSemantic } from "../resolveSemantic.js";
 
 /**
- * Semantic view for $NODETYPE (archetype model — redesign §10). Renders the
- * archetype's SEMANTIC fields — heading (mix:title), rich-text body/text/
- * subtitle, a DAM-image (weakref) with the image's own title as alt, a
- * linkTypeInitializer CTA, and typed child components via <RenderChildren>.
- * Contributor-editable by construction: every visible string is a field.
+ * $DISPLAYNAME — `$VIEWNAME` view of $NODETYPE (archetype kind: $KIND).
+ *
+ * Thin by design: it resolves the node's semantic fields once and hands the
+ * MARKUP to the shared {@link ArchetypeSection} layout library, keyed by
+ * (kind, view). A single content type can therefore expose several views that
+ * differ only in layout; interaction (carousel controls) is delegated to an
+ * island inside ArchetypeSection. Every visible string is a contributor-edited
+ * field — nothing is hardcoded.
  */
 jahiaComponent(
   {
@@ -21,68 +21,9 @@ jahiaComponent(
     displayName: "$DISPLAYNAME",
   },
   (props: Record<string, unknown>) => {
-    const { currentNode } = useServerContext();
+    const { currentNode, renderContext } = useServerContext();
     const node = currentNode as unknown as JCRNodeWrapper;
-
-    const title = props["jcr:title"] as string | undefined;
-    const image = props.image as JCRNodeWrapper | undefined;
-    const imgUrl = image ? buildNodeUrl(image) : undefined;
-    let imgAlt = title ?? "";
-    try {
-      if (image && image.hasProperty("jcr:title")) {
-        imgAlt = image.getProperty("jcr:title").getString();
-      }
-    } catch {
-      /* fall back to the component title */
-    }
-
-    // CTA — linkTypeInitializer injects j:linknode (internal) / j:url (external)
-    // onto whichever field carries the choicelist (ctaType or j:linkType).
-    let href: string | undefined;
-    try {
-      const typeProp = node.hasProperty("ctaType")
-        ? "ctaType"
-        : node.hasProperty("j:linkType")
-          ? "j:linkType"
-          : undefined;
-      if (typeProp) {
-        const lt = node.getProperty(typeProp).getString();
-        if (lt === "internal" && node.hasProperty("j:linknode")) {
-          href = buildNodeUrl(node.getProperty("j:linknode").getNode() as JCRNodeWrapper);
-        } else if (lt === "external" && node.hasProperty("j:url")) {
-          href = node.getProperty("j:url").getString();
-        }
-      }
-    } catch {
-      /* no CTA on this node */
-    }
-    const ctaLabel = (props.ctaLabel as string) ?? title ?? "";
-
-    let hasChildren = false;
-    try {
-      hasChildren = node.getNodes().hasNext();
-    } catch {
-      hasChildren = false;
-    }
-
-    const richtextKeys = ["subtitle", "text", "body"] as const;
-
-    return (
-      <section className="$SHORT">
-        {title ? <h2>{title}</h2> : null}
-        {imgUrl ? <img src={imgUrl} alt={imgAlt} loading="lazy" /> : null}
-        {richtextKeys.map((k) =>
-          typeof props[k] === "string" && props[k] ? (
-            <div key={k} dangerouslySetInnerHTML={{ __html: props[k] as string }} />
-          ) : null,
-        )}
-        {href ? (
-          <a href={href} className="cta">
-            {ctaLabel}
-          </a>
-        ) : null}
-        {hasChildren ? <RenderChildren /> : null}
-      </section>
-    );
+    const fields = resolveSemantic(props, node, renderContext);
+    return <ArchetypeSection kind="$KIND" view="$VIEWNAME" fields={fields} />;
   },
 );

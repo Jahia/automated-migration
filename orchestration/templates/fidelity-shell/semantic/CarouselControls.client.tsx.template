@@ -1,0 +1,42 @@
+import { useCallback } from "react";
+
+/**
+ * CarouselControls — client island for the cardGrid `carousel` view.
+ *
+ * The slides themselves are SERVER-rendered (RenderChildren) and stay
+ * Page-Builder-editable; this island only adds the front-end interaction —
+ * prev/next buttons that scroll the server-rendered `.carousel-track` by one
+ * viewport. It receives ONLY a serializable `trackId` (no JCR nodes), per the
+ * island contract, and finds the track by id at click time.
+ */
+export default function CarouselControls({ trackId }: { trackId: string }) {
+  const scrollBy = useCallback(
+    (dir: 1 | -1) => {
+      const track = document.getElementById(trackId);
+      if (!track) return;
+      track.scrollBy({ left: dir * Math.max(track.clientWidth * 0.9, 240), behavior: "smooth" });
+    },
+    [trackId],
+  );
+
+  return (
+    <div className="carousel-controls" role="group" aria-label="Carousel controls">
+      <button
+        type="button"
+        className="carousel-prev"
+        aria-label="Previous"
+        onClick={() => scrollBy(-1)}
+      >
+        <span aria-hidden="true">‹</span>
+      </button>
+      <button
+        type="button"
+        className="carousel-next"
+        aria-label="Next"
+        onClick={() => scrollBy(1)}
+      >
+        <span aria-hidden="true">›</span>
+      </button>
+    </div>
+  );
+}

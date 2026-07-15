@@ -1,0 +1,286 @@
+import { RenderChildren, Island } from "@jahia/javascript-modules-library";
+import type { ReactNode } from "react";
+import CarouselControls from "./CarouselControls.client.js";
+
+/**
+ * ArchetypeSection — the shared, hand-authored layout library for the semantic
+ * archetype model (redesign §10). Every generated `<view>.server.tsx` resolves
+ * its node's semantic fields and delegates the MARKUP to this one component,
+ * keyed by (kind, view). This is what gives each archetype a PROPER render
+ * (a hero renders as a hero, a card grid lays children out as a grid, a
+ * carousel gets prev/next controls) instead of one generic props dump — and
+ * lets a single component expose several views (default / textUp / carousel /
+ * fullPage / …) that differ only in layout.
+ *
+ * Interaction that needs the client (carousel scrolling) is delegated to an
+ * <Island>; the slides themselves stay server-rendered + Page-Builder-editable.
+ * Accordions use native <details>/<summary> — accessible with no JS.
+ *
+ * Styling is intentionally class-based (no CSS-modules): the migrated site's
+ * own imported CSS (css-manifest) targets these stable class names, so the
+ * archetype markup inherits the source design without re-authoring it.
+ */
+export interface SemanticFields {
+  title?: string;
+  subtitle?: string;
+  body?: string; // rich-text HTML
+  text?: string; // secondary rich-text HTML
+  imgUrl?: string;
+  imgAlt?: string;
+  href?: string; // resolved CTA target
+  ctaLabel?: string;
+  hasChildren: boolean;
+  trackId?: string; // stable id for the carousel island to scroll
+}
+
+const CONTAINER_KINDS = new Set([
+  "cardGrid",
+  "cols",
+  "section",
+  "accordion",
+  "jcrQuery",
+  "siteHeader",
+  "footer",
+]);
+
+function Rich({ html, className }: { html?: string; className?: string }): ReactNode {
+  return typeof html === "string" && html.trim() ? (
+    <div className={className} dangerouslySetInnerHTML={{ __html: html }} />
+  ) : null;
+}
+
+function Cta({ href, label }: { href?: string; label?: string }): ReactNode {
+  return href ? (
+    <a href={href} className="cta">
+      {label || href}
+    </a>
+  ) : null;
+}
+
+function Img({ url, alt }: { url?: string; alt?: string }): ReactNode {
+  return url ? <img src={url} alt={alt ?? ""} loading="lazy" /> : null;
+}
+
+export default function ArchetypeSection({
+  kind,
+  view,
+  fields: f,
+}: {
+  kind: string;
+  view: string;
+  fields: SemanticFields;
+}): ReactNode {
+  const heading = f.title ? <h2 className="title">{f.title}</h2> : null;
+  const subtitle = f.subtitle ? <p className="subtitle">{f.subtitle}</p> : null;
+  const isContainer = CONTAINER_KINDS.has(kind);
+  // Always expose the child drop-zone for containers (so Page Builder shows the
+  // insertion Area even when empty); otherwise only when children exist.
+  const childSlot = isContainer || f.hasChildren ? <RenderChildren /> : null;
+
+  switch (kind) {
+    // ─── HERO: full-bleed cover; text order flips per view ──────────────────
+    case "hero": {
+      const text = (
+        <div className="hero-text">
+          {f.title ? <h1 className="title">{f.title}</h1> : null}
+          {subtitle}
+          <Rich html={f.body} className="hero-body" />
+          <Cta href={f.href} label={f.ctaLabel} />
+        </div>
+      );
+      const media = <Img url={f.imgUrl} alt={f.imgAlt} />;
+      if (view === "textDown") {
+        return (
+          <section className={`hero hero--textDown ${kind}`}>
+            {media}
+            {text}
+          </section>
+        );
+      }
+      if (view === "textUp") {
+        return (
+          <section className={`hero hero--textUp ${kind}`}>
+            {text}
+            {media}
+          </section>
+        );
+      }
+      // default: text overlaid on the cover image
+      return (
+        <section className={`hero hero--cover ${kind}`}>
+          {media}
+          <div className="hero-overlay">{text}</div>
+        </section>
+      );
+    }
+
+    // ─── MEDIA + TEXT: image beside prose ───────────────────────────────────
+    case "mediaText":
+      return (
+        <section className={`media-text ${kind}`}>
+          <div className="media-text__media">
+            <Img url={f.imgUrl} alt={f.imgAlt} />
+          </div>
+          <div className="media-text__body">
+            {heading}
+            {subtitle}
+            <Rich html={f.body} />
+            <Cta href={f.href} label={f.ctaLabel} />
+          </div>
+        </section>
+      );
+
+    // ─── BANNER: full-width call-to-action band ─────────────────────────────
+    case "banner":
+      return (
+        <section className={`banner ${kind}`}>
+          <div className="banner__inner">
+            {heading}
+            <Rich html={f.body} />
+            <Cta href={f.href} label={f.ctaLabel} />
+          </div>
+        </section>
+      );
+
+    // ─── STAT CALLOUT: big figure + label ───────────────────────────────────
+    case "statCallout":
+      return (
+        <section className={`stat ${kind}`}>
+          {f.title ? <span className="stat__figure">{f.title}</span> : null}
+          <Rich html={f.body} className="stat__label" />
+        </section>
+      );
+
+    // ─── RICH TEXT / generic prose ──────────────────────────────────────────
+    case "richTextSection":
+      return (
+        <section className={`rich-text ${kind}`}>
+          {heading}
+          <Rich html={f.body} />
+        </section>
+      );
+
+    // ─── CARD GRID: grid, or carousel (island-driven controls) ──────────────
+    case "cardGrid":
+      if (view === "carousel") {
+        return (
+          <section className={`card-grid card-grid--carousel ${kind}`}>
+            {heading}
+            <div className="carousel-track" id={f.trackId}>
+              {childSlot}
+            </div>
+            {f.trackId ? <Island component={CarouselControls} props={{ trackId: f.trackId }} /> : null}
+          </section>
+        );
+      }
+      return (
+        <section className={`card-grid ${kind}`}>
+          {heading}
+          <div className="card-grid__items">{childSlot}</div>
+        </section>
+      );
+
+    // ─── ACCORDION: native details/summary per child (no JS needed) ─────────
+    case "accordion":
+      return (
+        <section className={`accordion ${kind}`}>
+          {heading}
+          <div className="accordion__items">{childSlot}</div>
+        </section>
+      );
+
+    // ─── ACCORDION ITEM: native disclosure (accessible, zero JS) ────────────
+    case "accordionItem":
+      return (
+        <details className={`accordion__item ${kind}`}>
+          <summary>{f.title}</summary>
+          <div className="accordion__panel">
+            <Rich html={f.body} />
+            {f.hasChildren ? <RenderChildren /> : null}
+          </div>
+        </details>
+      );
+
+    // ─── TEASER CARD: image + title + excerpt + CTA (compact drops excerpt) ─
+    case "teaserCard": {
+      const compact = view === "compact";
+      return (
+        <article className={`card ${kind}${compact ? " card--compact" : ""}`}>
+          <Img url={f.imgUrl} alt={f.imgAlt} />
+          <div className="card__body">
+            {f.title ? <h3 className="title">{f.title}</h3> : null}
+            {!compact ? <Rich html={f.body} className="card__excerpt" /> : null}
+            <Cta href={f.href} label={f.ctaLabel} />
+          </div>
+        </article>
+      );
+    }
+
+    // ─── COLUMNS ────────────────────────────────────────────────────────────
+    case "cols":
+      return (
+        <div className={`cols ${kind}`}>
+          {heading}
+          <div className="cols__row">{childSlot}</div>
+        </div>
+      );
+
+    // ─── ARTICLE / EVENT (mainResource): full page vs teaser cards ──────────
+    case "article":
+    case "event": {
+      if (view === "fullPage") {
+        return (
+          <article className={`article article--full ${kind}`}>
+            {f.title ? <h1 className="title">{f.title}</h1> : null}
+            {subtitle}
+            <Img url={f.imgUrl} alt={f.imgAlt} />
+            <Rich html={f.body} />
+            {f.hasChildren ? <RenderChildren /> : null}
+          </article>
+        );
+      }
+      // card / compact / featured / cm teasers
+      const teaser = view === "default" ? "card" : view;
+      return (
+        <article className={`article-teaser article-teaser--${teaser} ${kind}`}>
+          <Img url={f.imgUrl} alt={f.imgAlt} />
+          <div className="article-teaser__body">
+            {f.title ? <h3 className="title">{f.title}</h3> : null}
+            {view !== "compact" ? <Rich html={f.body} className="excerpt" /> : null}
+            <Cta href={f.href} label={f.ctaLabel} />
+          </div>
+        </article>
+      );
+    }
+
+    // ─── SITE HEADER / FOOTER chrome ────────────────────────────────────────
+    case "siteHeader":
+      return (
+        <header className={`site-header ${kind}`}>
+          {heading}
+          {childSlot}
+        </header>
+      );
+    case "footer":
+      return (
+        <footer className={`site-footer ${kind}`}>
+          {heading}
+          {childSlot}
+          <Rich html={f.body} />
+        </footer>
+      );
+
+    // ─── GENERIC SECTION (section / jcrQuery / unknown): title + body + drop ─
+    default:
+      return (
+        <section className={`section ${kind}`}>
+          {heading}
+          {subtitle}
+          <Img url={f.imgUrl} alt={f.imgAlt} />
+          <Rich html={f.body} />
+          <Cta href={f.href} label={f.ctaLabel} />
+          {childSlot}
+        </section>
+      );
+  }
+}

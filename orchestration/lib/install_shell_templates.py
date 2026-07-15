@@ -73,6 +73,22 @@ def main():
         if m.get("model") == "archetype":
             sem = open(os.path.join(SRC, "SemanticView.tsx.template"), encoding="utf-8").read()
 
+            # Ship the shared, hand-authored semantic layout library as siblings
+            # of the component dirs (imported '../ArchetypeSection.js' etc). These
+            # are plain .tsx/.ts helpers (no jahiaComponent) + one client island;
+            # the generated per-view files below stay thin and delegate MARKUP
+            # here, so a proper per-archetype render + multiple views + carousel
+            # interaction all come from one maintained place.
+            sem_src = os.path.join(SRC, "semantic")
+            for src_name, dst_name in (
+                ("ArchetypeSection.tsx.template", "ArchetypeSection.tsx"),
+                ("resolveSemantic.ts.template", "resolveSemantic.ts"),
+                ("CarouselControls.client.tsx.template", "CarouselControls.client.tsx"),
+            ):
+                content = open(os.path.join(sem_src, src_name), encoding="utf-8").read().replace("$NS", a.ns)
+                with open(f"{module}/src/components/{dst_name}", "w", encoding="utf-8") as f:
+                    f.write(content)
+
             # clean stale per-component view dirs (e.g. a prior skeleton run's 40
             # one-off types) so the module is PURELY the semantic archetype set.
             # Keep the shell-shipped views + shared helpers.
@@ -90,15 +106,24 @@ def main():
                     import shutil
                     shutil.rmtree(p)
 
-            def write_semantic(nt, display, view_name="default"):
+            def chrome_kind(nt):
+                return {"siteHeader": "siteHeader", "footer": "footer"}.get(nt.split(":")[-1], "section")
+
+            def view_names(c, needs_mr=False):
+                vs = [v.get("name") for v in (c.get("views") or []) if v.get("name")] or ["default"]
+                if needs_mr and "fullPage" not in vs:
+                    vs.append("fullPage")
+                return vs
+
+            def write_semantic(nt, display, kind, view_name):
                 nonlocal n_views
                 short = nt.split(":")[-1]
                 comp_dir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
                 os.makedirs(comp_dir, exist_ok=True)
                 out = (sem.replace("$NODETYPE", nt)
                           .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
-                          .replace("$VIEWNAME", view_name)
-                          .replace("$SHORT", short))
+                          .replace("$KIND", kind)
+                          .replace("$VIEWNAME", view_name))
                 fn = "default.server.tsx" if view_name == "default" else f"{view_name}.server.tsx"
                 with open(f"{comp_dir}/{fn}", "w", encoding="utf-8") as f:
                     f.write(out)
@@ -108,14 +133,19 @@ def main():
                 nt = c["nodeType"]
                 if nt.endswith(":mainNavigation") or nt.endswith(":rawHtml"):
                     continue  # tree-driven nav + passthrough views ship in the shell
-                write_semantic(nt, c.get("name"))
-                if c.get("needsMainResource"):
-                    write_semantic(nt, c.get("name"), view_name="fullPage")
+                kind = c.get("archetype") or chrome_kind(nt)
+                for vw in view_names(c, c.get("needsMainResource")):
+                    write_semantic(nt, c.get("name"), kind, vw)
+                # child ITEM views — child kind is inferred from the parent
+                # archetype (grid -> teaser card, accordion -> disclosure item).
                 child = c.get("childType")
                 if isinstance(child, dict) and child.get("nodeType"):
-                    write_semantic(child["nodeType"], child.get("name"))
+                    ckind = "accordionItem" if kind == "accordion" else "teaserCard"
+                    for vw in view_names(child):
+                        write_semantic(child["nodeType"], child.get("name"), ckind, vw)
             print(f"[install_shell_templates] fidelity shell (ns={a.ns}) -> {module}/src "
-                  f"(Layout, basic template, RawHtml + tree nav; {n_views} SEMANTIC view(s))")
+                  f"(Layout, basic template, RawHtml + tree nav, semantic layout lib; "
+                  f"{n_views} SEMANTIC view(s))")
             return
 
         tpl = open(os.path.join(SRC, "SkeletonView.tsx.template"), encoding="utf-8").read()

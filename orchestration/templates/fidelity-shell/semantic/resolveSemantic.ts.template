@@ -1,0 +1,78 @@
+import { buildNodeUrl, server } from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import type { SemanticFields } from "./ArchetypeSection.js";
+
+/**
+ * resolveSemantic — the ONE place that maps a node's archetype fields onto the
+ * {@link SemanticFields} surface every generated view hands to ArchetypeSection.
+ *
+ * Pulls the mix:title heading, rich-text body/subtitle/text, the DAM `image`
+ * weakref (registering a cache dependency so the view invalidates when the
+ * image changes, and using the image's own jcr:title as alt text), and the
+ * linkTypeInitializer CTA (ctaType|j:linkType → j:linknode internal / j:url
+ * external). Everything is optional at render time (Jahia guarantees nothing),
+ * so every access is guarded.
+ */
+export function resolveSemantic(
+  props: Record<string, unknown>,
+  node: JCRNodeWrapper,
+  renderContext: unknown,
+): SemanticFields {
+  const str = (k: string): string | undefined =>
+    typeof props[k] === "string" && (props[k] as string).length ? (props[k] as string) : undefined;
+
+  // DAM image (weakref) → URL + alt, with cache dependency on the image node
+  const image = props.image as JCRNodeWrapper | undefined;
+  let imgUrl: string | undefined;
+  let imgAlt = str("jcr:title") ?? "";
+  if (image) {
+    try {
+      imgUrl = buildNodeUrl(image);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      server.render.addCacheDependency({ node: image }, renderContext as any);
+      if (image.hasProperty("jcr:title")) imgAlt = image.getProperty("jcr:title").getString();
+    } catch {
+      /* image unresolved */
+    }
+  }
+
+  // CTA — linkTypeInitializer writes j:linknode (internal) / j:url (external)
+  let href: string | undefined;
+  try {
+    const typeProp = node.hasProperty("ctaType")
+      ? "ctaType"
+      : node.hasProperty("j:linkType")
+        ? "j:linkType"
+        : undefined;
+    if (typeProp) {
+      const lt = node.getProperty(typeProp).getString();
+      if (lt === "internal" && node.hasProperty("j:linknode")) {
+        href = buildNodeUrl(node.getProperty("j:linknode").getNode() as JCRNodeWrapper);
+      } else if (lt === "external" && node.hasProperty("j:url")) {
+        href = node.getProperty("j:url").getString();
+      }
+    }
+  } catch {
+    /* no CTA */
+  }
+
+  let hasChildren = false;
+  try {
+    hasChildren = node.getNodes().hasNext();
+  } catch {
+    hasChildren = false;
+  }
+
+  return {
+    title: str("jcr:title"),
+    subtitle: str("subtitle"),
+    body: str("body"),
+    text: str("text"),
+    imgUrl,
+    imgAlt,
+    href,
+    ctaLabel: str("ctaLabel"),
+    hasChildren,
+    trackId: `carousel-${node.getIdentifier()}`,
+  };
+}
