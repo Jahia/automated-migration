@@ -335,3 +335,71 @@ Extraction stops being "freeze the region skeleton" and becomes **classify → m
 
 `skeletonOrig` may be retained as an advisory provenance/diff field, but it is never the
 render source and never a substitute for a mapped field.
+
+---
+
+## 11. Gaps beyond §10 (layers the redesign must also close)
+
+Gap-analysis against `luxe-jahia-demo`, `soprahr/mysoprahr`, and the agentic harness.
+§10 covers the CND / mixin / archetype layer; these are the layers it under-specifies —
+verified against the actual output, ranked by impact.
+
+1. **Reuse the agentic `check-cnd.mjs` as the authoring-CND gate (biggest free win).**
+   The linter at `.agents/skills/dev/jahia-review-cnd/scripts/check-cnd.mjs` (wrapper
+   `orchestration/probes/cnd-review.sh`) already encodes the *exact* SingPost antipatterns:
+   `rawStringLink` (→ linkTypeInitializer), `missingI18n`, `directDroppable`,
+   `singleHardcodedCta` (→ child nodes), `weakrefNoConstraint`. **It exists in the harness
+   but `gen_plan.py` never wires it.** The generated plan runs only `cnd_emit` + trivial
+   file/namespace probes (`step_cnd`) and `cnd.sh` + `cnd-patterns.sh` (`step_cnd_merge`) —
+   and `cnd-patterns.sh` *passed* an authoring-broken module (0 `mix:title`, 0 `mainResource`,
+   generic `body2..9` slots), so it is too weak for authoring quality. Wire `cnd-review.sh`
+   as a **blocking** gate on the emitted CND; the semantic emission must pass it. Don't build
+   new authoring checks the harness already has (also fold in `jahia-review-code` C9–C12).
+
+2. **content-editor-forms — field grouping + dynamic fieldsets.** Both reference modules
+   ship `settings/content-editor-forms/{fieldsets,forms}/*.json`; **SingPost ships none.**
+   This controls Content Editor field ordering/grouping into labelled sections, and the
+   **addMixin dynamic-fieldset** pattern (luxe `luxe_form.json`: a `formType` selector that
+   `addMixin`s `loginForm`/`contactForm`) — the clean way to model variants without a type
+   explosion. Emit a fieldset JSON per archetype.
+
+3. **Page-template layer + governed Areas.** SingPost templates carry **zero**
+   `allowedNodeTypes`/`numberOfItems` (verified) — editors can drop anything anywhere. luxe
+   governs (`<Area allowedNodeTypes={["luxe:header"]} numberOfItems={1}>`); mcpShowcase
+   governs its property template. §10 is component-centric; add a **template archetype layer**:
+   cluster pages by role → 2–3 templates with governed Areas (see `reference_template_
+   determination` + the existing `template-govern.sh` gate — check it's wired into `gen_plan`).
+
+4. **Per-type icons.** luxe ships 15 `content-types-icons/*.png` (one per type); **SingPost
+   ships 1** → 40 types show a generic icon. Assign an icon per archetype (a small fixed set
+   keyed by archetype makes this trivial once the library is bounded).
+
+5. **Caching discipline.** Both reference modules use `jmix:cache` on listings +
+   `server.render.addCacheDependency({ flushOnPathMatchingRegexp })` in views + per-view
+   `cache.perUser` / `cache.requestParameters` / `cache.expiration`. SingPost's `jcrQuery`
+   carries `jmix:cache` but is unused, and skeleton views add no cache deps. Semantic
+   listing / mainResource views must declare cache dependencies (correct live invalidation).
+
+6. **Smaller modeling conventions to adopt:** `jmix:visibleInContentTree` on mainResource
+   entity pages (luxe `agency`) so they're navigable in jContent; a `primary` field for clean
+   node auto-naming; `jmix:hiddenType` only on singleton/store types, **never** on list
+   children (rule 9 / `reference_hiddentype_editframe`); `= now()` / `= resourceBundle('key')`
+   autocreated defaults.
+
+7. **CSS / theme delivery (P4 detail).** Both reference modules deliver CSS via
+   `<AddResources type="css" resources={buildModuleFileUrl(...)} />` + design tokens
+   (`tokens.css`); luxe splits a `design-system` package (views hold logic, DS holds
+   markup/CSS). The theme-import step must wire `AddResources` + tokenized CSS, not merely
+   "import the source CSS."
+
+8. **"Layout-property, not a new type" (agentic `cnd-modeling-decisions.md`).** Per-instance
+   visual variation (image left/right, columns, colour, grid-vs-carousel) is a `choicelist`
+   layout PROPERTY or a named VIEW — a new type only for a different *field set*. This is the
+   direct antidote to the 40-type explosion and is **already documented** in the agentic CND
+   references. The P2 classify step must apply it (snap variants onto one archetype + a
+   layout property, don't mint a type per visual variation).
+
+**Theme of §11:** the harness and the agentic skills already contain most of what's missing
+(`check-cnd.mjs`, `cnd-modeling-decisions.md`, `template-govern.sh`, the `load_main_resources`
+loader) — the redesign is as much about **wiring existing pieces into `gen_plan.py`** as
+about new extraction code.
