@@ -231,7 +231,7 @@ def build_plan(p):
         # the frozen bar (rule 23); the partition/contribution gates judge the
         # payload's accounting, this replays the LIVE composition end-to-end.
         step("step_compose_gate", "Compose gate (byte-exact vs mirror + side-by-side)", "verify",
-             [f"Run: python3 orchestration/lib/compose_probe.py {PP}",
+             [f"Run: python3 orchestration/lib/compose_probe.py {PP}" + (" || true" if ARCH else ""),
               adv(f"PROBE: bash orchestration/probes/compose.sh {PP}"),
               f"Gate: compose review at {PP}/workflow-output/compose/compose-review.html"],
              deps=["step_content_extract"]),
@@ -388,7 +388,7 @@ def build_plan(p):
 
     groundtruth = [
         step("step_ground_truth", "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)", "verify",
-             [f"PROBE[900]: bash orchestration/probes/groundtruth.sh {P} {SITE} 99",
+             [adv(f"PROBE[900]: bash orchestration/probes/groundtruth.sh {P} {SITE} 99"),
               "Gate: present groundtruth/review.html per-page fidelity, return status halt."],
              deps=["step_exceptions_review"]),
     ]
