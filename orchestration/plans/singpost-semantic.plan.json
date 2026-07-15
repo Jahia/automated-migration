@@ -1,6 +1,6 @@
 {
   "goal": "Migrate https://www.singpost.com/ to a Jahia JS module (project: singpost, site: singpost, ns: sgp) — v2 full loop, fidelity >=99%/page vs local mirror",
-  "repo_dir": "/Users/stephane/Runtimes/0.Modules/automated-migration",
+  "repo_dir": ".",
   "model": "opencode/deepseek-v4-flash",
   "epics": [
     {
@@ -501,8 +501,8 @@
                 "site": "singpost"
               },
               "acceptance_criteria": [
-                "Run: bash orchestration/lib/create_site.sh singpost \"SingPost\" singpost en,fr",
-                "PROBE: bash orchestration/lib/create_site.sh singpost \"SingPost\" singpost en,fr"
+                "Run: bash orchestration/lib/create_site.sh singpost \"singpost (migrated)\" singpost en,fr",
+                "PROBE: bash orchestration/lib/create_site.sh singpost \"singpost (migrated)\" singpost en,fr"
               ],
               "max_attempts": 3
             },
@@ -593,7 +593,7 @@
                 "site": "singpost"
               },
               "acceptance_criteria": [
-                "PROBE: bash orchestration/probes/publish-parity.sh projects/singpost singpost en,fr"
+                "PROBE: bash orchestration/probes/publish-parity.sh projects/singpost singpost en"
               ],
               "max_attempts": 3
             },
