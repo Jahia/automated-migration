@@ -248,6 +248,11 @@ def base_mixin_cnd(mixns):
         f"[{mixns}:pageComponent] > {mixns}:component mixin",
         f"[{mixns}:layout] > jmix:droppableContent, jmix:editorialContent mixin",
         f"[{mixns}:queryContent] mixin",
+        # marker for crawled pages that exist but are NOT part of the source's
+        # menu IA (audience/footer/utility pages): the tree-driven navigation
+        # view skips any page carrying it. Applied by build_nav_tree; editors
+        # can remove it in jContent to surface a page in the menu.
+        f"[{mixns}:hideFromNav] mixin",
     ]
 
 

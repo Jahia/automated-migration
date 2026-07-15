@@ -93,6 +93,13 @@ def main():
     if not paths:
         paths = inventory_paths(project)
         src = "crawl URL hierarchy"
+    # clean menu labels (extract_nav.py writes them from the SOURCE's nav —
+    # "Document Services", not the page's SEO <title>); merged over NAV_TITLES
+    labels = {}
+    try:
+        labels = json.load(open(f"orchestration/sitemaps/{project}.labels.json"))
+    except (FileNotFoundError, ValueError):
+        pass
         # PERSIST the derived hierarchy as the project sitemap: create_pages and
         # load_content resolve page paths THROUGH orchestration/sitemaps/<p>.txt
         # (same convention) — without it they compute FLAT paths and every write
@@ -114,30 +121,68 @@ def main():
             return False
 
     # ── pass 1: sections + moves, in sitemap order (parents precede children) ──
+    retitled = 0
     for rel in paths:
         target = f"{home}/{rel}"
         leaf = rel.split("/")[-1]
         parent = f"{home}/{'/'.join(rel.split('/')[:-1])}".rstrip("/")
+
+        def title_for(lf):
+            t = labels.get(lf) or NAV_TITLES.get(lf, {}).get(locale)
+            return t or lf.replace("-", " ").title()
+
         if exists(target):
+            # already in place: still align its title with the MENU label (the
+            # crawled page carries its SEO <title> — "Health Insurance Singapore
+            # | HSBC Life Protection | SingPost" is not a menu label)
+            if leaf in labels and not dry:
+                try:
+                    m.update(target, {"jcr:title": labels[leaf]}, locale=locale)
+                    retitled += 1
+                except Exception as e:
+                    print(f"  ! retitle {leaf}: {str(e)[:120]}", file=sys.stderr)
             continue
-        if exists(f"{home}/{leaf}") and leaf != rel:
+        flat = f"{home}/{leaf}"
+        if not exists(flat):
+            # the page may have been NESTED by a previous sitemap run — locate
+            # it anywhere under home by node name before fabricating a stub
+            try:
+                r = m.gql('query { jcr(workspace: EDIT) { nodesByQuery(query: '
+                          '"SELECT * FROM [jnt:page] AS p WHERE ISDESCENDANTNODE(p,'
+                          "'%s') AND NAME(p)='%s'\", queryLanguage: SQL2, limit: 2) "
+                          '{ nodes { path } } } }' % (home, leaf))
+                found = [n["path"] for n in ((r or {}).get("jcr", {})
+                                             .get("nodesByQuery", {}) or {}).get("nodes", [])]
+            except Exception:
+                found = []
+            if found:
+                flat = found[0]
+        # guard: never move a page under its own subtree (menu quirk like
+        # receiving/receiving — the L1 section and an L2 page share the slug)
+        cycle = parent == flat or parent.startswith(flat + "/")
+        if exists(flat) and flat != target and not cycle:
             # crawled page sitting flat under /home -> MOVE under its section
             if dry:
-                print(f"[dry] move {home}/{leaf} -> {parent}/")
+                print(f"[dry] move {flat} -> {parent}/")
             else:
                 r = m.gql('mutation { jcr(workspace: EDIT) { moveNode(pathOrId: "%s", '
                           'destParentPathOrId: "%s") { node { path } } } }'
-                          % (f"{home}/{leaf}", parent))
+                          % (flat, parent))
                 if isinstance(r, dict) and r.get("errors"):
                     print(f"  ! move {leaf}: {str(r['errors'])[:140]}", file=sys.stderr)
                     continue
                 print(f"  ~ moved {leaf} -> {parent}/")
+                if leaf in labels:
+                    try:
+                        m.update(target, {"jcr:title": labels[leaf]}, locale=locale)
+                        retitled += 1
+                    except Exception:
+                        pass
             moved += 1
             continue
-        # new SECTION page
-        titles = NAV_TITLES.get(leaf, {})
-        t_loc = titles.get(locale) or leaf.replace("-", " ").title()
-        t_oth = titles.get(other) or t_loc
+        # new SECTION page (menu category or menu target the crawl never fetched)
+        t_loc = title_for(leaf)
+        t_oth = NAV_TITLES.get(leaf, {}).get(other) or t_loc
         if dry:
             print(f"[dry] create section {target} ('{t_loc}')")
         else:
@@ -151,6 +196,8 @@ def main():
                 print(f"  ! section {leaf}: {str(e)[:140]}", file=sys.stderr)
                 continue
         created += 1
+    if retitled:
+        print(f"  ~ retitled {retitled} page(s) with menu labels")
 
     # ── pass 1b: place the cross-cutting CHROME singletons (tree-driven nav,
     # header, footer) into their AbsoluteAreas under /home. The content loader
@@ -187,6 +234,35 @@ def main():
             created += 1
         except Exception as e:
             print(f"  ! chrome {nt}: {str(e)[:140]}", file=sys.stderr)
+
+    # ── pass 1c: pages that exist but are NOT in the menu IA (audience/footer/
+    # utility pages the crawl fetched) — flag them {mixns}:hideFromNav so the
+    # tree-driven nav skips them. They stay URL-reachable and jContent-editable;
+    # an editor removes the mixin to surface one in the menu. ──
+    mixns_prefix = None
+    try:
+        mf = json.load(open(f"projects/{project}/workflow-output/component-manifest.json"))
+        if mf.get("model") == "archetype":
+            mixns_prefix = mf.get("mixns")
+    except (FileNotFoundError, ValueError):
+        pass
+    if mixns_prefix and not dry:
+        in_menu = {p.split("/")[0] for p in paths}
+        r = m.gql('query { jcr(workspace: EDIT) { nodeByPath(path: "%s") '
+                  '{ children(typesFilter: {types: ["jnt:page"]}) { nodes { name } } } } }'
+                  % home)
+        kids = [n["name"] for n in ((r or {}).get("jcr", {})
+                                    .get("nodeByPath", {}) or {}).get("children", {}).get("nodes", [])]
+        for name in kids:
+            if name in in_menu:
+                continue
+            try:
+                m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s/%s") '
+                      '{ addMixins(mixins: ["%s:hideFromNav"]) } } }'
+                      % (home, name, mixns_prefix))
+                print(f"  ~ hidden from nav: {name}")
+            except Exception as e:
+                print(f"  ! hideFromNav {name}: {str(e)[:120]}", file=sys.stderr)
 
     # ── pass 2: L1 order under /home == sitemap L1 order ──
     l1 = [p for p in paths if "/" not in p]

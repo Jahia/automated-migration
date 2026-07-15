@@ -342,8 +342,15 @@ def build_plan(p):
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
         # build_nav_tree restructures the flat crawl tree per the project
         # sitemap (sections, moves, L1 order); no-op when no sitemap exists.
-        step("step_nav", "Navigation tree per sitemap (sections, moves, L1 order)", "build",
-             [f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale {PRIMARY_LOCALE}",
+        step("step_nav", "Navigation tree per the SOURCE IA (extracted menu, moves, labels)", "build",
+             # the page tree must mirror the source's MENU, not the crawl's URL
+             # sample (2026-07-15 SingPost: crawl-derived L1 was business/
+             # corporate/… while the real menu is Sending/Receiving/…).
+             # extract_nav parses the captured nav (astro-island navItems or the
+             # nav DOM) into the sitemap + clean labels; the crawl-URL hierarchy
+             # stays as build_nav_tree's fallback when no nav is extractable.
+             [f"Run: python3 orchestration/lib/extract_nav.py {P} || true",
+              f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale {PRIMARY_LOCALE}",
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",

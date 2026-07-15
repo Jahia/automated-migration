@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""extract_nav.py — extract the SOURCE SITE'S REAL navigation IA (deterministic).
+
+The page tree drives the Jahia nav (rule 19), so the page tree must mirror the
+source's INFORMATION ARCHITECTURE — not the crawl's URL sample (2026-07-15
+SingPost lesson: the crawl-URL fallback produced an L1 of business/corporate/…
+while the site's real L1 menu is Sending/Receiving/Shop/Pay/Document Services/
+Money & Health Insurance).
+
+Reads the cached home page and parses the navigation structure out of the
+captured markup. Two strategies, first hit wins:
+  1. astro-island props carrying `navItems` (label/href/subMenu JSON — the
+     Astro/Drupal pattern; the FULL menu rides serialized props)
+  2. the <nav> DOM itself: nested <ul>/<li>/<a> lists (generic fallback)
+
+Writes (consumed by build_nav_tree / create_pages / load_content):
+  orchestration/sitemaps/<project>.txt          nested rel paths, menu order,
+                                                leaf == the crawl's flat slug
+                                                ('_'-joined URL segments)
+  orchestration/sitemaps/<project>.labels.json  leaf-slug -> clean menu label
+
+Usage: extract_nav.py <project> [--home <cached-home.html>] [--max-depth 3]
+Exit 0 with a report; exit 1 if no nav structure could be extracted.
+"""
+import argparse
+import glob
+import html as htmllib
+import json
+import os
+import re
+import sys
+
+
+def _dec(v):
+    """Decode one astro-island serialized value: [0, x] = plain (x may be an
+    object whose values are themselves encoded), [1, [..]] = array of encoded.
+    A bare [0] (no value) is the empty marker (e.g. "subMenu":[0]) -> None."""
+    if not isinstance(v, list):
+        return v
+    if len(v) == 1:
+        return None
+    if len(v) != 2:
+        return v
+    tag, val = v
+    if tag == 0:
+        if isinstance(val, dict):
+            return {k: _dec(x) for k, x in val.items()}
+        return val
+    if tag == 1:
+        return [_dec(x) for x in (val or [])]
+    return val
+
+
+def astro_nav(page_html):
+    """navItems from an astro-island props attribute; [] when absent."""
+    for m in re.finditer(r'<astro-island[^>]*\sprops="([^"]*)"', page_html):
+        raw = htmllib.unescape(m.group(1))
+        if '"navItems"' not in raw:
+            continue
+        try:
+            props = json.loads(raw)
+        except ValueError:
+            continue
+        items = _dec(props.get("navItems", [1, []]))
+        if items:
+            return items
+    return []
+
+
+def dom_nav(page_html):
+    """Generic fallback: deepest <nav> with nested lists -> [{label,href,subMenu}]."""
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
+    soup = BeautifulSoup(page_html, "lxml")
+    best, best_n = None, 0
+    for nav in soup.find_all("nav"):
+        n = len(nav.find_all("a", href=True))
+        if n > best_n:
+            best, best_n = nav, n
+
+    def walk(ul):
+        out = []
+        for li in ul.find_all("li", recursive=False):
+            a = li.find("a", href=True) or li.find(["a", "button", "span"])
+            if not a:
+                continue
+            label = a.get_text(" ", strip=True)
+            href = a.get("href") if a.name == "a" else "#"
+            sub = li.find(["ul", "ol"])
+            out.append({"label": label, "href": href or "#",
+                        "subMenu": walk(sub) if sub else []})
+        return out
+
+    if not best:
+        return []
+    top = best.find(["ul", "ol"])
+    return walk(top) if top else []
+
+
+def slugify(label):
+    s = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+    return s or "section"
+
+
+def internal_slug(href, host):
+    """menu href -> the crawl's flat slug ('_'-joined segments); None if external."""
+    if not href or href in ("#", "/"):
+        return None
+    href = re.sub(r"^https?://" + re.escape(host), "", href)
+    if re.match(r"^(https?:)?//|^mailto:|^tel:", href):
+        return None  # external
+    segs = [s for s in href.split("?")[0].split("#")[0].split("/") if s]
+    return "_".join(segs) if segs else None
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("project")
+    ap.add_argument("--home")
+    ap.add_argument("--max-depth", type=int, default=3)
+    a = ap.parse_args()
+
+    cache = f"projects/{a.project}/.reference/cache/_crawl"
+    home = a.home
+    host = ""
+    if not home:
+        for cand in sorted(glob.glob(f"{cache}/*/index.html")):
+            home = cand
+            host = os.path.basename(os.path.dirname(cand))
+            break
+    if not home or not os.path.isfile(home):
+        sys.exit(f"FAIL: no cached home page under {cache}")
+    page = open(home, encoding="utf-8", errors="ignore").read()
+
+    items = astro_nav(page)
+    strategy = "astro-island navItems"
+    if not items:
+        items = dom_nav(page)
+        strategy = "nav DOM"
+    if not items:
+        sys.exit("FAIL: no navigation structure found in the cached home page")
+
+    lines, labels, externals = [], {}, []
+
+    def emit(nodes, parent_rel, depth):
+        for it in nodes or []:
+            if not isinstance(it, dict):
+                continue
+            label = (it.get("label") or "").strip()
+            if not label:
+                continue
+            slug = internal_slug(it.get("href") or "#", host)
+            if slug is None and (it.get("href") or "#") not in ("#", "", "/"):
+                externals.append((label, it.get("href")))
+                continue  # external link: not a page — reported, never fabricated
+            leaf = slug or slugify(label)   # pure section (href=#) -> slug of label
+            rel = f"{parent_rel}/{leaf}" if parent_rel else leaf
+            lines.append(rel)
+            labels[leaf] = label
+            if depth < a.max_depth and it.get("subMenu"):
+                emit(it["subMenu"], rel, depth + 1)
+
+    emit(items, "", 1)
+
+    os.makedirs("orchestration/sitemaps", exist_ok=True)
+    with open(f"orchestration/sitemaps/{a.project}.txt", "w") as f:
+        f.write(f"# REAL site IA extracted from the source nav ({strategy})\n")
+        f.write("\n".join(lines) + "\n")
+    with open(f"orchestration/sitemaps/{a.project}.labels.json", "w") as f:
+        json.dump(labels, f, indent=1, ensure_ascii=False)
+
+    l1 = [x for x in lines if "/" not in x]
+    print(f"[extract_nav] {strategy}: {len(lines)} menu path(s), "
+          f"{len(l1)} L1 item(s): {', '.join(labels[x] for x in l1)}")
+    if externals:
+        print(f"[extract_nav] {len(externals)} external menu link(s) skipped "
+              f"(not pages): " + "; ".join(f"{l} -> {h}" for l, h in externals[:6]))
+
+
+if __name__ == "__main__":
+    main()

@@ -30,7 +30,9 @@ const childPages = (node: JCRNode): JCRNode[] => {
     while (it.hasNext()) {
       const n = it.nextNode();
       try {
-        if (n.isNodeType("jnt:page")) out.push(n);
+        // pages flagged $NSmix:hideFromNav exist (URL reachable, editable in
+        // jContent) but are NOT part of the source's menu IA — skip them here.
+        if (n.isNodeType("jnt:page") && !n.isNodeType("$NSmix:hideFromNav")) out.push(n);
       } catch {
         /* ignore unreadable child */
       }
