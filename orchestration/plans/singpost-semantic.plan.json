@@ -259,6 +259,7 @@
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/extract_content.py singpost",
                 "Run: python3 orchestration/lib/semanticize_content.py singpost --manifest projects/singpost/workflow-output/component-manifest.json",
+                "PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/singpost.content-load.json')); sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\"",
                 "Run: python3 orchestration/probes/partition.py singpost || true",
                 "Run: python3 orchestration/probes/contribution.py singpost || true",
                 "Run: python3 orchestration/probes/component_coverage.py singpost || true"
@@ -572,6 +573,7 @@
               },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/load_content.py singpost singpost --clean --locale en",
+                "PROBE: python3 orchestration/lib/create_pages.py singpost singpost --check",
                 "Run: python3 orchestration/probes/partition.py singpost || true",
                 "Run: python3 orchestration/probes/contribution.py singpost || true",
                 "Run: python3 orchestration/probes/component_coverage.py singpost || true"

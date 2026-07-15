@@ -209,6 +209,13 @@ def build_plan(p):
               # archetype field surface (title/body/image/cta + typed children).
               *([f"Run: python3 orchestration/lib/semanticize_content.py {P} "
                  f"--manifest {PP}/workflow-output/component-manifest.json"] if ARCH else []),
+              # archetype-model blocking gate: the content-load is the semantic
+              # model AND every page carries instances (skeleton content-load
+              # probes are advisory below — skeleton-specific, they crash/mismatch
+              # on the semantic shape).
+              *([f"PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/{P}.content-load.json')); "
+                 f"sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\""]
+                if ARCH else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               # component-model gate (2026-07-06): visible text must live in
@@ -333,6 +340,9 @@ def build_plan(p):
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
              [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
+              # blocking under ARCH: the page's main area has content children in
+              # LIVE (the engine integrity belt does the deeper page-tree diff).
+              *([f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"] if ARCH else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],
