@@ -244,7 +244,14 @@ def build_plan(p):
         step("step_cnd_merge", "Install analyze CND + rule-18 bundles", "build",
              [f"Run: python3 orchestration/lib/merge_cnd.py {P} --ns {NS} --mixns {MIXNS}",
               f"PROBE: bash orchestration/probes/cnd.sh {PP} {NS}",
-              f"PROBE: bash orchestration/probes/cnd-patterns.sh {PP} {NS}"],
+              f"PROBE: bash orchestration/probes/cnd-patterns.sh {PP} {NS}",
+              # AUTHORING lint (agentic check-cnd via cnd-review.sh): flags
+              # rawStringLink / missingI18n / directDroppable / singleHardcodedCta /
+              # weakrefNoConstraint on the emitted CND — the exact authoring-model
+              # antipatterns. WARN-FIRST (|| true) during P1: it reports violations
+              # in the step log without gating, until the semantic emitter (task
+              # #24) can pass it. FLIP to `PROBE:` (blocking) once it does.
+              f"Run: bash orchestration/probes/cnd-review.sh {PP} || true"],
              deps=["step_scaffold"]),
         # P5.6: editor-UI field labels + ui.tooltip keys, EN+FR (rule 18 / i18n.md)
         # — these are AUTHORING-INTERFACE chrome strings, the ONE sanctioned EN/FR
@@ -261,7 +268,12 @@ def build_plan(p):
              deps=["step_cnd_merge"]),
         step("step_shell_templates", "Agnostic fidelity-shell template set + skeleton views", "build",
              [f"Run: python3 orchestration/lib/install_shell_templates.py {P} --ns {NS} --manifest {PP}/workflow-output/component-manifest.json",
-              f"PROBE: grep -q 'rawHtml' {PP}/src/components/RawHtml/default.server.tsx"],
+              f"PROBE: grep -q 'rawHtml' {PP}/src/components/RawHtml/default.server.tsx",
+              # TEMPLATE GOVERNANCE (governed Areas: allowedNodeTypes / numberOfItems).
+              # WARN-FIRST (|| true) during P1: reports ungoverned Areas without
+              # gating, until role-clustered governed templates land (redesign §11.3).
+              # FLIP to `PROBE:` once templates are governed.
+              f"Run: bash orchestration/probes/template-govern.sh {PP} {NS} || true"],
              deps=["step_assets", "step_cnd_merge", "step_bundles"]),
         step("step_deploy", "Build + deploy to Jahia (deploy gate)", "deploy",
              [f"PROBE[900]: bash orchestration/probes/deploy.sh {PP}",
