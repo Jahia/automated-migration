@@ -1386,7 +1386,7 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                     "images": [], "links": [],
                 })
                 continue
-            out.append({
+            child = {
                 "type": role, "parent": cont_idx, "promoted": True,
                 "chromeNested": (chrome_seq[n] if n < len(chrome_seq) else False),
                 "fields": rw_fields(ch["fields"]),
@@ -1394,7 +1394,35 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                 **payload_extras(ch),
                 "skeletonSubs": sorted(ch["fields"]), "skeletonMissed": [],
                 "images": [], "links": [],
-            })
+            }
+            # Recursive item lift: a container-typed child (carousel/card-grid/…
+            # whose manifest type declares a childType) that the library recognizer
+            # did NOT match freezes ALL its repeated items in one skeleton — its
+            # card text is uneditable (G1 contribution killer, editability rule 24).
+            # decompose_group(allow_items=True) splits those items into per-item
+            # child payloads (title/body*/media/link), which the loader creates as
+            # childType nodes. Byte-safe: only adopted when decompose's self-check
+            # passes (recompose == the frozen skeleton), so the wrapper's own
+            # {{child:N}} splice — verified against that same frozen skeleton — is
+            # unchanged. Guard skips when it lifts nothing new (keeps the flat form).
+            if type_allows_items(role):
+                # decompose the item's CLEAN pre-lift markup — ch["skeleton"] has
+                # already had its flat title/body lifted into {{f:}} markers, so
+                # re-decomposing THAT double-lifts into phantom nested markers.
+                _root = _reparse_root(ch.get("origMarkup") or ch["skeleton"])
+                if _root is not None:
+                    dd = SE.decompose_group(_root, allow_items=True)
+                    if dd["ok"] and dd["children"]:
+                        child["fields"] = rw_fields(dd["fields"])
+                        child["skeleton"] = rewrite_asset_refs(dd["skeleton"], base)
+                        child.update(payload_extras(dd))
+                        child["skeletonSubs"] = sorted(dd["fields"])
+                        child["children"] = [
+                            {"fields": rw_fields(c["fields"]),
+                             "skeleton": rewrite_asset_refs(c["skeleton"], base),
+                             **payload_extras(c)}
+                            for c in dd["children"]]
+            out.append(child)
         promoted_leaves += leaves
 
     # ── byte-exact partition; every emitted region is a COMPLETE balanced element

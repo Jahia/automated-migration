@@ -357,8 +357,10 @@ def decompose_group_with_items(group, items, lift_titles=True):
 
     children = []
     for it in items:
+        orig_it = str(it)                 # clean markup BEFORE lift_scope mutates it
         pl = lift_scope(it, set(), lift_titles)
         pl["el"] = it
+        pl["origMarkup"] = orig_it        # for recursive container-item lift (rule 24)
         children.append(pl)
     banned_ids = set()
     for it in items:
