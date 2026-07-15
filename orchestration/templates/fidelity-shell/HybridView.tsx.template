@@ -1,0 +1,120 @@
+import { jahiaComponent, useServerContext, Render } from "@jahia/javascript-modules-library";
+import { createElement, type ReactNode } from "react";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+import { splitRoot, rootProps } from "../rawRoot.js";
+import {
+  composeNode,
+  nodePayload,
+  substitutePayload,
+  childNodesOf,
+  chunkTopLevel,
+  hasSkeletonProp,
+} from "../skeletonRender.js";
+import ArchetypeSection from "../ArchetypeSection.js";
+import { resolveSemantic } from "../resolveSemantic.js";
+
+/**
+ * $DISPLAYNAME — HYBRID default view of $NODETYPE (Option B, 2026-07-15).
+ *
+ * FIDELITY-FIRST: when the node carries its captured `skeleton` markup, LIVE
+ * renders it via string composition — the source's own DOM and classes, so the
+ * source CSS styles it pixel-faithfully; lifted field edits reflow through the
+ * {{f:}}/{{media:}}/{{link:}} markers. EDIT mode splices {{child:N}} through
+ * Jahia's pipeline so every item gets its own edit frame (G6 reachability).
+ *
+ * SEMANTIC FALLBACK: nodes authored fresh in Page Builder (no skeleton) render
+ * through the shared ArchetypeSection layout (kind: $KIND) — the clean
+ * archetype look. Variant views (textUp/carousel/…) stay pure semantic
+ * layouts an editor can switch to.
+ */
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "$NODETYPE",
+    name: "default",
+    displayName: "$DISPLAYNAME",
+  },
+  (props: Record<string, unknown>) => {
+    const { currentNode, renderContext } = useServerContext();
+    const node = currentNode as never;
+
+    if (!hasSkeletonProp(node)) {
+      // fresh/semantic node: archetype layout from the lifted fields
+      const fields = resolveSemantic(props, currentNode as unknown as JCRNodeWrapper, renderContext);
+      return <ArchetypeSection kind="$KIND" view="default" fields={fields} />;
+    }
+
+    let editMode = false;
+    try {
+      editMode = (renderContext as { isEditMode: () => boolean }).isEditMode();
+    } catch {
+      editMode = false;
+    }
+
+    if (editMode) {
+      const p = nodePayload(node);
+      const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+      if (html.includes("{{child:")) {
+        const kids = childNodesOf(node);
+        const placed = new Set<number>();
+        const compose = (fragment: string): ReactNode[] =>
+          chunkTopLevel(fragment).map((c, i) => {
+            if (c.kind === "child") {
+              placed.add(c.idx);
+              const kid = kids[c.idx];
+              return createElement(
+                "div",
+                { key: `c${i}`, style: { display: "contents" } },
+                kid ? createElement(Render as never, { node: kid }) : null,
+              );
+            }
+            if (c.html.includes("{{child:")) {
+              const root = splitRoot(c.html);
+              if (root) {
+                return createElement(
+                  root.tag,
+                  { ...rootProps(root.attrs), key: `e${i}` },
+                  compose(root.inner),
+                );
+              }
+              return createElement(
+                "div",
+                { key: `w${i}`, style: { display: "contents" } },
+                compose(c.html),
+              );
+            }
+            return createElement("div", {
+              key: `h${i}`,
+              style: { display: "contents" },
+              dangerouslySetInnerHTML: { __html: c.html },
+            });
+          });
+        const body = compose(html);
+        // G6 reachability: anything the recursive placement missed still gets
+        // an edit frame; edit-mode position is not the fidelity contract.
+        const missed = childNodesOf(node)
+          .map((k, i) => [k, i] as const)
+          .filter(([, i]) => !placed.has(i));
+        return createElement(
+          "div",
+          { style: { display: "contents" } },
+          body,
+          missed.map(([k, i]) => createElement(Render as never, { key: `m${i}`, node: k })),
+        );
+      }
+    }
+
+    const html = composeNode(node);
+    const root = splitRoot(html);
+    if (root) {
+      return createElement(root.tag, {
+        ...rootProps(root.attrs),
+        dangerouslySetInnerHTML: { __html: root.inner },
+      });
+    }
+    return createElement("div", {
+      style: { display: "contents" },
+      dangerouslySetInnerHTML: { __html: html },
+    });
+  },
+);

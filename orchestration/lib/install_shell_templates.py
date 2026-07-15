@@ -92,6 +92,10 @@ def main():
         # RawHtml passthrough already ship above; skip them here.
         if m.get("model") == "archetype":
             sem = open(os.path.join(SRC, "SemanticView.tsx.template"), encoding="utf-8").read()
+            # HYBRID (Option B): the DEFAULT view is fidelity-first (captured
+            # skeleton markup, semantic fallback); variant views stay pure
+            # semantic layouts the editor can switch to.
+            hyb = open(os.path.join(SRC, "HybridView.tsx.template"), encoding="utf-8").read()
 
             # Ship the shared, hand-authored semantic layout library as siblings
             # of the component dirs (imported '../ArchetypeSection.js' etc). These
@@ -140,7 +144,8 @@ def main():
                 short = nt.split(":")[-1]
                 comp_dir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
                 os.makedirs(comp_dir, exist_ok=True)
-                out = (sem.replace("$NODETYPE", nt)
+                tpl = hyb if view_name == "default" else sem
+                out = (tpl.replace("$NODETYPE", nt)
                           .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
                           .replace("$KIND", kind)
                           .replace("$VIEWNAME", view_name))

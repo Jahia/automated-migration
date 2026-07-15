@@ -129,39 +129,51 @@ def _split_skeleton(skeleton):
     return title[:250], body
 
 
+def _first_heading_text(html):
+    """First heading's text — a COPY for jcr:title (the heading itself STAYS in
+    the markup/body: the hybrid fidelity render needs it in place)."""
+    if not html:
+        return ""
+    soup = BeautifulSoup(html, "lxml")
+    for tag in _HEADING:
+        h = soup.find(tag)
+        if h and h.get_text(strip=True):
+            return h.get_text(" ", strip=True)[:250]
+    return ""
+
+
 def _semanticize_instance(inst, node, surf):
-    """Rewrite one skeleton instance to the archetype field surface."""
-    s = surf.get(node) or {}
-    fields = inst.get("fields") or {}
-    out = {"type": inst["type"], "promoted": True, "fields": {}}
-    if inst.get("parent") is not None:
-        out["parent"] = inst["parent"]
-    title, body = _split_title_body(fields)
-    body = _clean_html(body)
-    if not title and not body and inst.get("skeleton"):
-        title, body = _split_skeleton(inst["skeleton"])
-    if s.get("title") and title:
-        out["fields"]["title"] = title
-    if s.get("body") and body:
-        out["fields"]["body"] = body
-    elif s.get("body") and not body and title and not s.get("title"):
-        out["fields"]["body"] = title      # no mix:title -> keep the text in body
-    # image: the first lifted media unit -> the media mixin's `image` weakref
-    media = inst.get("media") or []
-    if s.get("media") and media:
-        out["media"] = [{**media[0], "name": "image"}]
-    # cta: the lifted link -> j:linkType/j:linknode/j:url (loader wires) + label
-    if s.get("cta") and inst.get("link"):
-        out["link"] = inst["link"]
-        lbl = inst.get("linkLabel") or fields.get("label")
-        if lbl:
-            out["fields"]["ctaLabel"] = lbl[:250]
-    # embedded typed children -> childType surface
-    child_node = s.get("child")
-    if child_node and inst.get("children"):
-        csurf = {child_node: s.get("childSurface", {})}
-        out["children"] = [_semanticize_instance({**ch, "type": ch.get("type") or child_node},
-                                                 child_node, csurf) for ch in inst["children"]]
+    """HYBRID (Option B, 2026-07-15): the archetype TYPE system provides the
+    authoring surface (mix:title, contrib slots, media/cta mixins) while the
+    node's own captured SKELETON markup provides the pixel-faithful default
+    render. So this keeps the ORIGINAL lifted payload (field runs, media, link,
+    skeleton with {{f:}}/{{child:N}} markers intact — the loader's promoted_props
+    slots every field onto the node) and only:
+      - cleans framework junk out of every HTML value,
+      - COPIES the first heading into a `title` field (jcr:title for jContent
+        lists + nav; the heading stays in the markup — never extracted),
+      - recurses into embedded children."""
+    out = dict(inst)
+    out["promoted"] = True
+    fields = dict(inst.get("fields") or {})
+    for k, v in list(fields.items()):
+        if isinstance(v, str) and "<" in v:
+            fields[k] = _clean_html(v)
+    if inst.get("skeleton"):
+        out["skeleton"] = _clean_html(inst["skeleton"])
+    if not fields.get("title"):
+        t = (_first_heading_text("\n".join(v for k, v in sorted(fields.items())
+                                           if k.startswith("body") and isinstance(v, str)))
+             or _first_heading_text(out.get("skeleton") or ""))
+        if t:
+            fields["title"] = t
+    out["fields"] = fields
+    # embedded typed children -> same hybrid treatment
+    child_node = (surf.get(node) or {}).get("child")
+    if inst.get("children"):
+        out["children"] = [_semanticize_instance(
+            {**ch, "type": ch.get("type") or child_node or inst["type"]},
+            ch.get("type") or child_node, surf) for ch in inst["children"]]
     return out
 
 

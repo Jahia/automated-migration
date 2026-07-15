@@ -414,6 +414,14 @@ def build_plan(p):
              [adv(f"PROBE[900]: bash orchestration/probes/groundtruth.sh {P} {SITE} 99"),
               "Gate: present groundtruth/review.html per-page fidelity, return status halt."],
              deps=["step_exceptions_review"]),
+        # ARCH: the RUN REPORT CARD — pixel (groundtruth) + junk (clean-render)
+        # + IA (rendered L1 vs the extracted source menu) + completeness (ledger),
+        # one blocking verdict with numbers. A run without a read scorecard is
+        # not done (2026-07-15). Hybrid views target high pixel scores; floor 75.
+        *([step("step_scorecard", "Scorecard: pixel + junk + IA + completeness (BLOCKING)",
+                "verify",
+                [f"PROBE[900]: python3 orchestration/probes/scorecard.py {P} {SITE} --pixel-floor 75"],
+                deps=["step_ground_truth"])] if ARCH else []),
     ]
 
     # every step carries inputs.project = the project PATH (^projects/...) —

@@ -22,6 +22,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
 import sys
 
@@ -335,15 +336,23 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
 
 
 def type_block_semantic(comp, ns, mixns):
-    """SEMANTIC archetype emission (redesign §10): the composed supertype stack
-    (base + mix:title + cta/media/seo mixins + mainResource/list/taxonomy) is
-    taken VERBATIM from the manifest; only the archetype's OWN fields are emitted
-    inline (mixin-provided image/cta/seo fields are NEVER repeated — they live in
-    the shared mixins). Plus the layout choicelist + a typed childType. No
-    skeleton, no contrib slots — this is the authorable model."""
+    """SEMANTIC archetype emission (redesign §10 + hybrid Option B, 2026-07-15):
+    the composed supertype stack (base + mix:title + cta/media/seo mixins +
+    mainResource/list/taxonomy) is taken VERBATIM from the manifest; only the
+    archetype's OWN fields are emitted inline (mixin-provided image/cta/seo
+    fields are NEVER repeated — they live in the shared mixins). Plus the layout
+    choicelist + a typed childType.
+
+    HYBRID: every type also composes {mixns}:sourceMarkup (hidden skeleton
+    prop) so the default view can render the component's OWN captured markup —
+    pixel-faithful, field edits reflow — while the semantic variant views stay
+    available as authoring layouts. Contrib slot mixins carry per-node fields."""
     node = comp["nodeType"]
     sup = comp.get("supertypes") or _supertypes(comp.get("fields", []), mixns,
                                                 comp.get("needsMainResource"))
+    sm = f"{mixns}:sourceMarkup"
+    if sm not in sup:
+        sup = list(sup) + [sm]
     head = f"[{node}] > {', '.join(sup)}"
     if comp.get("orderable"):
         head += " orderable"
@@ -360,6 +369,8 @@ def type_block_semantic(comp, ns, mixns):
     if isinstance(child, dict) and child.get("nodeType"):
         lines.append(f"  + * ({child['nodeType']})")
         csup = child.get("supertypes") or _supertypes(child.get("fields", []), mixns)
+        if sm not in csup:
+            csup = list(csup) + [sm]
         clines = [f"[{child['nodeType']}] > {', '.join(csup)}"]
         for cf in child.get("fields", []) or []:
             clines.append(field_line(cf))
@@ -369,7 +380,7 @@ def type_block_semantic(comp, ns, mixns):
     return "\n".join(lines), child_text
 
 
-def emit_semantic(m, ns, mixns, proj):
+def emit_semantic(m, ns, mixns, proj, stats=None):
     """Assemble the whole CND for the archetype model (manifest['model']=='archetype')."""
     import archetypes as ARCH
     header = [
@@ -382,8 +393,20 @@ def emit_semantic(m, ns, mixns, proj):
         "// base marker mixins (picker grouping + droppability)",
         *ARCH.base_mixin_cnd(mixns),
         "",
+        "// HYBRID (Option B): the component's OWN captured markup, rendered by the",
+        "// default view (pixel-faithful; field edits reflow). Hidden from editors —",
+        "// they edit the lifted fields, not the markup.",
+        f"[{mixns}:sourceMarkup] mixin",
+        "  - skeleton (string, textarea) hidden",
+        "  - skeletonOrig (string, textarea) hidden",
+        "",
         "// reusable functional mixins — one definition each, composed by archetypes",
         *ARCH.shared_mixin_cnd(mixns),
+        "",
+        # per-node contribution slots (contribBodyN/contribImageN/contribLabelN/
+        # contribLink) — the loader adds them ONLY on nodes that carry the field,
+        # so editor forms show exactly what each node really has (P2.5-C).
+        *contrib_mixins(mixns, stats),
         "",
         "// passthrough: verbatim markup for any region no archetype covers",
         f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
@@ -447,11 +470,14 @@ def main():
     m = json.load(open(args.manifest))
     ns, mixns, proj = args.ns, args.mixns, args.project
 
-    # SEMANTIC archetype model (redesign §10): composed mixins + semantic fields,
-    # no skeleton/contrib slots. Auto-detected from the manifest so the skeleton
-    # path stays the default for skeleton manifests.
+    # SEMANTIC archetype model (redesign §10, hybrid Option B): composed mixins +
+    # semantic fields + hidden sourceMarkup + per-node contrib slots (sized from
+    # the observed lift). Auto-detected from the manifest so the skeleton path
+    # stays the default for skeleton manifests.
     if m.get("model") == "archetype":
-        cnd, view_plans = emit_semantic(m, ns, mixns, proj)
+        sem_stats = (run_stats_from_content_load(args.content_load, m)
+                     if args.content_load and os.path.isfile(args.content_load) else None)
+        cnd, view_plans = emit_semantic(m, ns, mixns, proj, stats=sem_stats)
         if args.out_cnd:
             open(args.out_cnd, "w").write(cnd)
         else:
