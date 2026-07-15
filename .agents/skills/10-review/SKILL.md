@@ -7,7 +7,7 @@ status: active
 allowed-tools: Bash, Read, Glob, Grep
 ---
 
-# Skill: jahia-dev-review
+# Skill: 10-review (code review — mirrors agentic jahia-review-code)
 
 Reviews a Jahia JavaScript module for correctness and best practices. Scans real files, reports issues in order of severity (🔴 Critical → 🟡 Warning → 🔵 Suggestion), and proposes fixes.
 

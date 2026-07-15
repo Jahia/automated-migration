@@ -77,3 +77,14 @@ User-visible string (`title`, `text`, `label`, `description`, `subtitle`, `capti
 ### `studioOnly`
 Any use of `jmix:studioOnly`.
 **Fix**: Replace with `jmix:hiddenType`.
+
+### Suppressing a false positive
+
+The rules are heuristics; when one misfires on a legitimate pattern (e.g. a `dataUrl` field that is a server-fetched data endpoint, not a contributor link), suppress it with a directive on the line **directly above** the property. The reason is mandatory — never suppress without explaining why in place:
+
+```cnd
+// cnd-check-ignore(rawStringLink): server-fetched JSON/CSV data endpoint, not a contributor navigation link
+- dataUrl (string)
+```
+
+Never rename a field or reword a line just to dodge a rule's regex — fix the modeling, or suppress with a reason.

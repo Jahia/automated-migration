@@ -253,6 +253,6 @@ If a user can choose the sort field, validate it against a whitelist before inte
 ## Related skills
 
 - `/jahia-dev-query-content` — apply SQL2 inside Page Builder queries and JS module views
-- `/jahia-dev-define-content-type` — define the content types you will query
-- `/jahia-java-jcr` — implement back-end JCR logic around the query
+- `/jahia-cnd-author` — define the content types you will query
+- `/jahia-dev-java` — implement back-end JCR logic around the query
 

@@ -89,7 +89,7 @@ Use these recipes as starting points when the task maps to a known pattern.
 3. /jahia-dev-build-component       → build content types + views (repeat per component)
 4. /jahia-dev-create-page-template  → create page templates
 5. /jahia-content-create-content    → populate with articles, pages, folders
-6. /jahia-dev-review                → catch issues before shipping
+6. /jahia-review-code                → catch issues before shipping
 ```
 
 ---
@@ -110,7 +110,7 @@ Always print this at the end so the user can jump anywhere:
 /jahia-dev-create-view           Implement a React view (.server.tsx + CSS Module)
 /jahia-dev-create-page-template  Create a page template with Areas
 /jahia-dev-query-content         Write JCR-SQL2 / useJCRQuery for content listings
-/jahia-dev-review                Code review: 8 critical checks, 9 warnings, 10 suggestions
+/jahia-review-code               Code review: 12 critical checks, 9 warnings, 11 suggestions
 /jahia-dev-screenshot            Screenshot reference + local render for visual comparison
 /jahia-dev-debug                 Debug build/deploy/runtime errors end-to-end
 /jahia-dev-cypress               Write Cypress E2E tests for Jahia components

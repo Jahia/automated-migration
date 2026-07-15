@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 # site-review.sh — a11y (axe-core) + SEO scoring gate (from @jahia/agentic).
 #
-# Runs the agentic `review-pages.mjs` over every page: scores accessibility
+# Runs the probe-owned `site-review.mjs` over every page: scores accessibility
 # (WCAG 2.1 AA via axe-core) and checks SEO basics (title, meta description,
 # single h1, img alt). FAILS on any critical/serious a11y violation or missing
 # SEO baseline. Complements render-truth.sh (layout/visibility) with a11y/SEO.
+#
+# NOTE: site-review.mjs is a deliberate fork of agentic v0.4.0 semantics. The
+# agentic v0.5.1 skill script (.agents/skills/dev/jahia-review-site/) gates on
+# ANY axe violation (incl. best-practice rules) + Lighthouse SEO audits, and
+# reads pages-to-review.json / writes pages.json. That strictness is right for
+# greenfield modules but wrong for migrations that reproduce source markup 1:1
+# — minor violations inherited from the source would block the whole pipeline.
+# This probe keeps the critical/serious gate. Revisit if migration doctrine
+# changes.
 #
 # Usage: site-review.sh <project_path> <siteKey> <lang> <pages | @sitemap_file>
 set -uo pipefail
@@ -16,8 +25,8 @@ lang="${3:?language required}"; pages_arg="${4:?pages or @sitemap required}"
 load_env "$proj"; require_node 18
 
 ROOT="$(cd "$HERE/../.." && pwd)"
-SCRIPT="$ROOT/.agents/skills/dev/jahia-dev-site-review/scripts/review-pages.mjs"
-[ -f "$SCRIPT" ] || fail "review-pages.mjs not found — run .agents/agentic-sync.sh to pull the agentic skills"
+SCRIPT="$HERE/site-review.mjs"
+[ -f "$SCRIPT" ] || fail "site-review.mjs not found next to this probe"
 
 # resolve pages → live URLs
 pages=()

@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// PROBE-OWNED FORK of the agentic v0.4.0 review script (see site-review.sh header).
+// The synced skill script lives in .agents/skills/dev/jahia-review-site/ and has
+// different, stricter gate semantics (v0.5.1: any violation + Lighthouse SEO).
 // Runs a11y (axe-core) + SEO checks on every URL in pages.json.
 // Exits 1 if any page has critical/serious a11y violations or missing SEO basics.
 import { chromium } from "playwright";

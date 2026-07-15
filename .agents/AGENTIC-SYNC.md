@@ -5,8 +5,34 @@ the official [`Jahia/agentic`](https://github.com/Jahia/agentic) harness. The
 numbered `00-13` skills are the migration **workflow**; `dev/` is the underlying
 Jahia dev knowledge that mirrors agentic.
 
-- **Last synced:** v0.4.0 (2026-06-29)
+- **Last synced:** v0.5.1 (2026-07-15)
 - **Re-sync:** `./.agents/agentic-sync.sh` → prints missing / changed / identical.
+
+## Incorporated at v0.5.1 (2026-07-15)
+
+Upstream renamed its review suite; `dev/` follows (mirrored from AIStartupKit's
+reconciled v0.5.1 sync — its `jahia-review-code` keeps the richer local checks
+C9–C12 + W10 that upstream lacks):
+
+- `jahia-dev-review` → **`jahia-review-code`**, `jahia-dev-site-review` →
+  **`jahia-review-site`**, plus new **`jahia-review`** umbrella (code + site
+  review in parallel via subagents).
+- `jahia-review-site` is upstream v0.5.1: full axe ruleset (ANY violation
+  fails) + **Lighthouse SEO audits**; reads `pages-to-review.json`, writes
+  `pages.json` only on pass. Includes our fix installing the `lighthouse`
+  package upstream's Step 1 forgot.
+- **Probe fork:** `orchestration/probes/site-review.sh` now runs a
+  probe-owned copy of the v0.4.0 script (`orchestration/probes/site-review.mjs`)
+  keeping the critical/serious gate — the v0.5.1 any-violation gate would block
+  migrations that reproduce source markup 1:1. See the probe header.
+- `check-cnd.mjs` gained AIStartupKit's enhancements (merged with our local
+  adaptations, see below): `// cnd-check-ignore(<rule>): <reason>` suppression
+  directive + name-scoped `missingI18n` keyword matching.
+- Small fixes: `jahia-dev-properties` portable grep, `jahia-jcr-sql2` pointers
+  (`jahia-cnd-author`, `jahia-dev-java`), `cnd-authoring-experience.md`
+  underscore rule for `.properties` keys.
+- Not applicable: v0.5.0 Antigravity/Kiro adapters + MCP-register-on-install
+  (CLI installer features).
 
 ## Incorporated at v0.4.0 (into `.agents/skills/dev/`)
 
@@ -14,7 +40,7 @@ Jahia dev knowledge that mirrors agentic.
 |---|---|
 | `jahia-cnd-author` | `context: fork` CND modeling agent + 9 `references/cnd-*.md`. Step `04-define-content-types` should defer to it for non-trivial modeling. |
 | `jahia-dev-review-cnd` | deterministic CND linter (`scripts/check-cnd.mjs`). **Wired as probe** `orchestration/probes/cnd-review.sh` — complements `cnd-patterns.sh`. |
-| `jahia-dev-site-review` | axe-core a11y + SEO scoring (`scripts/review-pages.mjs`). **Wired as probe** `orchestration/probes/site-review.sh` — complements `render-truth.sh`. |
+| `jahia-dev-site-review` | axe-core a11y + SEO scoring (`scripts/review-pages.mjs`). **Wired as probe** `orchestration/probes/site-review.sh` — complements `render-truth.sh`. (Since v0.5.1: renamed `jahia-review-site`; the probe runs its own fork of the v0.4.0 script.) |
 | `jahia-jcr-sql2` | focused JCR-SQL2 reference (complements `06-implement-jcr-query`). |
 
 Adopted conventions (in `AGENTS.md`): load CND refs / use `jahia-cnd-author`
@@ -52,8 +78,13 @@ Re-apply after re-sync.
 `jahia-dev-review-cnd/scripts/check-cnd.mjs` is locally adapted: the
 `weakrefNoConstraint` rule **exempts `startNode` and `excludeNodes`** — query-root
 reference fields that legitimately point to arbitrary containers (our "full node
-browser" convention). All other weakrefs still require a `< type` constraint.
-When re-syncing from upstream, re-apply this exemption.
+browser" convention) — and selector-constrained weakrefs (`category[...]`, file
+pickers). All other weakrefs still require a `< type` constraint. Since the
+v0.5.1 pass it ALSO carries AIStartupKit's ignore directive
+(`// cnd-check-ignore(<rule>): <reason>` on the line above a property) and
+name-scoped `missingI18n` matching (keywords tested against the property NAME,
+with the color/font/theme config exemption preserved). When re-syncing from
+upstream, re-apply all of these.
 
 ## Reviewer + gates (added after the supercar "fiasco")
 

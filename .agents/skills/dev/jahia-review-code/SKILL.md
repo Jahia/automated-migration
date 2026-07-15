@@ -1,10 +1,10 @@
 ---
-name: jahia-dev-review
-description: Reviews a Jahia JavaScript module for generic and Jahia-specific best practices. Scans CND definitions, TypeScript views, and page templates. Reports issues in order of importance with fix suggestions. Covers 8 critical checks, 9 warnings, and 10 suggestions.
+name: jahia-review-code
+description: Reviews a Jahia JavaScript module for generic and Jahia-specific best practices. Scans CND definitions, TypeScript views, and page templates. Reports issues in order of importance with fix suggestions. Covers 12 critical checks, 9 warnings, and 11 suggestions.
 allowed-tools: Bash, Read
 ---
 
-# Skill: jahia-dev-review
+# Skill: jahia-review-code
 
 Reviews a Jahia JavaScript module for correctness and best practices. Scans real files, reports issues in order of severity (🔴 Critical → 🟡 Warning → 🔵 Suggestion), and proposes fixes.
 
@@ -67,6 +67,32 @@ Fix: move server-side logic to the `.server.tsx` wrapper and pass results as ser
 Check: any `jahiaComponent` call with `properties: { "cache.expiration": "0" }`.
 Fix: never set expiration to 0. If truly fresh data is needed, use a small value like `"5"` (5 seconds) to still protect under load.
 
+**C9 — Mixin stores hidden child nodes but declares no child node definition**
+Check: any mixin in `settings/definitions.cnd` that is paired with a `jmix:hiddenType` node for data storage (e.g. a `*Store` or `*Data` type), but does not declare `+ childName (Type) = Type version` in the mixin body.
+Fix: add `+ storageNodeName (storageType) = storageType version` to the mixin. Without this, `session.addNode("storageNodeName", "storageType")` throws `ConstraintViolationException: No child node definition found` at runtime regardless of whether the parent type extends the mixin.
+
+**C10 — Orderable list parent renders children with `getChildNodes` instead of `<RenderChildren />`**
+Check: any parent view (whose CND type extends `jmix:list, jmix:renderableList orderable`) that uses `getChildNodes(currentNode, ...)` to iterate and render child items as inline JSX.
+Fix: this bypasses the Page Builder selection layer entirely — editors cannot click on individual child items or open the content editor for them. The fix requires two changes:
+1. Register a `jahiaComponent()` view for the child type in the same file (child call placed *before* the parent call). The child view renders the item's HTML including its layout wrapper (column div, `<li>`, etc.).
+2. Replace the `getChildNodes` loop in the parent with `<RenderChildren />` inside the layout container.
+
+**C11 — Child node type of an orderable list has `jmix:hiddenType`**
+Check: any CND type that appears in a `+ * (ns:childType)` child node definition of an `orderable` list parent, and also declares `jmix:hiddenType`.
+Fix: remove `jmix:hiddenType` from the child type. `jmix:hiddenType` blocks Page Builder from attaching a selection handle to those nodes — editors cannot click, select, or edit individual items inline. Only singleton layout types that live in absolute areas (header, footer) should have `jmix:hiddenType`.
+
+**C12 — Hardcoded contributor-facing content in views (migration critical)**
+Check: any `.server.tsx` or `.client.tsx` file that contains:
+- JSX string literals rendering event/business content (`<strong>17 - 21 octobre</strong>`, `<span>Learn more</span>`, `<button>Envoyer</button>`)
+- Hardcoded `href="https://..."` or `href="/"` pointing to real destinations (not `href="#"` placeholders which are also violations — see W9)
+- Static text labels on CTAs, buttons, submit labels, date/location info, community slogans — anything a content editor would need to change per event, language, or campaign
+
+This is especially critical during site migrations: every string visible to visitors must be a CND property so contributors can update it without a code deploy. A hardcoded string that worked for one event or language will silently break the next.
+
+Fix: for every hardcoded string, add a corresponding `(string) i18n` field to the component's `definition.cnd`. For links add `j:linkType (string, choicelist[linkTypeInitializer])`. Use the prop in the view with a null-guard (`{props.label && <span>{props.label}</span>}`). If the prop is absent, render nothing — never fall back to a hardcoded default.
+
+Rule: **if a human visitor can read it, a contributor must be able to edit it.**
+
 **C8 — Generic area type used for every Area**
 Check: page templates where every `<Area>` uses the same generic area type (e.g. `nodeType="namespace:pageArea"` everywhere). This means editors see ALL `pageComponent` types as droppable options in every area — a hero section will appear as an option in a feature card grid.
 Fix: create **one typed area node per section** in `settings/definitions.cnd`, each with a tight child constraint:
@@ -91,9 +117,9 @@ Fix: add `i18n` to all user-visible text properties.
 Check: CND types that have `jmix:mainResource` but no richtext body or no obvious "detail page" use case (e.g. a visual composition type like a card or hero).
 Fix: only use `jmix:mainResource` for content that genuinely needs both a listing card AND a full-page detail view.
 
-**W3 — Structural container types missing `jmix:hiddenType`**
-Check: CND types that have no `namespacemix:component` mixin (so they can't be dropped as components) but also don't have `jmix:hiddenType` — editors would never see them but they don't show up with a clear "hidden" intent.
-Fix: add `jmix:hiddenType` to structural/container types. Do NOT use `jmix:studioOnly` — it can interfere with area rendering.
+**W3 — Singleton layout types (header, footer) missing `jmix:hiddenType`**
+Check: CND types that are singleton layout components placed in absolute areas (e.g. `ns:mainNavigation`, `ns:footer`) and have no `jmix:hiddenType` — they would appear in the Page Builder "Add content" picker and editors could accidentally drop them anywhere on a page.
+Fix: add `jmix:hiddenType` to singleton absolute-area types only. Do NOT add `jmix:hiddenType` to child node types of orderable lists — see C11. Do NOT use `jmix:studioOnly` — it can interfere with area rendering.
 
 **W4 — Props not typed as optional (`?:`) / not guarded in views**
 Check: (a) `types.ts` props typed as required (`title: string`) — all props must use `?:` because Jahia does not guarantee values are present at render time. (b) Views that use props without null/undefined guards, especially `buildNodeUrl(prop)` — passing `undefined` throws `"Expected a node in buildNodeUrl, received undefined"`.
@@ -114,6 +140,24 @@ Fix: add an `import.xml` with a homepage node (`j:isHomePage="true"`). Also add 
 **W8 — Node type extends something other than `jnt:content`**
 Check: CND types that extend anything other than `jnt:content`, `jnt:page`, `jmix:*`, or standard Jahia base types.
 Fix: extend only `jnt:content` (or `jnt:page` for page types). To add fields to a type you don't control, use a mixin with `extends=<targetType>`. Unusual inheritance chains break edition interfaces in unpredictable ways.
+
+**W10 — i18n locale files out of sync**
+Check: flatten all three locale JSON files (`fr.json`, `en.json`, `es.json`) to dot-separated key lists and diff them. Any key present in one file but missing from another will break at runtime for visitors using that language.
+```bash
+# Quick sync check — list keys present in fr but missing from en/es
+node -e "
+  const fs = require('fs');
+  const flatten = (obj, prefix='') => Object.keys(obj).flatMap(k =>
+    typeof obj[k] === 'object' ? flatten(obj[k], prefix+k+'.') : [prefix+k]);
+  const fr = flatten(JSON.parse(fs.readFileSync('settings/locales/fr.json')));
+  const en = flatten(JSON.parse(fs.readFileSync('settings/locales/en.json')));
+  const es = flatten(JSON.parse(fs.readFileSync('settings/locales/es.json')));
+  const missing = k => fr.filter(k2 => !k.includes(k2));
+  if(missing(en).length) console.log('Missing from en:', missing(en).join(', '));
+  if(missing(es).length) console.log('Missing from es:', missing(es).join(', '));
+"
+```
+Fix: add the missing keys with translations before shipping.
 
 **W9 — Hardcoded link URLs in views**
 Check: any `.server.tsx`, `.client.tsx`, or template file containing a literal `href="http`, `href="/"`, or `href="/en/` (except in edit-mode chrome helpers). Also flag plain string `src="http` for non-bundled assets. Also flag any content data with `j:linkType: "external"` pointing to a path that looks like an internal Jahia URL (e.g. `/sites/`, `/cms/`, `/en/`).
@@ -215,7 +259,7 @@ If no issues found in a category, print `✅ None`.
 
 After the report, ask: **"Would you like me to fix any of these issues?"**
 
-If yes, fix them — use the guidance from the relevant skill (`jahia-dev-define-content-type`, `jahia-dev-create-view`) and run `yarn build && yarn jahia-deploy` to push changes.
+If yes, fix them — use the guidance from the relevant skill (`jahia-cnd-author`, `jahia-dev-create-view`) and run `yarn build && yarn jahia-deploy` to push changes.
 
 ---
 

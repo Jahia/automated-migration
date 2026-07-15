@@ -28,11 +28,20 @@ function findCndFiles(dir) {
 
 function checkFile(filePath, content) {
   const issues = [];
+  // `// cnd-check-ignore(<rule>): <reason>` on the line DIRECTLY ABOVE a property
+  // suppresses that rule for that property. The reason is mandatory so every
+  // suppression is auditable in the CND itself.
+  const ignores = [];
   const lines = content.split("\n");
 
   lines.forEach((line, i) => {
     const lineNum = i + 1;
     const trimmed = line.trim();
+    const ignoreDirective = trimmed.match(/^\/\/\s*cnd-check-ignore\((\w+)\)\s*:\s*\S/);
+    if (ignoreDirective) {
+      ignores.push({ pattern: ignoreDirective[1], appliesToLine: lineNum + 1 });
+      return;
+    }
     if (trimmed.startsWith("//") || trimmed.startsWith("<")) return;
 
     // rawStringLink
@@ -95,14 +104,19 @@ function checkFile(filePath, content) {
       });
     }
 
-    // missingI18n: user-visible string without i18n
+    // missingI18n: user-visible string without i18n.
+    // Keywords are matched against the property NAME only — matching the whole
+    // line makes the `textarea` selector itself trip the "text" keyword.
+    const stringProp = trimmed.match(/^-\s+(\w+)\s+\(string(,\s*(textarea|richtext))?[,)]/);
     if (
-      /^-\s+\w+\s+\(string(,\s*(textarea|richtext))?[,)]/.test(trimmed) &&
+      stringProp &&
       !/ i18n/.test(trimmed) &&
       !/^-\s+j:/.test(trimmed) &&
-      /(title|text|label|description|subtitle|caption|alt|heading|summary|excerpt|body)/i.test(trimmed) &&
+      /(title|text|label|description|subtitle|caption|alt|heading|summary|excerpt|body)/i.test(
+        stringProp[1],
+      ) &&
       // config values are not translatable content (theme tokens: colors, font names)
-      !/^-\s+\w*(color|font|theme)/i.test(trimmed)
+      !/(color|font|theme)/i.test(stringProp[1])
     ) {
       issues.push({
         file: filePath, line: lineNum,
@@ -203,7 +217,13 @@ function checkFile(filePath, content) {
     }
   }
 
-  return issues;
+  // Drop issues explicitly suppressed by a cnd-check-ignore directive.
+  return issues.filter(
+    (issue) =>
+      !ignores.some(
+        (ignore) => ignore.pattern === issue.pattern && ignore.appliesToLine === issue.line,
+      ),
+  );
 }
 
 // Cross-file checks: a duplicate type definition, or a MODULE-defined type used in a

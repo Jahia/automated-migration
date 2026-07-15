@@ -89,10 +89,10 @@ When the last condition applies, present all options:
 🏗 Your module is taking shape! What would you like to do next?
   - Add a new component         → /jahia-dev-build-component
   - Create a content listing    → /jahia-dev-query-content
-  - Review your code for issues → /jahia-dev-review
+  - Review your code for issues → /jahia-review-code
   - Screenshot a reference site → /jahia-dev-screenshot
   - Create a new page template  → /jahia-dev-create-page-template
-  - Clean up boilerplate        → run /jahia-dev-review and look for S10
+  - Clean up boilerplate        → run /jahia-review-code and look for S10
 ```
 
 ---
@@ -118,7 +118,7 @@ Always print this at the end so the user can navigate anywhere:
 /jahia-dev-query-content         Query JCR content with JCR-SQL2 or useJCRQuery
 
 ### Quality
-/jahia-dev-review                Review code for Jahia and generic best practices
+/jahia-review-code                Review code for Jahia and generic best practices
 /jahia-dev-screenshot            Screenshot reference URL + Jahia render for visual comparison
 /jahia-dev-debug                 Debug build/deploy/runtime errors end-to-end
 ```
