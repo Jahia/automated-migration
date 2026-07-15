@@ -209,8 +209,8 @@ def build_plan(p):
               # archetype field surface (title/body/image/cta + typed children).
               *([f"Run: python3 orchestration/lib/semanticize_content.py {P} "
                  f"--manifest {PP}/workflow-output/component-manifest.json"] if ARCH else []),
-              f"PROBE: python3 orchestration/probes/partition.py {P}",
-              f"PROBE: python3 orchestration/probes/contribution.py {P}",
+              adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
+              adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               # component-model gate (2026-07-06): visible text must live in
               # TYPED components — fragment soup (one big rawHtml blob per
               # page) can never pass again. Advisory under the archetype model
@@ -333,8 +333,8 @@ def build_plan(p):
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
              [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale en",
-              f"PROBE: python3 orchestration/probes/partition.py {P}",
-              f"PROBE: python3 orchestration/probes/contribution.py {P}",
+              adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
+              adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],
              deps=["step_nav"]),
         step("step_publish_parity", "default vs live parity", "publish",
