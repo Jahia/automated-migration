@@ -9,7 +9,6 @@ import { createElement, type ReactNode } from "react";
 
 import "modern-normalize/modern-normalize.css";
 import "./global.css";
-import "./semantic.css";
 import cssManifest from "./css-manifest.json";
 import jsManifest from "./js-manifest.json";
 
@@ -35,6 +34,14 @@ export type Shell = {
   // Vision-pipeline shells embed chrome verbatim in levels and omit the flag.
   chromeAreas?: boolean;
 };
+
+// SEMANTIC (archetype) model: the chrome is contributed Jahia components —
+// a tree-driven MainNavigation + header/footer in AbsoluteAreas — so those
+// areas must ALWAYS render, even on pages that carry a fidelity shell (whose
+// captured chrome we ignore in this model). install_shell_templates flips this
+// to true for the archetype model; the fidelity model keeps it false (there the
+// source chrome is embedded in the shell and shell.chromeAreas gates the areas).
+const CHROME_ALWAYS = $CHROME_ALWAYS;
 
 /** Balanced sibling markup, DOM-transparent for layout (display:contents). */
 const Raw = ({ html }: { html?: string }) =>
@@ -133,6 +140,13 @@ export const Layout = ({
               'iframe[name="__tcfapiLocator"],iframe[name="__uspapiLocator"]{display:none !important}',
           }}
         />
+        {/* module archetype layout CSS — ALWAYS linked, and FIRST so the source
+            site's captured stylesheets (rendered below in shell mode) override
+            on ties. The shell-head branch emits only the SOURCE's <link>s, so
+            the module's own bundled CSS is not injected there; without this
+            every ArchetypeSection wrapper (hero cover, card grid, nav bar…)
+            renders unstyled. Shipped as a static asset by install_shell_templates. */}
+        <link rel="stylesheet" href={buildModuleFileUrl("static/semantic.css")} />
         {shell?.head
           ? // per-page source head, in source order (Drupal aggregates per page;
             // drupalSettings JSON + behaviors init live here)
@@ -176,10 +190,16 @@ export const Layout = ({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body {...domAttrs(shell?.bodyAttrs)}>
-        {(!shell || shell.chromeAreas) && <AbsoluteArea name="header" parent={homePage} />}
-        {(!shell || shell.chromeAreas) && <AbsoluteArea name="nav" parent={homePage} />}
+        {(CHROME_ALWAYS || !shell || shell.chromeAreas) && (
+          <AbsoluteArea name="header" parent={homePage} />
+        )}
+        {(CHROME_ALWAYS || !shell || shell.chromeAreas) && (
+          <AbsoluteArea name="nav" parent={homePage} />
+        )}
         {body}
-        {(!shell || shell.chromeAreas) && <AbsoluteArea name="footer" parent={homePage} />}
+        {(CHROME_ALWAYS || !shell || shell.chromeAreas) && (
+          <AbsoluteArea name="footer" parent={homePage} />
+        )}
       </body>
     </html>
   );

@@ -142,6 +142,42 @@ def main():
                 continue
         created += 1
 
+    # ── pass 1b: place the cross-cutting CHROME singletons (tree-driven nav,
+    # header, footer) into their AbsoluteAreas under /home. The content loader
+    # skips chrome by design ("populated separately"); THIS is separately. Each
+    # is a single node whose view reads the page tree — no own content needed. ──
+    def exists_node(p):
+        try:
+            r = m.get(p, locale=locale)
+            return not (isinstance(r, dict) and r.get("error"))
+        except Exception:
+            return False
+
+    try:
+        manifest = json.load(open(f"projects/{project}/workflow-output/component-manifest.json"))
+    except (FileNotFoundError, ValueError):
+        manifest = {}
+    for c in (manifest.get("crossCutting") or []):
+        nt = c.get("nodeType")
+        area = c.get("area") or c.get("chrome")
+        if not nt or not area or nt.endswith(":rawHtml"):
+            continue
+        area_path = f"{home}/{area}"
+        node_path = f"{area_path}/{nt.split(':')[-1]}"
+        if exists_node(node_path):
+            continue
+        if dry:
+            print(f"[dry] place chrome {node_path} ({nt})")
+            continue
+        try:
+            if not exists_node(area_path):
+                m.create(home, "jnt:contentList", {}, name=area, locale=locale)
+            m.create(area_path, nt, {}, name=nt.split(":")[-1], locale=locale)
+            print(f"  + chrome {node_path} ({nt})")
+            created += 1
+        except Exception as e:
+            print(f"  ! chrome {nt}: {str(e)[:140]}", file=sys.stderr)
+
     # ── pass 2: L1 order under /home == sitemap L1 order ──
     l1 = [p for p in paths if "/" not in p]
     if not dry and l1:

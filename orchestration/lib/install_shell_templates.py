@@ -44,16 +44,35 @@ def main():
 
     plan = [
         ("Layout.tsx", f"{module}/src/templates/Layout.tsx"),
-        ("semantic.css", f"{module}/src/templates/semantic.css"),
+        # semantic.css is a STATIC asset (served at /modules/<m>/static/semantic.css)
+        # and explicitly linked by Layout — NOT a bundled import, because the
+        # shell-head render path emits only the source's captured <link>s and
+        # would otherwise drop the module's own layout CSS.
+        ("semantic.css", f"{module}/static/semantic.css"),
         (os.path.join("Page", "basic.server.tsx"), f"{module}/src/templates/Page/basic.server.tsx"),
         ("rawRoot.ts", f"{module}/src/components/rawRoot.ts"),
         ("skeletonRender.ts", f"{module}/src/components/skeletonRender.ts"),
         (os.path.join("RawHtml", "default.server.tsx"), f"{module}/src/components/RawHtml/default.server.tsx"),
         (os.path.join("MainNavigation", "default.server.tsx"), f"{module}/src/components/MainNavigation/default.server.tsx"),
     ]
+    # Detect the model early: the archetype (semantic) model renders its chrome
+    # from contributed Jahia components (tree-driven nav + header/footer in
+    # AbsoluteAreas), so the Layout must ALWAYS render those areas — flip
+    # $CHROME_ALWAYS on. The fidelity model embeds source chrome in the shell,
+    # so it stays gated by shell.chromeAreas (false).
+    is_archetype = False
+    if a.manifest and os.path.isfile(a.manifest):
+        try:
+            is_archetype = json.load(open(a.manifest)).get("model") == "archetype"
+        except (ValueError, OSError):
+            is_archetype = False
+    chrome_always = "true" if is_archetype else "false"
+
     for rel, dst in plan:
         src = os.path.join(SRC, rel)
-        content = open(src, encoding="utf-8").read().replace("$NS", a.ns)
+        content = (open(src, encoding="utf-8").read()
+                   .replace("$NS", a.ns)
+                   .replace("$CHROME_ALWAYS", chrome_always))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         with open(dst, "w", encoding="utf-8") as f:
             f.write(content)
