@@ -179,6 +179,10 @@ def _semanticize_instance(inst, node, surf):
     for k, v in list(fields.items()):
         if isinstance(v, str) and "<" in v:
             fields[k] = _clean_html(v)
+        # no empty-string keys: the loader skips them but the editor-surface
+        # gate counts KEYS — an '' field is a phantom form expectation
+        if isinstance(fields.get(k), str) and not fields[k].strip():
+            del fields[k]
     if inst.get("skeleton"):
         out["skeleton"] = _clean_html(inst["skeleton"])
     if not fields.get("title"):
@@ -211,8 +215,15 @@ def _semanticize_instance(inst, node, surf):
                 h_marked.append("{{f:title}}")
                 out["skeleton"] = sk.replace(marker, str(h_marked) + marker, 1)
                 h.decompose()
-                fields[k] = "".join(str(c) for c in
-                                    (soup.body.children if soup.body else [])).strip()
+                rest = "".join(str(c) for c in
+                               (soup.body.children if soup.body else [])).strip()
+                if rest:
+                    fields[k] = rest
+                else:
+                    # the run WAS the heading: no empty '' key left behind
+                    # (the editor-surface gate counts keys, the loader skips
+                    # empty values — an '' body is a phantom expectation)
+                    del fields[k]
             fields["title"] = t
             break
         if not fields.get("title"):
