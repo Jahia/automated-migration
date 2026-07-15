@@ -273,6 +273,77 @@ def archetype_labels(mixns):
     return out
 
 
+# ── region -> archetype classifier ─────────────────────────────────────────
+# Deterministic keyword+structure rules mapping a segmentation region (vision or
+# adjudicated NAME + kind + container/mainResource signals) onto ONE archetype key.
+# Order = priority (most specific first). This is what collapses 40+ ad-hoc region
+# names into the bounded library; adjudication may override by naming a region
+# after an archetype key directly. Returns (key, confidence) — confidence 'low'
+# means the fallback fired and the region should surface for review.
+_CLASS_RULES = [
+    # (archetype key, [keywords matched against the normalized name tokens])
+    ("mainNavigation", ["nav", "navigation", "menu", "navbar"]),
+    ("footer",         ["footer"]),
+    ("siteHeader",     ["header", "masthead", "topbar"]),
+    ("event",          ["event", "agenda", "webinar", "calendar"]),
+    ("article",        ["article", "news", "post", "press", "story", "blog", "publication"]),
+    ("accordion",      ["accordion", "faq", "toggle", "collapsible"]),
+    ("cardGrid",       ["carousel", "slider", "grid", "cards", "gallery", "logos",
+                        "logowall", "tiles", "industries", "solutions"]),
+    ("jcrQuery",       ["listing", "latest", "query", "results", "related", "recommendation"]),
+    ("statCallout",    ["stat", "stats", "kpi", "metric", "counter", "number", "figures"]),
+    ("hero",           ["hero", "jumbotron"]),
+    ("banner",         ["banner", "cta", "call-to-action", "call to action", "callout",
+                        "promo", "alert", "notice"]),
+    ("mediaText",      ["editorial", "illustrated", "media", "feature", "split",
+                        "two-column", "content-row", "content-block", "teaser",
+                        "shop", "app", "vpost", "receiving", "sending"]),
+    ("richTextSection", ["intro", "introduction", "text", "rich-text", "information",
+                         "steps", "instructions", "ordered-list", "additional",
+                         "section-text", "content", "details"]),
+]
+
+
+def classify_region(name, kind="component", is_container=False, needs_mr=False):
+    """Map a region -> (archetype_key, confidence). Adjudication that already named
+    a region after an archetype key wins immediately."""
+    key_norm = norm_name(name)
+    if key_norm in ARCHETYPES:                 # adjudication snapped to a key
+        return key_norm, "exact"
+    toks = set(key_norm.split("-"))
+    hay = " " + key_norm.replace("-", " ") + " "
+
+    if kind == "chrome":
+        if toks & {"nav", "navigation", "menu"}:
+            return "mainNavigation", "chrome"
+        if "footer" in toks:
+            return "footer", "chrome"
+        return "siteHeader", "chrome"
+    if needs_mr:
+        return ("event" if toks & {"event", "agenda", "webinar"} else "article"), "mainResource"
+
+    _CONTAINER_OK = ("cardGrid", "accordion", "jcrQuery", "section", "cols",
+                     "footer", "article", "event")
+    for akey, kws in _CLASS_RULES:
+        if any((" " + kw.replace("-", " ") + " ") in hay or kw in toks for kw in kws):
+            # a container region must resolve to a container-capable archetype:
+            # genuine grids/carousels already matched cardGrid via keyword; a
+            # container that matched a NON-container archetype (mediaText/banner/
+            # hero) is a layout SECTION (2-col split, "In The Shop"), not cards.
+            if is_container and akey not in _CONTAINER_OK:
+                return "section", "container"
+            return akey, "keyword"
+    # structural fallbacks — never a new one-off type
+    if is_container:
+        return "section", "low"
+    return "richTextSection", "low"
+
+
+def norm_name(name):  # local shim (segment2manifest has its own; keep module self-contained)
+    import re as _re
+    return _re.sub(r"[^A-Za-z0-9]+", "-", (name or "").strip().lower()).strip("-")
+
+
 # archetype vocabulary for the classifier (segment2manifest / adjudication snap-to)
 ARCHETYPE_KEYS = sorted(ARCHETYPES)
 
