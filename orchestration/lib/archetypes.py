@@ -54,16 +54,16 @@ SHARED_MIXINS = {
         },
     },
     "media": {
+        # No imageAlt field: the DAM image node's own jcr:title IS the alt text
+        # (check-cnd redundantImageAlt rule) — the view reads
+        # image.getPropertyAsString("jcr:title") for alt.
         "fields": [
             f("image", "weakreference, picker[type='image']"),          # < jmix:image (emitted by cnd)
-            f("imageAlt", "string", i18n=True),
         ],
         "labels": {
             "": "Image",
             "image": "Image",
-            "image.ui.tooltip": "Image selected from the media library (DAM).",
-            "imageAlt": "Alt Text",
-            "imageAlt.ui.tooltip": "Short description of the image for accessibility and SEO.",
+            "image.ui.tooltip": "Image selected from the media library (DAM); its title is used as alt text.",
         },
     },
     "seo": {
@@ -128,7 +128,8 @@ ARCHETYPES = {
                             "mixins": [], "fields": [f("body", RICHTEXT, i18n=True)]},
                   "fields": [], "views": ["default"]},
     # ── layout ────────────────────────────────────────────────────────────
-    "section": {"name": "Section", "title": True, "mixins": [], "layoutType": True,
+    "section": {"name": "Layout Section", "node": "layoutSection", "title": True,
+                "mixins": [], "layoutType": True,
                 "contentList": True, "fields": [],
                 "layout": {"name": "arrangement", "default": "stack", "values": ["stack", "row"]},
                 "views": ["default"]},
@@ -142,7 +143,7 @@ ARCHETYPES = {
                             f("sortBy", "string, choicelist[resourceBundle]")],
                  "subNodesView": True, "views": ["default", "grid", "inline"]},
     # ── structured content (mainResource) ────────────────────────────────
-    "article": {"name": "Article", "title": True, "mainResource": True,
+    "article": {"name": "Article", "node": "newsArticle", "title": True, "mainResource": True,
                 "mixins": ["media", "seo"], "taxonomy": True,
                 "fields": [f("body", RICHTEXT, i18n=True), f("date", "date, DatePicker")],
                 "views": ["default", "compact", "cm", "featured", "fullPage"]},
@@ -180,6 +181,13 @@ def _child_component(child, ns, mixns):
     }
 
 
+def node_local(key):
+    """Local nodeType name for an archetype key — the key itself, unless the key
+    is a bare HTML tag (section/article) that the authoring naming gate rejects,
+    in which case an editorial `node` override is used."""
+    return ARCHETYPES[key].get("node", key)
+
+
 def to_manifest_component(key, ns, mixns, name_override=None, covers_roles=None):
     """Build one manifest component for the given archetype key.
 
@@ -209,7 +217,7 @@ def to_manifest_component(key, ns, mixns, name_override=None, covers_roles=None)
         sup += ["jmix:categorized", "jmix:tagged"]
     comp = {
         "name": name_override or a["name"],
-        "nodeType": f"{ns}:{key}",
+        "nodeType": f"{ns}:{node_local(key)}",
         "archetype": key,
         "coversRoles": covers_roles or [key],
         "supertypes": sup,

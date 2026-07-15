@@ -184,9 +184,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("project")
     ap.add_argument("--ns", required=True)
+    ap.add_argument("--mixns")
+    ap.add_argument("--archetypes", action="store_true",
+                    help="SEMANTIC model (redesign §10): classify each region onto the "
+                         "bounded archetype library + compose reusable mixins, instead of "
+                         "one skeleton type per region name")
     ap.add_argument("--out")
     a = ap.parse_args()
     ns = a.ns
+    mixns = a.mixns or f"{ns}mix"
     wo = f"projects/{a.project}/workflow-output"
     seg_dir = f"{wo}/segment"
     if not os.path.isdir(seg_dir):
@@ -305,7 +311,60 @@ def main():
 
     components, xcut = [], []
     instance_type_map = {}
-    for key, e in sorted(agg.items(), key=lambda kv: -kv[1]["frequency"]):
+
+    # ── SEMANTIC archetype model (redesign §10) ──────────────────────────
+    # Classify each aggregated region onto the bounded archetype library and
+    # aggregate BY archetype nodeType (many regions -> one semantic type), instead
+    # of minting a skeleton type per region name. Types compose reusable mixins
+    # (cta/media/seo); cnd_emit detects manifest["model"]=="archetype" and emits
+    # the semantic CND. Flag-gated so the skeleton pipeline stays the default until
+    # the semantic views + content mapping land (tasks #24 views, #25).
+    if a.archetypes:
+        import archetypes as ARCH
+        by_arch = {}   # archetype key -> aggregate across regions
+        low = []
+        for key, e in agg.items():
+            is_cont = e["kind"] == "container" or bool(e.get("childShapes"))
+            needs_mr = any(hr in detail for hr in e["heurRoles"])
+            akey, conf = ARCH.classify_region(e["name"], e.get("kind", "component"),
+                                              is_container=is_cont, needs_mr=needs_mr)
+            b = by_arch.setdefault(akey, {"covers": set(), "freq": 0, "pages": set(),
+                                          "container": False, "mr": False})
+            b["covers"].add(key)
+            b["covers"].update(e.get("aliases", ()))
+            b["freq"] += e["frequency"]
+            b["pages"].update(e["pages"])
+            b["container"] |= is_cont
+            b["mr"] |= needs_mr
+            if conf == "low":
+                low.append(e["name"])
+            node = f"{ns}:{ARCH.node_local(akey)}"
+            instance_type_map[key.lower()] = node
+            for alias in e.get("aliases", ()):
+                instance_type_map.setdefault(alias.lower(), node)
+            for hr in e["heurRoles"]:
+                instance_type_map.setdefault(hr.lower(), node)
+                promote_roles.add(hr)
+        for akey, b in sorted(by_arch.items(), key=lambda kv: -kv[1]["freq"]):
+            comp = ARCH.to_manifest_component(akey, ns, mixns,
+                                              covers_roles=sorted(b["covers"]))
+            comp["frequency"] = b["freq"]
+            comp["pages"] = sorted(b["pages"])
+            if comp.get("chrome"):
+                xcut.append({"name": comp["name"], "nodeType": comp["nodeType"],
+                             "area": comp["chrome"], "fields": comp["fields"],
+                             "coversRoles": comp["coversRoles"],
+                             "supertypes": comp["supertypes"], "mixins": comp["mixins"],
+                             "treeDriven": comp.get("treeDriven", False),
+                             "childType": comp.get("childType")})
+            else:
+                components.append(comp)
+        if low:
+            print(f"  [archetype] {len(low)} low-confidence region(s) -> review: "
+                  + ", ".join(low[:8]), file=sys.stderr)
+
+    for key, e in ([] if a.archetypes else
+                   sorted(agg.items(), key=lambda kv: -kv[1]["frequency"])):
         # dominant shape across instances
         from collections import Counter
         dom_shape = list(Counter(e["shapes"]).most_common(1)[0][0]) if e["shapes"] else []
@@ -378,6 +437,8 @@ def main():
 
     manifest = {
         "generatedFrom": "segment2manifest.py (vision naming authority, deterministic re-extraction)",
+        "model": "archetype" if a.archetypes else "skeleton",
+        "mixns": mixns,
         "crossCutting": xcut, "components": components, "templates": [],
         "typeCount": len(components), "instanceTypeMap": instance_type_map,
         "passthroughType": f"{ns}:rawHtml",

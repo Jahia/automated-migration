@@ -334,6 +334,88 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
     ]
 
 
+def type_block_semantic(comp, ns, mixns):
+    """SEMANTIC archetype emission (redesign §10): the composed supertype stack
+    (base + mix:title + cta/media/seo mixins + mainResource/list/taxonomy) is
+    taken VERBATIM from the manifest; only the archetype's OWN fields are emitted
+    inline (mixin-provided image/cta/seo fields are NEVER repeated — they live in
+    the shared mixins). Plus the layout choicelist + a typed childType. No
+    skeleton, no contrib slots — this is the authorable model."""
+    node = comp["nodeType"]
+    sup = comp.get("supertypes") or _supertypes(comp.get("fields", []), mixns,
+                                                comp.get("needsMainResource"))
+    head = f"[{node}] > {', '.join(sup)}"
+    if comp.get("orderable"):
+        head += " orderable"
+    lines = [head]
+    for f in comp.get("fields", []) or []:
+        lines.append(field_line(f))
+    lp = comp.get("layoutProperty")
+    if isinstance(lp, dict):
+        ll = layout_line(lp)
+        if ll:
+            lines.append(ll)
+    child_text = ""
+    child = comp.get("childType")
+    if isinstance(child, dict) and child.get("nodeType"):
+        lines.append(f"  + * ({child['nodeType']})")
+        csup = child.get("supertypes") or _supertypes(child.get("fields", []), mixns)
+        clines = [f"[{child['nodeType']}] > {', '.join(csup)}"]
+        for cf in child.get("fields", []) or []:
+            clines.append(field_line(cf))
+        child_text = "\n".join(clines)
+    elif comp.get("isContainer"):
+        lines.append(f"  + * ({mixns}:component)")
+    return "\n".join(lines), child_text
+
+
+def emit_semantic(m, ns, mixns, proj):
+    """Assemble the whole CND for the archetype model (manifest['model']=='archetype')."""
+    import archetypes as ARCH
+    header = [
+        "<jnt = 'http://www.jahia.org/jahia/nt/1.0'>",
+        "<jmix = 'http://www.jahia.org/jahia/mix/1.0'>",
+        "<mix = 'http://www.jcp.org/jcr/mix/1.0'>",
+        f"<{ns} = 'https://jahia.com/{proj}/nt/1.0'>",
+        f"<{mixns} = 'https://jahia.com/{proj}/mix/1.0'>",
+        "",
+        "// base marker mixins (picker grouping + droppability)",
+        *ARCH.base_mixin_cnd(mixns),
+        "",
+        "// reusable functional mixins — one definition each, composed by archetypes",
+        *ARCH.shared_mixin_cnd(mixns),
+        "",
+        "// passthrough: verbatim markup for any region no archetype covers",
+        f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
+        "  - html (string, textarea)",
+        f"  + * ({mixns}:component)",
+        "",
+    ]
+    body, children, view_plans = [], [], []
+    view_plans.append({"component": "Raw HTML (passthrough)", "nodeType": f"{ns}:rawHtml",
+                       "views": ["default.server.tsx"]})
+    for c in (m.get("crossCutting", []) or []):
+        blk, child = type_block_semantic(c, ns, mixns)
+        body.append(f"// cross-cutting (AbsoluteArea: {c.get('area', '?')})")
+        body.append(blk + "\n")
+        if child:
+            children.append(child + "\n")
+        view_plans.append(views_for(c))
+    for c in (m.get("components", []) or []):
+        blk, child = type_block_semantic(c, ns, mixns)
+        tags = [t for t, on in (("container", c.get("isContainer")),
+                                ("mainResource", c.get("needsMainResource")),
+                                ("layout:" + (c.get("layoutProperty") or {}).get("name", ""),
+                                 c.get("layoutProperty"))) if on]
+        body.append(f"// {c['name']} [{c.get('archetype')}] covers={c.get('coversRoles')} {tags}")
+        body.append(blk + "\n")
+        if child:
+            children.append(child + "\n")
+        view_plans.append(views_for(c))
+    cnd = "\n".join(header) + "\n".join(body) + "\n// ── child types ──\n" + "\n".join(children)
+    return cnd, view_plans
+
+
 def views_for(comp):
     """Deterministic view plan for a component."""
     node = comp["nodeType"]
@@ -364,6 +446,24 @@ def main():
 
     m = json.load(open(args.manifest))
     ns, mixns, proj = args.ns, args.mixns, args.project
+
+    # SEMANTIC archetype model (redesign §10): composed mixins + semantic fields,
+    # no skeleton/contrib slots. Auto-detected from the manifest so the skeleton
+    # path stays the default for skeleton manifests.
+    if m.get("model") == "archetype":
+        cnd, view_plans = emit_semantic(m, ns, mixns, proj)
+        if args.out_cnd:
+            open(args.out_cnd, "w").write(cnd)
+        else:
+            print(cnd)
+        if args.out_views:
+            json.dump({"project": proj, "namespace": ns, "views": view_plans},
+                      open(args.out_views, "w"), indent=2, ensure_ascii=False)
+        nt = len(m.get("components", []) or []) + len(m.get("crossCutting", []) or [])
+        print(f"[cnd_emit] SEMANTIC model: {nt} archetype types -> "
+              f"{args.out_cnd or '(stdout)'}", file=sys.stderr)
+        return
+
     stats = None
     if args.content_load:
         stats = run_stats_from_content_load(args.content_load, m)
