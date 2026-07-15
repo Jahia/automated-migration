@@ -351,6 +351,10 @@ def build_plan(p):
               # blocking under ARCH: the page's main area has content children in
               # LIVE (the engine integrity belt does the deeper page-tree diff).
               *([f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"] if ARCH else []),
+              # blocking under ARCH: every rendered page (both workspaces) free
+              # of source junk — cookie consent, SPA islands, framework attrs,
+              # source nav, shell blob nodes (2026-07-15 SingPost audit gap).
+              *([f"PROBE: python3 orchestration/probes/clean-render.py {SITE} --model archetype"] if ARCH else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],

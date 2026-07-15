@@ -141,13 +141,16 @@ export const Layout = ({
             are injected in-flow by the source site's consent JS; the consent
             platform's own (external, offline-blocked) CSS normally hides them.
             Without it they render as ~304x154 white boxes that shift the whole
-            page (ground-truth Δh). display:none removes them from flow. */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html:
-              'iframe[name="__tcfapiLocator"],iframe[name="__uspapiLocator"]{display:none !important}',
-          }}
-        />
+            page (ground-truth Δh). display:none removes them from flow.
+            Archetype model: no consent JS runs at all — rule not needed. */}
+        {!CHROME_ALWAYS && (
+          <style
+            dangerouslySetInnerHTML={{
+              __html:
+                'iframe[name="__tcfapiLocator"],iframe[name="__uspapiLocator"]{display:none !important}',
+            }}
+          />
+        )}
         {/* module archetype layout CSS — ALWAYS linked, and FIRST so the source
             site's captured stylesheets (rendered below in shell mode) override
             on ties. The shell-head branch emits only the SOURCE's <link>s, so
@@ -191,7 +194,11 @@ export const Layout = ({
           : cssManifest.map((css) => (
               <AddResources key={css} type="css" resources={buildModuleFileUrl(css)} />
             ))}
-        {!shell?.head &&
+        {/* archetype model: NEVER load the source SPA bundles — they rebuild the
+            source's own chrome (mega-menu, cookie consent, notification bar) on
+            the client, exactly the junk this model replaces with Jahia chrome. */}
+        {!CHROME_ALWAYS &&
+          !shell?.head &&
           jsManifest.map((s) => (
             <script
               key={s.src}

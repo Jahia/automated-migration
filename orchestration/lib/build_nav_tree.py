@@ -93,6 +93,16 @@ def main():
     if not paths:
         paths = inventory_paths(project)
         src = "crawl URL hierarchy"
+        # PERSIST the derived hierarchy as the project sitemap: create_pages and
+        # load_content resolve page paths THROUGH orchestration/sitemaps/<p>.txt
+        # (same convention) — without it they compute FLAT paths and every write
+        # to a moved page fails with "Parent path does not exist" (observed).
+        if paths and not dry:
+            os.makedirs("orchestration/sitemaps", exist_ok=True)
+            with open(f"orchestration/sitemaps/{project}.txt", "w") as f:
+                f.write("# derived from the crawl URL hierarchy by build_nav_tree\n")
+                f.write("\n".join(paths) + "\n")
+            print(f"  ~ persisted orchestration/sitemaps/{project}.txt")
     print(f"[build_nav_tree] {len(paths)} nested path(s) from the {src}")
     created = moved = published = 0
 

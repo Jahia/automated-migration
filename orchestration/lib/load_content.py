@@ -1070,6 +1070,19 @@ class Loader:
                     created_path[idx] = cpath
                     created += 1
                     inst_created += 1
+                    # archetype model: a library container may ALSO carry semantic
+                    # fields (title/body surfaced from its skeleton — the hero
+                    # heading lived there). Apply them exactly like a promoted
+                    # instance (mix:title + contrib slot mixins); the plain
+                    # skeleton model puts nothing in fields, so this is a no-op there.
+                    if inst.get("fields"):
+                        try:
+                            _, lmix, lpost = self.promoted_props(inst, self.props_of(nt), nt)
+                            if lmix or lpost:
+                                self.apply_payload(cpath, lmix, lpost, inst, nt)
+                        except Exception as e:
+                            print(f"    ! container fields {name}: {str(e)[:120]}",
+                                  file=sys.stderr)
                     print(f"  + {cpath}  ({nt})")
                 else:
                     failed += 1

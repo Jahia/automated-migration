@@ -30,6 +30,32 @@ from bs4 import BeautifulSoup  # noqa: E402
 
 _HEADING = ["h1", "h2", "h3", "h4"]
 
+# Source-framework artifacts have NO place in contributed content: astro island
+# wrappers/slots are unwrapped (keeping their children), astro/framework state
+# scripts are dropped, and data-astro-*/framework attrs are stripped from every
+# element. Editors must see clean semantic HTML, not transcription debris —
+# and the debris is what kept re-hydrating the source SPA chrome.
+_JUNK_UNWRAP = ("astro-island", "astro-slot")
+_JUNK_DROP = ("astro-dev-toolbar", "template", "script", "noscript")
+
+
+def _clean_html(html):
+    """Strip framework transcription artifacts from a content HTML string."""
+    if not html or "<" not in html:
+        return html
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup.find_all(_JUNK_DROP):
+        tag.decompose()
+    for tag in soup.find_all(_JUNK_UNWRAP):
+        tag.unwrap()
+    for tag in soup.find_all(True):
+        for attr in [a for a in tag.attrs
+                     if a.startswith("data-astro") or a in ("renderer-url", "uid",
+                                                            "client", "opts", "props",
+                                                            "component-url", "component-export")]:
+            del tag.attrs[attr]
+    return "".join(str(c) for c in (soup.body.children if soup.body else [])).strip()
+
 
 def _node_field_surface(manifest):
     """nodeType -> {'title':bool, 'body':bool, 'media':bool, 'cta':bool, 'child':nodeType|None,
@@ -83,6 +109,26 @@ def _split_title_body(fields):
     return title[:250], body
 
 
+def _split_skeleton(skeleton):
+    """Fallback title/body from the instance's SKELETON markup (used when the
+    lift produced no body runs — observed: whole sections promoted with empty
+    fields but a full skeleton). {{child:N}} markers are removed (children are
+    separate instances) and the markup is cleaned of framework artifacts."""
+    html = _clean_html(re.sub(r"\{\{child:\d+\}\}", "", skeleton or ""))
+    if not html:
+        return "", ""
+    soup = BeautifulSoup(html, "lxml")
+    title = ""
+    for tag in _HEADING:
+        h = soup.find(tag)
+        if h and h.get_text(strip=True):
+            title = h.get_text(" ", strip=True)
+            h.decompose()
+            break
+    body = "".join(str(c) for c in (soup.body.children if soup.body else [])).strip()
+    return title[:250], body
+
+
 def _semanticize_instance(inst, node, surf):
     """Rewrite one skeleton instance to the archetype field surface."""
     s = surf.get(node) or {}
@@ -91,6 +137,9 @@ def _semanticize_instance(inst, node, surf):
     if inst.get("parent") is not None:
         out["parent"] = inst["parent"]
     title, body = _split_title_body(fields)
+    body = _clean_html(body)
+    if not title and not body and inst.get("skeleton"):
+        title, body = _split_skeleton(inst["skeleton"])
     if s.get("title") and title:
         out["fields"]["title"] = title
     if s.get("body") and body:
@@ -131,6 +180,13 @@ def main():
     itm = {k.lower(): v for k, v in (manifest.get("instanceTypeMap") or {}).items()}
     surf = _node_field_surface(manifest)
     passthrough = manifest.get("passthroughType")
+    # archetype container/child lookups for the library-instance remap
+    child_of = {c["nodeType"]: c["childType"]["nodeType"]
+                for c in (manifest.get("components") or [])
+                if isinstance(c.get("childType"), dict) and c["childType"].get("nodeType")}
+    grid_nt = (next((c["nodeType"] for c in (manifest.get("components") or [])
+                     if c.get("archetype") == "cardGrid"), None)
+               or next(iter(child_of), None))  # any container that HAS a childType
 
     # The skeleton content-load carries a large passthrough tail (whitespace,
     # wrapper markup, chrome fragments) needed for BYTE fidelity — the semantic
@@ -150,19 +206,85 @@ def main():
 
     n_sem = n_pass = n_drop = 0
     for page in data.get("pages", {}).values():
+        # ARCHETYPE model: the fidelity `shell` spec (full source body around
+        # <main> — nav/cookie-consent/notification chrome + SPA state) is NOT
+        # used by the semantic Layout and must not become a 100KB rawHtml blob
+        # node editors see in jContent. Drop it; the Layout falls back to the
+        # css-manifest for source styling (scripts intentionally excluded).
+        page.pop("shell", None)
         transformed = []                       # (keep: bool, instance | None)
         for inst in page.get("instances", []):
             if inst.get("area"):
-                transformed.append((True, inst))          # chrome singleton — untouched
+                # ARCHETYPE model: captured source chrome (rawHtml routed to an
+                # absolute area — the source's own header/nav/footer markup with
+                # its SPA islands) is REPLACED by contributed Jahia chrome
+                # (build_nav_tree places mainNavigation/siteHeader/footer), so
+                # passthrough-typed area captures are dropped. A semantic-typed
+                # area singleton (none today) would still pass through.
+                node = itm.get((inst.get("type") or "").lower())
+                if node is None or node == passthrough:
+                    transformed.append((False, None))
+                    n_drop += 1
+                else:
+                    transformed.append((True, inst))
                 continue
             node = itm.get((inst.get("type") or "").lower())
+            # LIBRARY instances (P2.5): containers with a libraryPlan and their
+            # typed atoms (own nodeType, structured atomTitle/href/imageFile)
+            # are created natively by load_content's library path as REAL typed
+            # nodes — exactly the semantic model for card grids. Pass them
+            # through intact (losing these keys is what gutted the content),
+            # only cleaning embedded markup of framework artifacts.
+            if inst.get("libraryAtom") or inst.get("libraryPlan"):
+                for k in ("imgOrig", "skeleton", "skeletonOrig"):
+                    if inst.get(k):
+                        inst[k] = _clean_html(inst[k])
+                for k, v in list((inst.get("fields") or {}).items()):
+                    if isinstance(v, str) and "<" in v:
+                        inst["fields"][k] = _clean_html(v)
+                # remap SKELETON-era library nodeTypes (sgp:card/logoWall/…)
+                # onto the deployed ARCHETYPE set: containers via the instance
+                # type map (fallback: the cardGrid archetype), atoms via the
+                # mapped container's manifest childType. Unknown node types
+                # were the #1 library-create failure (observed live).
+                if inst.get("libraryPlan"):
+                    inst["nodeType"] = (itm.get((inst.get("type") or "").lower())
+                                        or grid_nt or inst.get("nodeType"))
+                    # the container's OWN text (heading + inline markup around
+                    # the {{child}} markers — the hero lived there) is invisible
+                    # to the semantic views inside the skeleton prop: surface it
+                    # as title/body fields so the archetype view renders it.
+                    f = inst.setdefault("fields", {})
+                    if not f.get("title") and not f.get("body") and inst.get("skeleton"):
+                        t, b = _split_skeleton(inst["skeleton"])
+                        if t:
+                            f["title"] = t
+                        if b and len(_visible(b)) >= MIN_VIS:
+                            f["body"] = b
+                elif inst.get("libraryAtom"):
+                    par = page["instances"][inst["parent"]] if inst.get("parent") is not None else None
+                    par_nt = (itm.get((par.get("type") or "").lower())
+                              if par else None) or grid_nt
+                    inst["nodeType"] = child_of.get(par_nt) or inst.get("nodeType")
+                transformed.append((True, inst))
+                n_sem += 1
+                continue
             typed = (inst.get("promoted") or inst.get("skeleton")) and node and node != passthrough
             if typed:
                 transformed.append((True, _semanticize_instance(inst, node, surf)))
                 n_sem += 1
-            elif len(_visible((inst.get("fields") or {}).get("html", ""))) >= MIN_VIS:
+                continue
+            # untyped: keep substantial verbatim content (fields.html, or for a
+            # promoted passthrough WRAPPER its skeleton minus {{child}} markers —
+            # inline markup between markers is real content, dropping it lost
+            # the hero). Whitespace/chrome fragments still drop below MIN_VIS.
+            html = (inst.get("fields") or {}).get("html", "")
+            if not _visible(html) and inst.get("skeleton"):
+                html = re.sub(r"\{\{child:\d+\}\}", "", inst["skeleton"])
+            html = _clean_html(html) if html else ""
+            if len(_visible(html)) >= MIN_VIS:
                 transformed.append((True, {"type": "rawHtml", "passthrough": True,
-                                           "fields": {"html": (inst.get("fields") or {}).get("html", "")}}))
+                                           "fields": {"html": html}}))
                 n_pass += 1
             else:
                 transformed.append((False, None))         # whitespace/markup/chrome — DROP
@@ -176,6 +298,11 @@ def main():
         for ins in kept:
             if ins.get("parent") is not None:
                 ins["parent"] = remap.get(ins["parent"])   # None if the wrapper was dropped
+                # a rawHtml passthrough declares no child nodes — a typed child
+                # nesting under it is a guaranteed ConstraintViolation (observed
+                # live); it becomes a top-level sibling instead.
+                if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
+                    ins["parent"] = None
         page["instances"] = kept
 
     data["adapter"] = "semantic"
