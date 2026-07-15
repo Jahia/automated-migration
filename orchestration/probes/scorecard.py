@@ -45,13 +45,16 @@ def main():
 
     # ── pixel (groundtruth) ────────────────────────────────────────────────
     gt = load(f"{wo}/groundtruth/groundtruth.json", {})
-    results = gt.get("results") or {}
+    results = gt.get("results") or []
+    if isinstance(results, dict):   # tolerate either shape
+        results = [{"slug": k, **(v if isinstance(v, dict) else {})}
+                   for k, v in results.items()]
     pixel = {}
-    for slug, e in (results.items() if isinstance(results, dict) else []):
-        score = e.get("score") if isinstance(e, dict) else None
-        if score is None and isinstance(e, dict):
-            score = e.get("similarity") or e.get("pct")
-        pixel[slug] = round(float(score), 1) if score is not None else None
+    for e in results:
+        if not isinstance(e, dict):
+            continue
+        score = e.get("fidelity", e.get("score", e.get("similarity")))
+        pixel[e.get("slug", "?")] = round(float(score), 1) if score is not None else None
     scores = [v for v in pixel.values() if v is not None]
     pixel_mean = round(sum(scores) / len(scores), 1) if scores else None
     if pixel_mean is None:
@@ -89,16 +92,20 @@ def main():
         except Exception as e:
             h = ""
             problems.append(f"ia: home render fetch failed: {str(e)[:80]}")
-        m = re.search(r'<ul class="main-navigation__bar">(.*?)</ul>\s*</nav>', h, re.S) \
-            or re.search(r'<nav class="main-navigation".*?</nav>', h, re.S)
+        # nesting-aware L1 extraction (regex stripping broke on nested L2/L3
+        # <ul>s and mis-promoted submenu links to L1 — observed live)
         rendered_l1 = []
-        if m:
-            # L1 links only: strip dropdown submenus first
-            bar = re.sub(r'<ul class="main-navigation__sub.*?</ul>', "", m.group(0), flags=re.S)
-            rendered_l1 = [re.sub(r"\s+", " ", x).strip() for x in
-                           re.findall(r'main-navigation__link[^>]*>([^<]+)<', bar)]
-        import html as H
-        rendered_l1 = [H.unescape(x) for x in rendered_l1]
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(h, "lxml")
+            bar = soup.select_one("nav.main-navigation > ul.main-navigation__bar")
+            if bar:
+                for li in bar.find_all("li", recursive=False):
+                    a = li.find("a", recursive=False)
+                    if a:
+                        rendered_l1.append(re.sub(r"\s+", " ", a.get_text(" ", strip=True)))
+        except ImportError:
+            pass
         ia_ok = rendered_l1 == l1_expected
         ia_detail = f"expected {l1_expected} / rendered {rendered_l1}"
         if not ia_ok:
