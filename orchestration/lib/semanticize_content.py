@@ -142,6 +142,26 @@ def _first_heading_text(html):
     return ""
 
 
+def _mark_title_in_skeleton(skeleton, title):
+    """Replace the first heading's TEXT with the {{f:title}} marker (jcr:title
+    in nodePayload) so EDITING jcr:title reflows into the fidelity render —
+    the roundtrip gate proved a plain copy leaves jcr:title a dead field. Only
+    swaps when the heading text matches the lifted title (same source)."""
+    if not skeleton or not title:
+        return skeleton
+    soup = BeautifulSoup(skeleton, "lxml")
+    for tag in _HEADING:
+        h = soup.find(tag)
+        if h and h.get_text(strip=True):
+            if h.get_text(" ", strip=True)[:250] == title:
+                h.clear()
+                h.append("{{f:title}}")
+                return "".join(str(c) for c in
+                               (soup.body.children if soup.body else [])).strip()
+            break
+    return skeleton
+
+
 def _semanticize_instance(inst, node, surf):
     """HYBRID (Option B, 2026-07-15): the archetype TYPE system provides the
     authoring surface (mix:title, contrib slots, media/cta mixins) while the
@@ -162,11 +182,44 @@ def _semanticize_instance(inst, node, surf):
     if inst.get("skeleton"):
         out["skeleton"] = _clean_html(inst["skeleton"])
     if not fields.get("title"):
-        t = (_first_heading_text("\n".join(v for k, v in sorted(fields.items())
-                                           if k.startswith("body") and isinstance(v, str)))
-             or _first_heading_text(out.get("skeleton") or ""))
-        if t:
+        # jcr:title must be a LIVE field, not a dead copy (roundtrip gate):
+        # 1) heading inside a body RUN -> restructure: the heading element moves
+        #    into the skeleton as <hN>{{f:title}}</hN> before that run's marker,
+        #    its text becomes the title field, the body value loses the heading.
+        #    Same rendered bytes when unedited; BOTH title and body edits reflow.
+        # 2) heading inline in the skeleton -> its text becomes {{f:title}}.
+        sk = out.get("skeleton") or ""
+        for k in sorted((k for k, v in fields.items()
+                         if k.startswith("body") and isinstance(v, str) and "<" in v),
+                        key=lambda k: (len(k), k)):
+            soup = BeautifulSoup(fields[k], "lxml")
+            h = next((soup.find(t) for t in _HEADING if soup.find(t)), None)
+            if h is None or not h.get_text(strip=True):
+                continue
+            t = h.get_text(" ", strip=True)[:250]
+            marker = "{{f:%s}}" % k
+            # only restructure when the heading LEADS the run — moving a
+            # mid-run heading in front of the marker would reorder content
+            first_el = next((c for c in (soup.body.children if soup.body else [])
+                             if getattr(c, "name", None)), None)
+            if first_el is not h:
+                fields["title"] = t
+                break
+            if sk and marker in sk:
+                h_marked = BeautifulSoup(str(h), "lxml").find(h.name)
+                h_marked.clear()
+                h_marked.append("{{f:title}}")
+                out["skeleton"] = sk.replace(marker, str(h_marked) + marker, 1)
+                h.decompose()
+                fields[k] = "".join(str(c) for c in
+                                    (soup.body.children if soup.body else [])).strip()
             fields["title"] = t
+            break
+        if not fields.get("title"):
+            t = _first_heading_text(sk)
+            if t:
+                out["skeleton"] = _mark_title_in_skeleton(sk, t)
+                fields["title"] = t
     out["fields"] = fields
     # embedded typed children -> same hybrid treatment
     child_node = (surf.get(node) or {}).get("child")

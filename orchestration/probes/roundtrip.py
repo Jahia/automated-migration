@@ -126,6 +126,13 @@ def main():
                     if per_page >= a.props:
                         break
                     if k == "title":
+                        # hybrid contract: jcr:title participates in the RENDER
+                        # only when the skeleton carries the {{f:title}} marker
+                        # (semanticize moves the heading there). A copy-only
+                        # title is a jContent/nav LABEL — legitimate, but not a
+                        # render roundtrip target.
+                        if "{{f:title}}" not in (pl.get("skeleton") or ""):
+                            continue
                         samples.append((page_base, npath, "jcr:title", v, "title"))
                     elif k.startswith("body"):
                         samples.append((page_base, npath, k, v, "body"))
