@@ -102,6 +102,103 @@ def naming_violations(manifest):
     return out
 
 
+def _name_violation(local):
+    """Reason a LOCAL type name is editor-hostile, or None. Same rules as
+    naming_violations, factored out for the sanitizer."""
+    low = local.lower()
+    if low in _BARE_TAG:
+        return f"bare structural tag '{local}'"
+    h = _looks_hash(local)
+    if h:
+        return f"leaked CSS-module build hash '{h}'"
+    if _LEAKED_RE.search(local):
+        return f"leaked layout/framework class fragment"
+    return None
+
+
+def _shape_name(fields):
+    """A clean, deterministic type name from a component's field shape — used to
+    replace a leaked CSS-hash / framework-class type name. Editor-readable and
+    stable (same shape → same base name; the caller disambiguates collisions)."""
+    names = {f.get("name") for f in (fields or [])}
+    has_img = "image" in names
+    has_txt = bool(names & {"body", "text"})
+    has_title = "title" in names
+    has_link = "j:linkType" in names
+    if has_img and (has_txt or has_title):
+        return "MediaSection"
+    if has_title and has_txt:
+        return "TextSection"
+    if has_link and not has_txt:
+        return "CtaSection"
+    if has_title:
+        return "HeadingSection"
+    return "ContentSection"
+
+
+def sanitize_type_names(manifest, ns="ns"):
+    """Rewrite any editor-hostile type name (leaked CSS-module hash, framework
+    class fragment, bare tag) to a clean shape-derived name, and propagate the
+    rename through EVERY reference: component/crossCutting nodeType+name, child
+    types, template mainResourceType, and instanceTypeMap values. Deterministic
+    and order-stable — grouping is non-deterministic (LLM), so this is the belt
+    that guarantees editor-readable, field-mapped types regardless of what the
+    grouping pass named them. Returns the list of {from,to,reason} renames."""
+    comps = manifest.get("components", [])
+    xcut = manifest.get("crossCutting", [])
+    used_local = set()
+    for c in comps + xcut:
+        used_local.add(c.get("nodeType", "").split(":", 1)[-1])
+        ct = c.get("childType")
+        if ct:
+            used_local.add(ct.get("nodeType", "").split(":", 1)[-1])
+
+    renames = {}          # old full nodeType -> new full nodeType
+    rename_log = []
+
+    def _fresh(base):
+        cand = base
+        i = 2
+        while cand in used_local:
+            cand = f"{base}{i}"
+            i += 1
+        used_local.add(cand)
+        return cand
+
+    def _maybe(entry, fields):
+        nt = entry.get("nodeType", "")
+        local = nt.split(":", 1)[-1]
+        reason = _name_violation(local)
+        if not reason:
+            return
+        new_local = _fresh(_shape_name(fields))
+        prefix = nt.split(":", 1)[0] if ":" in nt else ns
+        new_nt = f"{prefix}:{new_local}"
+        renames[nt] = new_nt
+        rename_log.append({"from": nt, "to": new_nt, "reason": reason})
+        entry["nodeType"] = new_nt
+        if "name" in entry:
+            entry["name"] = title_case(new_local)
+
+    for c in comps:
+        _maybe(c, c.get("fields"))
+        ct = c.get("childType")
+        if ct:
+            _maybe(ct, ct.get("fields"))
+    for c in xcut:
+        _maybe(c, c.get("fields"))
+
+    if renames:
+        itm = manifest.get("instanceTypeMap") or {}
+        for role, nt in list(itm.items()):
+            if nt in renames:
+                itm[role] = renames[nt]
+        for t in manifest.get("templates", []):
+            if isinstance(t, dict) and t.get("mainResourceType") in renames:
+                t["mainResourceType"] = renames[t["mainResourceType"]]
+    return rename_log
+
+
 FIELD_MAP = {
     "title:string": {"name": "title", "type": "string", "i18n": True, "mandatory": True},
     "text:string": {"name": "text", "type": "string, richtext", "i18n": True, "mandatory": False},
@@ -530,6 +627,15 @@ def main():
 
     unknown, missing, dupes = partition_gate(cand, groups)
     manifest = assemble(cand, groups, decide, templates, ns=args.ns)
+
+    # Sanitize editor-hostile type names (leaked CSS-module hashes / framework
+    # class fragments) to clean shape-derived names BEFORE the naming gate — the
+    # grouping pass is a non-deterministic LLM, so this belt keeps every shipped
+    # type editor-readable AND field-mapped (unmapped junk types crater the
+    # contribution gate). Recorded in the manifest for the operator.
+    renamed = sanitize_type_names(manifest, ns=args.ns)
+    if renamed:
+        manifest["sanitizedTypeNames"] = renamed
 
     violations = naming_violations(manifest)
     total_types = len(manifest["components"]) + len(manifest["crossCutting"])
