@@ -48,6 +48,9 @@ good looks like: semantic components, governed areas, `jmix:mainResource` articl
 `linkTypeInitializer` on every link, weakref images, resource bundles with tooltips,
 tree-driven nav. The automated migration produces the near-opposite on every axis.
 
+The concrete archetype library + conventions to build toward are catalogued in §10,
+grounded in two production template sets (`luxe-jahia-demo`, `soprahr/mysoprahr`).
+
 ---
 
 ## 2. The principle shift
@@ -201,3 +204,133 @@ Do **not** keep pushing fidelity-first runs to green — a greener SingPost is a
 version of the wrong thing. Build P1 + P2 (archetype library + semantic extractor + the two
 authoring gates) and prototype on 1–2 SingPost pages so the authoring difference is visible
 in the Jahia editor. `mcpShowcase` is the target; the migration should converge on it.
+
+---
+
+## 10. The archetype library (grounded in `luxe-jahia-demo` + `soprahr/mysoprahr`)
+
+This is the buildable spec for P1. It is not invented — every type/field/convention below
+was verified in **two independent production template sets**. Where they agree, it is a hard
+convention; the two places they diverge are called out.
+
+`ns` = the migrated module's node-type namespace; `nsmix` = its mixin namespace.
+
+### 10.1 Base + reusable mixins (emit once, per module)
+
+Both modules build every component on a **marker-mixin split** — replicate it so the
+migrated module's content picker is grouped, not a flat list of 40 types:
+
+```
+[nsmix:component]     > jmix:droppableContent, jmix:editorialContent mixin   // picker group "<Site> — Content"
+[nsmix:pageComponent] > nsmix:component mixin                                // droppable in page Areas
+[nsmix:layout]        > jmix:droppableContent mixin                          // picker group "<Site> — Layout"
+[nsmix:queryContent]  mixin                                                  // opt-in: selectable in a jcrQuery type picker
+```
+
+Reusable field mixins (both modules factor these — they are the answer to the SingPost gaps):
+
+```
+[nsmix:cta] mixin                                                    // link, EDITABLE
+ - ctaType  (string, choicelist[linkTypeInitializer]) = 'none' autocreated
+ - ctaLabel (string) i18n
+ // j:linknode (internal) / j:url (external) are injected at runtime by linkTypeInitializer — NEVER declared
+
+[nsmix:media] mixin                                                  // image, DAM-managed
+ - image    (weakreference, picker[type='image']) < jmix:image
+ - imageAlt (string) i18n
+
+[nsmix:seo] mixin
+ - metaTitle       (string) i18n
+ - metaDescription (string, textarea) i18n
+ - ogImage         (weakreference, picker[type='image']) < jmix:image
+```
+
+### 10.2 The archetypes
+
+| Archetype (`ns:` type) | Supertypes | Key fields / children | Views |
+|---|---|---|---|
+| **hero** | `jnt:content, nsmix:pageComponent, mix:title, nsmix:media, nsmix:cta` | `subtitle (string,richtext) i18n` | default, textUp, textDown |
+| **mediaText** (editorial / illustrated) | `jnt:content, nsmix:pageComponent, mix:title, nsmix:media, nsmix:cta` | `text (string,richtext) i18n` | default, imageLeft, imageRight |
+| **teaserCard** | `jnt:content, nsmix:pageComponent, mix:title, nsmix:media, nsmix:cta` | `text (string,richtext) i18n` | default, compact |
+| **banner / callout** | `jnt:content, nsmix:pageComponent, mix:title, nsmix:media, nsmix:cta` | `text (string,richtext) i18n` | default |
+| **statCallout** (KPI) | `jnt:content, nsmix:pageComponent` | `value (string) i18n`, `unit (string) i18n`, `label (string) i18n`, `trend (string, choicelist[resourceBundle])` | default |
+| **richTextSection** | `jnt:content, nsmix:pageComponent, mix:title` | `body (string,richtext) i18n` | default |
+| **accordion** (container) | `jnt:content, nsmix:pageComponent, jmix:list, mix:title orderable` + `+ * (ns:accordionItem)` | item: `jnt:content, nsmix:component, mix:title` + `body (string,richtext) i18n` | default |
+| **cardGrid** (typed-child list) | `jnt:content, nsmix:pageComponent, jmix:list, mix:title orderable` + `+ * (ns:card)`; `layout (choicelist) = 'grid' < 'grid','carousel','slider'` | card: `jnt:content, nsmix:component, mix:title, nsmix:media, nsmix:cta` + `text (string,richtext) i18n` | default, carousel |
+| **section** (free layout) | `jnt:contentList, nsmix:layout, mix:title` | `arrangement (choicelist)`; holds any `jmix:droppableContent` | default |
+| **cols** (columns) | `jnt:content, nsmix:layout, mix:title` | `colsNumber (choicelist) = '2'`; one `AbsoluteArea` per column | default |
+| **jcrQuery** (query listing) | `jnt:content, nsmix:pageComponent, jmix:list, mix:title, jmix:cache` | `type (string, choicelist[subnodetypes='nsmix:queryContent',resourceBundle])`, `startNode (weakreference)`, `maxItems (long)`, `sortBy`, `j:subNodesView` | default, grid, inline |
+| **article** (+ event/webinar/news variants) | `jnt:content, jmix:mainResource, jmix:editorialContent, mix:title, nsmix:pageComponent, nsmix:queryContent, nsmix:media, nsmix:seo, jmix:categorized, jmix:tagged orderable` | `body (string,richtext) i18n`, `date (date,DatePicker) = now()`; event adds `startDate/endDate/location`; webinar adds `videoUrl` | default(card), compact, cm, featured, fullPage |
+| **mainNavigation** | `jnt:content, nsmix:pageComponent` | *no content fields* — reads the `jnt:page` tree | default |
+| **siteHeader** | `jnt:content, nsmix:pageComponent, nsmix:media` (logo) | brand/logo + nav slot + `nsmix:cta` | default |
+| **footer** (+ footerLink child) | `jnt:content, nsmix:pageComponent` + `+ * (ns:footerLink)` | footerLink: `jnt:content, mix:title` + `j:linkType (string, choicelist[linkTypeInitializer]) indexed=no` | default |
+
+**Dropped, never migrated:** cookie-consent, analytics/tracking/tag-manager, chat widgets,
+back-to-top, skip-links, and any body-level overlay. (An explicit drop-list, not chrome
+area-flagging — the SingPost mistake.)
+
+### 10.3 Hard conventions (both modules agree)
+
+- **Titles** → `mix:title` (never declare `jcr:title`); an explicit `title` field only on
+  hero-like types that don't extend `mix:title`.
+- **Images** → `(weakreference, picker[type='image']) < jmix:image` + a paired `imageAlt
+  (string) i18n`; uploaded to the DAM; rendered via `buildNodeUrl(image)` (luxe adds a
+  responsive `imageNodeToImgProps` helper worth copying). **Never** `<img>` in richtext.
+- **Links** → `j:linkType (string, choicelist[linkTypeInitializer])`; declare only
+  `j:linkType`, resolve `j:linknode`/`j:url` at render with `buildNodeUrl`. **Never** a
+  frozen `href`.
+- **Rich text** → `(string, richtext) i18n`, rendered `dangerouslySetInnerHTML`.
+- **Taxonomy** → `jmix:categorized` (`j:defaultCategory`) + `jmix:tagged` (`j:tagList`) —
+  never custom tag/category fields.
+- **mainResource** → the fixed supertype stack above; ships a `fullPage` view + a card view
+  + a `cm` back-office view; one `jmix:mainResource` template (`priority: -1`) renders
+  `<Render node view="fullPage">`; instances live in a `jnt:contentFolder`, surfaced by a
+  `jcrQuery`/listing with `server.render.addCacheDependency(...)`.
+- **Navigation** → `getChildNodes(home, depth, 0, predicate)` filtered to `jmix:navMenuItem`
+  (covers `jnt:page` + `jnt:nodeLink` + `jnt:externalLink` + `jnt:navMenuText`), 2–3 levels,
+  language switcher from `getSiteLocales()` + `buildNodeUrl(node,{language})`. Zero stored
+  nav markup.
+- **Header/footer** → shared, edited from home via `<AbsoluteArea name="header|footer"
+  parent={homePage} readOnly="children">` (soprahr's pattern — cleaner than luxe's
+  virtual-node workaround).
+- **Resource bundles** → `prefix=TypeLabel`, `prefix.field=FieldLabel`,
+  `prefix.field.ui.tooltip=…` (rich HTML allowed), `prefix.field.enumValue=…`; colon→
+  underscore in the key (`ns:article`→`ns_article`, injected `j:linkType`→`j_linkType`).
+  EN+FR minimum. Emitted deterministically by the manifest step, not the LLM.
+- **Views** register via `jahiaComponent({nodeType,name,componentType})`; children via
+  `<RenderChildren filter="ns:childType">` (typed lists), `<Render view={subView}>` (query
+  hits), `<Area>` (editable slots), `<AbsoluteArea>` (shared regions). Client interactivity
+  via `<Island>` with serializable props (never JCR nodes).
+
+### 10.4 The two divergences (decide deliberately)
+
+1. **`jmix:renderableList`** — luxe uses it on its listing type; soprahr **deliberately
+   avoids** it, documented: *"it injects j:linknode/j:url and limits views to built-in
+   ones."* **Adopt soprahr's stance** for migration listings: `jmix:list` + `jmix:cache` + a
+   custom `j:subNodesView`, not `jmix:renderableList` — the migration needs custom per-item
+   views, and the injected link props are noise on a query container.
+2. **Global chrome placement** — luxe uses a virtual-node workaround (its `<AbsoluteArea>`
+   didn't render empty in preview, tracked issue); soprahr uses `<AbsoluteArea
+   parent={homePage} readOnly="children">` directly. **Adopt soprahr's** `AbsoluteArea`
+   approach; it's the intended API and avoids the workaround.
+
+### 10.5 What the extractor must do per archetype (P2)
+
+Extraction stops being "freeze the region skeleton" and becomes **classify → map**:
+
+1. **Classify** each segmented region to one archetype (constrained vocabulary; vision
+   proposes, adjudication snaps to the list; unmatched region = coverage failure, not a new
+   type).
+2. **Map** the region DOM into the archetype's named fields: heading→`jcr:title`; hero/card
+   image→DAM upload + `image` weakref; primary `<a>`→`j:linkType`+`ctaLabel`; prose→`body`
+   richtext **with images and links stripped out into their own fields**; repeating
+   sub-structures→typed child nodes (`ns:card`/`ns:accordionItem`/…).
+3. **Detect collections** (repeated article/event/news teasers across pages linking to
+   detail pages) → emit a `jmix:mainResource` type + a `jnt:contentFolder` of instances +
+   a `jcrQuery` listing + the detail template (wire the existing `detailTemplates` signal in
+   `segment2manifest`).
+4. **Emit labels** for every type/field into `.properties` (EN+FR) at map time.
+5. **Drop** the drop-list chrome entirely.
+
+`skeletonOrig` may be retained as an advisory provenance/diff field, but it is never the
+render source and never a substitute for a mapped field.
