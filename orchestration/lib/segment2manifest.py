@@ -359,6 +359,26 @@ def main():
                              "childType": comp.get("childType")})
             else:
                 components.append(comp)
+        # rule 19 + "every module ships these": GUARANTEE the tree-driven main
+        # navigation and the editor listing/layout tools exist even when no region
+        # classified to them (SingPost's nav lives INSIDE the header region, so
+        # nothing maps to mainNavigation) — the skeleton path always emitted them;
+        # the semantic path must too.
+        present = {c["nodeType"] for c in components} | {c["nodeType"] for c in xcut}
+        for akey in ("mainNavigation", "jcrQuery", "cols", "section"):
+            node = f"{ns}:{ARCH.node_local(akey)}"
+            if node in present:
+                continue
+            comp = ARCH.to_manifest_component(akey, ns, mixns)
+            comp["frequency"] = 0
+            comp["pages"] = []
+            comp["standard"] = True     # always-shipped tool, not region-derived
+            if comp.get("chrome"):
+                comp["area"] = comp["chrome"]   # loader routes chrome by area (/home/<area>)
+                xcut.append(comp)
+            else:
+                components.append(comp)
+            instance_type_map.setdefault(akey.lower(), node)
         if low:
             print(f"  [archetype] {len(low)} low-confidence region(s) -> review: "
                   + ", ".join(low[:8]), file=sys.stderr)
