@@ -85,45 +85,53 @@ export const Layout = ({
 
   // inner wrapper chain (e.g. Drupal's region--content) recomposed around the
   // Area — top groups load at real-section altitude with wrappers intact
-  const inner = shell
-    ? (shell.innerLevels ?? []).reduceRight<ReactNode>(
-        (acc, lvl) =>
-          createElement(
-            lvl.tag,
-            domAttrs(lvl.attrs),
-            <Raw key="b" html={lvl.before} />,
-            acc,
-            <Raw key="a" html={lvl.after} />,
-          ),
-        children,
-      )
-    : children;
+  // SEMANTIC (archetype) model: IGNORE the shell's captured source-body chrome.
+  // shell.levels/innerLevels carry the source header/nav/footer/cookie markup in
+  // their before/after raw HTML (and shell.head carries the source SPA scripts
+  // that hydrate it). In this model the chrome is OUR contributed Jahia
+  // components, so render a clean <main> with no source chrome — keeping only
+  // body/main attrs. The fidelity model still recomposes the full source shell.
+  const inner =
+    shell && !CHROME_ALWAYS
+      ? (shell.innerLevels ?? []).reduceRight<ReactNode>(
+          (acc, lvl) =>
+            createElement(
+              lvl.tag,
+              domAttrs(lvl.attrs),
+              <Raw key="b" html={lvl.before} />,
+              acc,
+              <Raw key="a" html={lvl.after} />,
+            ),
+          children,
+        )
+      : children;
   const main = shell ? (
     <main {...domAttrs(shell.mainAttrs)}>{inner}</main>
   ) : (
     children
   );
-  const body = shell
-    ? shell.levels.reduceRight<ReactNode>(
-        (inner, lvl, i) =>
-          i === 0 ? (
-            <>
-              <Raw html={lvl.before} />
-              {inner}
-              <Raw html={lvl.after} />
-            </>
-          ) : (
-            createElement(
-              lvl.tag,
-              domAttrs(lvl.attrs),
-              <Raw key="b" html={lvl.before} />,
-              inner,
-              <Raw key="a" html={lvl.after} />,
-            )
-          ),
-        main,
-      )
-    : main;
+  const body =
+    shell && !CHROME_ALWAYS
+      ? shell.levels.reduceRight<ReactNode>(
+          (inner, lvl, i) =>
+            i === 0 ? (
+              <>
+                <Raw html={lvl.before} />
+                {inner}
+                <Raw html={lvl.after} />
+              </>
+            ) : (
+              createElement(
+                lvl.tag,
+                domAttrs(lvl.attrs),
+                <Raw key="b" html={lvl.before} />,
+                inner,
+                <Raw key="a" html={lvl.after} />,
+              )
+            ),
+          main,
+        )
+      : main;
 
   return (
     <html lang={lang}>
@@ -151,6 +159,12 @@ export const Layout = ({
           ? // per-page source head, in source order (Drupal aggregates per page;
             // drupalSettings JSON + behaviors init live here)
             shell.head.map((h, i) => {
+              // archetype model: drop the source SPA scripts — they hydrate the
+              // source's own header/mega-menu/cookie-consent, which we replace
+              // with contributed Jahia chrome. Keep only the stylesheets/styles
+              // (they still style the inner content of each semantic component).
+              if (CHROME_ALWAYS && (h.kind === "script" || h.kind === "inline-script"))
+                return null;
               if (h.kind === "css" && h.href)
                 return <link key={i} rel="stylesheet" href={h.href} />;
               if (h.kind === "script" && h.src)
