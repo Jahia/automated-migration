@@ -44,6 +44,7 @@ def main():
 
     plan = [
         ("Layout.tsx", f"{module}/src/templates/Layout.tsx"),
+        ("semantic.css", f"{module}/src/templates/semantic.css"),
         (os.path.join("Page", "basic.server.tsx"), f"{module}/src/templates/Page/basic.server.tsx"),
         ("rawRoot.ts", f"{module}/src/components/rawRoot.ts"),
         ("skeletonRender.ts", f"{module}/src/components/skeletonRender.ts"),

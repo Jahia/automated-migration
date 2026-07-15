@@ -9,6 +9,7 @@ import { createElement, type ReactNode } from "react";
 
 import "modern-normalize/modern-normalize.css";
 import "./global.css";
+import "./semantic.css";
 import cssManifest from "./css-manifest.json";
 import jsManifest from "./js-manifest.json";
 

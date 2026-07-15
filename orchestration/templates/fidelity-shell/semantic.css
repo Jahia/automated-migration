@@ -1,0 +1,308 @@
+/* semantic.css — layout for the ArchetypeSection classes (redesign §10).
+ *
+ * The migrated site's imported CSS styles the INNER content (it kept its
+ * original class names inside each richtext body), but the archetype WRAPPERS
+ * emit clean semantic class names that no source stylesheet knows about — so
+ * without this file a hero has no cover layout, a card grid does not grid, a
+ * carousel does not scroll. This ships those structural rules, site-agnostic
+ * and low-specificity (single class selectors) so the source CSS still wins on
+ * anything it targets. It gives STRUCTURE, not the source's exact skin. */
+
+/* ---- shared ------------------------------------------------------------- */
+.hero,
+.media-text,
+.banner,
+.card-grid,
+.rich-text,
+.stat,
+.accordion,
+.cols,
+.section {
+  box-sizing: border-box;
+  width: 100%;
+}
+.hero img,
+.media-text img,
+.card img,
+.article img,
+.article-teaser img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.title {
+  margin: 0 0 0.5em;
+  line-height: 1.15;
+}
+.subtitle {
+  margin: 0 0 1em;
+  opacity: 0.85;
+}
+a.cta {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.65em 1.4em;
+  border-radius: 999px;
+  background: #d0021b;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1;
+}
+a.cta:hover {
+  filter: brightness(0.92);
+}
+
+/* ---- hero --------------------------------------------------------------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+}
+.hero--cover {
+  min-height: clamp(320px, 46vw, 620px);
+  display: grid;
+}
+.hero--cover > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.hero--cover .hero-overlay {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 5vw, 4rem);
+  width: 100%;
+}
+.hero--cover .hero-text {
+  max-width: 40rem;
+}
+.hero--textUp,
+.hero--textDown {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+/* ---- media + text ------------------------------------------------------- */
+.media-text {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(1rem, 4vw, 3rem);
+  align-items: center;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+@media (max-width: 780px) {
+  .media-text {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- banner ------------------------------------------------------------- */
+.banner {
+  background: #f5f5f5;
+}
+.banner__inner {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  text-align: center;
+}
+
+/* ---- rich text / section / stat ---------------------------------------- */
+.rich-text,
+.section {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+.stat {
+  text-align: center;
+  padding: 1.5rem;
+}
+.stat__figure {
+  display: block;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* ---- card grid + carousel ---------------------------------------------- */
+.card-grid {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+.card-grid__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+.card {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+.card__body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+/* carousel: horizontal scroll-snap track + island controls */
+.card-grid--carousel {
+  position: relative;
+}
+.carousel-track {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-bottom: 0.5rem;
+}
+.carousel-track > * {
+  flex: 0 0 clamp(240px, 30%, 340px);
+  scroll-snap-align: start;
+}
+.carousel-controls {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+.carousel-controls button {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.carousel-controls button:hover {
+  background: #f0f0f0;
+}
+
+/* ---- accordion ---------------------------------------------------------- */
+.accordion {
+  max-width: 900px;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+.accordion__item {
+  border-bottom: 1px solid #e2e2e2;
+}
+.accordion__item summary {
+  cursor: pointer;
+  padding: 1rem 0;
+  font-weight: 600;
+  list-style: none;
+}
+.accordion__item summary::-webkit-details-marker {
+  display: none;
+}
+.accordion__item summary::after {
+  content: "+";
+  float: right;
+}
+.accordion__item[open] summary::after {
+  content: "\2013";
+}
+.accordion__panel {
+  padding-bottom: 1rem;
+}
+
+/* ---- columns ------------------------------------------------------------ */
+.cols__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+/* ---- article ------------------------------------------------------------ */
+.article--full {
+  max-width: 820px;
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+.article-teaser {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.article-teaser__body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+/* ---- tree-driven main navigation --------------------------------------- */
+.main-navigation {
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+.main-navigation__bar {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 0 clamp(1rem, 3vw, 2rem);
+  list-style: none;
+}
+.main-navigation__item {
+  position: relative;
+}
+.main-navigation__link {
+  display: block;
+  padding: 1rem 0;
+  color: #222;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.main-navigation__item:hover > .main-navigation__link {
+  color: #d0021b;
+}
+.main-navigation__sub {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 220px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  border-radius: 0 0 8px 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  display: none;
+  z-index: 50;
+}
+.main-navigation__item:hover > .main-navigation__sub,
+.main-navigation__item:focus-within > .main-navigation__sub {
+  display: block;
+}
+.main-navigation__sub .main-navigation__link {
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+}
+.main-navigation__sub--l3 {
+  position: static;
+  box-shadow: none;
+  display: block;
+  padding-left: 0.75rem;
+}

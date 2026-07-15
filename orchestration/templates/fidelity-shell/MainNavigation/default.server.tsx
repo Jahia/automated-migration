@@ -9,11 +9,10 @@ import { jahiaComponent, buildNodeUrl, useServerContext } from "@jahia/javascrip
  * Labels come from jcr:title; every href is buildNodeUrl (never hardcoded).
  * Add/move/remove a page in jContent and the menu follows — no code deploy.
  *
- * FIDELITY: the L1 bar reuses the SOURCE site's own classes
- * (asr-main-navigation--wrapper / __item / item-menu) so the captured CSS
- * styles it pixel-identically to the original menu bar. Sub-levels render in
- * an accessible nested list, hidden by default (the source's dropdown panels
- * are JS-built at open time and equally invisible at rest).
+ * STYLING: site-AGNOSTIC `main-navigation__*` classes styled by the shell's
+ * shipped semantic.css (horizontal L1 bar + hover-revealed L2/L3 dropdowns).
+ * A per-site theme can override those classes; the nav never depends on any
+ * one source site's class names (the old asr-* hardcoding styled ascott only).
  */
 
 type JCRNode = {
@@ -70,43 +69,48 @@ jahiaComponent(
     if (!home) return null;
     const level1 = childPages(home);
     return (
-      <div className="asr-main-navigation--wrapper main-navigation--wrapper">
-        <div className="asr-main-navigation asr-main-navigation--desktop">
-          <div className="wrap-content">
-            {level1.map((l1) => {
-              const level2 = childPages(l1);
-              return (
-                <div className="asr-main-navigation__item" key={l1.getPath()}>
-                  <a className="item-menu" href={buildNodeUrl(l1 as never)}>
-                    <span>{label(l1)}</span>
-                  </a>
-                  {level2.length > 0 && (
-                    <ul className="asr-nav-sub" style={{ display: "none" }}>
-                      {level2.map((l2) => {
-                        const level3 = childPages(l2);
-                        return (
-                          <li key={l2.getPath()}>
-                            <a href={buildNodeUrl(l2 as never)}>{label(l2)}</a>
-                            {level3.length > 0 && (
-                              <ul className="asr-nav-sub asr-nav-sub--l3">
-                                {level3.map((l3) => (
-                                  <li key={l3.getPath()}>
-                                    <a href={buildNodeUrl(l3 as never)}>{label(l3)}</a>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      <nav className="main-navigation" aria-label="Main">
+        <ul className="main-navigation__bar">
+          {level1.map((l1) => {
+            const level2 = childPages(l1);
+            return (
+              <li className="main-navigation__item" key={l1.getPath()}>
+                <a className="main-navigation__link" href={buildNodeUrl(l1 as never)}>
+                  {label(l1)}
+                </a>
+                {level2.length > 0 && (
+                  <ul className="main-navigation__sub">
+                    {level2.map((l2) => {
+                      const level3 = childPages(l2);
+                      return (
+                        <li className="main-navigation__item" key={l2.getPath()}>
+                          <a className="main-navigation__link" href={buildNodeUrl(l2 as never)}>
+                            {label(l2)}
+                          </a>
+                          {level3.length > 0 && (
+                            <ul className="main-navigation__sub main-navigation__sub--l3">
+                              {level3.map((l3) => (
+                                <li className="main-navigation__item" key={l3.getPath()}>
+                                  <a
+                                    className="main-navigation__link"
+                                    href={buildNodeUrl(l3 as never)}
+                                  >
+                                    {label(l3)}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
     );
   },
 );

@@ -19,6 +19,7 @@ Usage: build_nav_tree.py <project> <site> [--locale en] [--dry]
 """
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -43,8 +44,38 @@ def sitemap_paths(project):
                 continue
             out.append(line)
     except FileNotFoundError:
-        pass   # no sitemap = flat site: the step is a no-op, not an error
+        pass   # no explicit sitemap: fall back to the crawl URL hierarchy
     return out
+
+
+def inventory_paths(project):
+    """Derive the nested page hierarchy from the CRAWL URLs when no explicit
+    sitemap file exists — so a flat crawl still becomes a real 3-level tree
+    (the nav is the tree). A page at .../corporate/careers has the flat slug
+    'corporate_careers' (create_pages' name == URL segments joined by '_'); to
+    nest it we emit the rel path 'corporate/corporate_careers' so its LEAF ==
+    the existing flat slug and build_nav_tree MOVES that page under 'corporate'
+    (never recreates it). Parents (fewer segments) come first so a section
+    exists before its children are moved under it."""
+    inv_p = f"projects/{project}/workflow-output/page-inventory.json"
+    try:
+        inv = json.load(open(inv_p))
+    except (FileNotFoundError, ValueError):
+        return []
+    rels = set()
+    for p in inv.get("pages", []):
+        segs = [s for s in re.sub(r"^https?://[^/]+", "", p.get("url") or "").split("/") if s]
+        if not segs:
+            continue  # home
+        # emit EVERY ancestor rel + the page rel, so a parent segment that was
+        # never crawled on its own (e.g. /receiving exists only via
+        # /receiving/mail-redirection-service) still gets a SECTION page created
+        # before its child is moved under it. Each rel's leaf is the flat slug
+        # (URL segments joined by '_') so an existing flat page is MOVED, and a
+        # missing ancestor is CREATED.
+        for depth in range(len(segs)):
+            rels.add("/".join("_".join(segs[: i + 1]) for i in range(depth + 1)))
+    return sorted(rels, key=lambda r: (r.count("/"), r))
 
 
 def main():
@@ -58,6 +89,11 @@ def main():
     home = f"/sites/{site}/home"
 
     paths = sitemap_paths(project)
+    src = "sitemap file"
+    if not paths:
+        paths = inventory_paths(project)
+        src = "crawl URL hierarchy"
+    print(f"[build_nav_tree] {len(paths)} nested path(s) from the {src}")
     created = moved = published = 0
 
     def exists(path):
