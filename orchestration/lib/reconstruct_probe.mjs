@@ -151,6 +151,17 @@ const identify = (sxaMode) => {
     return r.width > 0 && r.height > 0;
   };
   const inComp = el => comps.some(c => c === el || c.contains(el));
+  // <main>-confinement (matches extract_content's segmented partition): page
+  // CONTENT lives in <main>; body-level chrome OUTSIDE it — the site-wide alert
+  // banner, breadcrumb trail, cookie-consent overlay — is captured as chrome
+  // singletons / absolute-area content, NOT as page components, so it must not
+  // count as uncaptured page content. When the source uses <main>, credit any
+  // orphan outside it as ignorable chrome. Null on <main>-less sites → no-op.
+  const mainRegion = sxaMode ? null
+    : document.querySelector('main,[role="main"],[class*="region--content"]');
+  // interactive controls (forms, buttons, selects) are script-driven widgets,
+  // not contributor content — the SAME exclusion contribution.py applies.
+  const INTERACTIVE_SEL = 'form,button,select,textarea,[role="button"],[role="search"]';
   const orphanSamples = []; const seen = new Set();
   let ignorableChars = 0, realOrphanChars = 0, hiddenChars = 0;
   for (const el of document.querySelectorAll('body *')) {
@@ -163,7 +174,11 @@ const identify = (sxaMode) => {
     // hidden text (display:none / zero-box / SSR hydration data) is neither a real
     // orphan nor visible chrome — bucket separately so it can't inflate realOrphanChars.
     if (!isVisible(el)) { hiddenChars += own.length; orphanSamples.push({ tag: el.tagName.toLowerCase(), cls: cls.slice(0, 40), text: own.slice(0, 80), ignorable: true, hidden: true }); continue; }
-    const ignorable = IGNORE.test(own) || IGNORE.test(cls) || !!el.closest('[class*="trustarc"],[id*="onetrust"],[class*="cookie"],[aria-label*="cookie" i]');
+    const outOfMain = !!mainRegion && !mainRegion.contains(el);
+    const interactive = el.matches(INTERACTIVE_SEL) || !!el.closest(INTERACTIVE_SEL);
+    const ignorable = outOfMain || interactive
+      || IGNORE.test(own) || IGNORE.test(cls)
+      || !!el.closest('[class*="trustarc"],[id*="onetrust"],[class*="cookie"],[aria-label*="cookie" i]');
     if (ignorable) ignorableChars += own.length; else realOrphanChars += own.length;
     orphanSamples.push({ tag: el.tagName.toLowerCase(), cls: cls.slice(0, 40), text: own.slice(0, 80), ignorable });
   }
