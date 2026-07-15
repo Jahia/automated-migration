@@ -1425,6 +1425,41 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         if t:
             out.append(raw_instance(t))
 
+    # <main> confinement (SPA sites): when the source uses the HTML5 <main>
+    # landmark, ALL contributor content lives inside it and everything else at
+    # body level is chrome — the semantic header/nav/footer landmarks plus
+    # body-level overlays (cookie-consent, site-wide alert banners). The vision
+    # segmentation spans the whole document, so without this guard those chrome
+    # regions resolve as top-level content roots and leak into the page as
+    # untyped rawHtml fragments (tanks component_coverage + G1). We keep them
+    # byte-faithful by emitting each as an AREA-flagged chrome singleton (the
+    # loader installs it once under /home/<area>; component_coverage skips any
+    # area-flagged instance), never dropping bytes. Only engages when a <main>
+    # exists AND the child carries no vision content root below it, so a page
+    # that legitimately puts a typed component outside <main> is never demoted.
+    main_el = body.find("main")
+    # Body-level tags that are page SHELL, never chrome content: they load
+    # verbatim (their bytes stay in the body) and must not become area singletons.
+    _SHELL_TAGS = {"script", "style", "noscript", "template", "link", "meta", "iframe"}
+
+    def _chrome_area(tag):
+        return {"header": "header", "nav": "header", "footer": "footer"}.get(tag, "chrome")
+
+    def _body_chrome_area(child):
+        """When <main> exists, a body-level element OUTSIDE it that renders visible
+        text is chrome — a semantic landmark (header/nav/footer) or a body-level
+        overlay/banner (cookie-consent, alerts, search fly-outs). Return its area,
+        or None to leave it on the normal path. This OVERRIDES vision typing: on a
+        <main>-using SPA all contributor content lives in <main>, so a header <div>
+        that segmentation mis-labelled a content root is still chrome."""
+        if main_el is None or child is main_el or child.name in _SHELL_TAGS:
+            return None
+        if child.name in ("header", "nav", "footer"):
+            return _chrome_area(child.name)
+        if re.sub(r"\s+", " ", child.get_text(" ", strip=True)).strip():
+            return "chrome"
+        return None
+
     for child in list(body.children):
         if not isinstance(child, Tag):
             # bs4 str(Comment) yields the BARE text — the <!-- --> markers must be
@@ -1433,6 +1468,11 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             pend.append(f"<!--{child}-->" if isinstance(child, Comment) else str(child))
             continue
         _flush_pend()
+        _carea = _body_chrome_area(child)
+        if _carea is not None:
+            out.append(raw_instance(str(child), area=_carea))
+            n_chrome += 1
+            continue
         if id(child) in root_ids:
             _emit_root(child)
             continue
