@@ -159,29 +159,46 @@ def substitute(inst):
     return html
 
 
+def _render_node(node, instances, children_of, idx=None):
+    """skeletonRender.ts `composeNode`, RECURSIVE: substitute this node's markers,
+    then splice its item children into {{child:N}} slots in child (== document)
+    order. Children are composed RECURSIVELY so a child that is itself a container
+    (its skeleton carries {{child:N}}) has ITS items spliced too — a carousel/grid
+    nested inside a section wrapper. Two child sources, in creation order:
+      * parent-linked child INSTANCES (separate list entries, parent == idx) —
+        the section/atom mechanism;
+      * embedded item children (the in-payload `children` list) — the loader
+        creates these under the container via its manifest childType, so they
+        render into the same {{child:N}} slots.
+    Children beyond the max slot render after the last slot."""
+    html = substitute(node)
+    if "{{child:" not in html:
+        return html
+    rendered = []
+    if idx is not None:
+        rendered += [_render_node(instances[c], instances, children_of, c)
+                     for c in children_of.get(idx, [])
+                     if instances[c].get("skeleton")]
+    rendered += [_render_node(ch, instances, children_of, None)
+                 for ch in (node.get("children") or [])
+                 if ch.get("skeleton")]
+    max_idx = -1
+    for m in _CHILD_RE.finditer(html):
+        max_idx = max(max_idx, int(m.group(1)))
+    extras = "".join(rendered[max_idx + 1:])
+
+    def repl(m):
+        i = int(m.group(1))
+        base = rendered[i] if i < len(rendered) else ""
+        return base + (extras if i == max_idx else "")
+
+    return _CHILD_RE.sub(repl, html)
+
+
 def compose_instance(idx, instances, children_of):
-    """skeletonRender.ts `composeNode`: substitute this node's markers, then
-    splice item children into {{child:N}} slots in child (== document) order.
-    Children beyond the max slot render after the last slot; leftover markers
-    stripped."""
-    inst = instances[idx]
-    html = substitute(inst)
-    if "{{child:" in html:
-        rendered = [substitute(instances[c]) for c in children_of.get(idx, [])
-                    if instances[c].get("skeleton")]
-        max_idx = -1
-        for m in _CHILD_RE.finditer(html):
-            max_idx = max(max_idx, int(m.group(1)))
-        extras = "".join(rendered[max_idx + 1:])
-
-        def repl(m):
-            i = int(m.group(1))
-            base = rendered[i] if i < len(rendered) else ""
-            return base + (extras if i == max_idx else "")
-
-        html = _CHILD_RE.sub(repl, html)
-    # strip any leftover unresolved markers (composeNode's final replace)
-    return _MARKER_RE.sub("", html)
+    """Compose one top-level instance and strip any leftover unresolved markers
+    (composeNode's final replace)."""
+    return _MARKER_RE.sub("", _render_node(instances[idx], instances, children_of, idx))
 
 
 def compose_body(page):
@@ -296,19 +313,32 @@ def compose_instance_map(idx, instances, children_of, path, depth):
     the parent path (path/N). Byte-identical to compose_instance() once the
     data-viz-* attrs and display:contents wrappers are stripped."""
     inst = instances[idx]
-    html = substitute_map(inst, path, depth)
+    return _render_node_map(inst, instances, children_of, path, depth, idx)
+
+
+def _render_node_map(node, instances, children_of, path, depth, idx=None):
+    """_render_node() for the map: annotate each node's root and recurse into BOTH
+    parent-linked child instances and embedded item children (in-payload `children`
+    list), so every nesting level — including lifted carousel/grid items — carries
+    data-viz-* at its true depth. Byte-identical to _render_node() once data-viz-*
+    attrs and display:contents wrappers are stripped (assert_gate_unchanged)."""
+    html = substitute_map(node, path, depth)
     if "{{child:" in html:
-        kids = [c for c in children_of.get(idx, [])
-                if instances[c].get("skeleton")]
+        kids = [] if idx is None else [c for c in children_of.get(idx, [])
+                                       if instances[c].get("skeleton")]
         # a child slot renders the child's FULL composed subtree (recursive), so
         # grandchildren nest correctly at depth+2, depth+3, … (matches the gate's
-        # substitute-per-child expansion; recursion adds depth the gate never
-        # reached but never changes bytes because deeper skeletons carry no
-        # {{child}} on the reference sites).
+        # per-child expansion). Parent-linked instances first, then embedded items.
         rendered = [
-            compose_instance_map(c, instances, children_of,
-                                 "%s/%d" % (path, n), depth + 1)
+            _render_node_map(instances[c], instances, children_of,
+                             "%s/%d" % (path, n), depth + 1, c)
             for n, c in enumerate(kids)
+        ]
+        emb = [ch for ch in (node.get("children") or []) if ch.get("skeleton")]
+        rendered += [
+            _render_node_map(ch, instances, children_of,
+                             "%s/%d" % (path, len(kids) + j), depth + 1, None)
+            for j, ch in enumerate(emb)
         ]
         max_idx = -1
         for m in _CHILD_RE.finditer(html):
