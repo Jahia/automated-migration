@@ -125,12 +125,24 @@ def main():
         problems.append(f"completeness: {len(missing_pages)} page(s) with no ledger entry: "
                         + ", ".join(missing_pages[:5]))
 
+    # ── inventory coverage (stellar core): both phases, subprocess ─────────
+    inv_res = {}
+    for ph in ("content", "site"):
+        r = subprocess.run([sys.executable, os.path.join(here, "inventory-coverage.py"),
+                            a.project, a.site, "--phase", ph],
+                           capture_output=True, text=True)
+        inv_res[ph] = {"pass": r.returncode == 0,
+                       "detail": (r.stdout.strip().splitlines() or [""])[-1][:200]}
+        if r.returncode != 0:
+            problems.append(f"inventory-{ph}: {inv_res[ph]['detail'][:140]}")
+
     # ── assemble + print ───────────────────────────────────────────────────
     card = {"project": a.project, "site": a.site,
             "pixel": {"mean": pixel_mean, "floor": a.pixel_floor, "perPage": pixel},
             "junk": {"pass": junk_pass, "detail": junk_line},
             "ia": {"pass": ia_ok, "detail": ia_detail},
             "completeness": completeness,
+            "inventory": inv_res,
             "problems": problems, "pass": not problems}
     os.makedirs(wo, exist_ok=True)
     json.dump(card, open(f"{wo}/scorecard.json", "w"), indent=1, ensure_ascii=False)
@@ -143,6 +155,8 @@ def main():
     print(f"| IA (L1 menu) | {'PASS' if ia_ok else ('FAIL' if ia_ok is not None else 'n/a')} |")
     print(f"| pages loaded | {len([e for e in completeness.values() if e['created']])}"
           f"/{len(completeness)} |")
+    for ph in ("content", "site"):
+        print(f"| inventory ({ph}) | {'PASS' if inv_res[ph]['pass'] else 'FAIL'} |")
     worst = sorted(((s, v) for s, v in pixel.items() if v is not None), key=lambda x: x[1])[:5]
     if worst:
         print("\nworst pixel pages: " + ", ".join(f"{s}={v}%" for s, v in worst))

@@ -18,6 +18,7 @@ sitemap-resolved paths.
 Usage: create_pages.py <project> <site> [--template basic] [--locale en]
        [--limit N] [--dry]
 """
+import html as _html
 import json
 import os
 import sys
@@ -111,6 +112,9 @@ def main():
     created = updated = published = 0
     for p in pages:
         slug, title = p["slug"], (p.get("title") or p["slug"]).strip()[:250]
+        # entity-decode: crawl <title>s carry &amp; etc. — stored titles must
+        # be plain text (breadcrumb/nav display them verbatim)
+        title = _html.unescape(title)
         if slug == "home":
             # home exists (site init); refresh its title only
             path = f"/sites/{site}/home"

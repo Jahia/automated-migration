@@ -224,7 +224,7 @@ export const Layout = ({
           <AbsoluteArea name="nav" parent={homePage} />
         )}
         {/* tree-driven breadcrumb (virtual node — parameterless, no storage) */}
-        {CHROME_ALWAYS && <Render content={{ nodeType: "$NS:breadcrumb" }} />}
+        {CHROME_ALWAYS && <Render content={{ nodeType: "$NS:breadcrumb" } as never} />}
         {body}
         {(CHROME_ALWAYS || !shell || shell.chromeAreas) && (
           <AbsoluteArea name="footer" parent={homePage} />

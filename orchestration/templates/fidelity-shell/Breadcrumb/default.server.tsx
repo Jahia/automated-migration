@@ -1,4 +1,5 @@
 import { jahiaComponent, buildNodeUrl, useServerContext } from "@jahia/javascript-modules-library";
+import { useTranslation } from "react-i18next";
 
 /**
  * Breadcrumb — TREE-DRIVEN (no content needed): renders the ancestor chain of
@@ -21,6 +22,7 @@ jahiaComponent(
     displayName: "Breadcrumb",
   },
   () => {
+    const { t } = useTranslation();
     const { renderContext, mainNode } = useServerContext();
     let home: JCRNode | null = null;
     try {
@@ -49,7 +51,7 @@ jahiaComponent(
         <ol className="breadcrumb__list">
           <li className="breadcrumb__item">
             <a className="breadcrumb__link" href={buildNodeUrl(home as never)}>
-              {home.getDisplayableName()}
+              {t("breadcrumb.home")}
             </a>
           </li>
           {chain.map((n, i) => (

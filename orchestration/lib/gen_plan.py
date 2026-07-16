@@ -151,6 +151,12 @@ def build_plan(p):
               f"PROBE: test -s {PP}/workflow-output/local-mirror/mirror.json",
               f"PROBE[900]: node orchestration/lib/mirror_probe.mjs {PP} 10"],
              deps=["step_crawl"]),
+        step("step_inventory", "SITE INVENTORY: deterministic DOM analysis (landmarks, "
+             "chrome anatomy, per-region anatomy, theme)", "build",
+             [f"Run: python3 orchestration/lib/site_inventory.py {P}",
+              f"PROBE: python3 -c \"import json,sys; d=json.load(open('{PP}/workflow-output/site-inventory.json')); "
+              f"sys.exit(0 if d.get('pages') and d.get('chrome') else 1)\""],
+             deps=["step_localize"]),
         step("step_semantic", "Deterministic candidates + partitions", "build",
              [f"Run: python3 orchestration/lib/scope_apply.py {PP}",
               f"Run: python3 orchestration/lib/semantic_extract.py {PP}",
@@ -228,6 +234,9 @@ def build_plan(p):
               # properties/children (coverage floor), no structure-markup
               # leftovers, value-level applicability — blocking, BEFORE any load
               *([f"PROBE: python3 orchestration/probes/reconcile-check.py {P}"] if ARCH else []),
+              # INVENTORY coverage: every heading/image the DOM analysis found
+              # is placed in the payload (blocking, pre-load)
+              *([f"PROBE: python3 orchestration/probes/inventory-coverage.py {P} {SITE} --phase content"] if ARCH else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               # component-model gate (2026-07-06): visible text must live in
@@ -363,6 +372,9 @@ def build_plan(p):
               # chrome as EDITABLE content: logo + top links on siteHeader,
               # footer link columns + copyright (from the captured source chrome)
               *([f"Run: python3 orchestration/lib/populate_chrome.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
+              # chrome completeness vs the inventory: logo, nav L1, footer
+              # columns, breadcrumb (blocking)
+              *([f"PROBE: python3 orchestration/probes/inventory-coverage.py {P} {SITE} --phase site"] if ARCH else []),
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",

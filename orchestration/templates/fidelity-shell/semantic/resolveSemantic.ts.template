@@ -96,7 +96,7 @@ export function resolveSemantic(
     imgUrl,
     imgAlt,
     href,
-    ctaLabel: str("ctaLabel"),
+    ctaLabel: str("ctaLabel") ?? str("linkLabel"),
     hasChildren,
     editMode,
     cls,

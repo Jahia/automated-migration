@@ -488,11 +488,32 @@ def write_sdc_and_sync(m, shared_full, blocks, ns, mixns, module_dir, manifest_p
         (supertypes minus cta-mixin, single body, childType -> ns:cardItem,
         cnd path, + * rules)."""
     import archetypes as ARCH  # noqa: F401  (kept for future emitted-model detail)
+    TS_TYPES = {"string": "string", "richtext": "string", "long": "number",
+                "double": "number", "boolean": "boolean",
+                "weakreference": "JCRNodeWrapper", "date": "string"}
+    comps_by_short = {c["nodeType"].split(":")[-1]: c
+                      for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or [])}
     for short, text in blocks:
         d = f"{module_dir}/src/components/{short[0].upper()}{short[1:]}"
         os.makedirs(d, exist_ok=True)
         with open(f"{d}/definition.cnd", "w", encoding="utf-8") as f:
             f.write(text)
+        # types.ts (skill jahia-dev-create-view: Props from ./types.js; ALL
+        # props optional — Jahia guarantees nothing at render time)
+        comp = comps_by_short.get(short) or {}
+        lines = ["import type { JCRNodeWrapper } from \"org.jahia.services.content\";",
+                 "", "export interface Props {",
+                 "  \"jcr:title\"?: string;", "  body?: string;",
+                 "  image?: JCRNodeWrapper;", "  classMap?: string;"]
+        for fdef in comp.get("fields") or []:
+            nm = fdef["name"]
+            if nm in ("body", "title", "image") or nm.startswith("j:"):
+                continue
+            base = (fdef.get("type") or "string").split(",")[0].strip()
+            lines.append(f"  {json.dumps(nm)}?: {TS_TYPES.get(base, 'string')};")
+        lines += ["}", ""]
+        with open(f"{d}/types.ts", "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
     # shared-only CND for settings (workflow artifact; merge_cnd installs it)
     shared_only = shared_full.split("// ── components (SDC copies) ──")[0]
     wo = os.path.dirname(manifest_path)

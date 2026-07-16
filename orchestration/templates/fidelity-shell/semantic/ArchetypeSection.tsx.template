@@ -52,11 +52,15 @@ function Rich({ html, className }: { html?: string; className?: string }): React
 }
 
 function Cta({ href, label }: { href?: string; label?: string }): ReactNode {
-  return href ? (
+  const usable = href && href !== "#";
+  if (!label && !usable) return null;
+  return usable ? (
     <a href={href} className="cta">
       {label || href}
     </a>
-  ) : null;
+  ) : (
+    <span className="cta cta--unlinked">{label}</span>
+  );
 }
 
 function Img({ url, alt, className }: { url?: string; alt?: string; className?: string }): ReactNode {

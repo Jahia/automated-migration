@@ -31,8 +31,8 @@ def _links(el, limit=12):
     """(label, href) pairs from anchors with visible text."""
     out = []
     for a_ in el.find_all("a", href=True):
-        label = a_.get_text(" ", strip=True)
-        if label and len(label) <= 80:
+        label = a_.get_text(" ", strip=True) or (a_.get("aria-label") or "").strip()             or (a_.get("title") or "").strip()             or ((a_.find("img").get("alt", "") if a_.find("img") else "")).strip()
+        if label and len(label) <= 80 and a_["href"].rstrip("/") not in ("", "#"):
             out.append((label[:250], a_["href"]))
         if len(out) >= limit:
             break
@@ -108,17 +108,29 @@ def populate_footer(ld, html):
     except Exception:
         pass
     soup = BeautifulSoup(html, "lxml")
-    # columns: repeated same-signature blocks holding a heading + links
+    # SINGLE SOURCE OF TRUTH: the site inventory already extracted the footer
+    # columns (heading-titled AND heading-less footers); consume it, never
+    # re-parse with weaker heuristics (stellar-core Phase 1 artifact)
     cols, ncol = [], 0
-    for el in soup.find_all(True):
-        heading = el.find(["h2", "h3", "h4", "h5", "h6", "strong"])
-        links = _links(el, limit=8)
-        if heading is not None and 2 <= len(links) <= 8 and el.parent is not None:
-            title = heading.get_text(" ", strip=True)[:250]
-            if title and all(title != c[0] for c in cols):
-                cols.append((title, links))
-        if len(cols) >= 6:
-            break
+    inv_p = f"projects/{ld.project}/workflow-output/site-inventory.json"
+    try:
+        inv_cols = ((json.load(open(inv_p)).get("chrome") or {})
+                    .get("footer") or {}).get("columns") or []
+        for i, c in enumerate(inv_cols, 1):
+            cols.append((c.get("title") or f"Links {i}",
+                         [(l["label"], l["href"]) for l in c.get("links") or []]))
+    except (FileNotFoundError, ValueError):
+        pass
+    if not cols:
+        for el in soup.find_all(True):
+            heading = el.find(["h2", "h3", "h4", "h5", "h6", "strong"])
+            links = _links(el, limit=8)
+            if heading is not None and 2 <= len(links) <= 8 and el.parent is not None:
+                title = heading.get_text(" ", strip=True)[:250]
+                if title and all(title != c[0] for c in cols):
+                    cols.append((title, links))
+            if len(cols) >= 6:
+                break
     for title, links in cols:
         ncol += 1
         cname = f"col-{ncol}"
