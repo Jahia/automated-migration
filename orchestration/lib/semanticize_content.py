@@ -217,6 +217,15 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
             taken.append(el)
     for el in taken:
         el.extract()
+    # LOOSE TEXT NODES (the named-debt hoarders): text sitting directly under
+    # a marker-bearing wrapper is invisible to the element mover — wrap+move it
+    from bs4 import NavigableString
+    for tx in list(soup.body.strings if soup.body else []):
+        t_s = str(tx)
+        if "{{" in t_s or len(t_s.strip()) < 20:
+            continue
+        moved.append(f"<p>{t_s.strip()}</p>")
+        tx.extract()
     if moved:
         fields["body"] = "\n".join(
             x for x in [fields.get("body", ""), *moved] if x).strip()
@@ -256,6 +265,7 @@ def _decompose_repeats(skeleton, ns):
         title = _first_heading_text(frag)
         ch = {"type": "cardItem", "nodeType": f"{ns}:cardItem", "promoted": True,
               "fields": {}, "skeleton": _mark_title_in_skeleton(frag, title) if title else frag}
+        ch["skeleton"] = _sweep_text_to_body(ch["skeleton"], ch["fields"], min_chars=40)
         cm = _distill_classmap(ch["skeleton"])
         if cm:
             ch["classMap"] = cm
@@ -329,7 +339,9 @@ def _decompose_library(transformed, ns):
             if not frag:
                 continue
             item_sk, t, b = _itemize_fragment(frag)
-            atom["skeleton"] = item_sk
+            atom["skeleton"] = _sweep_text_to_body(item_sk, atom.setdefault("fields", {}),
+                                                    min_chars=40)
+            item_sk = atom["skeleton"]
             cm = _distill_classmap(item_sk)
             if cm:
                 atom["classMap"] = cm
@@ -466,26 +478,9 @@ def _semanticize_instance(inst, node, surf):
                 root2.append("{{f:body}}")
                 sk = "".join(str(c) for c in soup2.body.children).strip()
         else:
-            # selective: maximal text-bearing elements WITHOUT child/field
-            # markers move to body; marker-bearing structure stays in place
-            moved, taken = [], []
-            for el in (soup2.body.find_all(True) if soup2.body else []):
-                s_el = str(el)
-                if "{{" in s_el:
-                    continue
-                if any(el in t.descendants for t in taken):
-                    continue
-                if len(el.get_text(" ", strip=True)) >= 20:
-                    moved.append(s_el)
-                    taken.append(el)
-            for el in taken:
-                el.extract()
-            if moved:
-                fields["body"] = "\n".join(
-                    x for x in [fields.get("body", ""), *moved] if x).strip()
-                sk = "".join(str(c) for c in soup2.body.children).strip()
-                if "{{f:body}}" not in sk:
-                    sk += "{{f:body}}"
+            # selective: shared sweep (elements AND loose text nodes without
+            # markers move to body; marker-bearing structure stays in place)
+            sk = _sweep_text_to_body(sk, fields, min_chars=60)
     if sk:
         out["skeleton"] = sk
         cm = _distill_classmap(sk)
@@ -558,13 +553,28 @@ def main():
         return re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
 
     n_sem = n_pass = n_drop = 0
-    for page in data.get("pages", {}).values():
+    recon_pages = {}
+    for _pk, page in data.get("pages", {}).items():
+        recon_rows = []
+        recon_pages[_pk] = recon_rows
+        drop_reason = {}
         # ARCHETYPE model: the fidelity `shell` spec (full source body around
         # <main> — nav/cookie-consent/notification chrome + SPA state) is NOT
         # used by the semantic Layout and must not become a 100KB rawHtml blob
         # node editors see in jContent. Drop it; the Layout falls back to the
         # css-manifest for source styling (scripts intentionally excluded).
         page.pop("shell", None)
+        # RECONCILIATION accounting (process-hardening 2026-07-16): source
+        # visible text per instance BEFORE transformation — conservation is
+        # gated (reconcile-check), never assumed.
+        orig_vis = {}
+        for _i, _inst in enumerate(page.get("instances", [])):
+            _parts = [v for v in (_inst.get("fields") or {}).values()
+                      if isinstance(v, str)]
+            for _k in ("skeleton", "imgOrig"):
+                if isinstance(_inst.get(_k), str):
+                    _parts.append(_inst[_k])
+            orig_vis[_i] = len(_visible(" ".join(_parts)))
         transformed = []                       # (keep: bool, instance | None)
         for inst in page.get("instances", []):
             if inst.get("area"):
@@ -577,6 +587,7 @@ def main():
                 node = itm.get((inst.get("type") or "").lower())
                 if node is None or node == passthrough:
                     transformed.append((False, None))
+                    drop_reason[len(transformed) - 1] = "chrome"
                     n_drop += 1
                 else:
                     transformed.append((True, inst))
@@ -660,10 +671,42 @@ def main():
                 n_pass += 1
             else:
                 transformed.append((False, None))         # whitespace/markup/chrome — DROP
+                drop_reason[len(transformed) - 1] = "empty"
                 n_drop += 1
         # library containers: verbatim item fragments -> {{child:N}} + per-item
         # skeleton/fields (Page Builder selection + Content Editor truth)
         _decompose_library(transformed, (passthrough or "x:y").split(":")[0])
+        # reconciliation rows: placed (fields+children) vs leftover (residual
+        # skeleton text) vs original — per instance, into reconciliation.json
+        def _placed_text(ins):
+            f = ins.get("fields") or {}
+            t = " ".join(str(v) for v in (f.get("title"), f.get("body"),
+                                          f.get("linkLabel")) if v)
+            for ch in (ins.get("children") or []):
+                cf = ch.get("fields") or {}
+                t += " " + " ".join(str(v) for v in (cf.get("title"), cf.get("body"),
+                                                     cf.get("linkLabel"), ch.get("linkLabel")) if v)
+            return len(_visible(t))
+
+        def _leftover_text(ins):
+            sk_ = re.sub(r"\{\{[^}]+\}\}", " ", ins.get("skeleton") or "")
+            return len(_visible(sk_))
+
+        for _i, (_keep, _ins) in enumerate(transformed):
+            row = {"page": None, "idx": _i, "before": orig_vis.get(_i, 0)}
+            if not _keep or _ins is None:
+                row.update({"kind": f"dropped-{drop_reason.get(_i, 'unknown')}",
+                            "placed": 0, "leftover": 0})
+            else:
+                # atoms were absorbed as children of their container: their own
+                # row shows the container reference, text counted on the parent
+                row.update({"kind": ("library" if (_ins.get("libraryPlan") or _ins.get("libraryAtom"))
+                                     else ("passthrough" if _ins.get("passthrough") else "typed")),
+                            "type": _ins.get("type"), "nodeType": _ins.get("nodeType"),
+                            "atom": bool(_ins.get("libraryAtom")),
+                            "parent": _ins.get("parent"),
+                            "placed": _placed_text(_ins), "leftover": _leftover_text(_ins)})
+            recon_rows.append(row)
         # compact + remap parent indices (dropped parent -> top-level)
         remap, kept = {}, []
         for oldi, (keep, ins) in enumerate(transformed):
@@ -679,6 +722,36 @@ def main():
                 if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
                     ins["parent"] = None
         page["instances"] = kept
+
+    # write the reconciliation artifact (orchestrator-reviewable; gated by
+    # orchestration/probes/reconcile-check.py BEFORE any load)
+    recon = {"project": a.project, "pages": {}}
+    for _pk, rows in recon_pages.items():
+        by_idx = {r["idx"]: r for r in rows}
+        for r in rows:
+            if r.get("atom") and r.get("parent") is not None:
+                par = by_idx.get(r["parent"])
+                if par:
+                    par["before"] = max(par["before"] - r["before"], 0)
+        before = sum(r["before"] for r in rows)
+        placed = sum(r.get("placed", 0) for r in rows)
+        leftover = sum(r.get("leftover", 0) for r in rows)
+        # by-design drops (replaced chrome, zero-visible fragments) are NOT
+        # content loss — conservation measures the CONTENT instances only
+        excluded = sum(r["before"] for r in rows
+                       if str(r.get("kind", "")).startswith("dropped-")
+                       and r["kind"] in ("dropped-chrome", "dropped-empty"))
+        lost = sum(r["before"] for r in rows if r.get("kind") == "dropped-unknown")
+        eff = max(before - excluded, 0)
+        recon["pages"][_pk] = {
+            "before": before, "beforeEffective": eff, "placed": placed,
+            "leftover": leftover, "excludedByDesign": excluded, "lost": lost,
+            "coverage": round((placed + leftover) / eff, 3) if eff else 1.0,
+            "rows": rows}
+    rp = f"projects/{a.project}/workflow-output/reconciliation.json"
+    os.makedirs(os.path.dirname(rp), exist_ok=True)
+    json.dump(recon, open(rp, "w"), indent=1, ensure_ascii=False)
+    print(f"[semanticize_content] reconciliation -> {rp}")
 
     data["adapter"] = "semantic"
     data["model"] = "archetype"

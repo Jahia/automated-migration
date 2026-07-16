@@ -224,6 +224,10 @@ def build_plan(p):
               *([f"PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/{P}.content-load.json')); "
                  f"sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\""]
                 if ARCH else []),
+              # RECONCILIATION gate (2026-07-16): scraped text is CONSERVED into
+              # properties/children (coverage floor), no structure-markup
+              # leftovers, value-level applicability — blocking, BEFORE any load
+              *([f"PROBE: python3 orchestration/probes/reconcile-check.py {P}"] if ARCH else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               # component-model gate (2026-07-06): visible text must live in
