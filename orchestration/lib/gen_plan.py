@@ -393,13 +393,23 @@ def build_plan(p):
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],
              deps=["step_nav"]),
+        # per-component CSS capture (operator mandate 2026-07-16): every SDC
+        # folder gets the source CSS its captured markup actually wears, as a
+        # component.module.css. Runs AFTER load (the JCR is the truth of each
+        # node's concrete type + captured classes), then rebuilds + redeploys —
+        # CSS is a pure rendering asset, so the post-load rebuild is legitimate.
+        *([step("step_component_css", "Capture per-component CSS modules from JCR", "deploy",
+                [f"Run: python3 orchestration/lib/component_css.py {P} {SITE}",
+                 f"Run: bash orchestration/probes/deploy.sh {PP}",
+                 f"PROBE: python3 orchestration/lib/component_css.py {P} {SITE} --check"],
+                deps=["step_content_load"])] if ARCH else []),
         step("step_publish_parity", "default vs live parity", "publish",
              # parity across the LOADED content locales (CLOC), not the site's
              # full language set — a source-faithful migration only loads what
              # the source has; FR translation of the migrated copy is a separate,
              # post-migration task, so it must not block publication here.
              [f"PROBE: bash orchestration/probes/publish-parity.sh {PP} {SITE} {CLOC}"],
-             deps=["step_content_load"]),
+             deps=["step_component_css"] if ARCH else ["step_content_load"]),
         step("step_edit_frame", "Pages editable in jContent", "verify",
              [f"PROBE: bash orchestration/probes/edit-frame.sh {PP} {SITE} en"],
              deps=["step_publish_parity"]),
