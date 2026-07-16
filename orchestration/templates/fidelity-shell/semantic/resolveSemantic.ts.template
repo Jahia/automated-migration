@@ -62,6 +62,16 @@ export function resolveSemantic(
   } catch {
     hasChildren = false;
   }
+  // MANDATE: the ORIGINAL site's class names, distilled at migration time
+  // (hidden classMap prop) — the views wear them so the source CSS applies.
+  let cls: Record<string, string> = {};
+  try {
+    if (node.hasProperty("classMap")) {
+      cls = JSON.parse(node.getProperty("classMap").getString()) as Record<string, string>;
+    }
+  } catch {
+    cls = {};
+  }
   let editMode = false;
   try {
     editMode = (renderContext as { isEditMode: () => boolean }).isEditMode();
@@ -80,6 +90,7 @@ export function resolveSemantic(
     ctaLabel: str("ctaLabel"),
     hasChildren,
     editMode,
+    cls,
     trackId: `carousel-${node.getIdentifier()}`,
   };
 }

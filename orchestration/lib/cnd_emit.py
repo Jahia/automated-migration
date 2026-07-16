@@ -414,6 +414,7 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         f"[{mixns}:sourceMarkup] mixin",
         "  - skeleton (string, textarea) hidden",
         "  - skeletonOrig (string, textarea) hidden",
+        "  - classMap (string) hidden",
         "",
         "// reusable AT-MOST-ONCE property blocks (a mixin can never repeat on a node)",
         *[l for l in ARCH.shared_mixin_cnd(mixns) if f"{mixns}:cta" not in l.split("\n")[0]

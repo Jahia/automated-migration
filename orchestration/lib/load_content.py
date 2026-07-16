@@ -371,6 +371,8 @@ class Loader:
         create_props = {}
         if payload.get("skeleton"):
             create_props["skeleton"] = self._rewire_hrefs(payload["skeleton"])[:200_000]
+        if payload.get("classMap"):
+            create_props["classMap"] = payload["classMap"][:8000]
         if payload.get("skeletonOrig"):
             create_props["skeletonOrig"] = payload["skeletonOrig"][:200_000]
         mixins, post = [], {}
@@ -476,6 +478,8 @@ class Loader:
         sk = inst.get("skeleton")
         if sk:
             props["skeleton"] = sk[:200_000]
+        if inst.get("classMap"):
+            props["classMap"] = inst["classMap"][:8000]
         # logoWall keeps its source container class (deployed schema)
         if inst.get("type") == "logoWall":
             props["logoContainerClass"] = (
@@ -536,6 +540,8 @@ class Loader:
             f = inst.get("fields") or {}
             if inst.get("skeleton"):
                 create_props["skeleton"] = inst["skeleton"][:200_000]
+            if inst.get("classMap"):
+                create_props["classMap"] = inst["classMap"][:8000]
             if f.get("title"):
                 post["jcr:title"] = str(f["title"])[:250]
             if f.get("body"):

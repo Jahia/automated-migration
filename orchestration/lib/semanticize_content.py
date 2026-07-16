@@ -162,6 +162,41 @@ def _mark_title_in_skeleton(skeleton, title):
     return skeleton
 
 
+def _distill_classmap(skeleton):
+    """MANDATE (2026-07-16): views must wear the ORIGINAL site's classes so the
+    already-linked source CSS styles the Jahia-rendered markup. Distill the
+    source class names from the node's structure markup: root element, first
+    heading, first image, first link/button, and the repeating-item signature.
+    Stored as a hidden JSON prop; resolveSemantic feeds it to the views."""
+    if not skeleton:
+        return None
+    soup = BeautifulSoup(skeleton, "lxml")
+    root = next((c for c in (soup.body.children if soup.body else [])
+                 if getattr(c, "name", None)), None)
+    if root is None:
+        return None
+    cm = {}
+
+    def cls(el):
+        return " ".join(el.get("class") or []) if el is not None else ""
+
+    cm["root"] = cls(root)
+    h = next((x for t in ("h1", "h2", "h3", "h4", "h5", "h6")
+              for x in [root.find(t)] if x is not None), None)
+    cm["title"] = cls(h)
+    cm["image"] = cls(root.find("img"))
+    cm["link"] = cls(root.find("a"))
+    # the wrapper that holds the {{child:N}} markers = the items row/track
+    marker_parent = None
+    for el in root.find_all(True):
+        if any("{{child:" in str(x) for x in el.children if not getattr(x, "name", None)):
+            marker_parent = el
+            break
+    cm["items"] = cls(marker_parent)
+    cm = {k: v for k, v in cm.items() if v}
+    return json.dumps(cm, ensure_ascii=False) if cm else None
+
+
 def _sweep_text_to_body(sk, fields, min_chars=60):
     """Selective authorability sweep: maximal text-bearing elements WITHOUT any
     marker move into the body field; marker-bearing structure stays."""
@@ -221,6 +256,9 @@ def _decompose_repeats(skeleton, ns):
         title = _first_heading_text(frag)
         ch = {"type": "cardItem", "nodeType": f"{ns}:cardItem", "promoted": True,
               "fields": {}, "skeleton": _mark_title_in_skeleton(frag, title) if title else frag}
+        cm = _distill_classmap(ch["skeleton"])
+        if cm:
+            ch["classMap"] = cm
         if title:
             ch["fields"]["title"] = title
         img = el.find("img")
@@ -292,6 +330,9 @@ def _decompose_library(transformed, ns):
                 continue
             item_sk, t, b = _itemize_fragment(frag)
             atom["skeleton"] = item_sk
+            cm = _distill_classmap(item_sk)
+            if cm:
+                atom["classMap"] = cm
             f = atom.setdefault("fields", {})
             if t and not f.get("title"):
                 f["title"] = t
@@ -447,6 +488,9 @@ def _semanticize_instance(inst, node, surf):
                     sk += "{{f:body}}"
     if sk:
         out["skeleton"] = sk
+        cm = _distill_classmap(sk)
+        if cm:
+            out["classMap"] = cm
     out["fields"] = fields
     # embedded typed children -> same hybrid treatment
     child_node = (surf.get(node) or {}).get("child")
@@ -586,6 +630,9 @@ def main():
                             f["title"] = t
                     inst["skeleton"] = _sweep_text_to_body(
                         inst.get("skeleton") or "", f)
+                    cm = _distill_classmap(inst.get("skeleton") or "")
+                    if cm:
+                        inst["classMap"] = cm
                 elif inst.get("libraryAtom"):
                     # CONTRACT: all repeatable items are the ONE reusable
                     # {ns}:cardItem child type (typed by anatomy, not by parent)
