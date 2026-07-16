@@ -376,10 +376,11 @@ def type_block_semantic(comp, ns, mixns):
         ll = layout_line(lp)
         if ll:
             lines.append(ll)
-    # repetition = children: shared reusable item type for containers,
-    # reusable cta children for EVERY component (0..N, orderable)
-    if comp.get("isContainer") or comp.get("childType"):
-        lines.append(f"  + * ({ns}:cardItem)")
+    # repetition = children on EVERY component type: the decomposition pass can
+    # find repeating units inside ANY section (observed: hero/richText children
+    # failed ConstraintViolation when only containers carried the rule), and
+    # CTAs repeat anywhere. Both reusable child objects, 0..N, orderable.
+    lines.append(f"  + * ({ns}:cardItem)")
     lines.append(f"  + * ({ns}:cta)")
     return "\n".join(lines), ""
 
