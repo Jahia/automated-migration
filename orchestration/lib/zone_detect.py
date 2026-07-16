@@ -28,7 +28,7 @@ from bs4 import BeautifulSoup, Comment
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import provenance  # stamps the emit_json output
 
-REPO = "/Users/jmaurel/Documents/GitHub/jahiaMigration"
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DROP = {"script", "style", "noscript", "template", "link", "meta", "br", "wbr", "source", "svg",
         "path", "iframe", "canvas"}
 LANDMARK = {"banner", "contentinfo", "navigation", "main", "complementary", "search",
