@@ -545,8 +545,12 @@ def main():
     MIN_VIS = 24
 
     def _visible(html):
+        # {{f:*}}/{{media:*}}/{{child:N}} markers are STRUCTURE, not visible
+        # text — counting their names as content inflated orig_vis and failed
+        # conservation on pages that were actually fully placed.
+        html = re.sub(r"\{\{[^{}]*\}\}", " ", html or "")
         if not html or "<" not in html:
-            return re.sub(r"\s+", " ", (html or "")).strip()
+            return re.sub(r"\s+", " ", html).strip()
         soup = BeautifulSoup(html, "lxml")
         for el in soup.find_all(["script", "style", "noscript", "template"]):
             el.extract()
@@ -575,14 +579,16 @@ def main():
         # RECONCILIATION accounting (process-hardening 2026-07-16): source
         # visible text per instance BEFORE transformation — conservation is
         # gated (reconcile-check), never assumed.
-        orig_vis = {}
+        orig_vis, orig_text = {}, {}
         for _i, _inst in enumerate(page.get("instances", [])):
             _parts = [v for v in (_inst.get("fields") or {}).values()
                       if isinstance(v, str)]
             for _k in ("skeleton", "imgOrig"):
                 if isinstance(_inst.get(_k), str):
                     _parts.append(_inst[_k])
-            orig_vis[_i] = len(_visible(" ".join(_parts)))
+            _ot = _visible(" ".join(_parts))
+            orig_vis[_i] = len(_ot)
+            orig_text[_i] = _ot
         transformed = []                       # (keep: bool, instance | None)
         for inst in page.get("instances", []):
             if inst.get("area"):
@@ -693,7 +699,7 @@ def main():
         _decompose_library(transformed, (passthrough or "x:y").split(":")[0])
         # reconciliation rows: placed (fields+children) vs leftover (residual
         # skeleton text) vs original — per instance, into reconciliation.json
-        def _placed_text(ins):
+        def _placed_raw(ins):
             f = ins.get("fields") or {}
             t = " ".join(str(v) for v in (f.get("title"), f.get("body"),
                                           f.get("linkLabel")) if v)
@@ -701,26 +707,43 @@ def main():
                 cf = ch.get("fields") or {}
                 t += " " + " ".join(str(v) for v in (cf.get("title"), cf.get("body"),
                                                      cf.get("linkLabel"), ch.get("linkLabel")) if v)
-            return len(_visible(t))
+            return _visible(t)
+
+        def _placed_text(ins):
+            return len(_placed_raw(ins))
 
         def _leftover_text(ins):
             sk_ = re.sub(r"\{\{[^}]+\}\}", " ", ins.get("skeleton") or "")
             return len(_visible(sk_))
 
         for _i, (_keep, _ins) in enumerate(transformed):
-            row = {"page": None, "idx": _i, "before": orig_vis.get(_i, 0)}
+            row = {"page": None, "idx": _i, "before": orig_vis.get(_i, 0),
+                   "_ot": orig_text.get(_i, "")}
             if not _keep or _ins is None:
                 row.update({"kind": f"dropped-{drop_reason.get(_i, 'unknown')}",
                             "placed": 0, "leftover": 0})
             else:
                 # atoms were absorbed as children of their container: their own
                 # row shows the container reference, text counted on the parent
+                _pl, _lo = _placed_text(_ins), _leftover_text(_ins)
                 row.update({"kind": ("library" if (_ins.get("libraryPlan") or _ins.get("libraryAtom"))
                                      else ("passthrough" if _ins.get("passthrough") else "typed")),
                             "type": _ins.get("type"), "nodeType": _ins.get("nodeType"),
                             "atom": bool(_ins.get("libraryAtom")),
                             "parent": _ins.get("parent"),
-                            "placed": _placed_text(_ins), "leftover": _leftover_text(_ins)})
+                            "placed": _pl, "leftover": _lo})
+                # EVIDENCE, not counts: when a row under-places, name the words
+                if orig_vis.get(_i, 0) > 80 and (_pl + _lo) < orig_vis[_i] * 0.8:
+                    f2 = _ins.get("fields") or {}
+                    have = " ".join(str(v) for v in f2.values() if isinstance(v, str))
+                    for ch2 in (_ins.get("children") or []):
+                        have += " " + " ".join(str(v) for v in (ch2.get("fields") or {}).values()
+                                               if isinstance(v, str))
+                    have_w = set(re.findall(r"\w{4,}", _visible(have).lower()))
+                    miss = [w for w in re.findall(r"\w{4,}", orig_text.get(_i, "").lower())
+                            if w not in have_w]
+                    if miss:
+                        row["missingSample"] = " ".join(dict.fromkeys(miss))[:300]
             recon_rows.append(row)
         # compact + remap parent indices (dropped parent -> top-level)
         remap, kept = {}, []
@@ -752,6 +775,32 @@ def main():
         before = sum(r["before"] for r in rows)
         placed = sum(r.get("placed", 0) for r in rows)
         leftover = sum(r.get("leftover", 0) for r in rows)
+        # conservation is WORD-level: decomposition legitimately moves text
+        # ACROSS rows (container -> items), so per-row char counts can neither
+        # detect loss nor avoid false alarms. The truth question is: does every
+        # source word exist somewhere AUTHORABLE in the FINAL payload (sweeps
+        # and merges run after row capture)? The gap is NAMED, never counted.
+        _w = lambda t: set(re.findall(r"[^\W\d_]{3,}", (t or "").lower()))
+        need = set()
+        for r in rows:
+            if not str(r.get("kind", "")).startswith("dropped-") or r.get("kind") == "dropped-unknown":
+                need |= _w(r.pop("_ot", ""))
+            else:
+                r.pop("_ot", None)
+
+        def _auth_words(ins):
+            out = set()
+            for v in (ins.get("fields") or {}).values():
+                if isinstance(v, str):
+                    out |= _w(_visible(v))
+            out |= _w(_visible(ins.get("skeleton") or ""))
+            for ch in (ins.get("children") or []):
+                out |= _auth_words(ch)
+            return out
+        have = set()
+        for ins in (data.get("pages", {}).get(_pk) or {}).get("instances", []):
+            have |= _auth_words(ins)
+        missing = sorted(need - have)
         # by-design drops (replaced chrome, zero-visible fragments) are NOT
         # content loss — conservation measures the CONTENT instances only
         excluded = sum(r["before"] for r in rows
@@ -762,7 +811,8 @@ def main():
         recon["pages"][_pk] = {
             "before": before, "beforeEffective": eff, "placed": placed,
             "leftover": leftover, "excludedByDesign": excluded, "lost": lost,
-            "coverage": round((placed + leftover) / eff, 3) if eff else 1.0,
+            "coverage": round(len(need & have) / len(need), 3) if need else 1.0,
+            "words": len(need), "missingWords": missing[:120],
             "rows": rows}
     if chrome_capture:
         cp = f"projects/{a.project}/workflow-output/chrome-capture.json"
