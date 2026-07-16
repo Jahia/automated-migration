@@ -484,9 +484,22 @@ _OVERLAY_JS = """
 # are Phase 1 (buttons → AbsoluteArea/Area/component → scope-rules/seg-plan). Injected via
 # str.replace (NOT %-format) so literal % in the JS needs no escaping.
 MANUAL_CSS = """
-.zm-sec{margin:7px 0 0;border-top:1px solid rgba(127,127,127,.25);padding-top:4px}
-.zm-sec summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.75;user-select:none}
+.zm-sec{margin:12px 0 0;border-top:1px solid rgba(127,127,127,.22);padding-top:7px}
+.zm-sec summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.75;user-select:none;padding:3px 0}
 .zm-sec summary:hover{opacity:1}
+.zm-info{margin-top:12px;border-top:1px solid #eee;padding-top:10px}
+.zm-pline{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:12px;border-bottom:1px dashed #f0f0f0}
+.zm-pline b{min-width:74px;color:#0a5c8c}
+.zm-pline .zm-pk{color:#999;font-size:11px;min-width:40px}
+.zm-pline .zm-pv{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#444}
+.zm-editprops{display:inline-block;cursor:pointer;background:#eef7f1;border:1px solid #bfe3cf;color:#0a7a4b;border-radius:6px;padding:6px 14px;margin:10px 0 4px;font:inherit;font-weight:600}
+.zm-editprops:hover{background:#dff0e6}
+.zm-padd{cursor:pointer;background:#fafafa;border:1px dashed #bbb;border-radius:6px;padding:4px 10px;margin:8px 0;font:inherit;color:#555}
+.zm-propedit{display:flex;gap:6px;align-items:center;margin:5px 0;font-size:12px}
+.zm-propedit input{border:1px solid #ddd;border-radius:5px;padding:3px 6px;font:inherit;width:82px}
+.zm-preln,.zm-pdel{cursor:pointer;border:1px solid #ddd;background:#fff;border-radius:5px;padding:2px 7px;font:inherit}
+.zm-preln:hover{background:#fff3e8;border-color:#f0b27c}
+.zm-pdel:hover{background:#fdecec;border-color:#e8a0a0}
 
 .zm-hover{cursor:pointer !important;}
 /* focus = translucent wash (see the CONTENT through it) + strong outline marking the FULL
@@ -1116,12 +1129,12 @@ _MANUAL_JS = """
  }
  function infoHtml(el,cur,zt){ // SELECTION info: attached properties + model + captured CSS
    var name=cur?(cur.name||localOf(cur.nodeType||'')):zt;
-   var h='<div class="zm-info" style="margin-top:7px;border-top:1px solid rgba(127,127,127,.35);padding-top:6px;font-size:12px">';
+   var h='<div class="zm-info">';
    var ps=(cur&&cur.props&&cur.props.length)?cur.props:propsOf(el);
    var auto=!(cur&&cur.props&&cur.props.length);
    h+='<div class="zm-lbl">Propriétés attachées'+(auto?' <span style="opacity:.6">(auto-identifiées)</span>':'')+'</div>';
-   ps.forEach(function(pr){h+='<div style="display:flex;gap:6px"><b style="min-width:70px">'+esc(pr.name)+'</b><span style="opacity:.6">'+esc(pr.kind)+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(pr.sample||'')+'</span></div>';});
-   if(cur)h+='<button class="zm-editprops" style="font-size:11px;margin:3px 0">Modifier les propriétés</button>';
+   ps.forEach(function(pr){h+='<div class="zm-pline"><b>'+esc(pr.name)+'</b><span class="zm-pk">'+esc(pr.kind)+'</span><span class="zm-pv">'+esc(pr.sample||'')+'</span></div>';});
+   if(cur)h+='<button class="zm-editprops">&#9998; Modifier les propriétés</button>';
    var ci=compInfo(name);
    if(ci){
      h+='<div class="zm-lbl" style="margin-top:5px">Modèle : <b>'+esc(ci.nodeType||ci.folder)+'</b>'+((ci.views&&ci.views.length)?(' &middot; vues : '+ci.views.map(esc).join(', ')):'')+'</div>';
@@ -1138,14 +1151,14 @@ _MANUAL_JS = """
  function propsHtml(){
    var h='<div class="zm-lbl" style="margin-top:7px">Propriétés identifiées <span style="opacity:.6">(éditables — 🔗 re-lie au clic)</span></div>';
    (cProps||[]).forEach(function(pr,i){
-     h+='<div class="zm-prop" style="display:flex;gap:4px;align-items:center;margin:2px 0;font-size:12px">'
-       +'<input class="zm-pname" data-i="'+i+'" value="'+esc(pr.name)+'" style="width:78px">'
+     h+='<div class="zm-propedit">'
+       +'<input class="zm-pname" data-i="'+i+'" value="'+esc(pr.name)+'">'
        +'<span style="opacity:.6">'+esc(pr.kind)+'</span>'
        +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(pr.selector||'')+'">'+esc(pr.sample||'')+'</span>'
        +'<button class="zm-preln" data-i="'+i+'" title="re-lier: cliquer un élément du bloc"'+(relinkIdx===i?' style="outline:2px solid #f60"':'')+'>🔗</button>'
        +'<button class="zm-pdel" data-i="'+i+'">×</button></div>';
    });
-   h+='<button class="zm-padd" style="font-size:11px;margin:2px 0">+ propriété</button>';
+   h+='<button class="zm-padd">+ propriété</button>';
    return h;
  }
  document.addEventListener('click',function(e){ // re-link capture: next click inside the block re-points the property
