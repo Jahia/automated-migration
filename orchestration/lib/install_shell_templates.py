@@ -67,12 +67,20 @@ def main():
         except (ValueError, OSError):
             is_archetype = False
     chrome_always = "true" if is_archetype else "false"
+    main_class = ""
+    ma = f"projects/{a.project}/workflow-output/main-attrs.json"
+    if os.path.isfile(ma):
+        try:
+            main_class = (json.load(open(ma)).get("mainAttrs") or {}).get("class", "") or ""
+        except (ValueError, OSError):
+            main_class = ""
 
     for rel, dst in plan:
         src = os.path.join(SRC, rel)
         content = (open(src, encoding="utf-8").read()
                    .replace("$NS", a.ns)
-                   .replace("$CHROME_ALWAYS", chrome_always))
+                   .replace("$CHROME_ALWAYS", chrome_always)
+                   .replace("$MAIN_CLASS", main_class))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         with open(dst, "w", encoding="utf-8") as f:
             f.write(content)
@@ -145,13 +153,18 @@ def main():
                 short = nt.split(":")[-1]
                 comp_dir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
                 os.makedirs(comp_dir, exist_ok=True)
-                # CONTRACT v2 review (2026-07-16, per jahia-dev-create-view):
-                # content lives in PROPERTIES now, so the DEFAULT view is the
-                # property-driven semantic render (correct positions by
-                # construction: title, body, image, RenderChildren). The
-                # emptied source markup stays available as the named `source`
-                # view for fidelity comparison — never the default.
-                tpl = hyb if view_name == "source" else sem
+                # RESEMBLANCE synthesis (2026-07-16): the DEFAULT view renders
+                # the node's OWN source structure (HybridView: original wrappers
+                # + classes -> section bands/pills/spacing) with {{f:*}} markers
+                # resolved from PROPERTIES and {{child:N}} spliced through
+                # RenderChild — possible now that reconcile-check guarantees the
+                # fields are complete. Semantic layouts stay as variant views.
+                # per-archetype default: source-structure render for sections
+                # (bands/pills/spacing), SEMANTIC grid for card/carousel
+                # containers — their source markup is a JS-driven slider that
+                # stacks slides full-width without the source JS (observed:
+                # ~7000px of stacked slides). The grid IS the no-JS rendering.
+                tpl = sem if (view_name != "default" or kind == "cardGrid") else hyb
                 out = (tpl.replace("$NODETYPE", nt)
                           .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
                           .replace("$KIND", kind)
@@ -167,7 +180,7 @@ def main():
                 if nt.endswith(":mainNavigation") or nt.endswith(":rawHtml"):
                     continue  # tree-driven nav + passthrough views ship in the shell
                 kind = c.get("archetype") or chrome_kind(nt)
-                for vw in view_names(c, c.get("needsMainResource")) + ["source"]:
+                for vw in view_names(c, c.get("needsMainResource")):
                     write_semantic(nt, c.get("name"), kind, vw)
             # CONTRACT reusable child objects — ONE definition each, views here
             write_semantic(f"{ns_prefix}:cardItem", "Card item", "teaserCard", "default")

@@ -107,6 +107,11 @@ export const Layout = ({
       : children;
   const main = shell ? (
     <main {...domAttrs(shell.mainAttrs)}>{inner}</main>
+  ) : CHROME_ALWAYS ? (
+    // archetype model: the source CSS keys its layout off main.<classes>
+    // descendant selectors — ALWAYS restore the source main context
+    // ($MAIN_CLASS is stamped at install time from the captured shell)
+    <main className="$MAIN_CLASS">{inner}</main>
   ) : (
     children
   );

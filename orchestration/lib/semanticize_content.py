@@ -563,6 +563,13 @@ def main():
         # used by the semantic Layout and must not become a 100KB rawHtml blob
         # node editors see in jContent. Drop it; the Layout falls back to the
         # css-manifest for source styling (scripts intentionally excluded).
+        _sh = page.get("shell") or {}
+        if _sh.get("mainAttrs") and not recon_pages.get("_mainAttrs"):
+            os.makedirs(f"projects/{a.project}/workflow-output", exist_ok=True)
+            json.dump({"mainAttrs": _sh.get("mainAttrs") or {},
+                       "bodyAttrs": _sh.get("bodyAttrs") or {}},
+                      open(f"projects/{a.project}/workflow-output/main-attrs.json", "w"))
+            recon_pages["_mainAttrs"] = True
         page.pop("shell", None)
         # RECONCILIATION accounting (process-hardening 2026-07-16): source
         # visible text per instance BEFORE transformation — conservation is
@@ -726,6 +733,7 @@ def main():
     # write the reconciliation artifact (orchestrator-reviewable; gated by
     # orchestration/probes/reconcile-check.py BEFORE any load)
     recon = {"project": a.project, "pages": {}}
+    recon_pages.pop("_mainAttrs", None)
     for _pk, rows in recon_pages.items():
         by_idx = {r["idx"]: r for r in rows}
         for r in rows:
