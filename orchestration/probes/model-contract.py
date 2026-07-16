@@ -115,29 +115,44 @@ def phase_content(site):
     # 3. DISPLAY-NOT-EDITABLE (2026-07-16 finding): an item whose hidden
     # skeleton carries visible text while BOTH jcr:title and body are empty
     # renders content the Content Editor cannot touch — dead authoring.
-    ns_guess = None
-    d0 = gql('{jcr(workspace:EDIT){nodeByPath(path:"/sites/%s"){name}}}' % site)
-    # item types are <ns>:cardItem — resolve ns from any loaded manifest naming
-    # convention is not available here; query all candidate item types
     dead = []
     d = gql('{jcr(workspace:EDIT){nodesByQuery(query:"SELECT * FROM [jnt:content] AS n '
             f"WHERE ISDESCENDANTNODE(n,'/sites/{site}')\","
             'queryLanguage:SQL2,limit:1000){nodes{path type:primaryNodeType{name} '
-            'sk:property(name:\\"skeleton\\"){value} '
-            't:property(name:\\"jcr:title\\",language:\\"en\\"){value} '
-            'b:property(name:\\"body\\",language:\\"en\\"){value}}}}}')
+            'sk:property(name:"skeleton"){value} '
+            't:property(name:"jcr:title",language:"en"){value} '
+            'b:property(name:"body",language:"en"){value}}}}}')
     nodes = ((d.get("data") or {}).get("jcr") or {}).get("nodesByQuery", {}).get("nodes") or []
+    if not nodes:
+        # a gate that cannot MEASURE must fail loudly, never pass silently
+        # (2026-07-16: a query syntax error returned [] and the gate passed
+        # while nodes held 1.8KB of unauthorable text)
+        bad += fail_list("gate-blind", [f"content query returned 0 nodes for site {site} "
+                                        f"(errors: {str(d.get('errors'))[:200]})"])
+        return bad
+    hoarding = []
     for n in nodes:
-        if not n["type"]["name"].endswith(":cardItem"):
-            continue
         sk = ((n.get("sk") or {}).get("value")) or ""
         t = ((n.get("t") or {}).get("value")) or ""
         b = ((n.get("b") or {}).get("value")) or ""
-        vis = re.sub(r"<[^>]+>", " ", sk)
-        vis = re.sub(r"\s+", " ", vis).strip()
-        if len(vis) >= 24 and not t.strip() and not b.strip():
-            dead.append(f"{n['path']} (skeleton text {len(vis)} chars, no editable field)")
+        if not sk:
+            continue
+        # RESIDUAL text = what the skeleton still holds after every marker is
+        # accounted for: markers reference properties/children (fine); any
+        # other visible text is content an editor cannot author (CONTRACT v2:
+        # skeleton is STRUCTURE ONLY). Applies to EVERY node, not just items.
+        residual = re.sub(r"\{\{[^}]+\}\}", " ", sk)
+        residual = re.sub(r"<[^>]+>", " ", residual)
+        residual = re.sub(r"\s+", " ", residual).strip()
+        if n["type"]["name"].endswith(":cardItem") and len(residual) >= 24 \
+                and not t.strip() and not b.strip():
+            dead.append(f"{n['path']} (skeleton text {len(residual)} chars, no editable field)")
+        if len(residual) >= 60:
+            hoarding.append(f"{n['path']} [{n['type']['name']}] holds "
+                            f"{len(residual)} chars of unauthorable text")
     bad += fail_list("display-not-editable (item text has no editable field)", dead[:15])
+    bad += fail_list("skeleton-holds-content (structure only — text belongs in properties)",
+                     hoarding[:15])
     return bad
 
 

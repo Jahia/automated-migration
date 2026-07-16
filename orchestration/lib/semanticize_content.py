@@ -162,6 +162,35 @@ def _mark_title_in_skeleton(skeleton, title):
     return skeleton
 
 
+def _sweep_text_to_body(sk, fields, min_chars=60):
+    """Selective authorability sweep: maximal text-bearing elements WITHOUT any
+    marker move into the body field; marker-bearing structure stays."""
+    resid = re.sub(r"\{\{[^}]+\}\}", " ", sk or "")
+    resid = re.sub(r"<[^>]+>", " ", resid)
+    if not sk or len(re.sub(r"\s+", " ", resid).strip()) < min_chars:
+        return sk
+    soup = BeautifulSoup(sk, "lxml")
+    moved, taken = [], []
+    for el in (soup.body.find_all(True) if soup.body else []):
+        s_el = str(el)
+        if "{{" in s_el:
+            continue
+        if any(el in t.descendants for t in taken):
+            continue
+        if len(el.get_text(" ", strip=True)) >= 20:
+            moved.append(s_el)
+            taken.append(el)
+    for el in taken:
+        el.extract()
+    if moved:
+        fields["body"] = "\n".join(
+            x for x in [fields.get("body", ""), *moved] if x).strip()
+        sk = "".join(str(c) for c in soup.body.children).strip()
+        if "{{f:body}}" not in sk:
+            sk += "{{f:body}}"
+    return sk
+
+
 def _decompose_repeats(skeleton, ns):
     """CONTRACT decomposition (2026-07-16): repetition inside a region becomes
     CHILD NODE TYPES, never flat fields on the parent. Detect the largest group
@@ -344,55 +373,80 @@ def _semanticize_instance(inst, node, surf):
             if t:
                 out["skeleton"] = _mark_title_in_skeleton(sk, t)
                 fields["title"] = t
-    # CONTRACT: ONE body per node. Runs 2+ are inlined VERBATIM into the
-    # skeleton at their own marker positions (fidelity keeps every run in
-    # place); the payload keeps only `body`. Real repetition becomes children
-    # in the main loop's decomposition pass.
+    # CONTRACT v2 (2026-07-16): authorable content lives in PROPERTIES, never
+    # in the hidden skeleton. Every type owns ONE body richtext — text runs 2+,
+    # label runs and extra media all MERGE INTO the body VALUE; their markers
+    # collapse into the single {{f:body}} slot. Skeleton = structure only.
     sk = out.get("skeleton") or ""
+    body_parts = [fields.get("body")] if isinstance(fields.get("body"), str) else []
     for k in sorted((k for k in fields if re.match(r"body\d+$", k)),
                     key=lambda k: (len(k), k)):
         v = fields.pop(k)
-        if sk and ("{{f:%s}}" % k) in sk:
-            sk = sk.replace("{{f:%s}}" % k, v if isinstance(v, str) else "", 1)
-        elif isinstance(v, str) and v.strip():
-            # no marker home: append after body's marker so nothing is lost
-            anchor = "{{f:body}}"
-            sk = sk.replace(anchor, anchor + v, 1) if anchor in sk else sk + v
-    if sk:
-        out["skeleton"] = sk
-    # CONTRACT: the payload may only carry fields the TYPE declares — the
-    # numbered contrib mixins are gone, so anything else stays INLINE in the
-    # markup (fidelity keeps it; it is editable as part of a body/child, not as
-    # a phantom field). Observed live: 'body' on cardGrid, 'label', image2Orig
-    # all failed "Couldn't find definition for property".
-    s = surf.get(node) or {}
-    sk2 = out.get("skeleton") or ""
-
-    def inline(k, v):
-        nonlocal sk2
-        marker = "{{f:%s}}" % k
-        if marker in sk2:
-            sk2 = sk2.replace(marker, v if isinstance(v, str) else "", 1)
-
-    # labels (all of them): no type declares label fields
+        if isinstance(v, str) and v.strip():
+            body_parts.append(v)
+        sk = sk.replace("{{f:%s}}" % k, "", 1)
     for k in sorted((k for k in fields if re.match(r"label\d*$", k)),
                     key=lambda k: (len(k), k)):
-        inline(k, fields.pop(k))
-    # body on a type whose surface has no body (cardGrid, ctaSection, chrome)
-    if fields.get("body") and not s.get("body"):
-        inline("body", fields.pop("body"))
-    # media: ONE weakref unit max (the {mixns}:media/contribImage slot); the
-    # markup of further units replaces their {{media:*}} markers verbatim
+        v = fields.pop(k)
+        if isinstance(v, str) and v.strip():
+            body_parts.append(f"<p>{v}</p>")
+        sk = sk.replace("{{f:%s}}" % k, "", 1)
     media = inst.get("media") or []
     if media:
         keep, rest = media[0], media[1:]
         out["media"] = [{**keep, "name": "image"}]
         for mu in rest:
-            mk = "{{media:%s}}" % mu.get("name", "")
-            if mk in sk2:
-                sk2 = sk2.replace(mk, _clean_html(mu.get("orig") or ""), 1)
-    if sk2:
-        out["skeleton"] = sk2
+            img_html = _clean_html(mu.get("orig") or "")
+            if img_html:
+                body_parts.append(img_html)
+            sk = sk.replace("{{media:%s}}" % mu.get("name", ""), "", 1)
+    merged = "\n".join(p for p in body_parts if p and p.strip()).strip()
+    if merged:
+        fields["body"] = merged
+        if "{{f:body}}" not in sk and sk:
+            sk += "{{f:body}}"
+    # LAST-RESORT AUTHORABILITY: text the lift missed moves into body
+    # (one editable field beats frozen markup); child markers keep their spots.
+    resid = re.sub(r"\{\{[^}]+\}\}", " ", sk or "")
+    resid = re.sub(r"<[^>]+>", " ", resid)
+    if sk and len(re.sub(r"\s+", " ", resid).strip()) >= 60:
+        soup2 = BeautifulSoup(sk, "lxml")
+        if "{{child:" not in sk:
+            # wholesale: inner content of the root becomes the body
+            root2 = next((c for c in (soup2.body.children if soup2.body else [])
+                          if getattr(c, "name", None)), None)
+            if root2 is not None:
+                inner = "".join(str(c) for c in root2.children).strip()
+                inner = inner.replace("{{f:title}}", fields.get("title", ""))
+                inner = re.sub(r"\{\{[^}]+\}\}", "", inner)
+                fields["body"] = "\n".join(
+                    x for x in [inner, fields.get("body", "")] if x).strip()
+                root2.clear()
+                root2.append("{{f:body}}")
+                sk = "".join(str(c) for c in soup2.body.children).strip()
+        else:
+            # selective: maximal text-bearing elements WITHOUT child/field
+            # markers move to body; marker-bearing structure stays in place
+            moved, taken = [], []
+            for el in (soup2.body.find_all(True) if soup2.body else []):
+                s_el = str(el)
+                if "{{" in s_el:
+                    continue
+                if any(el in t.descendants for t in taken):
+                    continue
+                if len(el.get_text(" ", strip=True)) >= 20:
+                    moved.append(s_el)
+                    taken.append(el)
+            for el in taken:
+                el.extract()
+            if moved:
+                fields["body"] = "\n".join(
+                    x for x in [fields.get("body", ""), *moved] if x).strip()
+                sk = "".join(str(c) for c in soup2.body.children).strip()
+                if "{{f:body}}" not in sk:
+                    sk += "{{f:body}}"
+    if sk:
+        out["skeleton"] = sk
     out["fields"] = fields
     # embedded typed children -> same hybrid treatment
     child_node = (surf.get(node) or {}).get("child")
@@ -510,31 +564,28 @@ def main():
                     # to the semantic views inside the skeleton prop: surface it
                     # as title/body fields so the archetype view renders it.
                     f = inst.setdefault("fields", {})
-                    # contract: undeclared fields inline back into the skeleton
-                    # at their markers (extract lifts runs OUT with {{f:*}});
-                    # the container renders from its skeleton either way
-                    sflib = surf.get(inst.get("nodeType")) or {}
+                    # CONTRACT v2: containers own body too — runs/labels merge INTO it
                     sk_l = inst.get("skeleton") or ""
+                    parts = [f.get("body")] if isinstance(f.get("body"), str) else []
                     for k in [k for k in sorted(f, key=lambda k: (len(k), k))
-                              if re.match(r"(body|label)\d*$", k)]:
-                        if k == "body" and sflib.get("body"):
-                            continue
+                              if re.match(r"(body\d+|label\d*)$", k)]:
                         v = f.pop(k)
-                        if ("{{f:%s}}" % k) in sk_l:
-                            sk_l = sk_l.replace("{{f:%s}}" % k,
-                                                v if isinstance(v, str) else "", 1)
+                        if isinstance(v, str) and v.strip():
+                            parts.append(v if k.startswith("body") else f"<p>{v}</p>")
+                        sk_l = sk_l.replace("{{f:%s}}" % k, "", 1)
+                    merged_l = "\n".join(p for p in parts if p and p.strip()).strip()
+                    if merged_l:
+                        f["body"] = merged_l
+                        if "{{f:body}}" not in sk_l and sk_l:
+                            sk_l += "{{f:body}}"
                     if sk_l:
                         inst["skeleton"] = sk_l
-                    if not f.get("title") and not f.get("body") and inst.get("skeleton"):
-                        t, b = _split_skeleton(inst["skeleton"])
+                    if not f.get("title") and inst.get("skeleton"):
+                        t, _b = _split_skeleton(inst["skeleton"])
                         if t:
                             f["title"] = t
-                        # body only when the mapped TYPE declares it (contract:
-                        # payload fields must have a home; the container's
-                        # markup renders from its skeleton regardless)
-                        if b and len(_visible(b)) >= MIN_VIS \
-                                and (surf.get(inst.get("nodeType")) or {}).get("body"):
-                            f["body"] = b
+                    inst["skeleton"] = _sweep_text_to_body(
+                        inst.get("skeleton") or "", f)
                 elif inst.get("libraryAtom"):
                     # CONTRACT: all repeatable items are the ONE reusable
                     # {ns}:cardItem child type (typed by anatomy, not by parent)

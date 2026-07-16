@@ -371,6 +371,10 @@ def type_block_semantic(comp, ns, mixns):
             seen_body = True
             f = {**f, "name": "body"}
         lines.append(field_line(f))
+    if not seen_body:
+        # CONTRACT v2 (2026-07-16): EVERY component owns a body richtext —
+        # authorable content lives in PROPERTIES, never in the hidden skeleton.
+        lines.append("  - body (string, richtext) i18n")
     lp = comp.get("layoutProperty")
     if isinstance(lp, dict):
         ll = layout_line(lp)
@@ -497,6 +501,8 @@ def write_sdc_and_sync(m, shared_full, blocks, ns, mixns, module_dir, manifest_p
         if f"{mixns}:sourceMarkup" not in c["supertypes"]:
             c["supertypes"].append(f"{mixns}:sourceMarkup")
         fields = [f for f in (c.get("fields") or []) if not re.match(r"body\d+$", f["name"])]
+        if not any(f["name"] == "body" for f in fields):
+            fields.append({"name": "body", "type": "string, richtext", "i18n": True})
         c["fields"] = fields
         c["childRules"] = ([f"+ * ({ns}:cardItem)"] if (c.get("isContainer") or c.get("childType")) else []) \
             + [f"+ * ({ns}:cta)"]

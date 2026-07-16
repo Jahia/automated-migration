@@ -8,7 +8,6 @@ import { createElement, type ReactNode } from "react";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { splitRoot, rootProps } from "../rawRoot.js";
 import {
-  composeNode,
   nodePayload,
   substitutePayload,
   childNodesOf,
@@ -19,18 +18,17 @@ import ArchetypeSection from "../ArchetypeSection.js";
 import { resolveSemantic } from "../resolveSemantic.js";
 
 /**
- * $DISPLAYNAME — HYBRID default view of $NODETYPE (Option B, 2026-07-15).
+ * $DISPLAYNAME — HYBRID default view of $NODETYPE (contract v2, 2026-07-16).
  *
- * FIDELITY-FIRST: when the node carries its captured `skeleton` markup, LIVE
- * renders it via string composition — the source's own DOM and classes, so the
- * source CSS styles it pixel-faithfully; lifted field edits reflow through the
- * {{f:}}/{{media:}}/{{link:}} markers. EDIT mode splices {{child:N}} through
- * Jahia's pipeline so every item gets its own edit frame (G6 reachability).
+ * AUTHORABLE BY CONSTRUCTION: every visible content atom lives in PROPERTIES
+ * (jcr:title, ONE body richtext, image weakref) or in CHILD NODES (ns:cardItem,
+ * ns:cta). The node's captured skeleton carries ONLY structure (wrappers +
+ * classes for the source CSS) with {{f:*}} markers resolved from properties.
  *
- * SEMANTIC FALLBACK: nodes authored fresh in Page Builder (no skeleton) render
- * through the shared ArchetypeSection layout (kind: $KIND) — the clean
- * archetype look. Variant views (textUp/carousel/…) stay pure semantic
- * layouts an editor can switch to.
+ * NESTED COMPONENTS ALWAYS RENDER THROUGH JAHIA'S PIPELINE — {{child:N}}
+ * markers splice <RenderChild name="item-N">; markerless nodes with children
+ * append <RenderChildren/>. Same path in EDIT and LIVE, so Page Builder gives
+ * every nested component its edit frame and live renders each child's view.
  */
 jahiaComponent(
   {
@@ -44,103 +42,80 @@ jahiaComponent(
     const node = currentNode as never;
 
     if (!hasSkeletonProp(node)) {
-      // fresh/semantic node: archetype layout from the lifted fields
+      // fresh/semantic node: archetype layout from the properties
       const fields = resolveSemantic(props, currentNode as unknown as JCRNodeWrapper, renderContext);
       return <ArchetypeSection kind="$KIND" view="default" fields={fields} />;
     }
 
-    let editMode = false;
-    try {
-      editMode = (renderContext as { isEditMode: () => boolean }).isEditMode();
-    } catch {
-      editMode = false;
-    }
+    // structure markup with property markers resolved; unresolved markers drop
+    const p = nodePayload(node);
+    const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+    const kids = childNodesOf(node);
 
-    if (editMode) {
-      const p = nodePayload(node);
-      const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
-      // G6 reachability, the SELECTABLE way (2026-07-16: bare <Render> gave no
-      // Page Builder chrome — items existed but could not be clicked). Each
-      // {{child:N}} marker splices <RenderChild name="item-N+1"> (framework
-      // edit frame + add-content buttons); a markerless skeleton with children
-      // renders them ALL through <RenderChildren> after the composed markup.
-      const kidsProbe = childNodesOf(node);
-      if (html.includes("{{child:")) {
-        const kids = kidsProbe;
-        const placed = new Set<number>();
-        const compose = (fragment: string): ReactNode[] =>
-          chunkTopLevel(fragment).map((c, i) => {
-            if (c.kind === "child") {
-              placed.add(c.idx);
+    if (html.includes("{{child:")) {
+      const placed = new Set<number>();
+      const compose = (fragment: string): ReactNode[] =>
+        chunkTopLevel(fragment).map((c, i) => {
+          if (c.kind === "child") {
+            placed.add(c.idx);
+            return createElement(
+              "div",
+              { key: `c${i}`, style: { display: "contents" } },
+              createElement(RenderChild as never, { name: `item-${c.idx + 1}` }),
+            );
+          }
+          if (c.html.includes("{{child:")) {
+            const root = splitRoot(c.html);
+            if (root) {
               return createElement(
-                "div",
-                { key: `c${i}`, style: { display: "contents" } },
-                createElement(RenderChild as never, { name: `item-${c.idx + 1}` }),
+                root.tag,
+                { ...rootProps(root.attrs), key: `e${i}` },
+                compose(root.inner),
               );
             }
-            if (c.html.includes("{{child:")) {
-              const root = splitRoot(c.html);
-              if (root) {
-                return createElement(
-                  root.tag,
-                  { ...rootProps(root.attrs), key: `e${i}` },
-                  compose(root.inner),
-                );
-              }
-              return createElement(
-                "div",
-                { key: `w${i}`, style: { display: "contents" } },
-                compose(c.html),
-              );
-            }
-            return createElement("div", {
-              key: `h${i}`,
-              style: { display: "contents" },
-              dangerouslySetInnerHTML: { __html: c.html },
-            });
+            return createElement(
+              "div",
+              { key: `w${i}`, style: { display: "contents" } },
+              compose(c.html),
+            );
+          }
+          return createElement("div", {
+            key: `h${i}`,
+            style: { display: "contents" },
+            dangerouslySetInnerHTML: { __html: c.html },
           });
-        const body = compose(html);
-        const missed = kids
-          .map((k, i) => [k, i] as const)
-          .filter(([, i]) => !placed.has(i));
-        return createElement(
-          "div",
-          { style: { display: "contents" } },
-          body,
-          missed.map(([k, i]) =>
-            createElement(RenderChild as never, { key: `m${i}`, name: k.getName() })),
-        );
-      }
-      if (kidsProbe.length > 0) {
-        const root = splitRoot(html);
-        return createElement(
-          "div",
-          { style: { display: "contents" } },
-          root
-            ? createElement(root.tag, {
-                ...rootProps(root.attrs),
-                dangerouslySetInnerHTML: { __html: root.inner },
-              })
-            : createElement("div", {
-                style: { display: "contents" },
-                dangerouslySetInnerHTML: { __html: html },
-              }),
-          createElement(RenderChildren as never, {}),
-        );
-      }
+        });
+      const body = compose(html);
+      const missed = kids
+        .map((k, i) => [k, i] as const)
+        .filter(([, i]) => !placed.has(i));
+      return createElement(
+        "div",
+        { style: { display: "contents" } },
+        body,
+        missed.map(([k, i]) =>
+          createElement(RenderChild as never, { key: `m${i}`, name: k.getName() })),
+      );
     }
 
-    const html = composeNode(node);
     const root = splitRoot(html);
-    if (root) {
-      return createElement(root.tag, {
-        ...rootProps(root.attrs),
-        dangerouslySetInnerHTML: { __html: root.inner },
-      });
+    const own = root
+      ? createElement(root.tag, {
+          ...rootProps(root.attrs),
+          dangerouslySetInnerHTML: { __html: root.inner },
+        })
+      : createElement("div", {
+          style: { display: "contents" },
+          dangerouslySetInnerHTML: { __html: html },
+        });
+    if (kids.length > 0) {
+      return createElement(
+        "div",
+        { style: { display: "contents" } },
+        own,
+        createElement(RenderChildren as never, {}),
+      );
     }
-    return createElement("div", {
-      style: { display: "contents" },
-      dangerouslySetInnerHTML: { __html: html },
-    });
+    return own;
   },
 );
