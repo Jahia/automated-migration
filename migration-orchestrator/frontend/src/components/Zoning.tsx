@@ -60,6 +60,8 @@ export default function Zoning() {
   const [selUid, setSelUid] = useState<number | null>(null)      // pending uid from the preview → resolved to a path once tree is ready
   const treeScrollRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'nodetypes' | 'tree'>('tree')
+  // drawer SECTIONS (operator: 'left drawer is cluttered') — chrome/composants/zones open, non-assigné folded
+  const [secOpen, setSecOpen] = useState<Record<string, boolean>>({ chrome: true, components: true, zones: true, gaps: false })
   const [nodetypes, setNodetypes] = useState<{ entries: NodeTypeEntry[]; seeded: boolean } | null>(null)
   const [ntOpen, setNtOpen] = useState<Set<string>>(new Set())   // expanded nodetype rows (views shown)
   const [supNT, setSupNT] = useState<Set<string>>(new Set())     // suppressed nodeType ids (asr:x)
@@ -384,21 +386,49 @@ export default function Zoning() {
                     ) : tree.length === 0 ? (
                       <div className="px-2 py-3 text-xs text-[#5e88ad]">Aucune zone / composant détecté sur cette page.</div>
                     ) : (
-                      <TreeRows
-                        nodes={tree}
-                        depth={0}
-                        path=""
-                        ns={ns}
-                        collapsed={collapsed}
-                        hidden={hidden}
-                        selected={selected}
-                        onToggle={toggleCollapse}
-                        onToggleHide={toggleHide}
-                        onFocus={focusNode}
-                        onFocusGap={focusGapNode}
-                        onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
-                        onGapLeave={() => setGap(null)}
-                      />
+                      (() => {
+                        const groups = [
+                          { key: 'chrome', label: 'Chrome (absolute areas)', icon: '\u25a4', color: '#d33a2c', idx: [] as number[] },
+                          { key: 'components', label: 'Composants', icon: '\u25cf', color: '#1aa06a', idx: [] as number[] },
+                          { key: 'zones', label: 'Zones & layouts', icon: '\u25a6', color: '#1f6fd6', idx: [] as number[] },
+                          { key: 'gaps', label: 'Non assign\u00e9', icon: '\u26a0', color: '#f59e0b', idx: [] as number[] },
+                        ]
+                        tree.forEach((n, i) => {
+                          const g = n.k === 'absolute' ? 0 : n.k === 'component' ? 1 : n.k === 'gap' ? 3 : 2
+                          groups[g].idx.push(i)
+                        })
+                        return groups.filter((g) => g.idx.length).map((g) => (
+                          <div key={g.key} className="mb-1">
+                            <button
+                              onClick={() => setSecOpen((s) => ({ ...s, [g.key]: !s[g.key] }))}
+                              className="flex w-full items-center gap-1.5 rounded bg-[#0a2438] px-1.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#9fc2de] hover:bg-[#0d2c44]"
+                            >
+                              <span className="text-[10px]">{secOpen[g.key] ? '\u25be' : '\u25b8'}</span>
+                              <span style={{ color: g.color }}>{g.icon}</span>
+                              {g.label}
+                              <span className="ml-auto rounded bg-[#123551] px-1.5 text-[10px]">{g.idx.length}</span>
+                            </button>
+                            {secOpen[g.key] && (
+                              <TreeRows
+                                nodes={g.idx.map((i) => tree[i])}
+                                origIdx={g.idx}
+                                depth={0}
+                                path=""
+                                ns={ns}
+                                collapsed={collapsed}
+                                hidden={hidden}
+                                selected={selected}
+                                onToggle={toggleCollapse}
+                                onToggleHide={toggleHide}
+                                onFocus={focusNode}
+                                onFocusGap={focusGapNode}
+                                onGapEnter={(node, e) => setGap({ node, x: e.clientX, y: e.clientY })}
+                                onGapLeave={() => setGap(null)}
+                              />
+                            )}
+                          </div>
+                        ))
+                      })()
                     )}
                   </div>
                 </>
@@ -546,6 +576,7 @@ function pathByUid(nodes: TreeNode[], uid: number, prefix = ''): string | null {
  * Nodes with children carry a ▸/▾ chevron (collapse/expand); the label click focuses in the page. */
 function TreeRows({
   nodes,
+  origIdx,
   depth,
   path,
   ns,
@@ -560,6 +591,7 @@ function TreeRows({
   onGapLeave,
 }: {
   nodes: TreeNode[]
+  origIdx?: number[] // original top-level indices when a SECTION passes a subset (paths stay stable)
   depth: number
   path: string
   ns: string
@@ -576,7 +608,7 @@ function TreeRows({
   return (
     <ul className="text-[13px]">
       {nodes.map((n, i) => {
-        const p = path ? `${path}-${i}` : `${i}`
+        const p = path ? `${path}-${i}` : `${origIdx ? origIdx[i] : i}`
         const meta = KIND[n.k]
         const dot = n.k === 'component' && n.color ? n.color : meta.color
         const isGap = n.k === 'gap'
