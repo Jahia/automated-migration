@@ -120,8 +120,14 @@ const buildOutline = () => {
     return parseFloat(a) > 0.05 && !(r > 250 && g > 250 && b > 250);   // not transparent / not white
   };
   const isLeaf = el => directText(el).length >= 8 || el.matches('img,picture,video,svg,iframe') || (el.tagName === 'A' && el.getAttribute('href'));
-  const significant = el => BLOCK.has(el.tagName) && (isLeaf(el)
-    || [...el.children].filter(c => BLOCK.has(c.tagName)).length >= 1
+  // custom elements (hyphenated tags: astro-island, framework wrappers) are
+  // BLOCK containers — a <section> whose only child is an island otherwise
+  // never became a block, the walk fell through, and the island's hydrated
+  // content attached to a top-level block the vision runs then mis-claimed
+  // (business property carousel: node 44 under parent 9, lost by extraction).
+  const blockish = t => BLOCK.has(t) || t.includes('-');
+  const significant = el => blockish(el.tagName) && (isLeaf(el)
+    || [...el.children].filter(c => blockish(c.tagName)).length >= 1
     || el.matches('img,picture,video'));
 
   const nodes = []; let seg = 0;
