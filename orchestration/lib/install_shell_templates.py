@@ -221,9 +221,25 @@ def main():
             if c.get("isContainer") and isinstance(child, dict) and child.get("nodeType"):
                 write_view(child["nodeType"], child.get("name"))
 
+    # view UI strings (rule 7: never hardcoded; rule 18: en/fr keys in sync).
+    # The shipped templates call t("breadcrumb.home") — the locale files MUST
+    # exist or visitors see the raw key (the manual fix died with a project
+    # wipe once, 2026-07-16: emission belongs to the pipeline, not to hands).
+    loc_dir = f"{module}/settings/locales"
+    os.makedirs(loc_dir, exist_ok=True)
+    for lang, home in (("en", "Home"), ("fr", "Accueil")):
+        lp = os.path.join(loc_dir, f"{lang}.json")
+        try:
+            cur = json.load(open(lp, encoding="utf-8"))
+        except (OSError, ValueError):
+            cur = {}
+        cur.setdefault("breadcrumb", {}).setdefault("home", home)
+        json.dump(cur, open(lp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+
     print(f"[install_shell_templates] fidelity shell (ns={a.ns}) -> {module}/src "
           f"(Layout, basic template, RawHtml view"
-          + (f", {n_views} skeleton view(s)" if n_views else "") + ")")
+          + (f", {n_views} skeleton view(s)" if n_views else "")
+          + ", locales en+fr)")
 
 
 if __name__ == "__main__":

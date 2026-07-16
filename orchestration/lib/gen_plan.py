@@ -320,6 +320,13 @@ def build_plan(p):
         step("step_shell_templates", "Agnostic fidelity-shell template set + skeleton views", "build",
              [f"Run: python3 orchestration/lib/install_shell_templates.py {P} --ns {NS} --manifest {PP}/workflow-output/component-manifest.json",
               f"PROBE: grep -q 'rawHtml' {PP}/src/components/RawHtml/default.server.tsx",
+              # rule 18: locale JSON files exist and their key sets match —
+              # a key present in one language renders as the raw key in the other
+              ("PROBE: python3 -c \"import json,sys; "
+               f"e=json.load(open('{PP}/settings/locales/en.json')); "
+               f"f=json.load(open('{PP}/settings/locales/fr.json')); "
+               "k=lambda d,p='': set(sum(([k(v,p+n+'.')] and list(k(v,p+n+'.')) if isinstance(v,dict) else [p+n] for n,v in d.items()),[])); "
+               "sys.exit(0 if k(e)==k(f) and k(e) else 1)\""),
               # TEMPLATE GOVERNANCE (governed Areas: allowedNodeTypes / numberOfItems).
               # WARN-FIRST (|| true) during P1: reports ungoverned Areas without
               # gating, until role-clustered governed templates land (redesign §11.3).
