@@ -340,7 +340,9 @@ def build_plan(p):
         # ACTUAL page tree against the crawl inventory.
         step("step_pages", "Create pages from the crawl inventory (en+fr, published)", "build",
              [f"Run: python3 orchestration/lib/create_pages.py {P} {SITE} --template basic --locale {PRIMARY_LOCALE}",
-              f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
+              # pre-nav: flat placement is valid here (build_nav_tree moves pages
+              # to their sitemap sections next; step_nav's probe enforces strict)
+              f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check --pre-nav"],
              deps=["step_mcp"]),
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
         # build_nav_tree restructures the flat crawl tree per the project

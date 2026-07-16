@@ -82,12 +82,22 @@ def main():
     if check:
         # Gate mode (M4 live find): content.get on /home alone passes with an
         # empty home skeleton — assert the WHOLE inventory tree exists in JCR.
+        # --pre-nav (step_pages, fresh site): a page still FLAT under /home is
+        # acceptable — build_nav_tree moves it to its sitemap section next; the
+        # step_nav probe re-runs WITHOUT the flag and enforces final positions.
+        pre_nav = "--pre-nav" in sys.argv
         missing = []
         for p in pages:
             path = page_path(p["slug"])
             try:
                 m.get(path, locale=locale)
             except Exception:
+                if pre_nav:
+                    try:
+                        m.get(f"/sites/{site}/home/{p['slug']}", locale=locale)
+                        continue
+                    except Exception:
+                        pass
                 missing.append(path)
         if missing:
             print(f"FAIL: {len(missing)}/{len(pages)} inventory pages missing in JCR:",
