@@ -54,8 +54,13 @@ jahiaComponent(
     if (editMode) {
       const p = nodePayload(node);
       const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
-      if (html.includes("{{child:")) {
-        const kids = childNodesOf(node);
+      // G6 reachability: EVERY child gets an edit frame — library-container
+      // skeletons embed their items verbatim (no {{child:N}} markers), which
+      // left those items unreachable in Page Builder (editor-surface gate).
+      // The missed-children appending below covers markerless skeletons.
+      const kidsProbe = childNodesOf(node);
+      if (html.includes("{{child:") || kidsProbe.length > 0) {
+        const kids = kidsProbe;
         const placed = new Set<number>();
         const compose = (fragment: string): ReactNode[] =>
           chunkTopLevel(fragment).map((c, i) => {
