@@ -257,6 +257,49 @@ async def zoning_decisions(project: str, page: str | None = None) -> dict:
     return {"decisions": ds}
 
 
+def _library_path(project: str) -> Path:
+    return _workflow_dir(project) / "component-library.json"
+
+
+def _load_library(project: str) -> list[dict]:
+    p = _library_path(project)
+    if p.is_file():
+        try:
+            return json.load(open(p, encoding="utf-8")).get("components", [])
+        except (OSError, ValueError):
+            return []
+    return []
+
+
+def _upsert_library(project: str, d: dict) -> None:
+    """Every SAVED component decision becomes a REUSABLE library entry (name +
+    identified property schema), immediately assignable on any other page —
+    no engine run needed (operator mandate, 2026-07-16)."""
+    name = (d.get("name") or "").strip()
+    if not name:
+        return
+    entry = {"name": name,
+             "nodeType": d.get("nodeType"),
+             "props": [{k: p.get(k) for k in ("name", "kind", "sample")}
+                       for p in (d.get("props") or [])],
+             "origin": {"page": d.get("page"),
+                        "selector": (d.get("selector") or {}).get("value")}}
+    lib = [c for c in _load_library(project)
+           if (c.get("name") or "").lower() != name.lower()] + [entry]
+    p = _library_path(project)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    json.dump({"project": project, "components": sorted(lib, key=lambda c: c["name"])},
+              open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+
+
+@router.get("/projects/{project}/zoning/library")
+async def zoning_library(project: str) -> dict:
+    """The reusable component library: every component ever saved in the
+    inspector (name + property schema), assignable on any page."""
+    _require(project)
+    return {"components": _load_library(project)}
+
+
 @router.post("/projects/{project}/zoning/decide")
 async def zoning_decide(project: str, request: Request) -> dict:
     """Upsert a decision (dedup by deterministic id page|selector)."""
@@ -267,6 +310,8 @@ async def zoning_decide(project: str, request: Request) -> dict:
         d["id"] = f"{d.get('page', '')}|{(d.get('selector') or {}).get('value', '')}"
     ds = [x for x in _load(project) if x.get("id") != d["id"]] + [d]
     _save(project, ds)
+    if d.get("action") == "component":
+        _upsert_library(project, d)
     return {"decisions": [x for x in ds if x.get("page") == d.get("page")]}
 
 

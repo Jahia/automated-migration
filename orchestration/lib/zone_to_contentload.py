@@ -581,6 +581,9 @@ _MANUAL_JS = """
  var NTYPES=[];     // existing nodetypes (from the model) for the "composant existant" picker
  var cNew=true, cType='', vNew=true;  // component form: new vs existing type, new vs existing view
  var cAll=false;   // component form: apply to ALL same class-signature occurrences (one nodetype, N instances)
+ var LIB=[];        // reusable component LIBRARY: every saved component (name + prop schema), cross-page
+ var cProps=null;   // identified properties of the pending component [{name,kind,selector,sample}]
+ var relinkIdx=-1, relinkRoot=null;  // property awaiting a re-link click + its component root
  function localOf(id){return ((id||'').split(':').pop())||id;}
  function viewsOf(id){for(var i=0;i<NTYPES.length;i++)if(NTYPES[i].id===id)return (NTYPES[i].views||[]).map(function(v){return v.name;});return [];}
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
@@ -987,11 +990,13 @@ _MANUAL_JS = """
        +'<button class="zm-mode'+(!cNew?' on':'')+'" data-m="ex">Composant existant</button></div>';
      if(cNew){
        h+='<input id="zm-name" value="'+esc(suggestName(el))+'" placeholder="nom du composant">';
-     } else if(!NTYPES.length){
+     } else if(!NTYPES.length&&!LIB.length){
        h+='<div class="zm-lbl">Aucun composant existant &mdash; lance «&nbsp;Appliquer&nbsp;» une fois.</div>';
      } else {
        if(!cType)cType=NTYPES[0].id;
-       h+='<select id="zm-type">'+NTYPES.map(function(t){return '<option value="'+esc(t.id)+'"'+(t.id===cType?' selected':'')+'>'+esc(NS+':'+localOf(t.id))+' ('+(t.instances||0)+')</option>';}).join('')+'</select>';
+       h+='<select id="zm-type">'+NTYPES.map(function(t){return '<option value="'+esc(t.id)+'"'+(t.id===cType?' selected':'')+'>'+esc(NS+':'+localOf(t.id))+' ('+(t.instances||0)+')</option>';}).join('')
+         +(LIB.length?('<optgroup label="Bibliothèque (sauvegardés)">'+LIB.map(function(c){return '<option value="lib:'+esc(c.name)+'"'+(('lib:'+c.name)===cType?' selected':'')+'>'+esc(c.name)+' ('+((c.props||[]).length)+' prop)</option>';}).join('')+'</optgroup>'):'')
+         +'</select>';
        h+='<div class="zm-sub" style="margin-top:6px"><button class="zm-vmode'+(vNew?' on':'')+'" data-v="new">Nouvelle vue</button>'
          +'<button class="zm-vmode'+(!vNew?' on':'')+'" data-v="ex">Vue existante</button></div>';
        if(vNew){
@@ -1002,6 +1007,8 @@ _MANUAL_JS = """
            :'<div class="zm-lbl">Pas de vue enregistrée pour ce composant.</div>';
        }
      }
+     if(!cProps)cProps=propsOf(el);
+     h+=propsHtml();
      // match-all: one nodetype, N instances — offered only when a class signature exists AND it
      // recurs (>1 block on this page). The engine re-applies to EVERY same-signature block site-wide.
      var _sig=sigSelector(el),_sc=sigCount(_sig);
@@ -1028,18 +1035,22 @@ _MANUAL_JS = """
    if(d.selector.key)d.key=d.selector.key;
    if(pending==='component'){
      if(cNew){var i=pop.querySelector('#zm-name');d.name=(i&&i.value.trim())||suggestName(el);}
-     else{var ts=pop.querySelector('#zm-type');d.nodeType=(ts&&ts.value)||(NTYPES[0]&&NTYPES[0].id);d.name=localOf(d.nodeType);
+     else{var ts=pop.querySelector('#zm-type');var _tv=(ts&&ts.value)||(NTYPES[0]&&NTYPES[0].id)||'';
+       if(_tv.indexOf('lib:')===0){d.name=_tv.slice(4);var _le=null;LIB.forEach(function(c){if(c.name===d.name)_le=c;});if(_le&&_le.nodeType)d.nodeType=_le.nodeType;}
+       else{d.nodeType=_tv;d.name=localOf(d.nodeType);}
        if(vNew){var vi=pop.querySelector('#zm-view');d.view=(vi&&vi.value.trim())||'default';d.newView=true;}
        else{var vs=pop.querySelector('#zm-view-sel');d.view=(vs&&vs.value)||'default';d.newView=false;}
      }
      // match-all: persist the class signature so the engine applies this ONE nodetype to EVERY
      // same-signature block site-wide (N instances), not just the selector's first match.
      if(cAll){var _s=sigSelector(el);if(_s){d.matchAll=true;d.sig=_s;}}
+     if(cProps&&cProps.length)d.props=cProps;  // identified properties: editable, re-linked, REUSABLE
    }
    if(pending==='absoluteArea'){var s=pop.querySelector('#zm-area');d.area=(s&&s.value)||'header';}
    api(API+'decide',{decision:d}).then(function(r){
      if(r&&r.decisions){DEC={};r.decisions.forEach(function(x){DEC[x.selector.value]=x;});}else{DEC[d.selector.value]=d;}
-     pending=null;markAll();drawBan();renderPop(el);
+     pending=null;cProps=null;markAll();drawBan();renderPop(el);
+     api(API+'library').then(function(r){if(r&&r.components)LIB=r.components;});
    });
  }
  function deleteDecision(el){
@@ -1060,6 +1071,58 @@ _MANUAL_JS = """
      if(window.parent&&window.parent!==window)window.parent.postMessage({zmChanged:true},'*');
    });
  }
+ function relPath(el,root){ // css path of el RELATIVE to the component root (engine re-resolves it)
+   var p=[],n2=el;
+   while(n2&&n2!==root&&n2.nodeType===1){var i=1,s2=n2;while(s2.previousElementSibling){s2=s2.previousElementSibling;i++;}
+     p.unshift(n2.tagName.toLowerCase()+':nth-child('+i+')');n2=n2.parentElement;}
+   return p.join(' > ');
+ }
+ function propsOf(el){ // identify the MINIMAL editable properties of a component (title/image/link/body)
+   var ps=[],h=el.querySelector('h1,h2,h3,h4,h5,h6');
+   if(h&&h.textContent.trim())ps.push({name:'title',kind:'title',selector:relPath(h,el),sample:h.textContent.trim().slice(0,80)});
+   var im=el.querySelector('img');
+   if(im)ps.push({name:'image',kind:'image',selector:relPath(im,el),sample:(im.getAttribute('src')||'').split('/').pop().slice(0,80)});
+   var a2=el.querySelector('a[href],button');
+   if(a2)ps.push({name:'link',kind:'link',selector:relPath(a2,el),sample:(a2.textContent.trim()||a2.getAttribute('href')||'').slice(0,80)});
+   var t=(el.textContent||'').trim();
+   var used=(h?h.textContent.trim().length:0)+(a2?a2.textContent.trim().length:0);
+   if(t.length>used+10)ps.push({name:'body',kind:'body',selector:'',sample:t.slice(0,80)});
+   return ps;
+ }
+ function propsFromLib(entry,el){ // re-resolve a LIBRARY component's prop schema on a NEW element (names kept)
+   var auto=propsOf(el),out=[];
+   (entry.props||[]).forEach(function(tp){
+     var m=null;auto.forEach(function(ap){if(!m&&ap.kind===tp.kind)m=ap;});
+     out.push(m?{name:tp.name,kind:tp.kind,selector:m.selector,sample:m.sample}
+              :{name:tp.name,kind:tp.kind,selector:'',sample:'(à re-lier)'});
+   });
+   return out;
+ }
+ function propsHtml(){
+   var h='<div class="zm-lbl" style="margin-top:7px">Propriétés identifiées <span style="opacity:.6">(éditables — 🔗 re-lie au clic)</span></div>';
+   (cProps||[]).forEach(function(pr,i){
+     h+='<div class="zm-prop" style="display:flex;gap:4px;align-items:center;margin:2px 0;font-size:12px">'
+       +'<input class="zm-pname" data-i="'+i+'" value="'+esc(pr.name)+'" style="width:78px">'
+       +'<span style="opacity:.6">'+esc(pr.kind)+'</span>'
+       +'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(pr.selector||'')+'">'+esc(pr.sample||'')+'</span>'
+       +'<button class="zm-preln" data-i="'+i+'" title="re-lier: cliquer un élément du bloc"'+(relinkIdx===i?' style="outline:2px solid #f60"':'')+'>🔗</button>'
+       +'<button class="zm-pdel" data-i="'+i+'">×</button></div>';
+   });
+   h+='<button class="zm-padd" style="font-size:11px;margin:2px 0">+ propriété</button>';
+   return h;
+ }
+ document.addEventListener('click',function(e){ // re-link capture: next click inside the block re-points the property
+   if(relinkIdx<0||!relinkRoot)return;
+   e.preventDefault();e.stopPropagation();
+   var t=e.target;
+   if(relinkRoot.contains(t)&&t!==relinkRoot){
+     var pr=cProps[relinkIdx];
+     pr.selector=relPath(t,relinkRoot);
+     pr.sample=(t.tagName==='IMG'?(t.getAttribute('src')||'').split('/').pop():(t.textContent||'').trim()).slice(0,80);
+     if(t.tagName==='IMG')pr.kind='image';else if(t.tagName==='A'||t.tagName==='BUTTON')pr.kind=pr.kind==='image'?'link':pr.kind;
+   }
+   var el2=relinkRoot;relinkIdx=-1;relinkRoot=null;renderPop(el2);
+ },true);
  function renderPop(el){
    var a=attr(el);
    var kids=Array.prototype.filter.call(el.children||[],function(c){return c.nodeType===1;});
@@ -1106,17 +1169,24 @@ _MANUAL_JS = """
      b.onmouseleave=ancHiOff;
    });
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
-   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;cAll=false;}renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;cAll=false;cProps=null;relinkIdx=-1;}renderPop(el);};});
    var _ac=pop.querySelector('.zm-allc');if(_ac)_ac.onchange=function(){cAll=_ac.checked;};  // no re-render (keeps DOM ↔ cAll in sync via the checked attr)
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-mode'),function(b){b.onclick=function(){cNew=(b.getAttribute('data-m')==='new');renderPop(el);};});
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-vmode'),function(b){b.onclick=function(){vNew=(b.getAttribute('data-v')==='new');renderPop(el);};});
-   var _ts=pop.querySelector('#zm-type');if(_ts)_ts.onchange=function(){cType=_ts.value;vNew=true;renderPop(el);};
+   var _ts=pop.querySelector('#zm-type');if(_ts)_ts.onchange=function(){cType=_ts.value;vNew=true;
+     if(cType.indexOf('lib:')===0){var _e=null;LIB.forEach(function(c){if('lib:'+c.name===cType)_e=c;});if(_e)cProps=propsFromLib(_e,el);}
+     renderPop(el);};
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-pname'),function(inp){inp.onchange=function(){cProps[+inp.getAttribute('data-i')].name=inp.value.trim()||cProps[+inp.getAttribute('data-i')].name;};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-preln'),function(b){b.onclick=function(){relinkIdx=+b.getAttribute('data-i');relinkRoot=el;renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-pdel'),function(b){b.onclick=function(){cProps.splice(+b.getAttribute('data-i'),1);renderPop(el);};});
+   var _pa=pop.querySelector('.zm-padd');if(_pa)_pa.onclick=function(){(cProps=cProps||[]).push({name:'prop'+(cProps.length+1),kind:'body',selector:'',sample:''});renderPop(el);};
    var sv=pop.querySelector('.zm-save');if(sv)sv.onclick=function(){saveDecision(el);};
    var dl=pop.querySelector('.zm-del');if(dl)dl.onclick=function(){deleteDecision(el);};
    var sp=pop.querySelector('.zm-suppress');if(sp)sp.onclick=function(){suppressType(el);};
  }
  drawBan();
  loadDecisions();
+ api(API+'library').then(function(r){if(r&&r.components)LIB=r.components;});
 })();
 """
 
@@ -1848,6 +1918,33 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             emit_node(kd, insts, depth + 1, idx)
         return True
 
+    def _apply_prop_links(el, props, inst):
+        """Manual PROPERTY links (inspector, 2026-07-16): each identified
+        property carries a selector RELATIVE to the component root — the
+        operator's linking wins over automatic attribution for the fields it
+        names. The full schema rides the instance as propMap (provenance +
+        reusable component library)."""
+        f = inst.setdefault("fields", {})
+        for pr in (props or []):
+            sel, kind = pr.get("selector"), pr.get("kind")
+            t = None
+            if sel:
+                try:
+                    t = el.select_one(sel)
+                except Exception:
+                    t = None
+            if kind == "title" and t is not None and t.get_text(strip=True):
+                f["title"] = t.get_text(" ", strip=True)[:250]
+            elif kind == "link" and t is not None:
+                lbl = t.get_text(" ", strip=True)
+                if lbl:
+                    f["linkLabel"] = lbl[:250]
+                if t.get("href"):
+                    f["linkOrig"] = t.get("href")
+            elif kind == "body" and t is not None:
+                f["body"] = t.decode_contents().strip() if hasattr(t, "decode_contents") else str(t)
+        inst["propMap"] = props
+
     def apply_decision(node, d, parent, insts, depth):
         """Apply a MANUAL inspector decision (Julian). Returns True if it consumed the node.
           component    -> named typed node (apply_attribution: byte-exact emit_typed+fallback)
@@ -1872,6 +1969,8 @@ def build(project, site, ns, module=None, overlay=False, overlay_src=None, manua
             ok = apply_attribution(node, {"type": name}, parent, insts)
             if ok and d.get("view") and len(insts) > n0:
                 insts[n0]["view"] = d["view"]
+            if ok and d.get("props") and len(insts) > n0:
+                _apply_prop_links(el, d["props"], insts[n0])
             return ok
         if act == "absoluteArea":
             t = raw_inst(el, base)              # verbatim; NO area key -> stays placed via a zone
