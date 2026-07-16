@@ -111,6 +111,33 @@ def phase_content(site):
         if ("Grid" in nt or "grid" in nt or "List" in nt) and kids == 0 and len(body) > 1500:
             collapsed.append(f"{n['path']} ({nt}: 0 children, body {len(body)} chars)")
     bad += fail_list("container-collapse (content in parent, children empty/absent)", collapsed)
+
+    # 3. DISPLAY-NOT-EDITABLE (2026-07-16 finding): an item whose hidden
+    # skeleton carries visible text while BOTH jcr:title and body are empty
+    # renders content the Content Editor cannot touch — dead authoring.
+    ns_guess = None
+    d0 = gql('{jcr(workspace:EDIT){nodeByPath(path:"/sites/%s"){name}}}' % site)
+    # item types are <ns>:cardItem — resolve ns from any loaded manifest naming
+    # convention is not available here; query all candidate item types
+    dead = []
+    d = gql('{jcr(workspace:EDIT){nodesByQuery(query:"SELECT * FROM [jnt:content] AS n '
+            f"WHERE ISDESCENDANTNODE(n,'/sites/{site}')\","
+            'queryLanguage:SQL2,limit:1000){nodes{path type:primaryNodeType{name} '
+            'sk:property(name:\\"skeleton\\"){value} '
+            't:property(name:\\"jcr:title\\",language:\\"en\\"){value} '
+            'b:property(name:\\"body\\",language:\\"en\\"){value}}}}}')
+    nodes = ((d.get("data") or {}).get("jcr") or {}).get("nodesByQuery", {}).get("nodes") or []
+    for n in nodes:
+        if not n["type"]["name"].endswith(":cardItem"):
+            continue
+        sk = ((n.get("sk") or {}).get("value")) or ""
+        t = ((n.get("t") or {}).get("value")) or ""
+        b = ((n.get("b") or {}).get("value")) or ""
+        vis = re.sub(r"<[^>]+>", " ", sk)
+        vis = re.sub(r"\s+", " ", vis).strip()
+        if len(vis) >= 24 and not t.strip() and not b.strip():
+            dead.append(f"{n['path']} (skeleton text {len(vis)} chars, no editable field)")
+    bad += fail_list("display-not-editable (item text has no editable field)", dead[:15])
     return bad
 
 

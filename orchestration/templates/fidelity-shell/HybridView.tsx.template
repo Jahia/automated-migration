@@ -1,4 +1,9 @@
-import { jahiaComponent, useServerContext, Render } from "@jahia/javascript-modules-library";
+import {
+  jahiaComponent,
+  useServerContext,
+  RenderChild,
+  RenderChildren,
+} from "@jahia/javascript-modules-library";
 import { createElement, type ReactNode } from "react";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import { splitRoot, rootProps } from "../rawRoot.js";
@@ -54,23 +59,23 @@ jahiaComponent(
     if (editMode) {
       const p = nodePayload(node);
       const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
-      // G6 reachability: EVERY child gets an edit frame — library-container
-      // skeletons embed their items verbatim (no {{child:N}} markers), which
-      // left those items unreachable in Page Builder (editor-surface gate).
-      // The missed-children appending below covers markerless skeletons.
+      // G6 reachability, the SELECTABLE way (2026-07-16: bare <Render> gave no
+      // Page Builder chrome — items existed but could not be clicked). Each
+      // {{child:N}} marker splices <RenderChild name="item-N+1"> (framework
+      // edit frame + add-content buttons); a markerless skeleton with children
+      // renders them ALL through <RenderChildren> after the composed markup.
       const kidsProbe = childNodesOf(node);
-      if (html.includes("{{child:") || kidsProbe.length > 0) {
+      if (html.includes("{{child:")) {
         const kids = kidsProbe;
         const placed = new Set<number>();
         const compose = (fragment: string): ReactNode[] =>
           chunkTopLevel(fragment).map((c, i) => {
             if (c.kind === "child") {
               placed.add(c.idx);
-              const kid = kids[c.idx];
               return createElement(
                 "div",
                 { key: `c${i}`, style: { display: "contents" } },
-                kid ? createElement(Render as never, { node: kid }) : null,
+                createElement(RenderChild as never, { name: `item-${c.idx + 1}` }),
               );
             }
             if (c.html.includes("{{child:")) {
@@ -95,16 +100,32 @@ jahiaComponent(
             });
           });
         const body = compose(html);
-        // G6 reachability: anything the recursive placement missed still gets
-        // an edit frame; edit-mode position is not the fidelity contract.
-        const missed = childNodesOf(node)
+        const missed = kids
           .map((k, i) => [k, i] as const)
           .filter(([, i]) => !placed.has(i));
         return createElement(
           "div",
           { style: { display: "contents" } },
           body,
-          missed.map(([k, i]) => createElement(Render as never, { key: `m${i}`, node: k })),
+          missed.map(([k, i]) =>
+            createElement(RenderChild as never, { key: `m${i}`, name: k.getName() })),
+        );
+      }
+      if (kidsProbe.length > 0) {
+        const root = splitRoot(html);
+        return createElement(
+          "div",
+          { style: { display: "contents" } },
+          root
+            ? createElement(root.tag, {
+                ...rootProps(root.attrs),
+                dangerouslySetInnerHTML: { __html: root.inner },
+              })
+            : createElement("div", {
+                style: { display: "contents" },
+                dangerouslySetInnerHTML: { __html: html },
+              }),
+          createElement(RenderChildren as never, {}),
         );
       }
     }

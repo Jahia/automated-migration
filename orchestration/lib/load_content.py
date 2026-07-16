@@ -528,6 +528,21 @@ class Loader:
             create_props = {"panelOrig": orig[:200_000]}
             if inst.get("atomTitle"):
                 create_props["jcr:title"] = inst["atomTitle"][:250]
+        # ── CONTRACT item ({ns}:cardItem) — 2026-07-16: the generic fallthrough
+        # created items EMPTY (no branch matched), so Content Editor showed
+        # nothing while the text rendered from the parent's verbatim markup.
+        # The item owns its skeleton ({{f:title}}/{{f:body}} markers) + fields.
+        elif nt.endswith(":cardItem"):
+            f = inst.get("fields") or {}
+            if inst.get("skeleton"):
+                create_props["skeleton"] = inst["skeleton"][:200_000]
+            if f.get("title"):
+                post["jcr:title"] = str(f["title"])[:250]
+            if f.get("body"):
+                post["body"] = self._rewire_hrefs(str(f["body"]))[:200_000]
+            if dam:
+                create_props["imageOrigRef"] = dam["uuid"]
+                post["image"] = dam.get("path") or dam["uuid"]
 
         try:
             r = self.m.create(parent_path, nt, create_props, name=name, locale=self.locale)

@@ -207,6 +207,74 @@ def _decompose_repeats(skeleton, ns):
     return new_sk, children
 
 
+def _itemize_fragment(frag):
+    """Turn an item's markup fragment into (skeleton, title, body): first
+    heading's text -> {{f:title}}, the content AFTER it (within its parent) ->
+    ONE {{f:body}} whose value is the extracted richtext. Editing title/body in
+    Content Editor then reflows into the fidelity render (the whole point:
+    what you see rendered must be what you edit)."""
+    if not frag:
+        return frag, "", ""
+    soup = BeautifulSoup(frag, "lxml")
+    title = body = ""
+    h = next((x for t in ("h1", "h2", "h3", "h4", "h5", "h6")
+              for x in [soup.find(t)] if x is not None), None)
+    if h is not None and h.get_text(strip=True):
+        title = h.get_text(" ", strip=True)[:250]
+        h.clear()
+        h.append("{{f:title}}")
+        sibs = list(h.next_siblings)
+        parts = [str(x) for x in sibs if str(x).strip()]
+        if parts:
+            body = "".join(parts).strip()
+            for x in sibs:
+                x.extract()
+            h.insert_after("{{f:body}}")
+    else:
+        # no heading: the whole item content becomes ONE editable richtext —
+        # guaranteed editability beats perfect structure (display-not-editable
+        # gate). The root element + classes stay for the source CSS.
+        root = next((c for c in (soup.body.children if soup.body else [])
+                     if getattr(c, "name", None)), None)
+        if root is not None and root.get_text(strip=True):
+            body = "".join(str(c) for c in root.children).strip()
+            root.clear()
+            root.append("{{f:body}}")
+    sk = "".join(str(c) for c in (soup.body.children if soup.body else [])).strip()
+    return sk, title, body
+
+
+def _decompose_library(transformed, ns):
+    """CONTRACT pass for LIBRARY containers: their skeletons embed item markup
+    VERBATIM (no {{child:N}}), so items rendered from the parent were neither
+    selectable in Page Builder nor showing their text in Content Editor (the
+    2026-07-16 finding). Replace each atom's fragment in the container skeleton
+    with {{child:N}} and give the atom its own skeleton + title/body fields."""
+    swapped = 0
+    for p_idx, (keep, parent) in enumerate(transformed):
+        if not keep or not parent or not parent.get("libraryPlan"):
+            continue
+        sk = parent.get("skeleton") or ""
+        atoms = [(i, a) for i, (k, a) in enumerate(transformed)
+                 if k and a and a.get("libraryAtom") and a.get("parent") == p_idx]
+        for n, (a_idx, atom) in enumerate(atoms):
+            frag = _clean_html(atom.get("imgOrig") or "")
+            if not frag:
+                continue
+            item_sk, t, b = _itemize_fragment(frag)
+            atom["skeleton"] = item_sk
+            f = atom.setdefault("fields", {})
+            if t and not f.get("title"):
+                f["title"] = t
+            if b and not f.get("body"):
+                f["body"] = b
+            if frag in sk:
+                sk = sk.replace(frag, "{{child:%d}}" % n, 1)
+                swapped += 1
+        parent["skeleton"] = sk
+    return swapped
+
+
 def _semanticize_instance(inst, node, surf):
     """HYBRID (Option B, 2026-07-15): the archetype TYPE system provides the
     authoring surface (mix:title, contrib slots, media/cta mixins) while the
@@ -495,6 +563,9 @@ def main():
             else:
                 transformed.append((False, None))         # whitespace/markup/chrome — DROP
                 n_drop += 1
+        # library containers: verbatim item fragments -> {{child:N}} + per-item
+        # skeleton/fields (Page Builder selection + Content Editor truth)
+        _decompose_library(transformed, (passthrough or "x:y").split(":")[0])
         # compact + remap parent indices (dropped parent -> top-level)
         remap, kept = {}, []
         for oldi, (keep, ins) in enumerate(transformed):
