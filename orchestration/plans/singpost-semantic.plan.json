@@ -66,6 +66,24 @@
               "max_attempts": 3
             },
             {
+              "id": "step_inventory",
+              "title": "SITE INVENTORY: deterministic DOM analysis (landmarks, chrome anatomy, per-region anatomy, theme)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_localize"
+              ],
+              "inputs": {
+                "project": "projects/singpost",
+                "site": "singpost"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/site_inventory.py singpost",
+                "PROBE: python3 -c \"import json,sys; d=json.load(open('projects/singpost/workflow-output/site-inventory.json')); sys.exit(0 if d.get('pages') and d.get('chrome') else 1)\""
+              ],
+              "max_attempts": 3
+            },
+            {
               "id": "step_semantic",
               "title": "Deterministic candidates + partitions",
               "task_type": "build",
@@ -261,6 +279,7 @@
                 "Run: python3 orchestration/lib/semanticize_content.py singpost --manifest projects/singpost/workflow-output/component-manifest.json",
                 "PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/singpost.content-load.json')); sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\"",
                 "PROBE: python3 orchestration/probes/reconcile-check.py singpost",
+                "PROBE: python3 orchestration/probes/inventory-coverage.py singpost singpost --phase content",
                 "Run: python3 orchestration/probes/partition.py singpost || true",
                 "Run: python3 orchestration/probes/contribution.py singpost || true",
                 "Run: python3 orchestration/probes/component_coverage.py singpost || true"
@@ -558,6 +577,8 @@
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/extract_nav.py singpost || true",
                 "Run: python3 orchestration/lib/build_nav_tree.py singpost singpost --locale en",
+                "Run: python3 orchestration/lib/populate_chrome.py singpost singpost --locale en",
+                "PROBE: python3 orchestration/probes/inventory-coverage.py singpost singpost --phase site",
                 "PROBE: python3 orchestration/lib/create_pages.py singpost singpost --check"
               ],
               "max_attempts": 3
