@@ -292,6 +292,45 @@ def _upsert_library(project: str, d: dict) -> None:
               open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 
 
+@router.get("/projects/{project}/zoning/components-info")
+async def zoning_components_info(project: str) -> dict:
+    """EVERYTHING known per modeled component (operator mandate 2026-07-16:
+    'go through each component in the zoning and have all the info'):
+    the SDC folder's nodeType + CND properties + views + generated
+    component.module.css (captured source CSS), and the library prop schema."""
+    _require(project)
+    root = _harness_root() / "projects" / project / "src" / "components"
+    lib = {(c.get("name") or "").lower(): c for c in _load_library(project)}
+    out: list[dict] = []
+    if root.is_dir():
+        for d in sorted(p for p in root.iterdir() if p.is_dir()):
+            entry: dict = {"folder": d.name, "nodeType": None,
+                           "properties": [], "views": [], "css": None}
+            cnd = d / "definition.cnd"
+            if cnd.is_file():
+                txt = cnd.read_text(encoding="utf-8")
+                m = re.search(r"^\[(\w+:\w+)\]", txt, re.M)
+                entry["nodeType"] = m.group(1) if m else None
+                entry["properties"] = [
+                    {"name": pm.group(1), "type": pm.group(2).strip()}
+                    for pm in re.finditer(r"^\s*-\s+([\w:]+)\s+\(([^)]+)\)", txt, re.M)]
+                entry["cnd"] = txt
+            entry["views"] = sorted(f.name[: -len(".server.tsx")]
+                                    for f in d.glob("*.server.tsx"))
+            css = d / "component.module.css"
+            if css.is_file():
+                t = css.read_text(encoding="utf-8")
+                entry["css"] = {"bytes": len(t),
+                                "rules": len(re.findall(r"^\s*:global|^\s*@media", t, re.M)),
+                                "preview": t[:4000]}
+            le = lib.get(d.name.lower()) or lib.get(
+                (entry["nodeType"] or ":").split(":")[-1].lower())
+            if le:
+                entry["libraryProps"] = le.get("props")
+            out.append(entry)
+    return {"components": out}
+
+
 @router.get("/projects/{project}/zoning/library")
 async def zoning_library(project: str) -> dict:
     """The reusable component library: every component ever saved in the

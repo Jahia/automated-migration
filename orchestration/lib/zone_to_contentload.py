@@ -584,6 +584,8 @@ _MANUAL_JS = """
  var LIB=[];        // reusable component LIBRARY: every saved component (name + prop schema), cross-page
  var cProps=null;   // identified properties of the pending component [{name,kind,selector,sample}]
  var relinkIdx=-1, relinkRoot=null;  // property awaiting a re-link click + its component root
+ var CINFO=[];      // per-component MODEL info (nodeType, CND props, views, captured CSS)
+ var editName=null; // name carried when editing a decided component's properties
  function localOf(id){return ((id||'').split(':').pop())||id;}
  function viewsOf(id){for(var i=0;i<NTYPES.length;i++)if(NTYPES[i].id===id)return (NTYPES[i].views||[]).map(function(v){return v.name;});return [];}
  function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':(''+s));return d.innerHTML;}
@@ -979,6 +981,7 @@ _MANUAL_JS = """
    if(cur){
      var lab=cur.action==='component'?('Composant &laquo; '+esc(cur.name||'?')+' &raquo;'+(cur.view?(' &middot; vue '+esc(cur.view)):'')+(cur.nodeType?' (réutilisé)':'')):(cur.action==='absoluteArea'?('Absolute Area / '+esc(cur.area||'?')):'Area (zone)');
      h+='<div class="zm-cur">&#9679; Décidé : <b>'+lab+'</b><button class="zm-del">Supprimer</button></div>';
+     if(!pending&&cur.action==='component')h+=infoHtml(el,cur,null);
    }
    h+='<div class="zm-lbl">Décider ce bloc comme</div>';
    h+='<button class="zm-a'+(pending==='component'?' on':'')+'" data-a="component">Composant</button>';
@@ -989,7 +992,7 @@ _MANUAL_JS = """
      h+='<div class="zm-sub"><button class="zm-mode'+(cNew?' on':'')+'" data-m="new">Nouveau composant</button>'
        +'<button class="zm-mode'+(!cNew?' on':'')+'" data-m="ex">Composant existant</button></div>';
      if(cNew){
-       h+='<input id="zm-name" value="'+esc(suggestName(el))+'" placeholder="nom du composant">';
+       h+='<input id="zm-name" value="'+esc(editName||suggestName(el))+'" placeholder="nom du composant">';
      } else if(!NTYPES.length&&!LIB.length){
        h+='<div class="zm-lbl">Aucun composant existant &mdash; lance «&nbsp;Appliquer&nbsp;» une fois.</div>';
      } else {
@@ -1025,8 +1028,9 @@ _MANUAL_JS = """
    // engine-detected component (has data-zt, not a manual decision): allow deleting the whole
    // nodetype site-wide (Julian) — demotes every instance to verbatim on the next engine run.
    var _zt=el.getAttribute&&el.getAttribute('data-zt');
-   if(_zt&&!cur)h+='<div class="zm-lbl" style="margin-top:8px">Composant détecté par le moteur</div>'
-     +'<button class="zm-suppress">&#128465; Supprimer &laquo; '+esc(_zt)+' &raquo; (tout le site)</button>';
+   if(_zt&&!cur){h+='<div class="zm-lbl" style="margin-top:8px">Composant détecté par le moteur</div>';
+     if(!pending)h+=infoHtml(el,null,_zt);
+     h+='<button class="zm-suppress">&#128465; Supprimer &laquo; '+esc(_zt)+' &raquo; (tout le site)</button>';}
    return h+'</div>';
  }
  function saveDecision(el){
@@ -1097,6 +1101,35 @@ _MANUAL_JS = """
               :{name:tp.name,kind:tp.kind,selector:'',sample:'(à re-lier)'});
    });
    return out;
+ }
+ function compInfo(name){ // CINFO match by lowercase alpha-only local name (folder or nodeType)
+   var k=(name||'').toLowerCase().replace(/[^a-z0-9]/g,''),f=null;
+   CINFO.forEach(function(c){
+     var loc=((c.nodeType||':').split(':').pop()||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+     var fol=(c.folder||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+     if(!f&&k&&(loc===k||fol===k))f=c;});
+   return f;
+ }
+ function infoHtml(el,cur,zt){ // SELECTION info: attached properties + model + captured CSS
+   var name=cur?(cur.name||localOf(cur.nodeType||'')):zt;
+   var h='<div class="zm-info" style="margin-top:7px;border-top:1px solid rgba(127,127,127,.35);padding-top:6px;font-size:12px">';
+   var ps=(cur&&cur.props&&cur.props.length)?cur.props:propsOf(el);
+   var auto=!(cur&&cur.props&&cur.props.length);
+   h+='<div class="zm-lbl">Propriétés attachées'+(auto?' <span style="opacity:.6">(auto-identifiées)</span>':'')+'</div>';
+   ps.forEach(function(pr){h+='<div style="display:flex;gap:6px"><b style="min-width:70px">'+esc(pr.name)+'</b><span style="opacity:.6">'+esc(pr.kind)+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(pr.sample||'')+'</span></div>';});
+   if(cur)h+='<button class="zm-editprops" style="font-size:11px;margin:3px 0">Modifier les propriétés</button>';
+   var ci=compInfo(name);
+   if(ci){
+     h+='<div class="zm-lbl" style="margin-top:5px">Modèle : <b>'+esc(ci.nodeType||ci.folder)+'</b>'+((ci.views&&ci.views.length)?(' &middot; vues : '+ci.views.map(esc).join(', ')):'')+'</div>';
+     if(ci.properties&&ci.properties.length){
+       h+='<details><summary style="cursor:pointer">'+ci.properties.length+' propriété(s) CND</summary>';
+       ci.properties.forEach(function(p2){h+='<div style="padding-left:10px"><b>'+esc(p2.name)+'</b> <span style="opacity:.6">('+esc(p2.type)+')</span></div>';});
+       h+='</details>';
+     }
+     if(ci.css)h+='<details><summary style="cursor:pointer">CSS capturé : '+ci.css.rules+' règle(s), '+ci.css.bytes+' o</summary><pre style="max-height:160px;overflow:auto;font-size:10px;white-space:pre-wrap">'+esc(ci.css.preview)+'</pre></details>';
+     else h+='<div class="zm-lbl" style="opacity:.6">Pas de CSS capturé pour ce composant.</div>';
+   }
+   return h+'</div>';
  }
  function propsHtml(){
    var h='<div class="zm-lbl" style="margin-top:7px">Propriétés identifiées <span style="opacity:.6">(éditables — 🔗 re-lie au clic)</span></div>';
@@ -1169,7 +1202,7 @@ _MANUAL_JS = """
      b.onmouseleave=ancHiOff;
    });
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-kid'),function(b){b.onclick=function(){focusEl(kids[+b.getAttribute('data-i')]);};});
-   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;cAll=false;cProps=null;relinkIdx=-1;}renderPop(el);};});
+   Array.prototype.forEach.call(pop.querySelectorAll('.zm-a'),function(b){b.onclick=function(){var a2=b.getAttribute('data-a');pending=(pending===a2?null:a2);if(pending==='component'){cNew=true;cType='';vNew=true;cAll=false;cProps=null;relinkIdx=-1;editName=null;}renderPop(el);};});
    var _ac=pop.querySelector('.zm-allc');if(_ac)_ac.onchange=function(){cAll=_ac.checked;};  // no re-render (keeps DOM ↔ cAll in sync via the checked attr)
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-mode'),function(b){b.onclick=function(){cNew=(b.getAttribute('data-m')==='new');renderPop(el);};});
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-vmode'),function(b){b.onclick=function(){vNew=(b.getAttribute('data-v')==='new');renderPop(el);};});
@@ -1182,11 +1215,18 @@ _MANUAL_JS = """
    var _pa=pop.querySelector('.zm-padd');if(_pa)_pa.onclick=function(){(cProps=cProps||[]).push({name:'prop'+(cProps.length+1),kind:'body',selector:'',sample:''});renderPop(el);};
    var sv=pop.querySelector('.zm-save');if(sv)sv.onclick=function(){saveDecision(el);};
    var dl=pop.querySelector('.zm-del');if(dl)dl.onclick=function(){deleteDecision(el);};
+   var ep=pop.querySelector('.zm-editprops');if(ep)ep.onclick=function(){
+     var c2=DEC[cssPath(el)];if(!c2)return;
+     pending='component';editName=c2.name||null;
+     cProps=JSON.parse(JSON.stringify(c2.props||[]));if(!cProps.length)cProps=propsOf(el);
+     if(c2.nodeType){cNew=false;cType=c2.nodeType;vNew=false;}else{cNew=true;}
+     renderPop(el);};
    var sp=pop.querySelector('.zm-suppress');if(sp)sp.onclick=function(){suppressType(el);};
  }
  drawBan();
  loadDecisions();
  api(API+'library').then(function(r){if(r&&r.components)LIB=r.components;});
+ api(API+'components-info').then(function(r){if(r&&r.components)CINFO=r.components;});
 })();
 """
 
