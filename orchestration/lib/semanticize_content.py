@@ -292,13 +292,39 @@ def _semanticize_instance(inst, node, surf):
             sk = sk.replace(anchor, anchor + v, 1) if anchor in sk else sk + v
     if sk:
         out["skeleton"] = sk
-    # labels beyond the first ride the skeleton verbatim too (no labelN fields)
-    for k in sorted((k for k in fields if re.match(r"label\d+$", k)),
+    # CONTRACT: the payload may only carry fields the TYPE declares — the
+    # numbered contrib mixins are gone, so anything else stays INLINE in the
+    # markup (fidelity keeps it; it is editable as part of a body/child, not as
+    # a phantom field). Observed live: 'body' on cardGrid, 'label', image2Orig
+    # all failed "Couldn't find definition for property".
+    s = surf.get(node) or {}
+    sk2 = out.get("skeleton") or ""
+
+    def inline(k, v):
+        nonlocal sk2
+        marker = "{{f:%s}}" % k
+        if marker in sk2:
+            sk2 = sk2.replace(marker, v if isinstance(v, str) else "", 1)
+
+    # labels (all of them): no type declares label fields
+    for k in sorted((k for k in fields if re.match(r"label\d*$", k)),
                     key=lambda k: (len(k), k)):
-        v = fields.pop(k)
-        if out.get("skeleton") and ("{{f:%s}}" % k) in out["skeleton"]:
-            out["skeleton"] = out["skeleton"].replace("{{f:%s}}" % k,
-                                                      v if isinstance(v, str) else "", 1)
+        inline(k, fields.pop(k))
+    # body on a type whose surface has no body (cardGrid, ctaSection, chrome)
+    if fields.get("body") and not s.get("body"):
+        inline("body", fields.pop("body"))
+    # media: ONE weakref unit max (the {mixns}:media/contribImage slot); the
+    # markup of further units replaces their {{media:*}} markers verbatim
+    media = inst.get("media") or []
+    if media:
+        keep, rest = media[0], media[1:]
+        out["media"] = [{**keep, "name": "image"}]
+        for mu in rest:
+            mk = "{{media:%s}}" % mu.get("name", "")
+            if mk in sk2:
+                sk2 = sk2.replace(mk, _clean_html(mu.get("orig") or ""), 1)
+    if sk2:
+        out["skeleton"] = sk2
     out["fields"] = fields
     # embedded typed children -> same hybrid treatment
     child_node = (surf.get(node) or {}).get("child")
@@ -416,11 +442,30 @@ def main():
                     # to the semantic views inside the skeleton prop: surface it
                     # as title/body fields so the archetype view renders it.
                     f = inst.setdefault("fields", {})
+                    # contract: undeclared fields inline back into the skeleton
+                    # at their markers (extract lifts runs OUT with {{f:*}});
+                    # the container renders from its skeleton either way
+                    sflib = surf.get(inst.get("nodeType")) or {}
+                    sk_l = inst.get("skeleton") or ""
+                    for k in [k for k in sorted(f, key=lambda k: (len(k), k))
+                              if re.match(r"(body|label)\d*$", k)]:
+                        if k == "body" and sflib.get("body"):
+                            continue
+                        v = f.pop(k)
+                        if ("{{f:%s}}" % k) in sk_l:
+                            sk_l = sk_l.replace("{{f:%s}}" % k,
+                                                v if isinstance(v, str) else "", 1)
+                    if sk_l:
+                        inst["skeleton"] = sk_l
                     if not f.get("title") and not f.get("body") and inst.get("skeleton"):
                         t, b = _split_skeleton(inst["skeleton"])
                         if t:
                             f["title"] = t
-                        if b and len(_visible(b)) >= MIN_VIS:
+                        # body only when the mapped TYPE declares it (contract:
+                        # payload fields must have a home; the container's
+                        # markup renders from its skeleton regardless)
+                        if b and len(_visible(b)) >= MIN_VIS \
+                                and (surf.get(inst.get("nodeType")) or {}).get("body"):
                             f["body"] = b
                 elif inst.get("libraryAtom"):
                     # CONTRACT: all repeatable items are the ONE reusable

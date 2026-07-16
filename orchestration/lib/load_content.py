@@ -820,6 +820,17 @@ class Loader:
             if not loadable and not is_container:
                 continue  # empty leaf — load_page skips it too
             would_create.add(idx)
+            # PAYLOAD children (decomposed cardItems / cta children ride the
+            # instance's own `children` list, named item-N by the create path)
+            # are nested expectations too — invisible to the top-level count,
+            # and skipping them let a childless parent read ALIGNED forever
+            # while the integrity belt (which counts them) failed (observed:
+            # find-postal-code 3 vs 1, 2026-07-16).
+            pk = inst.get("children") or []
+            nt_name = f"{nt.split(':')[-1]}-{page}-{idx}"
+            if pk and (inst.get("parent") is None or inst.get("parent") not in would_create):
+                nested.setdefault(nt_name, []).extend(
+                    f"item-{n + 1}" for n in range(len(pk)))
             pi = inst.get("parent")
             if pi is not None and pi in would_create:
                 # nests under its container — not a main-area child. Record the
