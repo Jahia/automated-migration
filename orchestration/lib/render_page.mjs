@@ -72,6 +72,18 @@ try {
     }, 100);
   }), { settle: SETTLE, max: MAXWAIT });
 
+  // client-hydrated islands (Astro): their content lives ONLY in the props
+  // attribute until the island renders — captured too early, the mirror ships
+  // empty shells and the real content (carousels, collapsibles) silently
+  // vanishes from every downstream artifact (business property carousel,
+  // caught by inventory-coverage 2026-07-16). Wait bounded until every island
+  // has element children; leftovers are captured as-is.
+  try {
+    await p.waitForFunction(
+      () => [...document.querySelectorAll("astro-island")].every((i) => i.firstElementChild),
+      null, { timeout: 12000 });
+  } catch { /* unhydrated leftovers ship as-is — inventory-coverage will name them */ }
+
   // capture the materialised DOM, with an absolute <base> so the crawl's
   // relative-URL resolution (assets, links) still works against the source
   const html = await p.evaluate((pageUrl) => {
