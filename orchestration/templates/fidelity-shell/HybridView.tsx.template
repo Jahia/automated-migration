@@ -34,7 +34,7 @@ jahiaComponent(
   {
     componentType: "view",
     nodeType: "$NODETYPE",
-    name: "default",
+    name: "$VIEWNAME",
     displayName: "$DISPLAYNAME",
   },
   (props: Record<string, unknown>) => {

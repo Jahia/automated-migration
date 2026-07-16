@@ -145,7 +145,13 @@ def main():
                 short = nt.split(":")[-1]
                 comp_dir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
                 os.makedirs(comp_dir, exist_ok=True)
-                tpl = hyb if view_name == "default" else sem
+                # CONTRACT v2 review (2026-07-16, per jahia-dev-create-view):
+                # content lives in PROPERTIES now, so the DEFAULT view is the
+                # property-driven semantic render (correct positions by
+                # construction: title, body, image, RenderChildren). The
+                # emptied source markup stays available as the named `source`
+                # view for fidelity comparison — never the default.
+                tpl = hyb if view_name == "source" else sem
                 out = (tpl.replace("$NODETYPE", nt)
                           .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
                           .replace("$KIND", kind)
@@ -161,7 +167,7 @@ def main():
                 if nt.endswith(":mainNavigation") or nt.endswith(":rawHtml"):
                     continue  # tree-driven nav + passthrough views ship in the shell
                 kind = c.get("archetype") or chrome_kind(nt)
-                for vw in view_names(c, c.get("needsMainResource")):
+                for vw in view_names(c, c.get("needsMainResource")) + ["source"]:
                     write_semantic(nt, c.get("name"), kind, vw)
             # CONTRACT reusable child objects — ONE definition each, views here
             write_semantic(f"{ns_prefix}:cardItem", "Card item", "teaserCard", "default")

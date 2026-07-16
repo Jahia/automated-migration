@@ -30,6 +30,7 @@ export interface SemanticFields {
   href?: string; // resolved CTA target
   ctaLabel?: string;
   hasChildren: boolean;
+  editMode?: boolean;
   trackId?: string; // stable id for the carousel island to scroll
 }
 
@@ -163,6 +164,17 @@ export default function ArchetypeSection({
     // ─── CARD GRID: grid, or carousel (island-driven controls) ──────────────
     case "cardGrid":
       if (view === "carousel") {
+        // skill rule: interactive components render FLAT in edit mode with an
+        // editor hint — sliding UI is hostile to selection and reordering
+        if (f.editMode) {
+          return (
+            <section className={`card-grid ${kind}`}>
+              {heading}
+              <div className="card-grid__items">{childSlot}</div>
+              <p className="editor-hint">Carousel — add or reorder slides here</p>
+            </section>
+          );
+        }
         return (
           <section className={`card-grid card-grid--carousel ${kind}`}>
             {heading}

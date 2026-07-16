@@ -62,6 +62,12 @@ export function resolveSemantic(
   } catch {
     hasChildren = false;
   }
+  let editMode = false;
+  try {
+    editMode = (renderContext as { isEditMode: () => boolean }).isEditMode();
+  } catch {
+    editMode = false;
+  }
 
   return {
     title: str("jcr:title"),
@@ -73,6 +79,7 @@ export function resolveSemantic(
     href,
     ctaLabel: str("ctaLabel"),
     hasChildren,
+    editMode,
     trackId: `carousel-${node.getIdentifier()}`,
   };
 }
