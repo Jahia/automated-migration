@@ -484,6 +484,10 @@ _OVERLAY_JS = """
 # are Phase 1 (buttons → AbsoluteArea/Area/component → scope-rules/seg-plan). Injected via
 # str.replace (NOT %-format) so literal % in the JS needs no escaping.
 MANUAL_CSS = """
+.zm-sec{margin:7px 0 0;border-top:1px solid rgba(127,127,127,.25);padding-top:4px}
+.zm-sec summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.75;user-select:none}
+.zm-sec summary:hover{opacity:1}
+
 .zm-hover{cursor:pointer !important;}
 /* focus = translucent wash (see the CONTENT through it) + strong outline marking the FULL
    footprint of the block; colored by nature (Julian: zone bleue, composant vert, absolute rouge). */
@@ -1156,6 +1160,11 @@ _MANUAL_JS = """
    }
    var el2=relinkRoot;relinkIdx=-1;relinkRoot=null;renderPop(el2);
  },true);
+ var secPop={};  // popup section open/closed state, survives re-renders
+ function sect(key,label,inner,defOpen){
+   var open=(key in secPop)?secPop[key]:!!defOpen;
+   return '<details class="zm-sec" data-sec="'+key+'"'+(open?' open':'')+'><summary>'+label+'</summary>'+inner+'</details>';
+ }
  function renderPop(el){
    var a=attr(el);
    var kids=Array.prototype.filter.call(el.children||[],function(c){return c.nodeType===1;});
@@ -1166,7 +1175,7 @@ _MANUAL_JS = """
      +(ntDisp?' <span class="zm-ty">'+esc(ntDisp)+'</span>':(a.ty?' <span class="zm-ty">'+esc(a.ty)+'</span>':''))
      +'<span id="zm-x" title="fermer">&times;</span></div>';
    h+='<div class="zm-el">'+esc(desc(el))+'</div>';
-   h+=statBlock(el);
+   h+=sect('stats','Données cross-page',statBlock(el),false);
    h+=actionForm(el);
    h+='<div class="zm-nav">';
    if(hist.length)h+='<button class="zm-back">&larr; Back ('+hist.length+')</button>';
@@ -1175,25 +1184,26 @@ _MANUAL_JS = """
    // component ⇒ same color; the chain breaks where an ancestor is itself a component).
    var chain=[];{var _p=el.parentElement;while(_p&&_p!==document.body&&_p!==document.documentElement){chain.push(_p);_p=_p.parentElement;}}
    if(chain.length){
-     h+='<div class="zm-lbl">Parents ('+chain.length+') &mdash; racine en haut &middot; couleur = composant propriétaire &middot; survol = voir dans la page</div><div class="zm-ancs">';
+     var _ancs='<div class="zm-lbl">racine en haut &middot; couleur = composant propriétaire &middot; survol = voir dans la page</div><div class="zm-ancs">';
      // top-to-bottom: the ROOT-most ancestor first, the immediate parent last (Julian).
      for(var _ci=chain.length-1;_ci>=0;_ci--){
        var anc=chain[_ci],oc=owningComp(anc),color=oc?compColor(compKey(oc)):'',stl=color?(' style="border-left-color:'+color+'"'):'';
        var chip=oc?('<span class="zm-own" style="background:'+color+'">'+esc(compName(oc))+'</span>'):'';
-       h+='<button class="zm-anc" data-i="'+_ci+'"'+stl+'>'+chip+esc(descFull(anc))+'</button>';
+       _ancs+='<button class="zm-anc" data-i="'+_ci+'"'+stl+'>'+chip+esc(descFull(anc))+'</button>';
      }
-     h+='</div>';
+     h+=sect('parents','Parents ('+chain.length+')',_ancs+'</div>',false);
    }
    if(kids.length){
-     h+='<div class="zm-kids"><div class="zm-lbl">'+kids.length+' enfant(s) &mdash; clique pour cibler</div>';
+     var _kh='<div class="zm-kids"><div class="zm-lbl">clique pour cibler</div>';
      kids.slice(0,40).forEach(function(c,i){var ca=attrEff(c);
-       h+='<button class="zm-kid" data-i="'+i+'"><span class="zm-badge '+ca.cls+'">'+esc(ca.lab)+'</span> '+esc(desc(c))+'</button>';});
-     if(kids.length>40)h+='<div class="zm-lbl">&hellip; +'+(kids.length-40)+'</div>';
-     h+='</div>';
+       _kh+='<button class="zm-kid" data-i="'+i+'"><span class="zm-badge '+ca.cls+'">'+esc(ca.lab)+'</span> '+esc(desc(c))+'</button>';});
+     if(kids.length>40)_kh+='<div class="zm-lbl">&hellip; +'+(kids.length-40)+'</div>';
+     h+=sect('kids','Enfants ('+kids.length+')',_kh+'</div>',false);
    } else h+='<div class="zm-kids"><div class="zm-lbl">Aucun element enfant (feuille)</div></div>';
-   h+='<div class="zm-lbl">HTML du bloc</div><pre class="zm-mk">'+esc(full.slice(0,700))+(full.length>700?'\\n\\u2026':'')+'</pre>';
+   h+=sect('html','HTML du bloc','<pre class="zm-mk">'+esc(full.slice(0,700))+(full.length>700?'\\n\\u2026':'')+'</pre>',false);
    pop.innerHTML=h;pop.style.display='block';
    var x=pop.querySelector('#zm-x');if(x)x.onclick=function(){pop.style.display='none';dropFoc();ancHiOff();foc=null;hist=[];};
+   Array.prototype.forEach.call(pop.querySelectorAll('details.zm-sec'),function(dd){dd.ontoggle=function(){secPop[dd.getAttribute('data-sec')]=dd.open;};});
    var bk=pop.querySelector('.zm-back');if(bk)bk.onclick=back;
    Array.prototype.forEach.call(pop.querySelectorAll('.zm-anc'),function(b){
      var anc=chain[+b.getAttribute('data-i')];
