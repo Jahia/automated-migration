@@ -409,6 +409,7 @@
               },
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/merge_cnd.py singpost --ns sgp --mixns sgpmix",
+                "PROBE: python3 orchestration/probes/model-contract.py --phase cnd projects/singpost sgp",
                 "PROBE: bash orchestration/probes/cnd.sh projects/singpost sgp",
                 "PROBE: bash orchestration/probes/cnd-patterns.sh projects/singpost sgp",
                 "PROBE: bash orchestration/probes/cnd-review.sh projects/singpost"
@@ -576,6 +577,7 @@
                 "Run: python3 orchestration/lib/load_content.py singpost singpost --clean --locale en",
                 "PROBE: python3 orchestration/lib/create_pages.py singpost singpost --check",
                 "PROBE: python3 orchestration/probes/clean-render.py singpost --model archetype",
+                "PROBE: python3 orchestration/probes/model-contract.py --phase content singpost",
                 "Run: python3 orchestration/probes/partition.py singpost || true",
                 "Run: python3 orchestration/probes/contribution.py singpost || true",
                 "Run: python3 orchestration/probes/component_coverage.py singpost || true"
