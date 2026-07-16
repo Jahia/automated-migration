@@ -162,6 +162,51 @@ def _mark_title_in_skeleton(skeleton, title):
     return skeleton
 
 
+def _decompose_repeats(skeleton, ns):
+    """CONTRACT decomposition (2026-07-16): repetition inside a region becomes
+    CHILD NODE TYPES, never flat fields on the parent. Detect the largest group
+    of >=2 sibling elements sharing the same (tag, classes) signature with real
+    content; each becomes a {ns}:cardItem child payload (title marked
+    {{f:title}} in its own skeleton fragment, image -> DAM file when the src is
+    a mirror asset); the parent skeleton gets {{child:N}} markers in place.
+    Returns (new_skeleton, children[]) — ([], unchanged) when nothing repeats."""
+    if not skeleton or "{{child:" in skeleton:
+        return skeleton, []
+    soup = BeautifulSoup(skeleton, "lxml")
+    best, best_sig = [], None
+    for parent in soup.find_all(True):
+        groups = {}
+        for el in parent.find_all(True, recursive=False):
+            sig = (el.name, tuple(sorted(el.get("class") or [])))
+            groups.setdefault(sig, []).append(el)
+        for sig, els in groups.items():
+            if len(els) >= 2 and len(els) > len(best) and sig[1]:
+                # real content units, not styling wrappers
+                if all(len(e.get_text(" ", strip=True)) >= 10 or e.find("img") for e in els):
+                    best, best_sig = els, sig
+    if len(best) < 2:
+        return skeleton, []
+    children = []
+    for i, el in enumerate(best):
+        frag = str(el)
+        title = _first_heading_text(frag)
+        ch = {"type": "cardItem", "nodeType": f"{ns}:cardItem", "promoted": True,
+              "fields": {}, "skeleton": _mark_title_in_skeleton(frag, title) if title else frag}
+        if title:
+            ch["fields"]["title"] = title
+        img = el.find("img")
+        src = (img.get("src") or "") if img else ""
+        mfile = os.path.basename(src.split("?")[0])
+        if img and re.match(r"^[a-f0-9]{12,}\.\w{2,4}$", mfile):
+            ch["media"] = [{"name": "image", "file": mfile,
+                            "orig": str(img)[:20000]}]
+        marker = soup.new_string("{{child:%d}}" % i)
+        el.replace_with(marker)
+        children.append(ch)
+    new_sk = "".join(str(c) for c in (soup.body.children if soup.body else [])).strip()
+    return new_sk, children
+
+
 def _semanticize_instance(inst, node, surf):
     """HYBRID (Option B, 2026-07-15): the archetype TYPE system provides the
     authoring surface (mix:title, contrib slots, media/cta mixins) while the
@@ -231,6 +276,29 @@ def _semanticize_instance(inst, node, surf):
             if t:
                 out["skeleton"] = _mark_title_in_skeleton(sk, t)
                 fields["title"] = t
+    # CONTRACT: ONE body per node. Runs 2+ are inlined VERBATIM into the
+    # skeleton at their own marker positions (fidelity keeps every run in
+    # place); the payload keeps only `body`. Real repetition becomes children
+    # in the main loop's decomposition pass.
+    sk = out.get("skeleton") or ""
+    for k in sorted((k for k in fields if re.match(r"body\d+$", k)),
+                    key=lambda k: (len(k), k)):
+        v = fields.pop(k)
+        if sk and ("{{f:%s}}" % k) in sk:
+            sk = sk.replace("{{f:%s}}" % k, v if isinstance(v, str) else "", 1)
+        elif isinstance(v, str) and v.strip():
+            # no marker home: append after body's marker so nothing is lost
+            anchor = "{{f:body}}"
+            sk = sk.replace(anchor, anchor + v, 1) if anchor in sk else sk + v
+    if sk:
+        out["skeleton"] = sk
+    # labels beyond the first ride the skeleton verbatim too (no labelN fields)
+    for k in sorted((k for k in fields if re.match(r"label\d+$", k)),
+                    key=lambda k: (len(k), k)):
+        v = fields.pop(k)
+        if out.get("skeleton") and ("{{f:%s}}" % k) in out["skeleton"]:
+            out["skeleton"] = out["skeleton"].replace("{{f:%s}}" % k,
+                                                      v if isinstance(v, str) else "", 1)
     out["fields"] = fields
     # embedded typed children -> same hybrid treatment
     child_node = (surf.get(node) or {}).get("child")
@@ -238,6 +306,23 @@ def _semanticize_instance(inst, node, surf):
         out["children"] = [_semanticize_instance(
             {**ch, "type": ch.get("type") or child_node or inst["type"]},
             ch.get("type") or child_node, surf) for ch in inst["children"]]
+    # CONTRACT: repetition inside the region -> {ns}:cardItem CHILDREN (never
+    # flat parent fields); the lifted link -> a {ns}:cta CHILD (never a mixin)
+    ns = (node or "x:y").split(":")[0]
+    if not out.get("children") and out.get("skeleton"):
+        new_sk, kids = _decompose_repeats(out["skeleton"], ns)
+        if kids:
+            out["skeleton"] = new_sk
+            out["children"] = kids
+    if inst.get("link"):
+        cta = {"type": "cta", "nodeType": f"{ns}:cta", "promoted": True,
+               "fields": {}, "link": inst["link"]}
+        lbl = inst.get("linkLabel") or (inst.get("fields") or {}).get("label")
+        if lbl:
+            cta["fields"]["linkLabel"] = str(lbl)[:250]
+            cta["linkLabel"] = str(lbl)[:250]
+        out.pop("link", None)
+        out.setdefault("children", []).append(cta)
     return out
 
 
@@ -338,10 +423,10 @@ def main():
                         if b and len(_visible(b)) >= MIN_VIS:
                             f["body"] = b
                 elif inst.get("libraryAtom"):
-                    par = page["instances"][inst["parent"]] if inst.get("parent") is not None else None
-                    par_nt = (itm.get((par.get("type") or "").lower())
-                              if par else None) or grid_nt
-                    inst["nodeType"] = child_of.get(par_nt) or inst.get("nodeType")
+                    # CONTRACT: all repeatable items are the ONE reusable
+                    # {ns}:cardItem child type (typed by anatomy, not by parent)
+                    ns_ = (passthrough or "x:y").split(":")[0]
+                    inst["nodeType"] = f"{ns_}:cardItem"
                 transformed.append((True, inst))
                 n_sem += 1
                 continue

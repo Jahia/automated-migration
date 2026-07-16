@@ -275,6 +275,9 @@ def build_plan(p):
              deps=["step_scaffold"]),
         step("step_cnd_merge", "Install analyze CND + rule-18 bundles", "build",
              [f"Run: python3 orchestration/lib/merge_cnd.py {P} --ns {NS} --mixns {MIXNS}",
+              # CONTRACT gate (2026-07-16): no numbered contrib mixins, no bodyN,
+              # structural set present, SDC definition.cnd per component folder
+              *([f"PROBE: python3 orchestration/probes/model-contract.py --phase cnd {PP} {NS}"] if ARCH else []),
               f"PROBE: bash orchestration/probes/cnd.sh {PP} {NS}",
               f"PROBE: bash orchestration/probes/cnd-patterns.sh {PP} {NS}",
               # AUTHORING lint (agentic check-cnd via cnd-review.sh): flags
@@ -362,6 +365,9 @@ def build_plan(p):
               # of source junk — cookie consent, SPA islands, framework attrs,
               # source nav, shell blob nodes (2026-07-15 SingPost audit gap).
               *([f"PROBE: python3 orchestration/probes/clean-render.py {SITE} --model archetype"] if ARCH else []),
+              # CONTRACT gate content side: no bodyN props in the JCR, no
+              # container-collapse (content on parents, children empty)
+              *([f"PROBE: python3 orchestration/probes/model-contract.py --phase content {SITE}"] if ARCH else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],

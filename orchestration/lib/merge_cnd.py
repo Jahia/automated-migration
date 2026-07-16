@@ -139,6 +139,14 @@ def main():
     m = json.load(open(manifest_p))
     ns = args.ns or (m.get("passthroughType", "ns:x").split(":")[0])
 
+    # SDC (contract 2026-07-16): when cnd_emit produced per-component
+    # definition.cnd files, settings/definitions.cnd holds ONLY the shared part
+    # (namespaces + mixins + reusable objects + structural set) — installing the
+    # full CND there would DUPLICATE every type already defined in its component
+    # folder. Resource bundles below still derive from the FULL cnd (all types).
+    shared_src = f"{wo}/definitions.shared.cnd"
+    settings_cnd = open(shared_src).read() if os.path.isfile(shared_src) else cnd
+
     # sanity: full namespace header MUST lead the file (module fails to install
     # with a generic IOException otherwise — scaffold skill hard rule)
     first = next((l for l in cnd.splitlines() if l.strip()), "")
@@ -150,10 +158,10 @@ def main():
     dst = f"{module}/settings/definitions.cnd"
     # backup OUTSIDE settings/ — anything under settings/ ships in the bundle
     bak = f"{wo}/definitions.cnd.scaffold-orig"
-    if os.path.isfile(dst) and open(dst).read() != cnd and not os.path.isfile(bak):
+    if os.path.isfile(dst) and open(dst).read() != settings_cnd and not os.path.isfile(bak):
         os.rename(dst, bak)
     with open(dst, "w") as f:
-        f.write(cnd)
+        f.write(settings_cnd)
 
     # the scaffold's placeholder mixin icon (<module-sans-hyphens>mix_component.png)
     # must follow the real mix namespace or editors see a blank icon

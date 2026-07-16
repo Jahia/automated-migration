@@ -348,95 +348,172 @@ def type_block_semantic(comp, ns, mixns):
     pixel-faithful, field edits reflow — while the semantic variant views stay
     available as authoring layouts. Contrib slot mixins carry per-node fields."""
     node = comp["nodeType"]
+    ns = node.split(":")[0]
     sup = comp.get("supertypes") or _supertypes(comp.get("fields", []), mixns,
                                                 comp.get("needsMainResource"))
+    # CONTRACT (2026-07-16): CTAs are CHILD NODE TYPES, never a mixin — a mixin
+    # exists at most once per node and cannot express repetition. Drop the cta
+    # mixin from the composed stack; every type gets `+ * (ns:cta)` below.
+    sup = [s for s in sup if s != f"{mixns}:cta"]
     sm = f"{mixns}:sourceMarkup"
     if sm not in sup:
         sup = list(sup) + [sm]
     head = f"[{node}] > {', '.join(sup)}"
-    if comp.get("orderable"):
+    if comp.get("orderable") or comp.get("isContainer") or comp.get("childType"):
         head += " orderable"
     lines = [head]
+    seen_body = False
     for f in comp.get("fields", []) or []:
+        # ONE body per node — anything beyond is a child (gate-enforced)
+        if f["name"].startswith("body"):
+            if seen_body:
+                continue
+            seen_body = True
+            f = {**f, "name": "body"}
         lines.append(field_line(f))
     lp = comp.get("layoutProperty")
     if isinstance(lp, dict):
         ll = layout_line(lp)
         if ll:
             lines.append(ll)
-    child_text = ""
-    child = comp.get("childType")
-    if isinstance(child, dict) and child.get("nodeType"):
-        lines.append(f"  + * ({child['nodeType']})")
-        csup = child.get("supertypes") or _supertypes(child.get("fields", []), mixns)
-        if sm not in csup:
-            csup = list(csup) + [sm]
-        clines = [f"[{child['nodeType']}] > {', '.join(csup)}"]
-        for cf in child.get("fields", []) or []:
-            clines.append(field_line(cf))
-        child_text = "\n".join(clines)
-    elif comp.get("isContainer"):
-        lines.append(f"  + * ({mixns}:component)")
-    return "\n".join(lines), child_text
+    # repetition = children: shared reusable item type for containers,
+    # reusable cta children for EVERY component (0..N, orderable)
+    if comp.get("isContainer") or comp.get("childType"):
+        lines.append(f"  + * ({ns}:cardItem)")
+    lines.append(f"  + * ({ns}:cta)")
+    return "\n".join(lines), ""
 
 
 def emit_semantic(m, ns, mixns, proj, stats=None):
-    """Assemble the whole CND for the archetype model (manifest['model']=='archetype')."""
+    """Assemble the CND for the archetype model — CONTRACT edition (2026-07-16):
+    mixins are at-most-once property blocks composed into types; ALL repetition
+    is child NODE TYPES (+ * (ns:cta) / (ns:cardItem)); one body per node; the
+    structural set (jcrQuery/gridRow/mainResource/cta) always ships.
+    Returns (shared_cnd, blocks, view_plans): shared_cnd = namespaces + mixins +
+    structural types (settings/definitions.cnd); blocks = [(Short, cnd_text)]
+    one per component for SDC placement in src/components/<Short>/definition.cnd."""
     import archetypes as ARCH
-    header = [
+    ns_header = [
         "<jnt = 'http://www.jahia.org/jahia/nt/1.0'>",
         "<jmix = 'http://www.jahia.org/jahia/mix/1.0'>",
         "<mix = 'http://www.jcp.org/jcr/mix/1.0'>",
         f"<{ns} = 'https://jahia.com/{proj}/nt/1.0'>",
         f"<{mixns} = 'https://jahia.com/{proj}/mix/1.0'>",
         "",
+    ]
+    shared = ns_header + [
         "// base marker mixins (picker grouping + droppability)",
         *ARCH.base_mixin_cnd(mixns),
         "",
-        "// HYBRID (Option B): the component's OWN captured markup, rendered by the",
-        "// default view (pixel-faithful; field edits reflow). Hidden from editors —",
-        "// they edit the lifted fields, not the markup.",
+        "// HYBRID: captured markup rendered by the default view (hidden from editors)",
         f"[{mixns}:sourceMarkup] mixin",
         "  - skeleton (string, textarea) hidden",
         "  - skeletonOrig (string, textarea) hidden",
         "",
-        "// reusable functional mixins — one definition each, composed by archetypes",
-        *ARCH.shared_mixin_cnd(mixns),
+        "// reusable AT-MOST-ONCE property blocks (a mixin can never repeat on a node)",
+        *[l for l in ARCH.shared_mixin_cnd(mixns) if f"{mixns}:cta" not in l.split("\n")[0]
+          or not l.startswith(f"[{mixns}:cta]")],
         "",
-        # per-node contribution slots (contribBodyN/contribImageN/contribLabelN/
-        # contribLink) — the loader adds them ONLY on nodes that carry the field,
-        # so editor forms show exactly what each node really has (P2.5-C).
-        *contrib_mixins(mixns, stats),
+        "// single per-node optional image slot (added by the loader when carried)",
+        f"[{mixns}:contribImage] mixin",
+        "  - image (weakreference, picker[type='image']) < jmix:image",
+        "  - imageOrig (string, textarea) hidden",
+        "  - imageOrigRef (string) hidden",
         "",
-        "// passthrough: verbatim markup for any region no archetype covers",
-        f"[{ns}:rawHtml] > jnt:content, {mixns}:component",
-        "  - html (string, textarea)",
-        f"  + * ({mixns}:component)",
+        "// ── reusable CONTENT OBJECTS: repetition is node types, never mixins ──",
+        f"[{ns}:cta] > jnt:content, {mixns}:component, {mixns}:sourceMarkup",
+        "  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no",
+        "  - linkLabel (string) i18n",
+        "  - linkOrig (string) hidden",
+        "",
+        f"[{ns}:cardItem] > jnt:content, mix:title, {mixns}:component, {mixns}:sourceMarkup orderable",
+        "  - body (string, richtext) i18n",
+        "  - image (weakreference, picker[type='image']) < jmix:image",
+        "  - imageOrig (string, textarea) hidden",
+        "  - imageOrigRef (string) hidden",
+        f"  + * ({ns}:cta)",
+        "",
+        "// ── structural set (rule 22): ALWAYS shipped ──",
+        *query_and_grid_types(ns, mixns),
         "",
     ]
-    body, children, view_plans = [], [], []
-    view_plans.append({"component": "Raw HTML (passthrough)", "nodeType": f"{ns}:rawHtml",
+    # mainResource entity type: from the manifest if classified, else the default
+    if not any(c.get("needsMainResource") for c in (m.get("components") or [])):
+        shared += [
+            "// entity/detail-page dimension: content listed via jcrQuery card views",
+            f"[{ns}:article] > jnt:content, mix:title, {mixns}:component, "
+            f"{mixns}:media, jmix:mainResource, {mixns}:sourceMarkup",
+            "  - body (string, richtext) i18n",
+            f"  + * ({ns}:cta)",
+            "",
+        ]
+    blocks, view_plans = [], []
+    view_plans.append({"component": "JCR Query", "nodeType": f"{ns}:jcrQuery",
                        "views": ["default.server.tsx"]})
-    for c in (m.get("crossCutting", []) or []):
-        blk, child = type_block_semantic(c, ns, mixns)
-        body.append(f"// cross-cutting (AbsoluteArea: {c.get('area', '?')})")
-        body.append(blk + "\n")
-        if child:
-            children.append(child + "\n")
-        view_plans.append(views_for(c))
-    for c in (m.get("components", []) or []):
-        blk, child = type_block_semantic(c, ns, mixns)
+    view_plans.append({"component": "Grid Row", "nodeType": f"{ns}:gridRow",
+                       "views": ["default.server.tsx"]})
+    skip = (":rawhtml", ":mainnavigation", ":jcrquery", ":gridrow")
+    for c in (m.get("crossCutting", []) or []) + (m.get("components", []) or []):
+        if c["nodeType"].lower().endswith(skip):
+            continue  # structural/shared types live in settings, one definition
+        blk, _ = type_block_semantic(c, ns, mixns)
+        short = c["nodeType"].split(":")[-1]
         tags = [t for t, on in (("container", c.get("isContainer")),
-                                ("mainResource", c.get("needsMainResource")),
-                                ("layout:" + (c.get("layoutProperty") or {}).get("name", ""),
-                                 c.get("layoutProperty"))) if on]
-        body.append(f"// {c['name']} [{c.get('archetype')}] covers={c.get('coversRoles')} {tags}")
-        body.append(blk + "\n")
-        if child:
-            children.append(child + "\n")
+                                ("mainResource", c.get("needsMainResource"))) if on]
+        blocks.append((short, "\n".join(ns_header)
+                       + f"// {c['name']} [{c.get('archetype')}] {tags}\n" + blk + "\n"))
         view_plans.append(views_for(c))
-    cnd = "\n".join(header) + "\n".join(body) + "\n// ── child types ──\n" + "\n".join(children)
-    return cnd, view_plans
+    full = "\n".join(shared) + "\n// ── components (SDC copies) ──\n" \
+           + "\n".join(b for _, b in ((s, t.split("\n", len(ns_header))[-1]) for s, t in blocks))
+    return full, blocks, view_plans
+
+
+def write_sdc_and_sync(m, shared_full, blocks, ns, mixns, module_dir, manifest_path):
+    """SDC placement + MANIFEST SYNC (operator finding 2026-07-16: the
+    orchestrator's ComponentModelView reads component-manifest.json, which had
+    drifted from the emitted CND). One source of truth: what the emitter wrote.
+      - src/components/<Short>/definition.cnd   one per component
+      - settings CND content = the SHARED part only (mixins + reusable objects +
+        structural set) — merge_cnd consumes definitions.shared.cnd
+      - the manifest's per-component entries are REWRITTEN to the emitted truth
+        (supertypes minus cta-mixin, single body, childType -> ns:cardItem,
+        cnd path, + * rules)."""
+    import archetypes as ARCH  # noqa: F401  (kept for future emitted-model detail)
+    for short, text in blocks:
+        d = f"{module_dir}/src/components/{short[0].upper()}{short[1:]}"
+        os.makedirs(d, exist_ok=True)
+        with open(f"{d}/definition.cnd", "w", encoding="utf-8") as f:
+            f.write(text)
+    # shared-only CND for settings (workflow artifact; merge_cnd installs it)
+    shared_only = shared_full.split("// ── components (SDC copies) ──")[0]
+    wo = os.path.dirname(manifest_path)
+    with open(f"{wo}/definitions.shared.cnd", "w", encoding="utf-8") as f:
+        f.write(shared_only)
+    mf = json.load(open(manifest_path))
+    for c in (mf.get("components", []) or []) + (mf.get("crossCutting", []) or []):
+        short = c["nodeType"].split(":")[-1]
+        c["supertypes"] = [s for s in (c.get("supertypes") or []) if s != f"{mixns}:cta"]
+        if f"{mixns}:sourceMarkup" not in c["supertypes"]:
+            c["supertypes"].append(f"{mixns}:sourceMarkup")
+        fields = [f for f in (c.get("fields") or []) if not re.match(r"body\d+$", f["name"])]
+        c["fields"] = fields
+        c["childRules"] = ([f"+ * ({ns}:cardItem)"] if (c.get("isContainer") or c.get("childType")) else []) \
+            + [f"+ * ({ns}:cta)"]
+        if c.get("isContainer") or c.get("childType"):
+            c["childType"] = {"nodeType": f"{ns}:cardItem", "name": "Card item",
+                              "supertypes": ["jnt:content", "mix:title",
+                                             f"{mixns}:component", f"{mixns}:sourceMarkup"],
+                              "fields": [{"name": "body", "type": "string, richtext", "i18n": True},
+                                         {"name": "image", "type": "weakreference, picker[type='image']"}]}
+        c["cnd"] = f"src/components/{short[0].upper()}{short[1:]}/definition.cnd"
+    mf["reusableTypes"] = [{"nodeType": f"{ns}:cta", "purpose": "repeatable CTA child"},
+                           {"nodeType": f"{ns}:cardItem", "purpose": "repeatable item child"}]
+    mf["structuralSet"] = [f"{ns}:jcrQuery", f"{ns}:gridRow", f"{ns}:rawHtml",
+                           f"{ns}:mainNavigation"] \
+        + ([f"{ns}:article"] if not any(x.get("needsMainResource")
+                                        for x in mf.get("components", [])) else [])
+    json.dump(mf, open(manifest_path, "w"), indent=2, ensure_ascii=False)
+    return mf
 
 
 def views_for(comp):
@@ -462,6 +539,9 @@ def main():
     ap.add_argument("--project", default="site")
     ap.add_argument("--out-cnd")
     ap.add_argument("--out-views")
+    ap.add_argument("--module-dir",
+                    help="module root for SDC per-component definition.cnd placement "
+                         "(archetype model; default projects/<project>)")
     ap.add_argument("--content-load",
                     help="content-load.json — sizes body..bodyN per type from the "
                          "OBSERVED lift (P2.5 wired-only CND for skeleton types)")
@@ -475,9 +555,7 @@ def main():
     # the observed lift). Auto-detected from the manifest so the skeleton path
     # stays the default for skeleton manifests.
     if m.get("model") == "archetype":
-        sem_stats = (run_stats_from_content_load(args.content_load, m)
-                     if args.content_load and os.path.isfile(args.content_load) else None)
-        cnd, view_plans = emit_semantic(m, ns, mixns, proj, stats=sem_stats)
+        cnd, blocks, view_plans = emit_semantic(m, ns, mixns, proj)
         if args.out_cnd:
             open(args.out_cnd, "w").write(cnd)
         else:
@@ -485,8 +563,14 @@ def main():
         if args.out_views:
             json.dump({"project": proj, "namespace": ns, "views": view_plans},
                       open(args.out_views, "w"), indent=2, ensure_ascii=False)
+        module_dir = args.module_dir or f"projects/{proj}"
+        if os.path.isdir(f"{module_dir}/src"):
+            write_sdc_and_sync(m, cnd, blocks, ns, mixns, module_dir, args.manifest)
+            print(f"[cnd_emit] SDC: {len(blocks)} definition.cnd file(s) -> "
+                  f"{module_dir}/src/components/ + shared -> definitions.shared.cnd; "
+                  f"manifest synced to the EMITTED model", file=sys.stderr)
         nt = len(m.get("components", []) or []) + len(m.get("crossCutting", []) or [])
-        print(f"[cnd_emit] SEMANTIC model: {nt} archetype types -> "
+        print(f"[cnd_emit] SEMANTIC model (contract): {nt} archetype types -> "
               f"{args.out_cnd or '(stdout)'}", file=sys.stderr)
         return
 

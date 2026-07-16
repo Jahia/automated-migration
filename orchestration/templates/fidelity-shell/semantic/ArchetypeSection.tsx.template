@@ -253,6 +253,10 @@ export default function ArchetypeSection({
       );
     }
 
+    // ─── CTA child object: one link, orderable, 0..N per component ──────────
+    case "ctaLink":
+      return <Cta href={f.href} label={f.ctaLabel || f.title} />;
+
     // ─── SITE HEADER / FOOTER chrome ────────────────────────────────────────
     case "siteHeader":
       return (

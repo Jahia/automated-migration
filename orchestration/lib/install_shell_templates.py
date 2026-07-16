@@ -116,7 +116,8 @@ def main():
             # clean stale per-component view dirs (e.g. a prior skeleton run's 40
             # one-off types) so the module is PURELY the semantic archetype set.
             # Keep the shell-shipped views + shared helpers.
-            keep = {"RawHtml", "MainNavigation"}
+            keep = {"RawHtml", "MainNavigation", "CardItem", "Cta", "Article",
+                    "JcrQuery", "GridRow"}
             for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
                 for ntx in [c["nodeType"]] + ([c["childType"]["nodeType"]]
                                               if isinstance(c.get("childType"), dict)
@@ -154,6 +155,7 @@ def main():
                     f.write(out)
                 n_views += 1
 
+            ns_prefix = (m.get("passthroughType") or f"{a.ns}:x").split(":")[0]
             for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
                 nt = c["nodeType"]
                 if nt.endswith(":mainNavigation") or nt.endswith(":rawHtml"):
@@ -161,13 +163,15 @@ def main():
                 kind = c.get("archetype") or chrome_kind(nt)
                 for vw in view_names(c, c.get("needsMainResource")):
                     write_semantic(nt, c.get("name"), kind, vw)
-                # child ITEM views — child kind is inferred from the parent
-                # archetype (grid -> teaser card, accordion -> disclosure item).
-                child = c.get("childType")
-                if isinstance(child, dict) and child.get("nodeType"):
-                    ckind = "accordionItem" if kind == "accordion" else "teaserCard"
-                    for vw in view_names(child):
-                        write_semantic(child["nodeType"], child.get("name"), ckind, vw)
+            # CONTRACT reusable child objects — ONE definition each, views here
+            write_semantic(f"{ns_prefix}:cardItem", "Card item", "teaserCard", "default")
+            write_semantic(f"{ns_prefix}:cardItem", "Card item", "teaserCard", "compact")
+            write_semantic(f"{ns_prefix}:cta", "Call to action", "ctaLink", "default")
+            # entity dimension: article fullPage + card views ship even when the
+            # crawl surfaced no entities (rule 22 structural set)
+            if not any(x.get("needsMainResource") for x in (m.get("components") or [])):
+                for vw in ("default", "card", "cm", "fullPage"):
+                    write_semantic(f"{ns_prefix}:article", "Article", "article", vw)
             print(f"[install_shell_templates] fidelity shell (ns={a.ns}) -> {module}/src "
                   f"(Layout, basic template, RawHtml + tree nav, semantic layout lib; "
                   f"{n_views} SEMANTIC view(s))")
