@@ -2,9 +2,12 @@
 """reconcile-check.py — BLOCKING gate on the analyze/model RECONCILIATION
 (process-hardening, 2026-07-16). Runs BEFORE any load, on the artifacts alone:
 
-  1. CONSERVATION  — per page, (placed + leftover) / before >= --coverage
-     (default 0.90): scraped visible text cannot silently vanish in the
-     content->model mapping. Dropped-instance text is reported.
+  1. CONSERVATION  — per page, WORD-level: the fraction of source words
+     (>= 3 letters, from non-excluded instances) present anywhere in the
+     FINAL authorable payload >= --coverage (default 0.98). Word containment
+     follows text that decomposition moves across rows; missing words are
+     PRINTED (evidence, not counts). Proven by negative test: destroying the
+     body-merge path reads 0.29-0.85; a clean run reads 1.0.
   2. LEFTOVER CEILING — no instance keeps >= --leftover (default 60) chars of
      visible text in its structure markup: everything editors should own must
      be IN properties/children (pre-JCR twin of skeleton-holds-content).
@@ -25,7 +28,7 @@ import sys
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("project")
-    ap.add_argument("--coverage", type=float, default=0.90)
+    ap.add_argument("--coverage", type=float, default=0.98)
     ap.add_argument("--leftover", type=int, default=60)
     a = ap.parse_args()
     bad = []
@@ -45,9 +48,9 @@ def main():
     for pk, pg in sorted(pages.items()):
         cov = pg.get("coverage", 0)
         if pg.get("before", 0) >= 80 and cov < a.coverage:
-            bad.append(f"CONSERVATION {pk}: coverage {cov} < {a.coverage} "
-                       f"(before {pg['before']}, placed {pg['placed']}, "
-                       f"leftover {pg['leftover']}, dropped {pg.get('droppedText', 0)})")
+            miss = " ".join((pg.get("missingWords") or [])[:15])
+            bad.append(f"CONSERVATION {pk}: word coverage {cov} < {a.coverage} "
+                       f"({pg.get('words', '?')} source words; missing: {miss})")
         for r in pg.get("rows") or []:
             if r.get("leftover", 0) >= a.leftover:
                 bad.append(f"LEFTOVER {pk}[{r['idx']}] {r.get('nodeType') or r.get('type')}: "
@@ -87,10 +90,10 @@ def main():
             print(f"  - {x}")
         print(f"FAIL: reconcile-check — {len(bad)} violation(s)", file=sys.stderr)
         sys.exit(1)
-    tot_before = sum(p.get("before", 0) for p in pages.values())
-    tot_placed = sum(p.get("placed", 0) for p in pages.values())
+    tot_words = sum(p.get("words", 0) for p in pages.values())
+    tot_miss = sum(len(p.get("missingWords") or []) for p in pages.values())
     print(f"PASS: reconcile-check — {len(pages)} page(s), "
-          f"{tot_placed}/{tot_before} chars placed in properties/children, "
+          f"{tot_words - tot_miss}/{tot_words} source words in authorable payload, "
           f"coverage floor {a.coverage}, leftover ceiling {a.leftover}")
 
 
