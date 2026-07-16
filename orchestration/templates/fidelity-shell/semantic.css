@@ -306,3 +306,28 @@ a.cta:hover {
   display: block;
   padding-left: 0.75rem;
 }
+
+/* ---- breadcrumb ---------------------------------------------------------- */
+.breadcrumb { max-width: 1240px; margin-inline: auto; padding: 0.5rem clamp(1rem, 3vw, 2rem); }
+.breadcrumb__list { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.breadcrumb__item + .breadcrumb__item::before { content: "/"; margin: 0 0.35rem; opacity: 0.5; }
+.breadcrumb__link { color: #555; text-decoration: none; }
+.breadcrumb__link:hover { text-decoration: underline; }
+.breadcrumb [aria-current="page"] { font-weight: 600; color: #222; }
+
+/* ---- site header (logo + top links) -------------------------------------- */
+.site-header__inner { display: flex; align-items: center; gap: 1.5rem; max-width: 1240px; margin-inline: auto; padding: 0.6rem clamp(1rem, 3vw, 2rem); }
+.site-header__logo { max-height: 44px; width: auto; }
+.site-header__links { display: flex; flex-wrap: wrap; gap: 1rem; margin-left: auto; font-size: 0.9rem; }
+.site-header__links .cta { margin: 0; padding: 0.3em 0.9em; background: transparent; color: #222; border-radius: 6px; }
+.site-header__links .cta:hover { background: #f2f2f2; filter: none; }
+
+/* ---- site footer (columns) ------------------------------------------------ */
+.site-footer { background: #14336c; color: #fff; margin-top: 2rem; }
+.site-footer__columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 2rem; max-width: 1240px; margin-inline: auto; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem); }
+.site-footer .card { background: transparent; box-shadow: none; border-radius: 0; }
+.site-footer .card__body { padding: 0; }
+.site-footer .title { color: #fff; font-size: 1rem; }
+.site-footer .cta { display: block; margin: 0 0 0.5rem; padding: 0; background: transparent; color: #cfd8ee; font-weight: 400; }
+.site-footer .cta:hover { color: #fff; filter: none; }
+.site-footer__legal { max-width: 1240px; margin-inline: auto; padding: 0 clamp(1rem, 3vw, 2rem) 1.5rem; font-size: 0.8rem; opacity: 0.8; }

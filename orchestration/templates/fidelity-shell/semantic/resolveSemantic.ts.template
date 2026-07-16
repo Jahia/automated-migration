@@ -55,6 +55,15 @@ export function resolveSemantic(
   } catch {
     /* no CTA */
   }
+  if (!href) {
+    try {
+      if (node.hasProperty("linkOrig")) {
+        href = node.getProperty("linkOrig").getString();
+      }
+    } catch {
+      /* no fallback */
+    }
+  }
 
   let hasChildren = false;
   try {

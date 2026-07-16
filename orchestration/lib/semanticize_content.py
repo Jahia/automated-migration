@@ -554,6 +554,7 @@ def main():
 
     n_sem = n_pass = n_drop = 0
     recon_pages = {}
+    chrome_capture = {}
     for _pk, page in data.get("pages", {}).items():
         recon_rows = []
         recon_pages[_pk] = recon_rows
@@ -593,6 +594,13 @@ def main():
                 # area singleton (none today) would still pass through.
                 node = itm.get((inst.get("type") or "").lower())
                 if node is None or node == passthrough:
+                    # persist the capture (first-seen per area): populate_chrome
+                    # turns it into EDITABLE chrome content (logo, top links,
+                    # footer columns) — dropped from pages, never lost
+                    _area = inst.get("area") or "chrome"
+                    _html = (inst.get("fields") or {}).get("html", "") or inst.get("skeleton", "")
+                    if _html and _area not in chrome_capture:
+                        chrome_capture[_area] = _clean_html(_html)
                     transformed.append((False, None))
                     drop_reason[len(transformed) - 1] = "chrome"
                     n_drop += 1
@@ -756,6 +764,10 @@ def main():
             "leftover": leftover, "excludedByDesign": excluded, "lost": lost,
             "coverage": round((placed + leftover) / eff, 3) if eff else 1.0,
             "rows": rows}
+    if chrome_capture:
+        cp = f"projects/{a.project}/workflow-output/chrome-capture.json"
+        json.dump(chrome_capture, open(cp, "w"), indent=1, ensure_ascii=False)
+        print(f"[semanticize_content] chrome capture -> {cp} ({', '.join(chrome_capture)})")
     rp = f"projects/{a.project}/workflow-output/reconciliation.json"
     os.makedirs(os.path.dirname(rp), exist_ok=True)
     json.dump(recon, open(rp, "w"), indent=1, ensure_ascii=False)

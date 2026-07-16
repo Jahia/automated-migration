@@ -1,6 +1,7 @@
 import {
   AbsoluteArea,
   AddResources,
+  Render,
   buildModuleFileUrl,
   useServerContext,
 } from "@jahia/javascript-modules-library";
@@ -222,6 +223,8 @@ export const Layout = ({
         {(CHROME_ALWAYS || !shell || shell.chromeAreas) && (
           <AbsoluteArea name="nav" parent={homePage} />
         )}
+        {/* tree-driven breadcrumb (virtual node — parameterless, no storage) */}
+        {CHROME_ALWAYS && <Render content={{ nodeType: "$NS:breadcrumb" }} />}
         {body}
         {(CHROME_ALWAYS || !shell || shell.chromeAreas) && (
           <AbsoluteArea name="footer" parent={homePage} />

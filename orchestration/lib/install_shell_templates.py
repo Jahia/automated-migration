@@ -54,6 +54,7 @@ def main():
         ("skeletonRender.ts", f"{module}/src/components/skeletonRender.ts"),
         (os.path.join("RawHtml", "default.server.tsx"), f"{module}/src/components/RawHtml/default.server.tsx"),
         (os.path.join("MainNavigation", "default.server.tsx"), f"{module}/src/components/MainNavigation/default.server.tsx"),
+        (os.path.join("Breadcrumb", "default.server.tsx"), f"{module}/src/components/Breadcrumb/default.server.tsx"),
     ]
     # Detect the model early: the archetype (semantic) model renders its chrome
     # from contributed Jahia components (tree-driven nav + header/footer in
@@ -124,7 +125,7 @@ def main():
             # clean stale per-component view dirs (e.g. a prior skeleton run's 40
             # one-off types) so the module is PURELY the semantic archetype set.
             # Keep the shell-shipped views + shared helpers.
-            keep = {"RawHtml", "MainNavigation", "CardItem", "Cta", "Article",
+            keep = {"RawHtml", "MainNavigation", "Breadcrumb", "CardItem", "Cta", "Article",
                     "JcrQuery", "GridRow"}
             for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
                 for ntx in [c["nodeType"]] + ([c["childType"]["nodeType"]]

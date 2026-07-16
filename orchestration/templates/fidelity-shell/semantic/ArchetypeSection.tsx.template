@@ -287,17 +287,18 @@ export default function ArchetypeSection({
     // ─── SITE HEADER / FOOTER chrome ────────────────────────────────────────
     case "siteHeader":
       return (
-        <header className={`site-header ${kind}`}>
-          {heading}
-          {childSlot}
+        <header className={mc(cls.root, `site-header ${kind}`)}>
+          <div className="site-header__inner">
+            <Img url={f.imgUrl} alt={f.title || "logo"} className="site-header__logo" />
+            <div className="site-header__links">{childSlot}</div>
+          </div>
         </header>
       );
     case "footer":
       return (
-        <footer className={`site-footer ${kind}`}>
-          {heading}
-          {childSlot}
-          <Rich html={f.body} />
+        <footer className={mc(cls.root, `site-footer ${kind}`)}>
+          <div className="site-footer__columns">{childSlot}</div>
+          <Rich html={f.body} className="site-footer__legal" />
         </footer>
       );
 

@@ -360,6 +360,9 @@ def build_plan(p):
              # stays as build_nav_tree's fallback when no nav is extractable.
              [f"Run: python3 orchestration/lib/extract_nav.py {P} || true",
               f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale {PRIMARY_LOCALE}",
+              # chrome as EDITABLE content: logo + top links on siteHeader,
+              # footer link columns + copyright (from the captured source chrome)
+              *([f"Run: python3 orchestration/lib/populate_chrome.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",

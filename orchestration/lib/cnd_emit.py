@@ -440,6 +440,9 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         f"  + * ({ns}:cta)",
         "",
         "// ── structural set (rule 22): ALWAYS shipped ──",
+        "// tree-driven breadcrumb — no content needed, rendered by the Layout",
+        f"[{ns}:breadcrumb] > jnt:content, {mixns}:component",
+        "",
         *query_and_grid_types(ns, mixns),
         "",
     ]
