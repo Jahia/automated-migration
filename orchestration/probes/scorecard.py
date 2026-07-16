@@ -101,9 +101,12 @@ def main():
             bar = soup.select_one("nav.main-navigation > ul.main-navigation__bar")
             if bar:
                 for li in bar.find_all("li", recursive=False):
-                    a = li.find("a", recursive=False)
-                    if a:
-                        rendered_l1.append(re.sub(r"\s+", " ", a.get_text(" ", strip=True)))
+                    # NOT `a` — that shadows the argparse namespace, and Tag
+                    # attribute access then turns a.project/a.site into silent
+                    # child-element lookups returning None (crashed line 131)
+                    link = li.find("a", recursive=False)
+                    if link:
+                        rendered_l1.append(re.sub(r"\s+", " ", link.get_text(" ", strip=True)))
         except ImportError:
             pass
         ia_ok = rendered_l1 == l1_expected
