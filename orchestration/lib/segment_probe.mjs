@@ -394,16 +394,20 @@ for (const slug of pageSel) {
     rec.ok = true;
   } catch (e) { rec.ok = false; rec.error = (e.message || String(e)).split('\n')[0]; console.error(`  ${slug}: FAIL ${rec.error}`); }
   results.push(rec);
+  // CHECKPOINT per page (2026-07-17): the batch write-at-end lost EVERY page's
+  // work when the 2700s probe ceiling hit mid-batch (18 pages x ~3.5min vision
+  // consensus > ceiling) — retries restarted from zero, an unratchetable loop.
+  if (rec.ok && !rec.skipped) {
+    fs.writeFileSync(`${outDir}/${rec.slug}.segmentation.json`,
+      JSON.stringify(stampJson({ ...rec }, 'segment_probe.mjs', [rec.slug]), null, 2));
+    writeSegmap(rec);
+  }
 }
 await browser.close(); server.srv.close();
 
 // provenance page_set = pages actually SEGMENTED this invocation (skips excluded)
 const pageSet = results.filter(r => r.ok && !r.skipped).map(r => r.slug);
-for (const r of results) {
-  // skipped pages keep their existing (prior-green / adjudicated) segmentation.json untouched
-  // (stamp a shallow copy so the in-memory rec — reused by segment-check — stays clean)
-  if (r.ok && !r.skipped) { fs.writeFileSync(`${outDir}/${r.slug}.segmentation.json`, JSON.stringify(stampJson({ ...r }, 'segment_probe.mjs', [r.slug]), null, 2)); writeSegmap(r); }
-}
+// per-page artifacts already checkpointed inside the loop (see above)
 writeSidecar(outDir, 'segment_probe.mjs', pageSet);
 
 // coloured component map — every region shown, NOTHING hidden. component=blue,
