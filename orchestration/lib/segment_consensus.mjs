@@ -52,7 +52,12 @@ export function consensusRootIds(sets, n = sets.length) {
 
 // Protocol v2 page pass: agreement >= 0.8 AND coverage >= 50 (frozen bars).
 export function pagePassV2(agreement, coverage) {
-  return Number(agreement) >= STABILITY_BAR && Number(coverage) >= MIN_COVERAGE_BAR;
+  // EPS: mean pairwise Jaccard is a ratio sum — (1+0.7+0.7)/3 is exactly 0.8
+  // mathematically but 0.7999999999999999 in IEEE-754, failing the frozen
+  // >= 0.8 spec it satisfies (observed live). Tolerance implements the spec,
+  // it does not lower the bar.
+  const EPS = 1e-9;
+  return Number(agreement) >= STABILITY_BAR - EPS && Number(coverage) >= MIN_COVERAGE_BAR - EPS;
 }
 
 // Protocol v2 cluster pass: STRICT majority of its sampled pages pass
