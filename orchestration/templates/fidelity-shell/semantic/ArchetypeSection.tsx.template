@@ -21,6 +21,7 @@ import CarouselControls from "./CarouselControls.client.js";
  * archetype markup inherits the source design without re-authoring it.
  */
 export interface SemanticFields {
+  homeUrl?: string;
   title?: string;
   subtitle?: string;
   body?: string; // rich-text HTML
@@ -293,7 +294,10 @@ export default function ArchetypeSection({
       return (
         <header className={mc(cls.root, `site-header ${kind}`)}>
           <div className="site-header__inner">
-            <Img url={f.imgUrl} alt={f.title || "logo"} className="site-header__logo" />
+            {/* the logo ALWAYS links back to home (operator review 2026-07-17) */}
+            <a href={f.homeUrl || "/"} className="site-header__logohome" aria-label="Home">
+              <Img url={f.imgUrl} alt={f.title || "logo"} className="site-header__logo" />
+            </a>
             <div className="site-header__links">{childSlot}</div>
           </div>
         </header>

@@ -88,7 +88,16 @@ export function resolveSemantic(
     editMode = false;
   }
 
+  // site home URL — the header logo always links back to it
+  let homeUrl: string | undefined;
+  try {
+    const site = (renderContext as { getSite: () => { getHome: () => JCRNodeWrapper } }).getSite();
+    homeUrl = buildNodeUrl(site.getHome() as never);
+  } catch {
+    homeUrl = undefined;
+  }
   return {
+    homeUrl,
     title: str("jcr:title"),
     subtitle: str("subtitle"),
     body: str("body"),

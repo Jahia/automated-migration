@@ -165,7 +165,12 @@ def main():
                 # containers — their source markup is a JS-driven slider that
                 # stacks slides full-width without the source JS (observed:
                 # ~7000px of stacked slides). The grid IS the no-JS rendering.
-                tpl = sem if (view_name != "default" or kind == "cardGrid") else hyb
+                # SKELETON-FIRST (operator review 2026-07-17): the cardGrid
+                # exemption existed because JS-slider markup stacked without
+                # JS — obsolete since slide decomposition splices {{child:N}}
+                # items into the intact track. Semantic layouts remain as
+                # VARIANT views and the fallback for uncaptured nodes.
+                tpl = hyb if view_name == "default" else sem
                 out = (tpl.replace("$NODETYPE", nt)
                           .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
                           .replace("$KIND", kind)
