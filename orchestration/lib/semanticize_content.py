@@ -590,12 +590,24 @@ def _semanticize_instance(inst, node, surf):
     if inst.get("link"):
         cta = {"type": "cta", "nodeType": f"{ns}:cta", "promoted": True,
                "fields": {}, "link": inst["link"]}
-        lbl = inst.get("linkLabel") or (inst.get("fields") or {}).get("label")
+        lbl = (inst.get("linkLabel") or (inst.get("fields") or {}).get("label")
+               or (inst.get("fields") or {}).get("linkLabel"))
         if lbl:
             cta["fields"]["linkLabel"] = str(lbl)[:250]
             cta["linkLabel"] = str(lbl)[:250]
         out.pop("link", None)
         out.setdefault("children", []).append(cta)
+    # CTA label ownership (2026-07-17, enterprise 'Enquire'): the cta CHILD
+    # renders the button; a linkLabel stranded on the PARENT renders nowhere.
+    # Transfer it to the first label-less cta child.
+    pf = out.get("fields") or {}
+    if pf.get("linkLabel"):
+        _ctas = [c for c in (out.get("children") or [])
+                 if c.get("type") == "cta" or str(c.get("nodeType") or "").endswith(":cta")]
+        _tgt = next((c for c in _ctas if not (c.get("fields") or {}).get("linkLabel")), None)
+        if _tgt is not None:
+            _tgt.setdefault("fields", {})["linkLabel"] = str(pf.pop("linkLabel"))[:250]
+            _tgt["linkLabel"] = _tgt["fields"]["linkLabel"]
     return out
 
 
