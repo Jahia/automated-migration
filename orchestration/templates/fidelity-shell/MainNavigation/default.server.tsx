@@ -43,6 +43,18 @@ const childPages = (node: JCRNode): JCRNode[] => {
   return out;
 };
 
+// optional per-page mega-menu description (editable page property; sites
+// whose source nav carries descriptions get it stamped by build_nav_tree)
+const desc = (n: JCRNode): string => {
+  try {
+    const p = (n as unknown as { getPropertyAsString: (k: string) => string })
+      .getPropertyAsString("navDescription");
+    return p || "";
+  } catch {
+    return "";
+  }
+};
+
 const label = (n: JCRNode): string => {
   try {
     return n.getDisplayableName();
@@ -80,19 +92,26 @@ jahiaComponent(
                 <a className="main-navigation__link" href={buildNodeUrl(l1 as never)}>
                   {label(l1)}
                 </a>
+                {/* MEGA PANEL (source-style): one COLUMN per L2 group — the
+                    L2 page is the column header (title + optional editable
+                    navDescription), its child pages are the column links.
+                    Hover/focus reveal is pure CSS (semantic.css) — no JS. */}
                 {level2.length > 0 && (
-                  <ul className="main-navigation__sub">
+                  <div className="main-navigation__mega" role="menu">
                     {level2.map((l2) => {
                       const level3 = childPages(l2);
                       return (
-                        <li className="main-navigation__item" key={l2.getPath()}>
-                          <a className="main-navigation__link" href={buildNodeUrl(l2 as never)}>
+                        <div className="main-navigation__col" key={l2.getPath()}>
+                          <a className="main-navigation__colhead" href={buildNodeUrl(l2 as never)}>
                             {label(l2)}
+                            {desc(l2) && (
+                              <span className="main-navigation__desc">{desc(l2)}</span>
+                            )}
                           </a>
                           {level3.length > 0 && (
-                            <ul className="main-navigation__sub main-navigation__sub--l3">
+                            <ul className="main-navigation__collinks">
                               {level3.map((l3) => (
-                                <li className="main-navigation__item" key={l3.getPath()}>
+                                <li key={l3.getPath()}>
                                   <a
                                     className="main-navigation__link"
                                     href={buildNodeUrl(l3 as never)}
@@ -103,10 +122,10 @@ jahiaComponent(
                               ))}
                             </ul>
                           )}
-                        </li>
+                        </div>
                       );
                     })}
-                  </ul>
+                  </div>
                 )}
               </li>
             );

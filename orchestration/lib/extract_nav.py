@@ -143,6 +143,7 @@ def main():
         sys.exit("FAIL: no navigation structure found in the cached home page")
 
     lines, labels, externals = [], {}, []
+    navmeta = {}   # leaf-slug -> mega-menu description (source navItems)
 
     def emit(nodes, parent_rel, depth):
         for it in nodes or []:
@@ -159,6 +160,9 @@ def main():
             rel = f"{parent_rel}/{leaf}" if parent_rel else leaf
             lines.append(rel)
             labels[leaf] = label
+            desc = (it.get("description") or "").strip()
+            if desc:
+                navmeta[leaf] = desc
             if depth < a.max_depth and it.get("subMenu"):
                 emit(it["subMenu"], rel, depth + 1)
 
@@ -170,6 +174,8 @@ def main():
         f.write("\n".join(lines) + "\n")
     with open(f"orchestration/sitemaps/{a.project}.labels.json", "w") as f:
         json.dump(labels, f, indent=1, ensure_ascii=False)
+    with open(f"orchestration/sitemaps/{a.project}.navmeta.json", "w") as f:
+        json.dump(navmeta, f, indent=1, ensure_ascii=False)
 
     l1 = [x for x in lines if "/" not in x]
     print(f"[extract_nav] {strategy}: {len(lines)} menu path(s), "
