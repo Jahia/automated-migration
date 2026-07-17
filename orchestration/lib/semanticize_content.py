@@ -215,8 +215,17 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
         if len(el.get_text(" ", strip=True)) >= 20:
             moved.append(s_el)
             taken.append(el)
+    # IN-PLACE body marker (2026-07-17): appending {{f:body}} at the TAIL
+    # renders the swept content OUTSIDE the layout (home hero: the left grid
+    # column stacked below the section). The FIRST swept element is replaced
+    # by the marker so body renders where the structure originally lived.
+    _marker_placed = "{{f:body}}" in sk
     for el in taken:
-        el.extract()
+        if not _marker_placed:
+            el.replace_with(soup.new_string("{{f:body}}"))
+            _marker_placed = True
+        else:
+            el.extract()
     # LOOSE TEXT NODES (the named-debt hoarders): text sitting directly under
     # a marker-bearing wrapper is invisible to the element mover — wrap+move it
     from bs4 import NavigableString
@@ -225,13 +234,17 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
         if "{{" in t_s or len(t_s.strip()) < 20:
             continue
         moved.append(f"<p>{t_s.strip()}</p>")
-        tx.extract()
+        if not _marker_placed:
+            tx.replace_with("{{f:body}}")
+            _marker_placed = True
+        else:
+            tx.extract()
     if moved:
         fields["body"] = "\n".join(
             x for x in [fields.get("body", ""), *moved] if x).strip()
         sk = "".join(str(c) for c in soup.body.children).strip()
         if "{{f:body}}" not in sk:
-            sk += "{{f:body}}"
+            sk += "{{f:body}}"   # nothing replaced in place (edge) — keep tail fallback
     return sk
 
 
