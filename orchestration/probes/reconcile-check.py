@@ -65,6 +65,30 @@ def main():
 
     def check_inst(inst, pk, path):
         f = inst.get("fields") or {}
+        # GATE (2026-07-17): gallery flatten — a body hoarding images means a
+        # slide track was swept instead of decomposed into cardItem children
+        b0 = f.get("body")
+        if isinstance(b0, str) and len(re.findall(r"<img\b", b0)) > 2:
+            bad.append(f"VALUE {pk}{path}: body hoards {len(re.findall(r'<img', b0))} images "
+                       f"(gallery must decompose into children)")
+        # GATE (2026-07-17): tail-appended body marker — {{f:body}} AFTER a
+        # SINGLE-ROOT skeleton renders swept content OUTSIDE the layout (home
+        # hero). Multi-root fragments legitimately carry the marker at top
+        # level (a swept trailing sibling) — not flagged.
+        sk0 = inst.get("skeleton") or ""
+        if re.search(r"</[a-z][^>]*>\s*\{\{f:body\}\}\s*$", sk0):
+            from bs4 import BeautifulSoup as _BS
+            _rest = sk0.rsplit("{{f:body}}", 1)[0]
+            _roots = [c for c in (_BS(_rest, "lxml").body or []).children
+                      if getattr(c, "name", None)] if _rest.strip() else []
+            if len(_roots) == 1:
+                bad.append(f"VALUE {pk}{path}: {{{{f:body}}}} appended after the "
+                           f"single skeleton root (body renders outside the layout)")
+        # GATE (2026-07-17): empty cta child — the button renders NOTHING
+        # (enterprise 'Enquire': label stranded on the parent)
+        if (str(inst.get("nodeType") or "").endswith(":cta") or inst.get("type") == "cta") \
+                and not f and not inst.get("media") and not inst.get("imageFile"):
+            bad.append(f"VALUE {pk}{path}: cta child carries no fields (label lost)")
         t = f.get("title")
         if isinstance(t, str):
             if len(t) > 250:

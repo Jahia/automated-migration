@@ -205,6 +205,13 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
     if not sk or len(re.sub(r"\s+", " ", resid).strip()) < min_chars:
         return sk
     soup = BeautifulSoup(sk, "lxml")
+    # CHROME DEBRIS (2026-07-17, gate-caught): breadcrumb fragments leak into
+    # captured regions and would sweep into body as fake content ('Receiving
+    # Help & Support'). Chrome is replaced by design — DELETE, never move.
+    for _el in soup.find_all(True, class_=lambda c: c and "breadcrumb" in " ".join(c).lower()):
+        _el.decompose()
+    for _el in soup.find_all(True, attrs={"aria-label": re.compile("breadcrumb", re.I)}):
+        _el.decompose()
     moved, taken = [], []
     for el in (soup.body.find_all(True) if soup.body else []):
         s_el = str(el)
@@ -518,12 +525,20 @@ def _semanticize_instance(inst, node, surf):
     # collapse into the single {{f:body}} slot. Skeleton = structure only.
     sk = out.get("skeleton") or ""
     body_parts = [fields.get("body")] if isinstance(fields.get("body"), str) else []
+    _merge_marker_placed = "{{f:body}}" in sk
     for k in sorted((k for k in fields if re.match(r"body\d+$", k)),
                     key=lambda k: (len(k), k)):
         v = fields.pop(k)
         if isinstance(v, str) and v.strip():
             body_parts.append(v)
-        sk = sk.replace("{{f:%s}}" % k, "", 1)
+        # IN-PLACE (2026-07-17, gate-caught): the first folded run's marker
+        # becomes the {{f:body}} slot — tail-appending rendered the merged
+        # body OUTSIDE the layout root
+        if not _merge_marker_placed and "{{f:%s}}" % k in sk:
+            sk = sk.replace("{{f:%s}}" % k, "{{f:body}}", 1)
+            _merge_marker_placed = True
+        else:
+            sk = sk.replace("{{f:%s}}" % k, "", 1)
     for k in sorted((k for k in fields if re.match(r"label\d*$", k)),
                     key=lambda k: (len(k), k)):
         v = fields.pop(k)
@@ -588,10 +603,20 @@ def _semanticize_instance(inst, node, surf):
             out["skeleton"] = new_sk
             out["children"] = kids
     if inst.get("link"):
+        lbl = (inst.get("linkLabel") or (inst.get("fields") or {}).get("label")
+               or (inst.get("fields") or {}).get("linkLabel")
+               # whole-card anchors: the accessible name IS the card title
+               or fields.get("title"))
+        # ICON-ONLY links (2026-07-17, arrow anchors on cards): no label AND the
+        # anchor still lives in the skeleton -> lifting it makes an EMPTY cta
+        # DUPLICATE (gate: 'cta child carries no fields'). The skeleton anchor
+        # renders the arrow faithfully; skip the lift.
+        _href = (inst["link"] or {}).get("href") or ""
+        if not lbl and _href and _href in (out.get("skeleton") or ""):
+            out.pop("link", None)
+            return out
         cta = {"type": "cta", "nodeType": f"{ns}:cta", "promoted": True,
                "fields": {}, "link": inst["link"]}
-        lbl = (inst.get("linkLabel") or (inst.get("fields") or {}).get("label")
-               or (inst.get("fields") or {}).get("linkLabel"))
         if lbl:
             cta["fields"]["linkLabel"] = str(lbl)[:250]
             cta["linkLabel"] = str(lbl)[:250]
