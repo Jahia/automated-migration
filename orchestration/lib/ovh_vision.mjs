@@ -113,6 +113,11 @@ export async function ovhVision(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, t
     // JSON-mode: DeepSeek's v4 models burn the budget in reasoning_content and can
     // return an EMPTY content (or prose) without it. Prompts already demand JSON.
     ...(process.env.VISION_JSON === '1' ? { response_format: { type: 'json_object' } } : {}),
+    // STREAM (2026-07-17): v4 is a REASONING model — non-streaming, it produces
+    // ZERO bytes for minutes while it thinks and the provider's gateway idle-kills
+    // the connection ('terminated' on every big-outline page). Streaming keeps
+    // bytes flowing; usage arrives in the final chunk.
+    stream: true, stream_options: { include_usage: true },
     messages: [{ role: 'user', content }],
   });
   const project = resolveLedgerProject(ledgerProject);
@@ -141,9 +146,33 @@ export async function ovhVision(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, t
     record(null, { status: resp.status, error: true });
     throw new Error(`${VISION_PROVIDER} ${resp.status}: ${errText}`);
   }
-  const d = await resp.json();
-  record(d.usage, { status: resp.status });
-  return d.choices?.[0]?.message?.content ?? '';
+  // SSE accumulation: concatenate delta.content; usage rides the final chunk.
+  let out = '';
+  let usage = null;
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const ch = JSON.parse(payload);
+        const delta = ch.choices?.[0]?.delta;
+        if (delta?.content) out += delta.content;
+        if (ch.usage) usage = ch.usage;
+      } catch { /* partial line — rejoined on next read */ }
+    }
+  }
+  record(usage, { status: resp.status });
+  return out;
 }
 
 // Extract the first JSON object/array from a possibly ```-fenced model reply.
