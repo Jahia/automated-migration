@@ -235,7 +235,7 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
     return sk
 
 
-def _decompose_repeats(skeleton, ns):
+def _decompose_repeats(skeleton, ns, media_units=None):
     """CONTRACT decomposition (2026-07-16): repetition inside a region becomes
     CHILD NODE TYPES, never flat fields on the parent. Detect the largest group
     of >=2 sibling elements sharing the same (tag, classes) signature with real
@@ -255,7 +255,8 @@ def _decompose_repeats(skeleton, ns):
         for sig, els in groups.items():
             if len(els) >= 2 and len(els) > len(best) and sig[1]:
                 # real content units, not styling wrappers
-                if all(len(e.get_text(" ", strip=True)) >= 10 or e.find("img") for e in els):
+                if all(len(e.get_text(" ", strip=True)) >= 10 or e.find("img")
+                       or "{{media:" in str(e) for e in els):
                     best, best_sig = els, sig
     if len(best) < 2:
         return skeleton, []
@@ -277,6 +278,24 @@ def _decompose_repeats(skeleton, ns):
         if img and re.match(r"^[a-f0-9]{12,}\.\w{2,4}$", mfile):
             ch["media"] = [{"name": "image", "file": mfile,
                             "orig": str(img)[:20000]}]
+        # slides whose <img> was lifted to a {{media:*}} marker at extract:
+        # claim the parent's media UNIT so the slide owns its image (weakref
+        # + imgOrig) and the marker resolves INSIDE the track via RenderChild
+        if not ch.get("media") and media_units:
+            mm = re.findall(r"\{\{media:([^}]+)\}\}", ch["skeleton"])
+            if mm:
+                unit = next((u for u in media_units if u.get("name") == mm[0]), None)
+                if unit is not None:
+                    media_units.remove(unit)
+                    ch["media"] = [{**unit, "name": "image"}]
+                    ch["skeleton"] = ch["skeleton"].replace(
+                        "{{media:%s}}" % mm[0], "{{media:image}}", 1)
+                for name in mm[1:]:
+                    u2 = next((u for u in media_units if u.get("name") == name), None)
+                    if u2 is not None:
+                        media_units.remove(u2)
+                        ch["skeleton"] = ch["skeleton"].replace(
+                            "{{media:%s}}" % name, u2.get("orig") or "", 1)
         marker = soup.new_string("{{child:%d}}" % i)
         el.replace_with(marker)
         children.append(ch)
@@ -426,6 +445,18 @@ def _semanticize_instance(inst, node, surf):
             if t:
                 out["skeleton"] = _mark_title_in_skeleton(sk, t)
                 fields["title"] = t
+    # GALLERY/CAROUSEL decomposition MUST precede the extra-media merge: the
+    # slides carry {{media:*}} markers (extract lifted their <img>), so the
+    # merge would inline media[1..] into body — flattening a 5-slide track
+    # into stacked full-width images (careers culture section, 5175px vs the
+    # source's one-row track; found 2026-07-17). Decomposed slides claim
+    # their media units; only UNCLAIMED media reach the merge below.
+    _dns = (node or "x:y").split(":")[0]
+    if not inst.get("children") and out.get("skeleton"):
+        _sk2, _kids = _decompose_repeats(out["skeleton"], _dns, inst.get("media"))
+        if _kids:
+            out["skeleton"] = _sk2
+            out["children"] = _kids
     # CONTRACT v2 (2026-07-16): authorable content lives in PROPERTIES, never
     # in the hidden skeleton. Every type owns ONE body richtext — text runs 2+,
     # label runs and extra media all MERGE INTO the body VALUE; their markers
