@@ -369,10 +369,52 @@ def _decompose_library(transformed, ns):
                 f["title"] = t
             if b and not f.get("body"):
                 f["body"] = b
-            if frag in sk:
+            # PREFER the imageFile-anchored WRAPPER swap: the imgOrig fragment
+            # is often just the <img> tag — substring-swapping it orphans the
+            # slide wrapper and its LABEL in the plan (enterprise hero quick
+            # links, 80-char leftovers). The bare-fragment path is the fallback.
+            if atom.get("imageFile") and atom["imageFile"] in sk:
+                # SERIALIZATION DRIFT (2026-07-17): the atom's imgOrig fragment
+                # rarely substring-matches the plan skeleton (attribute order /
+                # cleaning differences), so slides stayed verbatim, the sweep
+                # flattened them into body, and atoms never created (careers
+                # culture: 5175px of stacked photos). Locate the slide by its
+                # UNIQUE imageFile hash and replace the repeating slide WRAPPER
+                # (the ancestor whose class-signature repeats among siblings).
+                soup_sk = BeautifulSoup(sk, "lxml")
+                img_el = soup_sk.find("img", src=lambda v: bool(v) and atom["imageFile"] in v)
+                if img_el is None:
+                    continue
+                el, best_el = img_el, None
+                while el.parent is not None and getattr(el.parent, "name", None) not in (None, "[document]", "body", "html"):
+                    sig = (el.name, tuple(sorted(el.get("class") or [])))
+                    same = [x for x in el.parent.find_all(True, recursive=False)
+                            if (x.name, tuple(sorted(x.get("class") or []))) == sig]
+                    if len(same) >= 2 and sig[1]:
+                        best_el = el          # OUTERMOST repeating level wins:
+                    el = el.parent            # the icon div repeats too, but the
+                el = best_el or img_el        # full link item carries the LABEL
+                slide_html = str(el)
+                # the slide wrapper becomes the atom's OWN skeleton (keeps the
+                # track cell classes); its image renders via the atom weakref
+                atom["skeleton"] = _sweep_text_to_body(
+                    _clean_html(slide_html), atom.setdefault("fields", {}), min_chars=40)
+                _lbl = BeautifulSoup(slide_html, "lxml").get_text(" ", strip=True)
+                if _lbl and len(_lbl) <= 80 and not atom["fields"].get("title"):
+                    atom["fields"]["title"] = _lbl   # rule 24: the label is editable
+                cm2 = _distill_classmap(atom["skeleton"])
+                if cm2:
+                    atom["classMap"] = cm2
+                el.replace_with(soup_sk.new_string("{{child:%d}}" % n))
+                sk = "".join(str(c) for c in (soup_sk.body.children if soup_sk.body else [])).strip()
+                swapped += 1
+            elif frag and frag in sk:
                 sk = sk.replace(frag, "{{child:%d}}" % n, 1)
                 swapped += 1
-        parent["skeleton"] = sk
+        parent["skeleton"] = _sweep_text_to_body(sk, parent.setdefault("fields", {}))
+        cm3 = _distill_classmap(parent["skeleton"])
+        if cm3:
+            parent["classMap"] = cm3
     return swapped
 
 
@@ -620,8 +662,12 @@ def main():
             _ot = _visible(" ".join(_parts))
             orig_vis[_i] = len(_ot)
             orig_text[_i] = _ot
+        # library plans WITH paired atoms decompose via _decompose_library;
+        # a plan WITHOUT atoms is a bare slide track needing the gallery rescue
+        _plans_with_atoms = {a2.get("parent") for a2 in page.get("instances", [])
+                             if a2.get("libraryAtom") and a2.get("parent") is not None}
         transformed = []                       # (keep: bool, instance | None)
-        for inst in page.get("instances", []):
+        for _oi, inst in enumerate(page.get("instances", [])):
             if inst.get("area"):
                 # ARCHETYPE model: captured source chrome (rawHtml routed to an
                 # absolute area — the source's own header/nav/footer markup with
@@ -666,6 +712,23 @@ def main():
                 if inst.get("libraryPlan"):
                     inst["nodeType"] = (itm.get((inst.get("type") or "").lower())
                                         or grid_nt or inst.get("nodeType"))
+                    # GALLERY RESCUE (2026-07-17): a plan with NO paired atoms
+                    # is a bare slide track — the sweep below would flatten its
+                    # slides into body as stacked full-width images (careers
+                    # culture section, 5175px vs the source's one-row track).
+                    # Decompose the slides into cardItem children FIRST and
+                    # demote the plan to a plain promoted instance: the
+                    # loader's standard item-N path creates the slides, each
+                    # editable, spliced back into the track via {{child:N}}.
+                    if _oi not in _plans_with_atoms and inst.get("skeleton")                             and "{{child:" not in inst["skeleton"]:
+                        _rns = (inst.get("nodeType") or "x:y").split(":")[0]
+                        _rsk, _rkids = _decompose_repeats(
+                            inst["skeleton"], _rns, inst.get("media"))
+                        if _rkids:
+                            inst["skeleton"] = _rsk
+                            inst["children"] = _rkids
+                            inst.pop("libraryPlan", None)
+                            inst["promoted"] = True
                     # the container's OWN text (heading + inline markup around
                     # the {{child}} markers — the hero lived there) is invisible
                     # to the semantic views inside the skeleton prop: surface it
@@ -691,11 +754,10 @@ def main():
                         t, _b = _split_skeleton(inst["skeleton"])
                         if t:
                             f["title"] = t
-                    inst["skeleton"] = _sweep_text_to_body(
-                        inst.get("skeleton") or "", f)
-                    cm = _distill_classmap(inst.get("skeleton") or "")
-                    if cm:
-                        inst["classMap"] = cm
+                    # sweep DEFERRED to _decompose_library (2026-07-17): it
+                    # must run AFTER the slide fragments swap to {{child:N}} —
+                    # swept first, the slides land in body as stacked images
+                    # and the imageFile anchors vanish from the skeleton.
                 elif inst.get("libraryAtom"):
                     # CONTRACT: all repeatable items are the ONE reusable
                     # {ns}:cardItem child type (typed by anatomy, not by parent)
