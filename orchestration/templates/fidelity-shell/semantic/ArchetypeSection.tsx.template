@@ -320,13 +320,21 @@ export default function ArchetypeSection({
           </div>
         </header>
       );
-    case "footer":
+    case "footer": {
+      // SOURCE MODE (2026-07-20): when the capture stamped wrapper classes
+      // (classMap columns/legal), the source CSS owns the footer's look —
+      // site-footer--source disables the semantic fallback THEME (scoped in
+      // semantic.css via :not) while the structural grid rules stay.
+      const srcMode = !!(cls.columns || cls.legal);
       return (
-        <footer className={mc(cls.root, `site-footer ${kind}`)}>
-          <div className="site-footer__columns">{childSlot}</div>
-          <Rich html={f.body} className="site-footer__legal" />
+        <footer
+          className={mc(cls.root, `site-footer${srcMode ? " site-footer--source" : ""} ${kind}`)}
+        >
+          <div className={mc(cls.columns, "site-footer__columns")}>{childSlot}</div>
+          <Rich html={f.body} className={mc(cls.legal, "site-footer__legal")} />
         </footer>
       );
+    }
 
     // ─── GENERIC SECTION (section / jcrQuery / unknown): title + body + drop ─
     default:

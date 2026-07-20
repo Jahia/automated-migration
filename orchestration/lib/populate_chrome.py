@@ -175,6 +175,33 @@ def populate_footer(ld, html):
             ld.m.update(base, {"body": f"<p>{cr[:500]}</p>"}, locale=ld.locale)
         except Exception as e:
             print(f"  ! copyright: {str(e)[:100]}", file=sys.stderr)
+    # FIDELITY (2026-07-20, business band 4200): the semantic .site-footer
+    # fallback paints its own theme (dark) while the SOURCE footer areas are
+    # styled by their own classes (captured CSS: upper columns wrapper +
+    # bottom legal bar). Stamp all three classMap slots so the archetype view
+    # wears them; cls.columns/cls.legal flips the view to site-footer--source
+    # (semantic theme steps aside, structural grid stays).
+    f_root = soup.find("footer")
+    if f_root is not None:
+        tops = [c for c in f_root.children if getattr(c, "name", None)]
+        cmap = {}
+        rc = " ".join(f_root.get("class") or [])
+        if rc:
+            cmap["root"] = rc
+        if tops:
+            cc = " ".join(tops[0].get("class") or [])
+            if cc:
+                cmap["columns"] = cc
+        if len(tops) > 1:
+            lc = " ".join(tops[-1].get("class") or [])
+            if lc:
+                cmap["legal"] = lc
+        if cmap:
+            try:
+                ld.m.update(base, {"classMap": json.dumps(cmap)})
+                print(f"  + footer classMap <- {cmap}")
+            except Exception as e:
+                print(f"  ! footer classMap: {str(e)[:100]}", file=sys.stderr)
     print(f"  + footer: {ncol} new column(s) (had {len(existing)})"
           f"{' + copyright' if cr else ''}")
 

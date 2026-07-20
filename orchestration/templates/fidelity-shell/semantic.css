@@ -322,15 +322,26 @@ a.cta:hover {
 .site-header__links .cta { margin: 0; padding: 0.3em 0.9em; background: transparent; color: #222; border-radius: 6px; }
 .site-header__links .cta:hover { background: #f2f2f2; filter: none; }
 
-/* ---- site footer (columns) ------------------------------------------------ */
-.site-footer { background: #14336c; color: #fff; margin-top: 2rem; }
+/* ---- site footer (columns) ------------------------------------------------
+   THEME rules are scoped to :not(.site-footer--source): when the migration
+   stamped the SOURCE wrapper classes (classMap columns/legal), the captured
+   CSS owns colors and the fallback theme must not fight it (2026-07-20:
+   hardcoded #14336c beat the source's light bg-secondary-foreground on every
+   page's footer). STRUCTURAL rules (grid, spacing) apply in both modes. */
+.site-footer { margin-top: 2rem; }
+.site-footer:not(.site-footer--source) { background: #14336c; color: #fff; }
 .site-footer__columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 2rem; max-width: 1240px; margin-inline: auto; padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem); }
 .site-footer .card { background: transparent; box-shadow: none; border-radius: 0; }
 .site-footer .card__body { padding: 0; }
-.site-footer .title { color: #fff; font-size: 1rem; }
-.site-footer .cta { display: block; margin: 0 0 0.5rem; padding: 0; background: transparent; color: #cfd8ee; font-weight: 400; }
-.site-footer .cta:hover { color: #fff; filter: none; }
+.site-footer .title { font-size: 1rem; }
+.site-footer:not(.site-footer--source) .title { color: #fff; }
+.site-footer .cta { display: block; margin: 0 0 0.5rem; padding: 0; background: transparent; font-weight: 400; }
+.site-footer:not(.site-footer--source) .cta { color: #cfd8ee; }
+.site-footer:not(.site-footer--source) .cta:hover { color: #fff; filter: none; }
+.site-footer--source .cta { color: inherit; }
+.site-footer--source .cta:hover { filter: none; text-decoration: underline; }
 .site-footer__legal { max-width: 1240px; margin-inline: auto; padding: 0 clamp(1rem, 3vw, 2rem) 1.5rem; font-size: 0.8rem; opacity: 0.8; }
+.site-footer--source .site-footer__legal { opacity: 1; padding-top: 1rem; padding-bottom: 1rem; }
 
 /* ── mega menu (source-style panels; replaces nested dropdowns) ─────────── */
 .main-navigation__item { position: static; }
