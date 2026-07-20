@@ -613,15 +613,18 @@ class Loader:
         # nothing while the text rendered from the parent's verbatim markup.
         # The item owns its skeleton ({{f:title}}/{{f:body}} markers) + fields.
         elif nt.endswith(":cardItem"):
-            f = inst.get("fields") or {}
-            if inst.get("skeleton"):
-                create_props["skeleton"] = self._rewire_hrefs(inst["skeleton"])[:200_000]
-            if inst.get("classMap"):
-                create_props["classMap"] = inst["classMap"][:8000]
-            if f.get("title"):
-                post["jcr:title"] = str(f["title"])[:250]
-            if f.get("body"):
-                post["body"] = self._rewire_hrefs(str(f["body"]))[:200_000]
+            # CONTRACT item — the SAME prop machinery as every promoted node,
+            # so debodify media units / classMap / body slots all wire. The
+            # old bespoke branch ignored inst["media"] entirely (observed:
+            # slide images frozen in the skeleton, dead shadow body copy).
+            pdef = self.props_of(nt)
+            create_props, mixins, post = self.promoted_props(inst, pdef, nt)
+            for mu in inst.get("media") or []:
+                dam2 = mu.pop("_dam", None)
+                if dam2 and mu.get("name"):
+                    # weakref-by-path via update (same as `image` below —
+                    # proven working for atoms)
+                    post[mu["name"]] = dam2.get("path") or dam2["uuid"]
             if dam:
                 create_props["imageOrigRef"] = dam["uuid"]
                 post["image"] = dam.get("path") or dam["uuid"]

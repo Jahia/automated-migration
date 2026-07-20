@@ -107,12 +107,57 @@ def main():
         if valid_nt and nt0 and nt0 not in valid_nt:
             bad.append(f"VALUE {pk}{path}: nodeType {nt0!r} is not declared by "
                        f"the manifest (Jahia rejects the create; content vanishes)")
-        # GATE (2026-07-17): gallery flatten — a body hoarding images means a
-        # slide track was swept instead of decomposed into cardItem children
+        # GATE (2026-07-20, operator mandate 'image in richtext should not
+        # happen'): a raster image UNIT at the TOP LEVEL of a richtext value
+        # must be an image MEDIA UNIT (weakref picker) or a decomposed child —
+        # never frozen markup. Images nested inside tables/lists/deep markup
+        # legitimately stay in the richtext (DAM-rewritten at load, swappable
+        # through the richtext editor — the Jahia-native contract; extracting
+        # them shattered the surrounding markup, observed: postmarking /
+        # online-security-you). svg icons stay inline. Mirrors debodify.
+        # Subsumes the 2026-07-17 gallery-hoard gate.
+        _RASTER = re.compile(r"\.(?:png|jpe?g|gif|webp|avif)(?:[?#]|$|['\")])", re.I)
+        _NOSPLIT = {"table", "thead", "tbody", "tfoot", "tr", "td", "th",
+                    "ul", "ol", "li", "dl", "dt", "dd"}
         b0 = f.get("body")
-        if isinstance(b0, str) and len(re.findall(r"<img\b", b0)) > 2:
-            bad.append(f"VALUE {pk}{path}: body hoards {len(re.findall(r'<img', b0))} images "
-                       f"(gallery must decompose into children)")
+        for bk in [k for k in f if re.match(r"body\d*$", k)]:
+            bv = f[bk]
+            if not isinstance(bv, str) or not re.search(r"<img|background-image", bv) \
+                    or not _RASTER.search(bv):
+                continue
+            from bs4 import BeautifulSoup as _BS0
+            _sb = _BS0(bv, "lxml")
+            _root = _sb.body or _sb
+            n_frozen = 0
+            for im in _sb.find_all("img"):
+                if not _RASTER.search(im.get("src") or ""):
+                    continue
+                u = im
+                p2 = u.parent
+                while getattr(p2, "name", None) not in (None, "body", "html", "[document]"):
+                    if len(p2.find_all("img")) != 1 or p2.get_text(strip=True):
+                        break
+                    u = p2
+                    p2 = u.parent
+                if u.parent is _root and not any(
+                        getattr(pp, "name", None) in _NOSPLIT for pp in u.parents):
+                    n_frozen += 1
+            for el in _sb.find_all(style=re.compile(r"background-image", re.I)):
+                m3 = re.search(r"""url\(\s*['"]?([^'")]+)""", el.get("style") or "")
+                if not m3 or not _RASTER.search(m3.group(1)) or el.find("img"):
+                    continue
+                if el.parent is not _root or any(
+                        getattr(pp, "name", None) in _NOSPLIT for pp in el.parents):
+                    continue
+                _pr = _BS0(str(el), "lxml")
+                for sr in _pr.select(".sr-only"):
+                    sr.extract()
+                if not _pr.get_text(strip=True):
+                    n_frozen += 1
+            if n_frozen:
+                bad.append(f"VALUE {pk}{path}: {bk} carries {n_frozen} top-level "
+                           f"raster image unit(s) frozen in richtext (must be "
+                           f"the image media unit / decomposed children)")
         # GATE (2026-07-17): tail-appended body marker — {{f:body}} AFTER a
         # SINGLE-ROOT skeleton renders swept content OUTSIDE the layout (home
         # hero). Multi-root fragments legitimately carry the marker at top

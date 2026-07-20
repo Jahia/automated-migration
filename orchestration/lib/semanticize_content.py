@@ -308,6 +308,210 @@ def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
     return sk
 
 
+_RASTER_RE = re.compile(r"\.(?:png|jpe?g|gif|webp|avif)(?:[?#]|$|['\")])", re.I)
+
+
+def _img_unit_root(img):
+    """Outermost ancestor whose visible content is ONLY this image — sizing
+    and link wrappers travel WITH the unit (icon-blowup lesson: an image
+    stripped of its wrapper loses its dimensions)."""
+    unit = img
+    p = unit.parent
+    while getattr(p, "name", None) not in (None, "body", "html", "[document]"):
+        if len(p.find_all("img")) != 1 or p.get_text(strip=True):
+            break
+        if any(isinstance(c, str) and "{{" in c for c in p.contents):
+            break
+        unit = p
+        p = unit.parent
+    return unit
+
+
+def _debodify_images(inst, ns, top_level=True):
+    """OPERATOR MANDATE (2026-07-20 night, 'image in richtext should not
+    happen — fix the core'): a raster image must NEVER live as markup inside
+    a richtext body value — it is invisible to the Media manager and not
+    swappable in the editor. Every raster <img> unit (with its wrapper) and
+    every content-free background-image element is EXTRACTED from body/bodyN
+    into a positioned imageN MEDIA UNIT (DAM copy + weakref picker via
+    contribImageN; the {{media:imageN}} marker keeps the exact position in
+    the skeleton, text runs around it become body slots). A body yielding
+    MORE than 4 units on a top-level instance decomposes into cardItem
+    children instead (the body-slot cap, over-fragmentation lesson). svg
+    stays inline (icons are design assets). Returns units extracted."""
+    sk = inst.get("skeleton") or ""
+    f = inst.get("fields") or {}
+    if not sk:
+        for ch in inst.get("children") or []:
+            _debodify_images(ch, ns, top_level=False)
+        return 0
+    media = inst.setdefault("media", [])
+    # dead SHADOW copies first (library atoms): a body value with no skeleton
+    # marker renders NOWHERE; when everything it would show (visible text +
+    # image sources) already lives in the skeleton markup it is the atom's
+    # copy — dropped so editors never edit a field that does nothing. The
+    # comparison is CONTENT-level, not byte-level: the two copies come from
+    # different serialization paths (observed: one trailing ';' in a style
+    # attribute defeated exact containment).
+    def _srcs(s):
+        return (set(re.findall(r'src="([^"]+)"', s or ""))
+                | set(re.findall(r"""url\(\s*['"]?([^'")]+)""", s or "")))
+    sk_txt = re.sub(r"\s+", " ", _visible_frag(sk))
+    sk_srcs = _srcs(sk)
+    for key in [k for k in list(f) if re.match(r"body\d*$", k)
+                and isinstance(f[k], str)]:
+        if "{{f:%s}}" % key in sk:
+            continue
+        vt = re.sub(r"\s+", " ", _visible_frag(f[key]))
+        if (not vt or vt in sk_txt) and _srcs(f[key]) <= sk_srcs:
+            f.pop(key)
+
+    def _next_body_key():
+        used = {k for k in f if re.match(r"body\d*$", k)}
+        n = 2
+        while f"body{n}" in used:
+            n += 1
+        return f"body{n}"
+
+    extracted = 0
+    for key in [k for k in sorted(f, key=lambda k: (len(k), k))
+                if re.match(r"body\d*$", k) and isinstance(f[k], str)]:
+        v = f[key]
+        if not re.search(r"<img|background-image", v) or not _RASTER_RE.search(v):
+            continue
+        marker = "{{f:%s}}" % key
+        if marker not in sk:
+            continue          # unpaired value — the slot gates own that class
+        soup = BeautifulSoup(v, "lxml")
+        roots = _unit_roots(soup)
+        if not roots:
+            continue
+        # SPLIT only at units sitting DIRECTLY at the fragment's top level —
+        # string-splitting a nested tree at a deeper unit produces runs that
+        # START with close-tags, and lxml silently drops such fragments
+        # WHOLE (observed: online-security-you lost its anti-phishing
+        # paragraphs, conservation red). Deeper units — and anything inside
+        # tables/lists whose split shatters cells (postmarking rate table) —
+        # STAY in the richtext: the loader DAM-rewrites their src so they are
+        # Media-manager referenced and CKEditor-swappable, the Jahia-native
+        # in-richtext image contract. The gate mirrors this exact rule.
+        _NOSPLIT = {"table", "thead", "tbody", "tfoot", "tr", "td", "th",
+                    "ul", "ol", "li", "dl", "dt", "dd"}
+        body_root = soup.body or soup
+        roots = [(u, src, alt) for u, src, alt in roots
+                 if u.parent is body_root
+                 and not any(getattr(p, "name", None) in _NOSPLIT for p in u.parents)]
+        if not roots:
+            continue
+        for i, (u, _s, _a) in enumerate(roots):
+            u.replace_with(soup.new_string(f"\x00U{i}\x00"))
+        rest = "".join(str(c) for c in body_root.children)
+        parts = re.split(r"\x00U(\d+)\x00", rest)
+        # model-contract doctrine (numbered-contrib-mixins): media REPETITION
+        # must be child node types — ONE image slot per node, 2+ decompose
+        as_children = len(roots) > (1 if not media else 0)
+        seq, first_run_used = [], False
+        kids = inst.setdefault("children", []) if as_children else None
+        for j, part in enumerate(parts):
+            if j % 2 == 0:                       # text run
+                if not _visible_frag(part):
+                    continue
+                if not first_run_used:
+                    f[key] = part
+                    seq.append(marker)
+                    first_run_used = True
+                else:
+                    nk = _next_body_key()
+                    f[nk] = part
+                    seq.append("{{f:%s}}" % nk)
+            else:                                # image unit
+                u, src, alt = roots[int(part)]
+                fname = os.path.basename((src or "").split("?")[0].split("#")[0])
+                if as_children:
+                    idx = len(kids)
+                    kids.append({"type": "cardItem", "nodeType": f"{ns}:cardItem",
+                                 "promoted": True, "fields": {},
+                                 "media": [{"name": "image", "orig": str(u),
+                                            "file": fname, "alt": alt}],
+                                 "skeleton": "{{media:image}}"})
+                    seq.append("{{child:%d}}" % idx)
+                else:
+                    media.append({"name": "image", "orig": str(u),
+                                  "file": fname, "alt": alt})
+                    seq.append("{{media:image}}")
+                extracted += 1
+        if not first_run_used:
+            f.pop(key, None)                     # body was image(s) only
+        sk = sk.replace(marker, "".join(seq), 1)
+        inst["skeleton"] = sk
+    # SKELETON-inline raster units (library atoms carry the slide image in
+    # the structure markup itself): same mandate — the node's ONE image slot
+    # (model-contract: repetition = children, so only a lone unit extracts;
+    # multi-image skeletons keep their DAM-rewritten markup inline)
+    sk = inst.get("skeleton") or ""
+    if not media and re.search(r"<img|background-image", sk) \
+            and _RASTER_RE.search(sk):
+        soup = BeautifulSoup(sk, "lxml")
+        roots = _unit_roots(soup)
+        if len(roots) == 1:
+            u, src, alt = roots[0]
+            media.append({"name": "image", "orig": str(u),
+                          "file": os.path.basename(
+                              (src or "").split("?")[0].split("#")[0]),
+                          "alt": alt})
+            u.replace_with(soup.new_string("{{media:image}}"))
+            body_el = soup.body or soup
+            inst["skeleton"] = "".join(str(c) for c in body_el.children)
+            extracted += 1
+    for ch in inst.get("children") or []:
+        extracted += _debodify_images(ch, ns, top_level=False)
+    return extracted
+
+
+def _unit_roots(soup):
+    """Raster image UNITS in a parsed fragment: every raster <img>'s outermost
+    single-image wrapper + every content-free background-image element (its
+    sr-only label travels along). Nested units collapse to the outermost."""
+    units = []
+    for img in soup.find_all("img"):
+        src = (img.get("src") or "").strip()
+        if not _RASTER_RE.search(src):
+            continue
+        units.append((_img_unit_root(img), src, img.get("alt") or ""))
+    for el in soup.find_all(style=re.compile(r"background-image", re.I)):
+        st = el.get("style") or ""
+        m2 = re.search(r"""url\(\s*['"]?([^'")]+)""", st)
+        if not m2 or not _RASTER_RE.search(m2.group(1)):
+            continue
+        if el.find("img") is not None:
+            continue
+        probe = BeautifulSoup(str(el), "lxml")
+        for sr in probe.select(".sr-only"):
+            sr.extract()
+        if probe.get_text(strip=True):
+            continue
+        units.append((el, m2.group(1), ""))
+    roots = []
+    for u, src, alt in units:
+        if any(u is not o and o in u.parents for o, _, _ in units):
+            continue
+        roots.append((u, src, alt))
+    return roots
+
+
+def _visible_frag(html):
+    """Visible text of a fragment (script/style stripped) — shared by the
+    debodify split so whitespace-only runs never become body slots."""
+    if not html or not html.strip():
+        return ""
+    if "<" not in html:
+        return html.strip()
+    s = BeautifulSoup(html, "lxml")
+    for el in s.find_all(["script", "style", "noscript", "template"]):
+        el.extract()
+    return re.sub(r"\s+", " ", s.get_text(" ", strip=True)).strip()
+
+
 def _subnavify(inst, pk, inv_slugs, subnav_nt):
     """In-page SUB-NAVIGATION detector (operator finding 2026-07-20, speedpost-
     standard): the source renders a sibling-service menu (sticky sidebar) on
@@ -572,6 +776,26 @@ def _decompose_library(transformed, ns):
                 cm2 = _distill_classmap(atom["skeleton"])
                 if cm2:
                     atom["classMap"] = cm2
+                # the step-1 body was derived for the ITEMIZE skeleton this
+                # branch REPLACED — left behind it is a marker-less full copy
+                # of the slide that renders nowhere yet freezes its image in
+                # richtext (observed: 62 atoms after the debodify sweep).
+                # Popped ONLY when the located wrapper covers its content —
+                # a wrapper smaller than the fragment silently LOSES the
+                # uncovered words (conservation red, online-security-you);
+                # otherwise the body keeps a marker inside the new skeleton.
+                if b and f.get("body") == b:
+                    _bt = re.sub(r"\s+", " ", _visible_frag(b))
+                    _st2 = re.sub(r"\s+", " ", _visible_frag(slide_html))
+                    if not _bt or _bt in _st2:
+                        f.pop("body")
+                    elif "{{f:body}}" not in atom["skeleton"]:
+                        _m_close = re.search(r"</[A-Za-z][^<>]*>\s*$", atom["skeleton"])
+                        atom["skeleton"] = (re.sub(r"(</[A-Za-z][^<>]*>\s*)$",
+                                                   r"{{f:body}}\1",
+                                                   atom["skeleton"], count=1)
+                                            if _m_close else
+                                            atom["skeleton"] + "{{f:body}}")
                 el.replace_with(soup_sk.new_string("{{child:%d}}" % n))
                 sk = "".join(str(c) for c in (soup_sk.body.children if soup_sk.body else [])).strip()
                 swapped += 1
@@ -1016,7 +1240,7 @@ def main():
             el.extract()
         return re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
 
-    n_sem = n_pass = n_drop = 0
+    n_sem = n_pass = n_drop = n_img_lift = 0
     recon_pages = {}
     chrome_capture = {}
     for _pk, page in data.get("pages", {}).items():
@@ -1251,7 +1475,17 @@ def main():
                 if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
                     ins["parent"] = None
         page["instances"] = kept
-        _normalize_slots(kept, (passthrough or "x:y").split(":")[0])
+        _mod_ns = (passthrough or "x:y").split(":")[0]
+        # slot normalization FIRST (its pass2 merges orphan bodyN values —
+        # images included — into body, which must happen before the image
+        # sweep or merged images reappear post-extraction, observed live),
+        # then debodify, then normalize once more so any NEW slots the
+        # extraction created are paired/capped too
+        _normalize_slots(kept, _mod_ns)
+        _n2 = sum(_debodify_images(i2, _mod_ns) for i2 in kept)
+        n_img_lift += _n2
+        if _n2:
+            _normalize_slots(kept, _mod_ns)
 
     # write the reconciliation artifact (orchestrator-reviewable; gated by
     # orchestration/probes/reconcile-check.py BEFORE any load)
@@ -1290,6 +1524,10 @@ def main():
                 if isinstance(v, str):
                     out |= _w(_visible(v))
             out |= _w(_visible(ins.get("skeleton") or ""))
+            # media unit orig markup is stored authorable (imageNOrig) — its
+            # text (sr-only labels) counts, or debodify-lifted units read as loss
+            for mu in (ins.get("media") or []):
+                out |= _w(_visible(mu.get("orig") or ""))
             for ch in (ins.get("children") or []):
                 out |= _auth_words(ch)
             return out
@@ -1325,7 +1563,8 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=1, ensure_ascii=False)
     print(f"[semanticize_content] {out}: {n_sem} semantic instance(s), "
-          f"{n_pass} passthrough, over {len(data.get('pages', {}))} page(s)")
+          f"{n_pass} passthrough, {n_img_lift} image(s) lifted out of richtext, "
+          f"over {len(data.get('pages', {}))} page(s)")
 
 
 if __name__ == "__main__":

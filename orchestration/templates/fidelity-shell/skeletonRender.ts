@@ -209,15 +209,33 @@ export function nodePayload(node: JCRNode): Payload {
 }
 
 /** Edited media render: the chosen image must win — drop <source>/srcset,
- * swap the <img> src, keep every other attribute (classes, dimensions, alt). */
+ * swap the <img> src, keep every other attribute (classes, dimensions, alt).
+ * BACKGROUND-IMAGE units (debodify-lifted content-free bg divs) swap the
+ * css url() the same way — one of the two patterns matches per unit kind. */
 const editedMedia = (orig: string, url: string): string =>
   orig
     .replace(/<source\b[^>]*\/?>/gi, "")
     .replace(/\s+srcset="[^"]*"/gi, "")
-    .replace(/(<img\b[^>]*?\bsrc=")[^"]*(")/i, (_a, pre, post) => pre + escapeAttr(url) + post);
+    .replace(/(<img\b[^>]*?\bsrc=")[^"]*(")/i, (_a, pre, post) => pre + escapeAttr(url) + post)
+    .replace(/(background-image:\s*url\(['"]?)[^'")]*(['"]?\))/i,
+             (_a, pre, post) => pre + escapeAttr(url) + post);
 
 const substitute = (p: Payload): string => {
   let html = p.skeleton;
+  if (html.includes("{{link:href}}")) {
+    html = html.split("{{link:href}}").join(escapeAttr(p.linkHref ?? ""));
+  }
+  // FIELD VALUES FIRST, media markers AFTER: a table/list-embedded image is
+  // an in-VALUE {{media:imageN}} marker (splitting the value would shatter
+  // the table, observed: postmarking rate table lost its cells) — resolving
+  // media last covers markers in the skeleton AND inside spliced values.
+  for (const [k, v] of Object.entries(p.values)) {
+    if (typeof v !== "string" || !v) continue;
+    const marker = `{{f:${k}}}`;
+    if (html.includes(marker)) {
+      html = html.split(marker).join(k.startsWith("body") ? v : escapeHtml(v));
+    }
+  }
   for (const m of p.media) {
     const marker = `{{media:${m.name}}}`;
     if (!html.includes(marker)) continue;
@@ -232,16 +250,6 @@ const substitute = (p: Payload): string => {
       repl = m.url ? `<img src="${escapeAttr(m.url)}" alt="" />` : "";
     }
     html = html.split(marker).join(repl);
-  }
-  if (html.includes("{{link:href}}")) {
-    html = html.split("{{link:href}}").join(escapeAttr(p.linkHref ?? ""));
-  }
-  for (const [k, v] of Object.entries(p.values)) {
-    if (typeof v !== "string" || !v) continue;
-    const marker = `{{f:${k}}}`;
-    if (html.includes(marker)) {
-      html = html.split(marker).join(k.startsWith("body") ? v : escapeHtml(v));
-    }
   }
   return html;
 };
