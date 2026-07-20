@@ -54,7 +54,9 @@ SKIP_PROP = {"jcr:title"}  # set via title/heading mapping, not raw
 # crash on an old entry. Separate consts because they invalidate at very
 # different cost (a ledger bump forces a full per-page JCR reconcile; a dam
 # bump only forces re-upload of media) — bumping one must not force the other.
-LEDGER_TOOL_VERSION = 1   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+LEDGER_TOOL_VERSION = 2   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+                          # v2 (2026-07-20): markup assets DAM-rewritten at write
+                          # (operator mandate) — every page must reload once
 DAM_TOOL_VERSION = 1      # DAM dedupe-map upload/resolve algorithm (upload_dam)
 
 
@@ -367,10 +369,44 @@ class Loader:
 
     _HREF_RE = re.compile(r'href="((?:https?://[^/"]+)?(/en(?:/[^"?#]*)?))([^"]*)"')
 
+    # raster refs only — svg stays module-static (icons are design assets,
+    # not contributor media); matches src=, srcset entries and css url()
+    _ASSET_RE = re.compile(
+        r"/modules/[^/\"'()\s]+/static/assets/"
+        r"([A-Za-z0-9_.-]+\.(?:png|jpe?g|gif|webp|avif))", re.I)
+
+    def _rewire_assets(self, text):
+        """DAM-reference every raster asset in markup (operator mandate
+        2026-07-20: images belong to the Media manager, not frozen module
+        statics — observed: bg-cover divs and 900+ inline <img> rendering
+        /modules/<m>/static/assets/... with no DAM presence). Each ref
+        uploads to /sites/<site>/files (deduped by the existing dam map) and
+        becomes its DAM file URL, stored as /files/default/... — the views
+        swap the workspace segment to /files/live on LIVE render. A failed
+        upload keeps the static ref: the render never breaks, and the
+        dam-ref-check probe names the leftover."""
+        if "/static/assets/" not in (text or ""):
+            return text
+        cache = getattr(self, "_dam_markup", None)
+        if cache is None:
+            cache = self._dam_markup = {}
+
+        def sub(mo):
+            fname = mo.group(1)
+            if fname not in cache:
+                cache[fname] = self._upload_dam_file(fname) or {}
+            path = cache[fname].get("path")
+            return f"/files/default{path}" if path else mo.group(0)
+
+        return self._ASSET_RE.sub(sub, text)
+
     def _rewire_hrefs(self, text):
         """Rewrite internal source anchors (href="/en/..." and the absolute
         form) to Jahia page URLs when the path maps to a migrated page;
-        unknown paths stay verbatim (external world unchanged)."""
+        unknown paths stay verbatim (external world unchanged). Also the
+        single choke point for the markup ASSET rewrite (all body/skeleton/
+        orig writes flow through here)."""
+        text = self._rewire_assets(text)
         if not text or "/en" not in text:
             return text
         hm = self._href_map()
@@ -456,7 +492,7 @@ class Loader:
             # slot mixin provides it (a media-atom type has `image` but no Orig →
             # it renders via its own weakref, no imageOrig needed)
             if nm + "Orig" in avail:
-                post[nm + "Orig"] = m["orig"][:200_000]
+                post[nm + "Orig"] = self._rewire_hrefs(m["orig"])[:200_000]
             dam = self.upload_dam(m.get("file"))
             if dam:
                 if nm + "OrigRef" in avail:
@@ -517,7 +553,7 @@ class Loader:
         props = {}
         sk = inst.get("skeleton")
         if sk:
-            props["skeleton"] = sk[:200_000]
+            props["skeleton"] = self._rewire_hrefs(sk)[:200_000]
         if inst.get("classMap"):
             props["classMap"] = inst["classMap"][:8000]
         # logoWall keeps its source container class (deployed schema)
@@ -539,7 +575,7 @@ class Loader:
         Returns the created path or None."""
         nt = inst["nodeType"]
         variant = inst.get("variant", "brand")
-        orig = inst.get("imgOrig", "")
+        orig = self._rewire_hrefs(inst.get("imgOrig", ""))
         dam = self.upload_dam(inst.get("imageFile"))
 
         create_props = {}
@@ -579,7 +615,7 @@ class Loader:
         elif nt.endswith(":cardItem"):
             f = inst.get("fields") or {}
             if inst.get("skeleton"):
-                create_props["skeleton"] = inst["skeleton"][:200_000]
+                create_props["skeleton"] = self._rewire_hrefs(inst["skeleton"])[:200_000]
             if inst.get("classMap"):
                 create_props["classMap"] = inst["classMap"][:8000]
             if f.get("title"):

@@ -13,6 +13,7 @@ import {
   childNodesOf,
   chunkTopLevel,
   hasSkeletonProp,
+  fixFilesWorkspace,
 } from "../skeletonRender.js";
 import ArchetypeSection from "../ArchetypeSection.js";
 import { resolveSemantic } from "../resolveSemantic.js";
@@ -48,8 +49,17 @@ jahiaComponent(
     }
 
     // structure markup with property markers resolved; unresolved markers drop
+    let live = false;
+    try {
+      live = Boolean((renderContext as { isLiveMode: () => boolean }).isLiveMode());
+    } catch {
+      live = false;
+    }
     const p = nodePayload(node);
-    const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+    const html = fixFilesWorkspace(
+      substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, ""),
+      live,
+    );
     const kids = childNodesOf(node);
 
     if (html.includes("{{child:")) {

@@ -1,4 +1,5 @@
 import { buildNodeUrl, server } from "@jahia/javascript-modules-library";
+import { fixFilesWorkspace } from "./skeletonRender.js";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
 import type { SemanticFields } from "./ArchetypeSection.js";
 
@@ -18,8 +19,18 @@ export function resolveSemantic(
   node: JCRNodeWrapper,
   renderContext: unknown,
 ): SemanticFields {
+  let live = false;
+  try {
+    live = Boolean((renderContext as { isLiveMode: () => boolean }).isLiveMode());
+  } catch {
+    live = false;
+  }
+  // richtext values carry DAM /files/default/ URLs (loader asset rewrite);
+  // anonymous LIVE readers need the live workspace segment
   const str = (k: string): string | undefined =>
-    typeof props[k] === "string" && (props[k] as string).length ? (props[k] as string) : undefined;
+    typeof props[k] === "string" && (props[k] as string).length
+      ? fixFilesWorkspace(props[k] as string, live)
+      : undefined;
 
   // DAM image (weakref) → URL + alt, with cache dependency on the image node
   const image = props.image as JCRNodeWrapper | undefined;

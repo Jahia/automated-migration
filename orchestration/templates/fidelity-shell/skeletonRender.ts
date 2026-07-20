@@ -123,6 +123,16 @@ const repairUnterminatedDataUri = (html: string): string => {
 export const sanitizeFragment = (html: string): string =>
   repairUnterminatedDataUri(stripLazy(html));
 
+/** DAM file URLs are stored workspace-qualified as /files/default/... (the
+ * loader's asset rewrite — images live in the Media manager, operator mandate
+ * 2026-07-20). Anonymous LIVE visitors cannot read the default workspace, so
+ * every view swaps the segment on live render. Covers src, srcset and css
+ * url() alike (plain string swap); a no-op in edit/preview. */
+export const fixFilesWorkspace = (html: string, live: boolean): string =>
+  live && html && html.includes("/files/default/")
+    ? html.split("/files/default/").join("/files/live/")
+    : html;
+
 type Media = { name: string; orig: string; url: string | null; edited: boolean };
 type Payload = {
   skeleton: string;

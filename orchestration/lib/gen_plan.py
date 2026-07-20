@@ -389,6 +389,9 @@ def build_plan(p):
               # no dead-end buttons: the payload->JCR seam can silently drop
               # hidden contract props (linkOrig, 2026-07-20) — reads EDIT state
               *([f"PROBE: python3 orchestration/probes/cta-link-check.py {SITE} {NS} --locale {PRIMARY_LOCALE}"] if ARCH else []),
+              # every raster a page serves must be a Media-manager reference
+              # (frozen module-static imgs are invisible to editors, 2026-07-20)
+              *([f"PROBE: python3 orchestration/probes/dam-ref-check.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",

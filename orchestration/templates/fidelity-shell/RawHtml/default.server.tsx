@@ -5,6 +5,7 @@ import {
   childNodesOf,
   chunkTopLevel,
   composeNode,
+  fixFilesWorkspace,
   hasSkeletonProp,
   nodePayload,
   sanitizeFragment,
@@ -41,6 +42,12 @@ jahiaComponent(
     } catch {
       editMode = false;
     }
+    let live = false;
+    try {
+      live = Boolean((renderContext as { isLiveMode: () => boolean }).isLiveMode());
+    } catch {
+      live = false;
+    }
 
     // A typed VIEW child (no skeleton prop — e.g. the tree-driven
     // mainNavigation) must render through Jahia's pipeline on LIVE too:
@@ -57,7 +64,10 @@ jahiaComponent(
     //    reachable edit frames (rule 28 / G6b) ──
     if ((editMode || hasViewChild) && typeof props.skeleton === "string" && props.skeleton) {
       const p = nodePayload(node);
-      const html = substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, "");
+      const html = fixFilesWorkspace(
+        substitutePayload(p).replace(/\{\{(?:f|media|link):[^}]+\}\}/g, ""),
+        live,
+      );
       if (html.includes("{{child:")) {
         const kids = childNodesOf(node);
         const placed = new Set<number>();
@@ -107,6 +117,7 @@ jahiaComponent(
     } else {
       html = sanitizeFragment(html);
     }
+    html = fixFilesWorkspace(html, live);
     const root = splitRoot(html ?? "");
     if (root) {
       return createElement(root.tag, {
