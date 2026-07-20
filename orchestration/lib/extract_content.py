@@ -378,14 +378,24 @@ def load_runtime_map(project):
         # (observed live: manifest key `https://host/path`, HTML uses the
         # protocol-relative `//host/path`; contentful CDN logos + discoverasr's
         # absolute refs were left un-rewritten -> broken for real visitors).
+        forms = [k]
         if k.startswith(("http://", "https://")):
             proto_rel = re.sub(r"^https?:", "", k)           # //host/path
-            RUNTIME_URL_MAP.setdefault(proto_rel, f)
-            RUNTIME_URL_MAP.setdefault(
-                ("http:" if k.startswith("https:") else "https:") + proto_rel, f)
+            forms.append(proto_rel)
+            forms.append(("http:" if k.startswith("https:") else "https:") + proto_rel)
             path = re.sub(r"^https?://[^/]+", "", k)          # /path
             if path and path != k:
-                RUNTIME_URL_MAP.setdefault(path, f)
+                forms.append(path)
+        # CSS url() / style attributes carry the DECODED form (browsers decode
+        # %20 etc. when serializing url()) while the manifest key is
+        # percent-encoded — register decoded variants too (2026-07-20: the
+        # corporate masthead background never rewrote, hero rendered a white
+        # void; gated by reconcile-check source-asset-url).
+        for form in forms:
+            RUNTIME_URL_MAP.setdefault(form, f)
+            dec = urllib.parse.unquote(form)
+            if dec != form:
+                RUNTIME_URL_MAP.setdefault(dec, f)
 
 
 def rewrite_asset_refs(html, base):

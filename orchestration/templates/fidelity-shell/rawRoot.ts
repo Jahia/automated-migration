@@ -47,10 +47,31 @@ export function splitRoot(html: string): RootSplit | null {
   return { tag, attrs, inner };
 }
 
-/** Source attributes -> React DOM props (class -> className; style dropped). */
+/** Source attributes -> React DOM props (class -> className; style STRING
+ * parsed into a React style object — dropping it erased every inline
+ * background-image hero on wrappers that host {{child:N}} components
+ * (2026-07-20: enterprise navy hero rendered white). Crawler-flattened
+ * at-rules inside the attribute (invalid inline CSS) are cut at the first
+ * `@` — browsers error-recover past them, React needs a clean object. */
 export function rootProps(attrs: Record<string, string>): Record<string, unknown> {
-  const { class: cls, style: _ignored, ...rest } = attrs;
+  const { class: cls, style, ...rest } = attrs;
   const out: Record<string, unknown> = { ...rest };
   if (cls) out.className = cls;
+  if (style) {
+    const clean = style.split("@")[0];
+    const obj: Record<string, string> = {};
+    for (const decl of clean.split(";")) {
+      const i = decl.indexOf(":");
+      if (i < 1) continue;
+      const prop = decl.slice(0, i).trim();
+      const val = decl.slice(i + 1).trim();
+      if (!prop || !val) continue;
+      const key = prop.startsWith("--")
+        ? prop
+        : prop.replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase());
+      obj[key] = val;
+    }
+    if (Object.keys(obj).length) out.style = obj;
+  }
   return out;
 }

@@ -120,6 +120,27 @@ def main():
         b = f.get("body")
         if isinstance(b, str) and re.search(r"\{\{[^}]+\}\}", b):
             bad.append(f"VALUE {pk}{path}: body contains marker debris")
+        # GATE (2026-07-20): unresolvable SOURCE-ASSET url — a root-relative
+        # asset path outside /modules|/cms|/files|/sites is the SOURCE site's
+        # own path and can never resolve on Jahia (corporate masthead
+        # background-image /dam/files/... painted a 790px white void).
+        for fld, s in (("skeleton", sk0), ("body", b if isinstance(b, str) else "")):
+            # Tailwind arbitrary-value CLASS tokens (class="bg-[url('/x.jpg')]")
+            # are not fetched — the compiled CSS rule carries the rewritten
+            # relative url. Strip class attributes before scanning.
+            s = re.sub(r"""class=("[^"]*"|'[^']*')""", "class=x", s)
+            # quoted url() first (paths may contain spaces/parens), then bare
+            urls = [g1 or g2 or g3 for g1, g2, g3 in re.findall(
+                r"""url\(\s*(?:'([^']+)'|"([^"]+)"|([^'\")]+))""", s)]
+            urls += re.findall(r"""src=["']([^"']+)""", s)
+            for u in urls:
+                u = u.strip()
+                if (u.startswith("/")
+                        and not u.startswith(("/modules/", "/cms/", "/files/", "/sites/"))
+                        and re.search(r"\.(png|jpe?g|gif|webp|svg|avif)$", u, re.I)):
+                    bad.append(f"VALUE {pk}{path}: {fld} references the source "
+                               f"site's asset path {u[:70]!r} (never resolves "
+                               f"on Jahia)")
         for m in inst.get("media") or []:
             fn = (m.get("file") or "")
             if fn and not re.search(r"\.(png|jpe?g|gif|webp|svg|avif)$", fn, re.I):
