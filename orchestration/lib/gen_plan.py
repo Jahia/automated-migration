@@ -382,6 +382,13 @@ def build_plan(p):
               # chrome completeness vs the inventory: logo, nav L1, footer
               # columns, breadcrumb (blocking)
               *([f"PROBE: python3 orchestration/probes/inventory-coverage.py {P} {SITE} --phase site"] if ARCH else []),
+              # chrome must RENDER, not just exist (hollow-footer class,
+              # 2026-07-20: columns+ctas sat complete in the JCR while the
+              # card view dropped child nodes — every other gate was blind)
+              *([f"PROBE: python3 orchestration/probes/chrome-render-check.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
+              # no dead-end buttons: the payload->JCR seam can silently drop
+              # hidden contract props (linkOrig, 2026-07-20) — reads EDIT state
+              *([f"PROBE: python3 orchestration/probes/cta-link-check.py {SITE} {NS} --locale {PRIMARY_LOCALE}"] if ARCH else []),
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",

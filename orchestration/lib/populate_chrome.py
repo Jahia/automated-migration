@@ -92,6 +92,10 @@ def populate_header(ld, html):
     print(f"  + siteHeader: {n} top link(s)")
 
 
+_SOCIAL_NAME = re.compile(
+    r"(facebook|instagram|linkedin|youtube|twitter|x\.com|tiktok)", re.I)
+
+
 def populate_footer(ld, html):
     base = f"/sites/{ld.site}/home/footer/footer"
     try:
@@ -99,12 +103,16 @@ def populate_footer(ld, html):
     except Exception:
         print("  = no footer node — skipped")
         return
+    # ADDITIVE idempotency (hollow-footer class, 2026-07-20): skip only the
+    # named children that already exist — a partially populated footer (cols
+    # created, social/legal added later by a harness fix) must complete, not
+    # freeze at whatever the first run produced.
+    existing = set()
     try:
         kids = ld.m.gql('query{jcr(workspace:EDIT){nodeByPath(path:"%s")'
                         '{children{nodes{name}}}}}' % base)
-        if (kids.get("jcr", {}).get("nodeByPath", {}) or {}).get("children", {}).get("nodes"):
-            print("  = footer already populated — skipped")
-            return
+        existing = {n["name"] for n in ((kids.get("jcr", {}).get("nodeByPath", {}) or {})
+                                        .get("children", {}) or {}).get("nodes") or []}
     except Exception:
         pass
     soup = BeautifulSoup(html, "lxml")
@@ -112,11 +120,11 @@ def populate_footer(ld, html):
     # columns (heading-titled AND heading-less footers); consume it, never
     # re-parse with weaker heuristics (stellar-core Phase 1 artifact)
     cols, ncol = [], 0
+    inv_ftr = {}
     inv_p = f"projects/{ld.project}/workflow-output/site-inventory.json"
     try:
-        inv_cols = ((json.load(open(inv_p)).get("chrome") or {})
-                    .get("footer") or {}).get("columns") or []
-        for i, c in enumerate(inv_cols, 1):
+        inv_ftr = ((json.load(open(inv_p)).get("chrome") or {}).get("footer") or {})
+        for i, c in enumerate(inv_ftr.get("columns") or [], 1):
             cols.append((c.get("title") or f"Links {i}",
                          [(l["label"], l["href"]) for l in c.get("links") or []]))
     except (FileNotFoundError, ValueError):
@@ -131,17 +139,34 @@ def populate_footer(ld, html):
                     cols.append((title, links))
             if len(cols) >= 6:
                 break
-    for title, links in cols:
-        ncol += 1
-        cname = f"col-{ncol}"
+
+    def _mk_col(cname, title, links):
+        nonlocal ncol
+        if cname in existing:
+            return
         try:
             ld.m.create(base, f"{ld.ns}:cardItem", {"jcr:title": title},
                         name=cname, locale=ld.locale)
         except Exception as e:
             print(f"  ! footer col {title!r}: {str(e)[:100]}", file=sys.stderr)
-            continue
+            return
+        ncol += 1
         for i, (label, href) in enumerate(links, 1):
             _mk_cta(ld, f"{base}/{cname}", f"link-{i}", label, href)
+
+    for i, (title, links) in enumerate(cols, 1):
+        _mk_col(f"col-{i}", title, links)
+    # social row: platform links render as labelled ctas (icon links carry no
+    # text in the source — derive the platform name so editors see real labels)
+    social = [(_SOCIAL_NAME.search(l["href"]).group(1).replace(".com", "").capitalize(),
+               l["href"])
+              for l in inv_ftr.get("social") or [] if _SOCIAL_NAME.search(l["href"])]
+    if social:
+        _mk_col("social", "", social)
+    # legal bar: Sitemap / Terms / Privacy / ... — every chrome link editable
+    legal = [(l["label"], l["href"]) for l in inv_ftr.get("legal") or [] if l.get("label")]
+    if legal:
+        _mk_col("legal", "", legal)
     # copyright: the shortest bottom-ish © text
     cr = next((t.strip() for t in soup.stripped_strings
                if "©" in t or "copyright" in t.lower()), "")
@@ -150,7 +175,8 @@ def populate_footer(ld, html):
             ld.m.update(base, {"body": f"<p>{cr[:500]}</p>"}, locale=ld.locale)
         except Exception as e:
             print(f"  ! copyright: {str(e)[:100]}", file=sys.stderr)
-    print(f"  + footer: {ncol} column(s){' + copyright' if cr else ''}")
+    print(f"  + footer: {ncol} new column(s) (had {len(existing)})"
+          f"{' + copyright' if cr else ''}")
 
 
 def main():

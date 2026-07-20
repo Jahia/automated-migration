@@ -156,12 +156,50 @@ def chrome_inventory(soup, host, raw_html=""):
                         cols.append({"title": "", "links": links})
                     if len(cols) >= 6:
                         break
+        # pass 3 (sibling completion): a column with ONE link (SingPost's
+        # 'Help and Support' -> 'Get Help or get in touch') sits structurally
+        # beside the captured >=2-link columns but pass 1 requires >=2 links.
+        # Recover any heading+links sibling of an already-captured column.
+        col_titles = {c["title"] for c in cols if c["title"]}
+        if col_titles:
+            for el in footer.find_all(True):
+                h = el.find(["h2", "h3", "h4", "h5", "h6", "strong"])
+                if h is None or _vis(h)[:120] not in col_titles:
+                    continue
+                parent = el.parent
+                if parent is None:
+                    continue
+                for sib in parent.find_all(True, recursive=False):
+                    sh = sib.find(["h2", "h3", "h4", "h5", "h6", "strong"])
+                    if sh is None:
+                        continue
+                    t = _vis(sh)[:120]
+                    slinks = _links(sib, host, limit=10)
+                    if t and slinks and all(t != c["title"] for c in cols):
+                        cols.append({"title": t, "links": slinks})
+                break
         social = [l for l in _links(footer, host, limit=30)
                   if re.search(r"facebook|instagram|linkedin|youtube|twitter|x\.com|tiktok",
                                l["href"], re.I)]
+        _sh = set()
+        social = [l for l in social  # desktop+mobile footer variants: dedupe
+                  if not (l["href"] in _sh or _sh.add(l["href"]))]
         cr = next((t.strip()[:300] for t in footer.stripped_strings
                    if "©" in t or "copyright" in t.lower()), "")
-        ch["footer"] = {"evidence": ev, "columns": cols, "social": social, "copyright": cr}
+        # legal bar: footer links captured by NO column and not social — the
+        # bottom-bar row (Sitemap / Terms / Privacy / ...). Editors own every
+        # chrome link, so the ledger must name them (hollow-footer class,
+        # 2026-07-20).
+        col_hrefs = {l["href"] for c in cols for l in c["links"]}
+        soc_hrefs = {l["href"] for l in social}
+        legal = [l for l in _links(footer, host, limit=40)
+                 if l["href"] not in col_hrefs and l["href"] not in soc_hrefs
+                 and l.get("label")]
+        seen_h = set()
+        legal = [l for l in legal
+                 if not (l["href"] in seen_h or seen_h.add(l["href"]))][:10]
+        ch["footer"] = {"evidence": ev, "columns": cols, "social": social,
+                        "legal": legal, "copyright": cr}
     ch["excluded"] = {
         "cookieConsent": bool(re.search(r"ConsentPopup|onetrust|cookiebot|We value your privacy",
                                         str(soup), re.I)),

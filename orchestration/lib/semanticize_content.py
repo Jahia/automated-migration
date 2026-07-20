@@ -620,8 +620,54 @@ def _semanticize_instance(inst, node, surf):
         if lbl:
             cta["fields"]["linkLabel"] = str(lbl)[:250]
             cta["linkLabel"] = str(lbl)[:250]
+        # EMPTY-SHELL class (2026-07-20, corporate 'About SingPost'): the
+        # skeleton may retain the source anchor as an INLINE marker shell
+        # (href="{{link:href}}" wrapping {{f:linkLabel}}). Section types
+        # declare NO link props, so those markers can never resolve on the
+        # parent — the shell rendered an EMPTY button while the lifted child
+        # rendered a DUPLICATE outside the layout. Move the shell WITH the
+        # lift: it becomes the cta child's OWN skeleton ({ns}:cta declares
+        # linkLabel + linkOrig) and {{child:N}} takes its place, so the button
+        # renders in its original position through the child's edit frame.
+        def _excise_shell(host):
+            """Excise the marker anchor from host['skeleton'] into the cta's
+            own skeleton, splicing {{child:N}} at its position. True if done."""
+            h_sk = host.get("skeleton") or ""
+            if "{{link:href}}" not in h_sk:
+                return False
+            soup_sk = BeautifulSoup(h_sk, "lxml")
+            shell = next((a2 for a2 in soup_sk.find_all("a")
+                          if (a2.get("href") or "") == "{{link:href}}"), None)
+            if shell is None:
+                return False
+            idx = len(host.get("children") or [])
+            cta["skeleton"] = str(shell)
+            shell.replace_with(soup_sk.new_string("{{child:%d}}" % idx))
+            host["skeleton"] = "".join(
+                str(c) for c in (soup_sk.body.children if soup_sk.body else [])).strip()
+            host.setdefault("children", []).append(cta)
+            return True
+
         out.pop("link", None)
-        out.setdefault("children", []).append(cta)
+        if _excise_shell(out):
+            pass
+        else:
+            # pass 2 (2026-07-20): _decompose_repeats may have carved the card
+            # holding the marker shell BEFORE this lift ran — the shell then
+            # sits DEAD in a cardItem child while the cta appended to the
+            # parent renders the button OUTSIDE its card. Nest the cta inside
+            # the child that owns the shell, at the shell's position.
+            placed = False
+            for ch_d in out.get("children") or []:
+                if isinstance(ch_d, dict) and _excise_shell(ch_d):
+                    placed = True
+                    break
+            if not placed:
+                out.setdefault("children", []).append(cta)
+        # the cta owns the label now; a copy stranded on the parent can never
+        # render (section/card types declare no linkLabel) — drop it
+        if cta["fields"].get("linkLabel") and fields.get("linkLabel") == cta["fields"]["linkLabel"]:
+            fields.pop("linkLabel", None)
     # CTA label ownership (2026-07-17, enterprise 'Enquire'): the cta CHILD
     # renders the button; a linkLabel stranded on the PARENT renders nowhere.
     # Transfer it to the first label-less cta child.

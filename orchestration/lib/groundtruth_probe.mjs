@@ -120,8 +120,22 @@ const previewPath = (slug) => {
 };
 
 // masking policy (§2): committed, per-site, each entry carries a reason
+// DEFAULT masks (harness-level, 2026-07-20): script-injected compliance/UX
+// overlays are NEVER migrated content, on any project — the crawl DOM captures
+// them post-JS so they paint on the REFERENCE side only, over real content,
+// and corrupt the measurement (observed: SingPost consent banner over every
+// hero). Same replaced-by-design class as content-gap-sweep's chrome islands.
+const DEFAULT_MASKS = [
+  { page: '*', selector: 'astro-island[component-url*="Consent"]',
+    reason: 'cookie-consent overlay: compliance chrome, never migrated' },
+  { page: '*', selector: '[id*="onetrust"], [class*="onetrust"], [id*="cookiebot"], [id*="CybotCookiebot"]',
+    reason: 'cookie-consent vendor containers' },
+  { page: '*', selector: 'astro-island[component-url*="sonner"]',
+    reason: 'toast container: runtime UX chrome, paints nothing meaningful' },
+];
 const masksFile = `${wo}/groundtruth-masks.json`;
-const masks = fs.existsSync(masksFile) ? JSON.parse(fs.readFileSync(masksFile, 'utf8')) : [];
+const siteMasks = fs.existsSync(masksFile) ? JSON.parse(fs.readFileSync(masksFile, 'utf8')) : [];
+const masks = [...DEFAULT_MASKS, ...siteMasks];
 const masksFor = (slug) => masks.filter(m => m.page === '*' || m.page === slug);
 // display:none, NOT visibility:hidden — masked-by-design regions (replaced
 // chrome, notification bar) must leave the FLOW on both sides; hidden-but-

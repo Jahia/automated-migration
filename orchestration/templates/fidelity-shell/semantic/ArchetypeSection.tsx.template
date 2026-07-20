@@ -92,6 +92,10 @@ export default function ArchetypeSection({
   const isContainer = CONTAINER_KINDS.has(kind);
   // Always expose the child drop-zone for containers (so Page Builder shows the
   // insertion Area even when empty); otherwise only when children exist.
+  // EVERY case below must render childSlot — child nodes are contributed
+  // content and a view that drops them makes real data unrenderable (footer
+  // columns rendered title-only while their cta children sat in the JCR,
+  // 2026-07-20; chrome-render-check gates this class).
   const childSlot = isContainer || f.hasChildren ? <RenderChildren /> : null;
 
   switch (kind) {
@@ -103,6 +107,7 @@ export default function ArchetypeSection({
           {subtitle}
           <Rich html={f.body} className="hero-body" />
           <Cta href={f.href} label={f.ctaLabel} />
+          {childSlot}
         </div>
       );
       const media = <Img url={f.imgUrl} alt={f.imgAlt} className={f.cls?.image} />;
@@ -143,6 +148,7 @@ export default function ArchetypeSection({
             {subtitle}
             <Rich html={f.body} />
             <Cta href={f.href} label={f.ctaLabel} />
+            {childSlot}
           </div>
         </section>
       );
@@ -155,6 +161,7 @@ export default function ArchetypeSection({
             {heading}
             <Rich html={f.body} />
             <Cta href={f.href} label={f.ctaLabel} />
+            {childSlot}
           </div>
         </section>
       );
@@ -165,6 +172,7 @@ export default function ArchetypeSection({
         <section className={`stat ${kind}`}>
           {f.title ? <span className="stat__figure">{f.title}</span> : null}
           <Rich html={f.body} className="stat__label" />
+          {childSlot}
         </section>
       );
 
@@ -174,6 +182,7 @@ export default function ArchetypeSection({
         <section className={mc(cls.root, `rich-text ${kind}`)}>
           {heading}
           <Rich html={f.body} />
+          {childSlot}
         </section>
       );
 
@@ -242,6 +251,7 @@ export default function ArchetypeSection({
             {f.title ? <h3 className="title">{f.title}</h3> : null}
             {!compact ? <Rich html={f.body} className="card__excerpt" /> : null}
             <Cta href={f.href} label={f.ctaLabel} />
+            {childSlot}
           </div>
         </article>
       );
@@ -280,6 +290,7 @@ export default function ArchetypeSection({
             {f.title ? <h3 className="title">{f.title}</h3> : null}
             {view !== "compact" ? <Rich html={f.body} className="excerpt" /> : null}
             <Cta href={f.href} label={f.ctaLabel} />
+            {childSlot}
           </div>
         </article>
       );
@@ -287,7 +298,14 @@ export default function ArchetypeSection({
 
     // ─── CTA child object: one link, orderable, 0..N per component ──────────
     case "ctaLink":
-      return <Cta href={f.href} label={f.ctaLabel || f.title} />;
+      return childSlot ? (
+        <>
+          <Cta href={f.href} label={f.ctaLabel || f.title} />
+          {childSlot}
+        </>
+      ) : (
+        <Cta href={f.href} label={f.ctaLabel || f.title} />
+      );
 
     // ─── SITE HEADER / FOOTER chrome ────────────────────────────────────────
     case "siteHeader":

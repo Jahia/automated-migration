@@ -466,6 +466,13 @@ class Loader:
         lnk = payload.get("link")
         if lnk:
             slot(f"{mixns}:contribLink", "j:linkType", {"j:linkType", "linkLabel", "linkOrig"})
+            # content.type reports only EDITOR-VISIBLE props and linkOrig is
+            # `hidden` BY CONTRACT — a type declaring the link block natively
+            # (j:linkType/linkLabel visible) invisibly declares linkOrig with
+            # it. The guard alone dropped the href of EVERY lifted cta
+            # (2026-07-20: buttons rendered href="", gated by cta-link-check).
+            if "linkLabel" in avail or "j:linkType" in avail:
+                avail.add("linkOrig")
             if "linkOrig" in avail:
                 post["linkOrig"] = lnk["href"][:1000]
             kind, target = self.resolve_link(lnk["href"])

@@ -86,9 +86,31 @@ def main():
                            f"single skeleton root (body renders outside the layout)")
         # GATE (2026-07-17): empty cta child — the button renders NOTHING
         # (enterprise 'Enquire': label stranded on the parent)
-        if (str(inst.get("nodeType") or "").endswith(":cta") or inst.get("type") == "cta") \
-                and not f and not inst.get("media") and not inst.get("imageFile"):
-            bad.append(f"VALUE {pk}{path}: cta child carries no fields (label lost)")
+        is_cta = (str(inst.get("nodeType") or "").endswith(":cta")
+                  or inst.get("type") == "cta")
+        sk_cta = inst.get("skeleton") or ""
+        if is_cta and not f and not inst.get("media") and not inst.get("imageFile"):
+            # a field-less cta is legitimate IFF its own skeleton renders
+            # something (icon-arrow shells excised from card markup carry an
+            # svg/img and the {{link:href}} resolves from the cta's linkOrig)
+            renders = bool(re.search(r"<svg|<img", sk_cta)) or bool(
+                re.sub(r"\{\{[^}]+\}\}|<[^>]+>", "", sk_cta).strip())
+            if not (sk_cta and renders):
+                bad.append(f"VALUE {pk}{path}: cta child carries no fields (label lost)")
+        # a label MARKER in the cta's own skeleton with no label VALUE renders
+        # an empty button — same empty-shell class, one level down
+        if is_cta and "{{f:linkLabel}}" in sk_cta and not f.get("linkLabel"):
+            bad.append(f"VALUE {pk}{path}: cta skeleton has {{{{f:linkLabel}}}} "
+                       f"marker but no linkLabel value")
+        # GATE (2026-07-20): unresolvable link markers — ONLY :cta declares
+        # linkLabel/linkOrig, so {{link:href}}/{{f:linkLabel}} in any OTHER
+        # type's skeleton renders an EMPTY anchor/button shell (corporate
+        # 'About SingPost': empty bordered pill + duplicate unlinked span).
+        # The shell must move into the lifted cta child's own skeleton.
+        if not is_cta and re.search(r"\{\{link:href\}\}|\{\{f:linkLabel\}\}", sk0):
+            bad.append(f"VALUE {pk}{path}: {inst.get('nodeType') or inst.get('type')} "
+                       f"skeleton carries link markers it cannot resolve "
+                       f"(empty shell renders; shell belongs to the cta child)")
         t = f.get("title")
         if isinstance(t, str):
             if len(t) > 250:
