@@ -112,6 +112,17 @@ def main():
             print(f"  ~ persisted orchestration/sitemaps/{project}.txt")
     print(f"[build_nav_tree] {len(paths)} nested path(s) from the {src}")
     created = moved = published = 0
+    # crawl ledger: crawled-page slugs embed the FULL source path and are
+    # globally unique; a sitemap leaf NOT in it is a synthetic menu-GROUP
+    # segment (slugified label) that can collide across sections
+    inv_slugs = set()
+    try:
+        _inv = json.load(open(f"projects/{project}/workflow-output/page-inventory.json"))
+        _pgs = _inv.get("pages") or _inv
+        inv_slugs = (set(_pgs) if isinstance(_pgs, dict)
+                     else {p.get("slug") for p in _pgs if p.get("slug")})
+    except (OSError, ValueError):
+        pass
 
     def exists(path):
         # STRICT GraphQL check (2026-07-20): MCP content.get resolves loosely
@@ -183,6 +194,16 @@ def main():
                                              .get("nodesByQuery", {}) or {}).get("nodes", [])]
             except Exception:
                 found = []
+            if found and leaf not in inv_slugs and "/" in rel:
+                # cross-section slug collision (fan-out 2026-07-20): synthetic
+                # menu-GROUP segments are slugified labels — BUSINESS and
+                # ENTERPRISE both emit 'inventory-management' — so the global
+                # locate-by-name STOLE business's group (children included)
+                # under enterprise. A synthetic group may only be relocated
+                # WITHIN its own top-level section; crawled pages keep the
+                # global locate (their slugs are unique by construction).
+                _sect = rel.split("/")[0]
+                found = [p for p in found if p.startswith(f"{home}/{_sect}/")]
             if found:
                 flat = found[0]
         # guard: never move a page under its own subtree (menu quirk like
