@@ -114,9 +114,16 @@ def main():
     created = moved = published = 0
 
     def exists(path):
+        # STRICT GraphQL check (2026-07-20): MCP content.get resolves loosely
+        # and answered TRUE for /business/inventory-management/inventory-
+        # management while the node did not exist — the tree build silently
+        # skipped creating every multi-level group and all child moves failed
+        # with PathNotFoundException. nodeByPath is the same authority the
+        # mover uses.
         try:
-            r = m.get(path, locale=locale)
-            return not (isinstance(r, dict) and r.get("error"))
+            r = m.gql('query { jcr(workspace: EDIT) { nodeByPath(path: "%s") '
+                      '{ path } } }' % path)
+            return bool(((r or {}).get("jcr") or {}).get("nodeByPath"))
         except Exception:
             return False
 
@@ -130,6 +137,27 @@ def main():
         def title_for(lf):
             t = labels.get(lf) or NAV_TITLES.get(lf, {}).get(locale)
             return t or lf.replace("-", " ").title()
+
+        def ensure_chain(rel_parent):
+            """Create any missing INTERMEDIATE section pages. Multi-level menu
+            GROUPS (business/inventory-management/inventory-management,
+            2026-07-20 pilot) need their whole ancestor chain as jnt:page
+            nodes BEFORE a child is moved/created under them — a missing link
+            crashed the move with PathNotFoundException."""
+            cur = home
+            for seg in [s for s in rel_parent.split("/") if s]:
+                nxt = f"{cur}/{seg}"
+                if not exists(nxt):
+                    try:
+                        m.create(cur, "jnt:page",
+                                 {"jcr:title": title_for(seg), "j:templateName": "basic"},
+                                 name=seg, locale=locale)
+                        print(f"  + section {nxt} ('{title_for(seg)}')")
+                    except Exception as e:
+                        print(f"  ! chain {seg}: {str(e)[:120]}", file=sys.stderr)
+                        return False
+                cur = nxt
+            return True
 
         if exists(target):
             # already in place: still align its title with the MENU label (the
@@ -165,11 +193,17 @@ def main():
             if dry:
                 print(f"[dry] move {flat} -> {parent}/")
             else:
-                r = m.gql('mutation { jcr(workspace: EDIT) { moveNode(pathOrId: "%s", '
+                if not ensure_chain("/".join(rel.split("/")[:-1])):
+                    continue
+                try:
+                    m.gql('mutation { jcr(workspace: EDIT) { moveNode(pathOrId: "%s", '
                           'destParentPathOrId: "%s") { node { path } } } }'
                           % (flat, parent))
-                if isinstance(r, dict) and r.get("errors"):
-                    print(f"  ! move {leaf}: {str(r['errors'])[:140]}", file=sys.stderr)
+                except Exception as e:
+                    # mcp_client.gql RAISES on GraphQL errors — the old
+                    # r.get("errors") guard was dead code and one bad move
+                    # killed the whole tree build (2026-07-20)
+                    print(f"  ! move {leaf}: {str(e)[:140]}", file=sys.stderr)
                     continue
                 print(f"  ~ moved {leaf} -> {parent}/")
                 if leaf in labels:

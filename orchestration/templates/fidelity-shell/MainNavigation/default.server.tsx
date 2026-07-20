@@ -69,6 +69,10 @@ jahiaComponent(
     nodeType: "$NS:mainNavigation",
     name: "default",
     displayName: "Main Navigation (page tree)",
+    // SECTION-SCOPED nav depends on the CURRENT PAGE (2026-07-20): without
+    // this, LIVE served one cached fragment site-wide — /business showed
+    // Personal's menu while EDIT (cache bypassed) rendered correctly.
+    properties: { "cache.mainResource": "true" },
   },
   () => {
     const { renderContext } = useServerContext();

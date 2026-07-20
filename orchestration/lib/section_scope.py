@@ -79,6 +79,10 @@ def sitemap_lines(items, trail=None, labels=None):
         if h.startswith("/") and h != "/":
             path = trail + [slug(h)]
             lines.append("/".join(path))
+            # the MENU label, not the page's SEO <title> ("Delivery Solutions
+            # – First & Last Mile Services | SingPost" is not a menu entry)
+            if labels is not None and (it.get("label") or "").strip():
+                labels[slug(h)] = it["label"].strip()
             lines += sitemap_lines(it.get("subMenu"), path, labels)
         elif it.get("subMenu"):
             seg = _slugify(it.get("label"))
@@ -120,7 +124,7 @@ def main():
             except (FileNotFoundError, ValueError):
                 cur = {}
             for seg, lab in labels.items():
-                cur.setdefault(seg, {"en": lab, "fr": lab})
+                cur.setdefault(seg, lab)  # FLAT {slug: label} — build_nav_tree's convention
             json.dump(cur, open(lp, "w"), indent=1, ensure_ascii=False)
             print(f"[section_scope] {len(labels)} synthetic label(s) -> {lp}",
                   file=sys.stderr)
