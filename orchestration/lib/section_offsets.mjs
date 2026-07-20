@@ -15,7 +15,7 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import { serveMirror, offlineRoute, loadRuntimeManifest } from './mirror_net.mjs';
+import { serveMirror, offlineRoute, loadRuntimeManifest, previewPathResolver } from './mirror_net.mjs';
 
 const [, , projArg, site, ...rest] = process.argv;
 if (!projArg || !site) {
@@ -53,23 +53,10 @@ const maskCss = (slug) => masks
   .filter(m => m.page === '*' || m.page === slug)
   .map(m => `${m.selector}{display:none !important}`).join('\n');
 
-// slug -> page path (same rule as groundtruth_probe)
-const inv = JSON.parse(fs.readFileSync(`${wo}/page-inventory.json`, 'utf8'));
-const siteUrl = (inv.siteUrl || '').replace(/\/+$/, '');
-const homeSlug = (inv.pages || []).find(p => (p.url || '').replace(/\/+$/, '') === siteUrl)?.slug
-  || (inv.pages || [])[0]?.slug || 'home';
-const slugMap = {};
-for (const p of inv.pages || []) {
-  const l = (p.slug || '');
-  slugMap[l.split('/').pop().toLowerCase()] = l;
-  slugMap[l.toLowerCase()] = l;
-}
-const previewPath = (slug) => {
-  const base = (slug === 'home' || slug === homeSlug)
-    ? `/sites/${site}/home`
-    : `/sites/${site}/home/${slugMap[slug.toLowerCase()] || slug}`;
-  return `/cms/render/default/${LANG}${base}.html`;
-};
+// slug -> page path: the SHARED sitemap-aware resolver (mirror_net) — a
+// hand-copied partial mapping resolved nested pages to flat 404s and read as
+// "pages vanished" (forensic detour, 2026-07-20)
+const previewPath = previewPathResolver(path.basename(proj), wo, site, LANG);
 
 const MEASURE = () => {
   const unwrap = (el) => {

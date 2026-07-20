@@ -121,7 +121,18 @@ def main():
             mirror = open(mp, encoding="utf-8", errors="replace").read()
         except OSError:
             continue
-        page_path = "home" if slug == "home" else f"home/{slug}"
+        # sitemap-aware path (2026-07-20): nested pages (sending/delivery-rates)
+        # 404 on flat home/{slug} — same resolver rule as groundtruth_probe
+        sm = f"orchestration/sitemaps/{project}.txt"
+        smap = {}
+        if os.path.exists(sm):
+            for line in open(sm):
+                sl = line.strip()
+                if not sl or sl.startswith("#"):
+                    continue
+                smap[sl.split("/")[-1].lower()] = sl
+                smap[sl.lower()] = sl
+        page_path = "home" if slug == "home" else f"home/{smap.get(slug.lower(), slug)}"
         try:
             rendered = fetch(f"{host}/cms/render/default/en/sites/{site}/{page_path}.html",
                              user, pw)

@@ -395,13 +395,14 @@ def _itemize_fragment(frag):
     else:
         # no heading: the whole item content becomes ONE editable richtext —
         # guaranteed editability beats perfect structure (display-not-editable
-        # gate). The root element + classes stay for the source CSS.
+        # gate). The root element travels INSIDE the body (2026-07-20: an
+        # unwrapped root dropped the sizing classes and a viewBox-only svg
+        # icon exploded to container width — delivery-rates tabs).
         root = next((c for c in (soup.body.children if soup.body else [])
                      if getattr(c, "name", None)), None)
         if root is not None and root.get_text(strip=True):
-            body = "".join(str(c) for c in root.children).strip()
-            root.clear()
-            root.append("{{f:body}}")
+            body = str(root).strip()
+            root.replace_with(soup.new_string("{{f:body}}"))
     sk = "".join(str(c) for c in (soup.body.children if soup.body else [])).strip()
     return sk, title, body
 

@@ -178,3 +178,41 @@ export async function fetchRuntimeAsset(mirrorDir, manifest, key, absUrl, expect
     return 'saved';
   } catch { return toResidue(); }
 }
+
+// ── EDIT-preview path resolution (2026-07-20): the SINGLE implementation ────
+// Duplicating GT's sitemap-aware slug mapping cost a full forensic detour —
+// section_offsets copied only the inventory half, resolved nested pages
+// (sending/delivery-rates) to flat 404 paths, and the blank renders read as
+// "pages vanished". Every instrument resolves through THIS helper now.
+import fs2 from 'fs';
+export function previewPathResolver(project, wo, site, lang = 'en') {
+  const slugMap = {};
+  const sm = `orchestration/sitemaps/${project}.txt`;
+  if (fs2.existsSync(sm)) {
+    for (const line of fs2.readFileSync(sm, 'utf8').split('\n')) {
+      const l = line.trim();
+      if (!l || l.startsWith('#')) continue;
+      slugMap[l.split('/').pop().toLowerCase()] = l;
+      slugMap[l.toLowerCase()] = l;
+    }
+  }
+  const inv = JSON.parse(fs2.readFileSync(`${wo}/page-inventory.json`, 'utf8'));
+  const siteUrl = (inv.siteUrl || '').replace(/\/+$/, '');
+  const homeSlug = (inv.pages || []).find(
+    (p) => (p.url || '').replace(/\/+$/, '') === siteUrl)?.slug
+    || (inv.pages || [])[0]?.slug || 'home';
+  for (const p of inv.pages || []) {
+    const l = (p.slug || '');
+    if (!l) continue;
+    if (!(l.split('/').pop().toLowerCase() in slugMap)) {
+      slugMap[l.split('/').pop().toLowerCase()] = l;
+    }
+    if (!(l.toLowerCase() in slugMap)) slugMap[l.toLowerCase()] = l;
+  }
+  return (slug) => {
+    const base = (slug === 'home' || slug === homeSlug)
+      ? `/sites/${site}/home`
+      : `/sites/${site}/home/${slugMap[slug.toLowerCase()] || slug}`;
+    return `/cms/render/default/${lang}${base}.html`;
+  };
+}

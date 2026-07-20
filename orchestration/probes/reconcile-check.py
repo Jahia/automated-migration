@@ -120,6 +120,19 @@ def main():
         b = f.get("body")
         if isinstance(b, str) and re.search(r"\{\{[^}]+\}\}", b):
             bad.append(f"VALUE {pk}{path}: body contains marker debris")
+        # GATE (2026-07-20): unwrapped svg icon at richtext TOP LEVEL — the
+        # sizing wrapper was lost in a lift/fold; a viewBox-only svg with no
+        # container renders container-wide (delivery-rates: 24px download
+        # icon painted ~1000px tall). Icons must stay inline in markup.
+        if isinstance(b, str) and "<img" in b and ".svg" in b:
+            from bs4 import BeautifulSoup as _BS2
+            _bs = _BS2(b, "lxml")
+            for _c in (_bs.body.children if _bs.body else []):
+                if getattr(_c, "name", None) == "img" and \
+                        (_c.get("src") or "").split("?")[0].lower().endswith(".svg"):
+                    bad.append(f"VALUE {pk}{path}: unwrapped svg icon at body "
+                               f"top level (lost its sizing wrapper, renders "
+                               f"container-wide): {(_c.get('src') or '')[-40:]}")
         # GATE (2026-07-20): body/label slot-marker pairing — a {{f:bodyN}} /
         # {{f:labelN}} marker without its field renders a HOLE; a bodyN/labelN
         # field without its marker renders NOWHERE (structure-aware merge must

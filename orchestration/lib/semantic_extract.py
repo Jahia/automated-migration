@@ -589,6 +589,15 @@ def lift_media(scope, banned_ids, cap=16):
         src = (img.get("src") if img else "") or ""
         if not src or src.startswith("data:") or "{{" in src:
             continue
+        # ICONS ARE DESIGN FURNITURE, NOT CONTRIBUTED MEDIA (2026-07-20,
+        # delivery-rates: a 24px download icon lifted as a media unit lost its
+        # sizing wrapper when folded into body and rendered ~1000px tall).
+        # svg + icon-named images stay INLINE in the markup, keeping the
+        # wrapper classes that size them; the DAM slot is for real imagery.
+        alt_cls = ((img.get("alt") or "") + " "
+                   + " ".join(img.get("class") or [])).lower()
+        if src.lower().split("?")[0].endswith(".svg") or "icon" in alt_cls:
+            continue
         units.append((el, img, src))
     media = []
     for el, img, src in units[:cap]:

@@ -90,34 +90,17 @@ const pagesTotal = slugs.length;
 if (only) slugs = slugs.filter(s => only.includes(s));
 if (!slugs.length) { console.error('FAIL: no migrated pages found (content-load ∩ mirror empty)'); process.exit(1); }
 
-// slug -> live page path (sitemap-aware, same mapping as load_content)
-const slugMap = {};
-const sm = `orchestration/sitemaps/${project}.txt`;
-if (fs.existsSync(sm)) {
-  for (const line of fs.readFileSync(sm, 'utf8').split('\n')) {
-    const l = line.trim();
-    if (!l || l.startsWith('#')) continue;
-    slugMap[l.split('/').pop().toLowerCase()] = l;
-    slugMap[l.toLowerCase()] = l;
-  }
-}
+// slug -> live page path: the SHARED sitemap-aware resolver (mirror_net,
+// 2026-07-20) — hand-copies of this mapping drift (section_offsets copied the
+// inventory half only, resolved nested pages to flat 404s)
+import { previewPathResolver } from './mirror_net.mjs';
 // AUTHENTICATED EDIT PREVIEW path (workspace=default), NOT the anonymous LIVE
 // page. Prefixed with /cms/render/default/{lang} — the render that reflects the
 // EDIT state Julian will publish (doctrine: no LIVE, no publication in probes).
 // the crawl's HOME page slug is rarely "home" (discoverasr: "en", url ==
 // siteUrl) — same rule as load_content._home_slug / create_pages: that slug
 // renders /sites/<site>/home itself, never /home/<slug> (was a hard 404).
-const inv = JSON.parse(fs.readFileSync(`${wo}/page-inventory.json`, 'utf8'));
-const siteUrl = (inv.siteUrl || '').replace(/\/+$/, '');
-const homeSlug = (inv.pages || []).find(p => (p.url || '').replace(/\/+$/, '') === siteUrl)?.slug
-  || (inv.pages || [])[0]?.slug || 'home';
-
-const previewPath = (slug) => {
-  const base = (slug === 'home' || slug === homeSlug)
-    ? `/sites/${site}/home`
-    : `/sites/${site}/home/${slugMap[slug.toLowerCase()] || slug}`;
-  return `/cms/render/default/${LANG}${base}.html`;
-};
+const previewPath = previewPathResolver(project, wo, site, LANG);
 
 // masking policy (§2): committed, per-site, each entry carries a reason
 // DEFAULT masks (harness-level, 2026-07-20): script-injected compliance/UX
