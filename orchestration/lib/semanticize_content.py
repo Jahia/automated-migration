@@ -197,7 +197,7 @@ def _distill_classmap(skeleton):
     return json.dumps(cm, ensure_ascii=False) if cm else None
 
 
-def _sweep_text_to_body(sk, fields, min_chars=60):
+def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
     """Selective authorability sweep: maximal text-bearing elements WITHOUT any
     marker move into the body field; marker-bearing structure stays."""
     resid = re.sub(r"\{\{[^}]+\}\}", " ", sk or "")
@@ -255,6 +255,28 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
     moved_any = False
     slot_n = 1
     for gi, g in enumerate(groups):
+        if children_out is not None and gi >= 4:
+            # OVER-FRAGMENTATION producer fix (gate 2026-07-20: editors saw
+            # Text(2)..Text(23)): groups beyond the 4th become cardItem
+            # CHILDREN — each an editable component spliced at its position
+            # via {{child:N}}, not another wall-of-text slot.
+            idx = len(children_out)
+            parts, first = [], True
+            for kind, node in g["parts"]:
+                parts.append(str(node) if kind == "el" else f"<p>{str(node).strip()}</p>")
+                if first:
+                    node.replace_with(soup.new_string("{{child:%d}}" % idx))
+                    first = False
+                else:
+                    node.extract()
+            children_out.append({
+                "type": "cardItem",
+                "nodeType": f"{ns}:cardItem" if ns else None,
+                "promoted": True,
+                "fields": {"body": "\n".join(p for p in parts if p.strip()).strip()},
+                "skeleton": "{{f:body}}"})
+            moved_any = True
+            continue
         if gi == 0:
             name = "body"
         else:
@@ -663,8 +685,15 @@ def _semanticize_instance(inst, node, surf):
                 sk = "".join(str(c) for c in soup2.body.children).strip()
         else:
             # selective: shared sweep (elements AND loose text nodes without
-            # markers move to body; marker-bearing structure stays in place)
-            sk = _sweep_text_to_body(sk, fields, min_chars=60)
+            # markers move to body; marker-bearing structure stays in place).
+            # Sweep-children only when the instance has none of its own (the
+            # {{child:N}} indexes would collide with inst children otherwise).
+            _sweep_kids = [] if not inst.get("children") else None
+            sk = _sweep_text_to_body(sk, fields, min_chars=60,
+                                     children_out=_sweep_kids,
+                                     ns=(node or "x:y").split(":")[0])
+            if _sweep_kids:
+                out["children"] = _sweep_kids
     if sk:
         out["skeleton"] = sk
         cm = _distill_classmap(sk)
@@ -818,8 +847,37 @@ def _normalize_slots(instances):
                     it["skeleton"] = sk
             pass2(it.get("children"))
 
+    def pass3(items):
+        # OVER-FRAGMENTATION (gate 2026-07-20, Text(2)..Text(23)): slots
+        # beyond the 4th become cardItem CHILDREN — the marker turns into
+        # {{child:N}} at the same position, the value becomes the child's
+        # editable body. Applies on ALL paths (extract text runs included).
+        for it in items or []:
+            f = it.get("fields") or {}
+            sk = it.get("skeleton") or ""
+            slots = sorted((k for k in f if re.match(r"body\d+$", k)),
+                           key=lambda k: int(k[4:]))
+            if len(slots) <= 3:
+                pass3(it.get("children"))
+                continue
+            ns = (it.get("nodeType") or "x:y").split(":")[0]
+            kids = it.setdefault("children", [])
+            for k in slots[3:]:
+                marker = "{{f:%s}}" % k
+                if marker not in sk:
+                    continue
+                idx = len(kids)
+                sk = sk.replace(marker, "{{child:%d}}" % idx, 1)
+                kids.append({"type": "cardItem", "nodeType": f"{ns}:cardItem",
+                             "promoted": True,
+                             "fields": {"body": f.pop(k)},
+                             "skeleton": "{{f:body}}"})
+            it["skeleton"] = sk
+            pass3(it.get("children"))
+
     pass1(flat, None)
     pass2(flat)
+    pass3(flat)
 
 
 def main():
