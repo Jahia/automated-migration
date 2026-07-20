@@ -76,12 +76,24 @@ def live_present(ld, path):
 def area_alignment(ld, area_path):
     """(aligned, edit_count, live_count) of an area's direct children by
     (name, uuid), EDIT vs LIVE. An area with no EDIT children (or absent in
-    EDIT) has nothing to align — reported aligned with count 0."""
+    EDIT) has nothing to align — reported aligned with count 0.
+    LIVE reads right after a publish can hit the async publication job
+    mid-settle (ItemNotFoundException on a child uuid, observed live
+    2026-07-20 — it killed the whole run with 40+ pages left): retry briefly,
+    then report misaligned so the caller republish path takes over. A
+    transient fault must never crash the sequence."""
     edit = ld._area_children(area_path, "EDIT")
     if not edit:
         return True, 0, 0
-    live = ld._area_children(area_path, "LIVE") or {}
-    return live == edit, len(edit), len(live)
+    for attempt in range(3):
+        try:
+            live = ld._area_children(area_path, "LIVE") or {}
+            return live == edit, len(edit), len(live)
+        except Exception as e:
+            print(f"    ! LIVE read {area_path} (attempt {attempt + 1}/3): "
+                  f"{str(e)[:120]}", file=sys.stderr)
+            time.sleep(2)
+    return False, len(edit), 0
 
 
 def unpublish_publish_verify(ld, target, verify_area, label):
