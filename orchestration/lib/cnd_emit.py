@@ -254,6 +254,19 @@ def run_stats_from_content_load(path, manifest):
     itm = {k.lower(): v for k, v in (manifest.get("instanceTypeMap") or {}).items()}
     data = json.load(open(path))
     st = {}
+
+    def _slot_max(fields, prefix):
+        """Highest slot INDEX for body/label keys — slot numbering can be
+        SPARSE (merges/pops leave gaps), so sizing by key COUNT under-declares
+        the mixin ladder and the loader requests a contribLabelN the CND never
+        emitted (observed live: NoSuchNodeTypeException contribLabel10)."""
+        mx = 0
+        for k in fields or {}:
+            m = re.match(rf"{prefix}(\d*)$", k)
+            if m:
+                mx = max(mx, int(m.group(1) or 1))
+        return mx
+
     for page in data.get("pages", {}).values():
         for inst in page.get("instances", []):
             # promoted skeleton instances AND lifted anonymous raw blocks
@@ -267,20 +280,16 @@ def run_stats_from_content_load(path, manifest):
                                    "titles": False, "childTitles": False,
                                    "media": 0, "childMedia": 0,
                                    "link": False, "childLink": False})
-            e["runs"] = max(e["runs"], sum(1 for k in inst.get("fields", {})
-                                           if k.startswith("body")))
-            e["labels"] = max(e.get("labels", 0), sum(1 for k in inst.get("fields", {})
-                                                      if k.startswith("label")))
+            e["runs"] = max(e["runs"], _slot_max(inst.get("fields"), "body"))
+            e["labels"] = max(e.get("labels", 0), _slot_max(inst.get("fields"), "label"))
             e["titles"] |= "title" in inst.get("fields", {})
             e["media"] = max(e["media"], len(inst.get("media") or []))
             e["link"] |= bool(inst.get("link"))
             for ch in inst.get("children") or []:
                 e["childRuns"] = max(e["childRuns"],
-                                     sum(1 for k in ch.get("fields", {})
-                                         if k.startswith("body")))
+                                     _slot_max(ch.get("fields"), "body"))
                 e["childLabels"] = max(e.get("childLabels", 0),
-                                       sum(1 for k in ch.get("fields", {})
-                                           if k.startswith("label")))
+                                       _slot_max(ch.get("fields"), "label"))
                 e["childTitles"] |= "title" in ch.get("fields", {})
                 e["childMedia"] = max(e["childMedia"], len(ch.get("media") or []))
                 e["childLink"] |= bool(ch.get("link"))
