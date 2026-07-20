@@ -367,10 +367,29 @@ def main():
             print(f"  ! reorder: {str(r['errors'])[:140]}", file=sys.stderr)
         else:
             print(f"  ~ L1 order: {', '.join(l1)}")
+    # per-SECTION L1 order (2026-07-20 fan-out: the recreated inventory-
+    # management group appended LAST while the source menu has it second —
+    # the ia gate compares ORDERED lists, and the source's menu order IS the
+    # IA truth; home got this treatment, section roots never did)
+    for _root in sorted(r for r in section_roots if r):
+        kids = []
+        for p in paths:
+            segs = p.split("/")
+            if len(segs) == 2 and segs[0] == _root and segs[1] not in kids:
+                kids.append(segs[1])
+        if not dry and kids:
+            r2 = m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                       '{ reorderChildren(names: %s, position: FIRST) } } }'
+                       % (f"{home}/{_root}", json.dumps(kids)))
+            if isinstance(r2, dict) and r2.get("errors"):
+                print(f"  ! reorder {_root}: {str(r2['errors'])[:140]}", file=sys.stderr)
+            else:
+                print(f"  ~ L1 order [{_root}]: {', '.join(kids)}")
 
-    # ── pass 3: publish every sitemap path (+ home, for the reorder) ──
+    # ── pass 3: publish every sitemap path (+ home and the section roots,
+    #    whose child ORDER the reorders above mutate) ──
     if not dry:
-        for rel in ["", *paths]:
+        for rel in ["", *sorted(r for r in section_roots if r), *paths]:
             path = home if not rel else f"{home}/{rel}"
             try:
                 m.publish(path, languages=(locale, other))

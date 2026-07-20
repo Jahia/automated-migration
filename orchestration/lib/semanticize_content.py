@@ -367,8 +367,18 @@ def _subnavify(inst, pk, inv_slugs, subnav_nt):
             if any(isinstance(c, str) and "{{f:" in c for c in el.contents):
                 cm["box"] = " ".join(el.get("class") or [])
                 break
+    # the source sidebar's own heading is DISPLAY copy that can differ from
+    # the parent page's menu label ("International shipping services" vs
+    # "International Delivery") — carried as the node's editable title; the
+    # view falls back to the parent page title when absent
+    heading = ""
+    hel = soup.find(["h1", "h2", "h3", "h4"])
+    if hel is not None:
+        heading = re.sub(r"\s+", " ", hel.get_text(" ", strip=True)).strip()
     out = {"type": "subNavigation", "nodeType": subnav_nt, "promoted": True,
-           "treeDrivenNav": True, "fields": {}, "skeleton": "",
+           "treeDrivenNav": True,
+           "fields": ({"title": heading[:250]} if heading else {}),
+           "skeleton": "",
            "classMap": json.dumps({k: v for k, v in cm.items() if v},
                                   ensure_ascii=False)}
     if inst.get("parent") is not None:

@@ -160,7 +160,11 @@ ARCHETYPES = {
     # pages. Frozen as body content it can never follow the page tree —
     # semanticize's subnavify pass swaps the captured sidebar for this type;
     # the view renders parent title + sibling pages, current page active.
-    "subNavigation": {"name": "Section Sub-Navigation", "title": False, "mixins": [],
+    # title = the source sidebar's own heading ("International shipping
+    # services") — display copy that can differ from the parent page's MENU
+    # label ("International Delivery"); editable per rule 24, the view falls
+    # back to the parent page title when empty.
+    "subNavigation": {"name": "Section Sub-Navigation", "title": True, "mixins": [],
                       "fields": [], "treeDriven": True, "views": ["default"]},
     # ── chrome (absolute-area) ────────────────────────────────────────────
     "mainNavigation": {"name": "Main Navigation", "title": False, "mixins": [],

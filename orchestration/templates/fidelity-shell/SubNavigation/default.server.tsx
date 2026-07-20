@@ -75,6 +75,16 @@ jahiaComponent(
     } catch {
       cm = {};
     }
+    // the node's own editable heading (the source sidebar's display copy,
+    // e.g. "International shipping services") — parent page title as fallback
+    let ownTitle = "";
+    try {
+      ownTitle = (
+        currentNode as unknown as { getPropertyAsString: (k: string) => string }
+      ).getPropertyAsString("jcr:title") || "";
+    } catch {
+      ownTitle = "";
+    }
     const cls = (key: string, fallback: string): string =>
       cm[key] ? `${fallback} ${cm[key]}` : fallback;
 
@@ -99,8 +109,8 @@ jahiaComponent(
     if (siblings.length === 0) return null;
     const currentPath = page.getPath();
     return (
-      <nav className={cls("box", "sub-navigation")} aria-label={label(parent)}>
-        <h2 className={cls("heading", "sub-navigation__heading")}>{label(parent)}</h2>
+      <nav className={cls("box", "sub-navigation")} aria-label={ownTitle || label(parent)}>
+        <h2 className={cls("heading", "sub-navigation__heading")}>{ownTitle || label(parent)}</h2>
         <hr />
         <ul className={cls("list", "sub-navigation__list")}>
           {siblings.map((s) => (
