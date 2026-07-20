@@ -222,40 +222,71 @@ def _sweep_text_to_body(sk, fields, min_chars=60):
         if len(el.get_text(" ", strip=True)) >= 20:
             moved.append(s_el)
             taken.append(el)
-    # IN-PLACE body marker (2026-07-17): appending {{f:body}} at the TAIL
-    # renders the swept content OUTSIDE the layout (home hero: the left grid
-    # column stacked below the section). The FIRST swept element is replaced
-    # by the marker so body renders where the structure originally lived.
-    _marker_placed = "{{f:body}}" in sk
+    # PARENT-GROUPED slots (2026-07-20, home hero +331px): sweeping elements
+    # from DIFFERENT wrappers into ONE body rips them out of their grid cells
+    # (the Track-panel header merged into the left column's body, rendered as
+    # a second grid item, and pushed the blue card to a new grid row). Each
+    # distinct PARENT gets its own slot — the first group is body, later
+    # groups become body2, body3… — and every slot's marker replaces its
+    # group's first node IN PLACE, so each fragment renders where it lived.
+    # (2026-07-17 in-place rule preserved: never tail-append a marker.)
+    _body_taken = "{{f:body}}" in sk
+    taken_ids = set(map(id, taken))
+    groups, gindex = [], {}
     for el in taken:
-        if not _marker_placed:
-            el.replace_with(soup.new_string("{{f:body}}"))
-            _marker_placed = True
-        else:
-            el.extract()
+        key = id(el.parent)
+        if key not in gindex:
+            gindex[key] = {"parts": []}
+            groups.append(gindex[key])
+        gindex[key]["parts"].append(("el", el))
     # LOOSE TEXT NODES (the named-debt hoarders): text sitting directly under
     # a marker-bearing wrapper is invisible to the element mover — wrap+move it
-    from bs4 import NavigableString
     for tx in list(soup.body.strings if soup.body else []):
         t_s = str(tx)
         if "{{" in t_s or len(t_s.strip()) < 20:
             continue
-        moved.append(f"<p>{t_s.strip()}</p>")
-        if not _marker_placed:
-            tx.replace_with("{{f:body}}")
-            _marker_placed = True
+        if any(id(a) in taken_ids for a in tx.parents):
+            continue  # inside a taken element — moves with its group
+        key = id(tx.parent)
+        if key not in gindex:
+            gindex[key] = {"parts": []}
+            groups.append(gindex[key])
+        gindex[key]["parts"].append(("tx", tx))
+    moved_any = False
+    slot_n = 1
+    for gi, g in enumerate(groups):
+        if gi == 0:
+            name = "body"
         else:
-            tx.extract()
-    if moved:
-        fields["body"] = "\n".join(
-            x for x in [fields.get("body", ""), *moved] if x).strip()
+            slot_n += 1
+            while f"body{slot_n}" in fields:
+                slot_n += 1
+            name = f"body{slot_n}"
+        marker = "{{f:%s}}" % name
+        placed = (name == "body" and _body_taken) or (marker in sk)
+        parts = []
+        for kind, node in g["parts"]:
+            parts.append(str(node) if kind == "el" else f"<p>{str(node).strip()}</p>")
+            if not placed:
+                node.replace_with(soup.new_string(marker))
+                placed = True
+            else:
+                node.extract()
+        if name == "body":
+            _body_taken = True
+        val = "\n".join(x for x in parts if x and x.strip()).strip()
+        if val:
+            fields[name] = "\n".join(
+                x for x in [fields.get(name, ""), val] if x).strip()
+            moved_any = True
+    if moved_any:
         sk = "".join(str(c) for c in soup.body.children).strip()
-        if "{{f:body}}" not in sk:
+        if fields.get("body") and "{{f:body}}" not in sk:
             sk += "{{f:body}}"   # nothing replaced in place (edge) — keep tail fallback
     return sk
 
 
-def _decompose_repeats(skeleton, ns, media_units=None):
+def _decompose_repeats(skeleton, ns, media_units=None, parent_fields=None):
     """CONTRACT decomposition (2026-07-16): repetition inside a region becomes
     CHILD NODE TYPES, never flat fields on the parent. Detect the largest group
     of >=2 sibling elements sharing the same (tag, classes) signature with real
@@ -286,6 +317,21 @@ def _decompose_repeats(skeleton, ns, media_units=None):
         title = _first_heading_text(frag)
         ch = {"type": "cardItem", "nodeType": f"{ns}:cardItem", "promoted": True,
               "fields": {}, "skeleton": _mark_title_in_skeleton(frag, title) if title else frag}
+        # MARKER RELOCATION (2026-07-20, delivery-rates nested cards): a
+        # {{f:bodyN}}/{{f:labelN}} marker carved into this fragment must bring
+        # its parent-level VALUE along — the marker rendered a HOLE while the
+        # value sat unreachable on the parent (same family as the link-shell
+        # class). Values already merged away are untraceable: drop the marker
+        # (the content lives in the parent body; an empty hole helps nobody).
+        # The reconcile pairing gate keeps catching NEW leaks.
+        if parent_fields:
+            for mk in set(re.findall(r"\{\{f:(body\d+|label\d*)\}\}", ch["skeleton"])):
+                if mk in parent_fields and mk not in ch["fields"]:
+                    ch["fields"][mk] = parent_fields.pop(mk)
+        ch["skeleton"] = re.sub(
+            r"\{\{f:(body\d+|label\d*)\}\}",
+            lambda m: m.group(0) if m.group(1) in ch["fields"] else "",
+            ch["skeleton"])
         ch["skeleton"] = _sweep_text_to_body(ch["skeleton"], ch["fields"], min_chars=40)
         cm = _distill_classmap(ch["skeleton"])
         if cm:
@@ -515,7 +561,8 @@ def _semanticize_instance(inst, node, surf):
     # their media units; only UNCLAIMED media reach the merge below.
     _dns = (node or "x:y").split(":")[0]
     if not inst.get("children") and out.get("skeleton"):
-        _sk2, _kids = _decompose_repeats(out["skeleton"], _dns, inst.get("media"))
+        _sk2, _kids = _decompose_repeats(out["skeleton"], _dns, inst.get("media"),
+                                         parent_fields=fields)
         if _kids:
             out["skeleton"] = _sk2
             out["children"] = _kids
@@ -526,25 +573,60 @@ def _semanticize_instance(inst, node, surf):
     sk = out.get("skeleton") or ""
     body_parts = [fields.get("body")] if isinstance(fields.get("body"), str) else []
     _merge_marker_placed = "{{f:body}}" in sk
+
+    # STRUCTURE-AWARE MERGE (2026-07-20, home hero +331px): folding a run
+    # whose marker lives in a DIFFERENT wrapper than the body slot rips it out
+    # of its grid cell — the Track-panel header merged into the left column's
+    # body, became a second grid item, and pushed the card to a new grid row.
+    # A run only merges when its marker shares the body marker's PARENT
+    # element; otherwise it keeps its own bodyN/labelN slot (the whole chain
+    # supports them: cnd_emit contribBody/LabelN, loader slot, renderer
+    # {{f:bodyN}} splice).
+    def _marker_parent_sig(marker, sk_html):
+        if marker not in sk_html:
+            return None
+        try:
+            soup_mk = BeautifulSoup(sk_html, "lxml")
+            t = soup_mk.find(string=lambda s: s and marker in s)
+            if t is None or t.parent is None:
+                return None
+            p = t.parent
+            return (p.name, tuple(p.get("class") or []),
+                    sum(1 for _ in p.parents))
+        except Exception:
+            return None
+
+    _anchor = _marker_parent_sig("{{f:body}}", sk)
     for k in sorted((k for k in fields if re.match(r"body\d+$", k)),
                     key=lambda k: (len(k), k)):
+        marker = "{{f:%s}}" % k
+        sig = _marker_parent_sig(marker, sk)
+        if sig is not None and _merge_marker_placed and _anchor is not None \
+                and sig != _anchor:
+            continue  # different wrapper: stays its own editable slot
         v = fields.pop(k)
         if isinstance(v, str) and v.strip():
             body_parts.append(v)
         # IN-PLACE (2026-07-17, gate-caught): the first folded run's marker
         # becomes the {{f:body}} slot — tail-appending rendered the merged
         # body OUTSIDE the layout root
-        if not _merge_marker_placed and "{{f:%s}}" % k in sk:
-            sk = sk.replace("{{f:%s}}" % k, "{{f:body}}", 1)
+        if not _merge_marker_placed and marker in sk:
+            sk = sk.replace(marker, "{{f:body}}", 1)
             _merge_marker_placed = True
+            _anchor = _marker_parent_sig("{{f:body}}", sk)
         else:
-            sk = sk.replace("{{f:%s}}" % k, "", 1)
+            sk = sk.replace(marker, "", 1)
     for k in sorted((k for k in fields if re.match(r"label\d*$", k)),
                     key=lambda k: (len(k), k)):
+        marker = "{{f:%s}}" % k
+        sig = _marker_parent_sig(marker, sk)
+        if sig is not None and _merge_marker_placed and _anchor is not None \
+                and sig != _anchor:
+            continue  # positioned label (business[7] {{f:label}} class)
         v = fields.pop(k)
         if isinstance(v, str) and v.strip():
             body_parts.append(f"<p>{v}</p>")
-        sk = sk.replace("{{f:%s}}" % k, "", 1)
+        sk = sk.replace(marker, "", 1)
     media = inst.get("media") or []
     if media:
         keep, rest = media[0], media[1:]
@@ -598,7 +680,7 @@ def _semanticize_instance(inst, node, surf):
     # flat parent fields); the lifted link -> a {ns}:cta CHILD (never a mixin)
     ns = (node or "x:y").split(":")[0]
     if not out.get("children") and out.get("skeleton"):
-        new_sk, kids = _decompose_repeats(out["skeleton"], ns)
+        new_sk, kids = _decompose_repeats(out["skeleton"], ns, parent_fields=fields)
         if kids:
             out["skeleton"] = new_sk
             out["children"] = kids
@@ -680,6 +762,63 @@ def _semanticize_instance(inst, node, surf):
             _tgt.setdefault("fields", {})["linkLabel"] = str(pf.pop("linkLabel"))[:250]
             _tgt["linkLabel"] = _tgt["fields"]["linkLabel"]
     return out
+
+
+def _normalize_slots(instances):
+    """FINAL slot-pairing normalization (2026-07-20): every {{f:bodyN}}/
+    {{f:labelN}} marker must have its value and every value its marker —
+    across ALL decomposition paths (repeats, library atoms, nav swap).
+    Pass 1 (top-down): a child's stranded marker PULLS the value from its
+    parent (the carve moved structure without content). Untraceable markers
+    drop — content already lives in a parent body; a hole helps nobody.
+    Pass 2: orphan bodyN/labelN values (no marker anywhere) merge into body so
+    the content still renders. reconcile-check gates any leak that survives."""
+    flat = list(instances or [])
+
+    def parent_of(it):
+        p = it.get("parent")
+        if isinstance(p, int) and 0 <= p < len(flat):
+            return flat[p]
+        return None
+
+    def pass1(items, parent):
+        for it in items or []:
+            f = it.setdefault("fields", {})
+            sk = it.get("skeleton") or ""
+            if sk:
+                pf = ((parent or parent_of(it)) or {}).get("fields") or {}
+                for mk in set(re.findall(r"\{\{f:(body\d+|label\d*)\}\}", sk)):
+                    if (f.get(mk) or "").strip():
+                        continue
+                    if (pf.get(mk) or "").strip():
+                        f[mk] = pf.pop(mk)
+                    else:
+                        sk = sk.replace("{{f:%s}}" % mk, "")
+                it["skeleton"] = sk
+            pass1(it.get("children"), it)
+
+    def pass2(items):
+        for it in items or []:
+            f = it.get("fields") or {}
+            sk = it.get("skeleton") or ""
+            for fk in [k for k in list(f)
+                       if re.match(r"(body\d+|label\d+)$", k)]:
+                v = f.get(fk)
+                if not (isinstance(v, str) and v.strip()):
+                    continue
+                if sk and "{{f:%s}}" % fk in sk:
+                    continue
+                f.pop(fk)
+                merged = v if fk.startswith("body") else f"<p>{v}</p>"
+                f["body"] = "\n".join(
+                    x for x in [f.get("body", ""), merged] if x).strip()
+                if sk and "{{f:body}}" not in sk:
+                    sk += "{{f:body}}"
+                    it["skeleton"] = sk
+            pass2(it.get("children"))
+
+    pass1(flat, None)
+    pass2(flat)
 
 
 def main():
@@ -819,7 +958,8 @@ def main():
                     if _oi not in _plans_with_atoms and inst.get("skeleton")                             and "{{child:" not in inst["skeleton"]:
                         _rns = (inst.get("nodeType") or "x:y").split(":")[0]
                         _rsk, _rkids = _decompose_repeats(
-                            inst["skeleton"], _rns, inst.get("media"))
+                            inst["skeleton"], _rns, inst.get("media"),
+                            parent_fields=inst.setdefault("fields", {}))
                         if _rkids:
                             inst["skeleton"] = _rsk
                             inst["children"] = _rkids
@@ -949,6 +1089,7 @@ def main():
                 if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
                     ins["parent"] = None
         page["instances"] = kept
+        _normalize_slots(kept)
 
     # write the reconciliation artifact (orchestrator-reviewable; gated by
     # orchestration/probes/reconcile-check.py BEFORE any load)

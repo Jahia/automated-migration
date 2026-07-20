@@ -389,6 +389,24 @@ def type_block_semantic(comp, ns, mixns):
     return "\n".join(lines), ""
 
 
+def _extra_contrib_slots(mixns, stats):
+    """contrib_mixins blocks the ARCHETYPE shared CND does not already declare
+    (contribImage duplicates the block above; contribBody's `body` prop would
+    collide with the types' own body declaration). Keeps contribBody2..N,
+    contribImage2..N, contribLabel..N, contribLink — the per-node slots the
+    loader adds for POSITIONED extra runs (2026-07-20)."""
+    if not stats:
+        return []
+    lines, keep, skip_hdr = contrib_mixins(mixns, stats), [], False
+    exclude = (f"[{mixns}:contribBody]", f"[{mixns}:contribImage]")
+    for l in lines:
+        if l.startswith("["):
+            skip_hdr = l.startswith(exclude)
+        if not skip_hdr and not l.startswith("//"):
+            keep.append(l)
+    return keep
+
+
 def emit_semantic(m, ns, mixns, proj, stats=None):
     """Assemble the CND for the archetype model — CONTRACT edition (2026-07-16):
     mixins are at-most-once property blocks composed into types; ALL repetition
@@ -425,6 +443,13 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         "  - image (weakreference, picker[type='image']) < jmix:image",
         "  - imageOrig (string, textarea) hidden",
         "  - imageOrigRef (string) hidden",
+        "",
+        # POSITIONED extra slots (2026-07-20, structure-aware sweep): body2..N
+        # and labelN runs living in a different wrapper than the body slot keep
+        # their own field + in-place marker — the loader adds these mixins per
+        # node; without them it silently drops the values (holes). Only the
+        # slots the archetype CND does not already provide are emitted here.
+        *_extra_contrib_slots(mixns, stats),
         "",
         "// ── reusable CONTENT OBJECTS: repetition is node types, never mixins ──",
         f"[{ns}:cta] > jnt:content, {mixns}:component, {mixns}:sourceMarkup",
@@ -587,7 +612,14 @@ def main():
     # the observed lift). Auto-detected from the manifest so the skeleton path
     # stays the default for skeleton manifests.
     if m.get("model") == "archetype":
-        cnd, blocks, view_plans = emit_semantic(m, ns, mixns, proj)
+        # slot sizing (2026-07-20, structure-aware sweep): the payload may now
+        # carry POSITIONED body2..N/labelN runs (fragments living in a
+        # different wrapper than the body slot) — their contribBody/LabelN
+        # mixins must exist or the loader silently drops the values and the
+        # skeleton markers render holes.
+        arch_stats = (run_stats_from_content_load(args.content_load, m)
+                      if args.content_load else None)
+        cnd, blocks, view_plans = emit_semantic(m, ns, mixns, proj, stats=arch_stats)
         if args.out_cnd:
             open(args.out_cnd, "w").write(cnd)
         else:

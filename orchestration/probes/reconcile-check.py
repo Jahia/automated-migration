@@ -120,6 +120,19 @@ def main():
         b = f.get("body")
         if isinstance(b, str) and re.search(r"\{\{[^}]+\}\}", b):
             bad.append(f"VALUE {pk}{path}: body contains marker debris")
+        # GATE (2026-07-20): body/label slot-marker pairing — a {{f:bodyN}} /
+        # {{f:labelN}} marker without its field renders a HOLE; a bodyN/labelN
+        # field without its marker renders NOWHERE (structure-aware merge must
+        # keep both sides of each kept slot).
+        for mk in set(re.findall(r"\{\{f:((?:body|label)\d+)\}\}", sk0)):
+            if not (f.get(mk) or "").strip():
+                bad.append(f"VALUE {pk}{path}: skeleton marker {{{{f:{mk}}}}} "
+                           f"has no {mk} value (renders a hole)")
+        for fk in f:
+            if re.match(r"(?:body|label)\d+$", fk) and (f[fk] or "").strip() \
+                    and "{{f:%s}}" % fk not in sk0:
+                bad.append(f"VALUE {pk}{path}: field {fk} has no skeleton "
+                           f"marker (content renders nowhere)")
         # GATE (2026-07-20): unresolvable SOURCE-ASSET url — a root-relative
         # asset path outside /modules|/cms|/files|/sites is the SOURCE site's
         # own path and can never resolve on Jahia (corporate masthead

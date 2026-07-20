@@ -38,18 +38,37 @@ def phase_cnd(module, ns):
         text[p] = open(p, encoding="utf-8").read()
     allcnd = "\n".join(text.values())
 
-    # 1. numbered contrib mixin families = faking repetition with mixins
+    # 1. numbered contrib mixin families. CONTRACT AMENDMENT (2026-07-20):
+    # numbered contribBody/contribLabel mixins are PERMITTED — they carry
+    # POSITIONED runs (a fragment living in a different wrapper than the body
+    # slot, e.g. the home hero's Track-panel header inside its grid card),
+    # added per node by the loader (the jmix:externalLink pattern; no editor-
+    # form bloat). REPETITION stays forbidden as slots — enforced where it is
+    # observable: reconcile-check's image-hoard + decompose gates force
+    # repeated items into child node types. Numbered Image/Link mixins remain
+    # forbidden (media units and links have child/weakref homes).
     fams = {}
     for p, t in text.items():
-        for m in re.finditer(r"\[\w+:(contrib(?:Body|Image|Label|Link))(\d+)\]", t):
+        for m in re.finditer(r"\[\w+:(contrib(?:Image|Link))(\d+)\]", t):
             fams.setdefault(m.group(1), []).append(f"{p}: {m.group(0)}")
-    bad += fail_list("numbered-contrib-mixins (repetition must be child node types)",
+    bad += fail_list("numbered-contrib-mixins (media/link repetition must be "
+                     "child node types)",
                      [x for v in fams.values() for x in v])
 
-    # 2. bodyN fields anywhere
-    body_n = [f"{p}: {m.group(0).strip()}" for p, t in text.items()
-              for m in re.finditer(r"^\s*-\s*body\d+\s*\(", t, re.M)]
-    bad += fail_list("bodyN-fields (merge into ONE body; beyond = children)", body_n)
+    # 2. bodyN declared ON TYPES (mixins excepted per the amendment above):
+    # a type-level bodyN sizes EVERY node's editor form to the richest
+    # instance — the original violation; per-node mixins do not.
+    body_n = []
+    for p, t in text.items():
+        blocks = re.split(r"(?=^\[)", t, flags=re.M)
+        for b in blocks:
+            head = b.split("\n", 1)[0]
+            if re.search(r"\[\w+:contribBody\d+\]", head):
+                continue
+            for m in re.finditer(r"^\s*-\s*body\d+\s*\(", b, re.M):
+                body_n.append(f"{p}: {m.group(0).strip()} (in {head.strip()[:40]})")
+    bad += fail_list("bodyN-fields on TYPES (one body; positioned runs ride "
+                     "per-node contribBodyN mixins)", body_n)
 
     # 3. structural set
     for need, why in ((f"[{ns}:jcrQuery]", "listing dimension (queryContent)"),
