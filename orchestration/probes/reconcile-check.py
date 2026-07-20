@@ -133,6 +133,16 @@ def main():
                     bad.append(f"VALUE {pk}{path}: unwrapped svg icon at body "
                                f"top level (lost its sizing wrapper, renders "
                                f"container-wide): {(_c.get('src') or '')[-40:]}")
+        # GATE (2026-07-20 evening, operator authoring review): OVER-
+        # FRAGMENTATION — a node carrying more than 4 positioned body slots
+        # gives editors a wall of "Text (2)…Text (23)" fields (observed:
+        # contribBody23). That many distinct text wrappers means the section
+        # should have DECOMPOSED into child components; the slot mechanism is
+        # for the 2-3 genuinely positioned runs (hero grid columns).
+        n_slots = sum(1 for fk in f if re.match(r"body\d+$", fk))
+        if n_slots > 4:
+            bad.append(f"VALUE {pk}{path}: {n_slots + 1} body slots on one node "
+                       f"(over-fragmented — should decompose into children)")
         # GATE (2026-07-20): body/label slot-marker pairing — a {{f:bodyN}} /
         # {{f:labelN}} marker without its field renders a HOLE; a bodyN/labelN
         # field without its marker renders NOWHERE (structure-aware merge must
