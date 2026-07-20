@@ -868,6 +868,26 @@ class Loader:
         for idx, inst in enumerate(instances):
             if inst.get("area"):
                 continue
+            # LIBRARY instances carry their nodeType DIRECTLY (the create
+            # loop's P6.3 branch, not via type_map) — without this mirror a
+            # container whose semantic `type` (e.g. "tabs") is absent from
+            # instanceTypeMap loops REBUILD forever: created each run, then
+            # judged SURPLUS by an expected-set that never contained it and
+            # purged again (observed live: find-postal-code / rate-calculator
+            # rebuilt on every single run, 2026-07-20).
+            if inst.get("libraryPlan") or inst.get("libraryAtom"):
+                nt2 = inst.get("nodeType") or ""
+                if inst.get("libraryAtom"):
+                    pi2 = inst.get("parent")
+                    if pi2 in would_create and names_by_idx.get(pi2):
+                        nested.setdefault(names_by_idx[pi2], []).append(
+                            inst.get("slot") or f"item-{idx}")
+                    continue
+                would_create.add(idx)
+                nm2 = f"{nt2.split(':')[-1]}-{page}-{idx}"
+                names.append(nm2)
+                names_by_idx[idx] = nm2
+                continue
             nt = self.type_map.get(inst["type"].lower())
             if not nt:
                 continue
@@ -941,7 +961,9 @@ class Loader:
         surplus = sorted(set(edit) - set(expected))
         if missing or surplus:
             info["reason"] = (f"EDIT incomplete: {len(missing)} missing, "
-                              f"{len(surplus)} surplus top-level node(s)")
+                              f"{len(surplus)} surplus top-level node(s)"
+                              + (f" [missing: {', '.join(missing[:5])}]" if missing else "")
+                              + (f" [surplus: {', '.join(surplus[:5])}]" if surplus else ""))
             info["missing"], info["surplus"] = missing[:5], surplus[:5]
             return "REBUILD", info
         # nested completeness: a container's typed children live UNDER it and are
