@@ -843,6 +843,11 @@ class Loader:
             return True
         if inst.get("media") or inst.get("link") or inst.get("children"):
             return True
+        # tree-driven navigation instances (subnavify) carry NO content of
+        # their own by design — the view renders from the page tree; the node
+        # (with its classMap) must still be created or the menu never renders
+        if inst.get("treeDrivenNav") or inst.get("classMap"):
+            return True
         f = inst.get("fields") or {}
         return any(isinstance(v, str) and v.strip() for v in f.values())
 
