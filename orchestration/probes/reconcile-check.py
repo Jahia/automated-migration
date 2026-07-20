@@ -63,6 +63,19 @@ def main():
         print(f"FAIL: reconcile-check — cannot read {cl}: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # page inventory (crawl ledger) — the menu-as-content gate resolves anchor
+    # hrefs against it. Missing inventory only disables THAT gate (older
+    # projects); every other check still runs.
+    inv_slugs = set()
+    ip = f"projects/{a.project}/workflow-output/page-inventory.json"
+    try:
+        _inv = json.load(open(ip))
+        _pgs = _inv.get("pages") or _inv
+        inv_slugs = (set(_pgs) if isinstance(_pgs, dict)
+                     else {p.get("slug") for p in _pgs if p.get("slug")})
+    except (FileNotFoundError, ValueError):
+        print(f"WARN: {ip} unreadable — menu-as-content gate skipped", file=sys.stderr)
+
     def check_inst(inst, pk, path):
         f = inst.get("fields") or {}
         # GATE (2026-07-17): gallery flatten — a body hoarding images means a
@@ -111,6 +124,25 @@ def main():
             bad.append(f"VALUE {pk}{path}: {inst.get('nodeType') or inst.get('type')} "
                        f"skeleton carries link markers it cannot resolve "
                        f"(empty shell renders; shell belongs to the cta child)")
+        # GATE (2026-07-20, operator: speedpost-standard): MENU-AS-CONTENT — a
+        # body/skeleton carrying >= 3 anchors that resolve to inventory PAGES
+        # with the CURRENT page among them is the source's in-page sub-nav
+        # (sibling-service sidebar) frozen as content: menus include the page
+        # you are on; content links out, never to itself. Navigation is TREE-
+        # DRIVEN (AIStartupKit rule 19) — subnavify must have replaced it with
+        # the {ns}:subNavigation component.
+        if inv_slugs and not str(inst.get("nodeType") or "").endswith(":subNavigation"):
+            for fld, s in [("skeleton", sk0)] + [(k, v) for k, v in f.items()
+                                                 if isinstance(v, str)]:
+                hrefs = re.findall(r"""href=["']([^"'#?]+)""", s or "")
+                hits = {h.strip("/").replace("/", "_")
+                        for h in hrefs if h.startswith("/")} & inv_slugs
+                if len(hits) >= 3 and pk in hits:
+                    bad.append(f"VALUE {pk}{path}: {fld} carries the in-page "
+                               f"sub-nav as content ({len(hits)} sibling page "
+                               f"links incl. the page itself — must be the "
+                               f"tree-driven :subNavigation component)")
+                    break
         t = f.get("title")
         if isinstance(t, str):
             if len(t) > 250:

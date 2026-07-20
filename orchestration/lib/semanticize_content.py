@@ -308,6 +308,65 @@ def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
     return sk
 
 
+def _subnavify(inst, pk, inv_slugs, subnav_nt):
+    """In-page SUB-NAVIGATION detector (operator finding 2026-07-20, speedpost-
+    standard): the source renders a sibling-service menu (sticky sidebar) on
+    every service page; frozen into body it reads as menu-as-content and can
+    never follow the page tree (45 pages at fan-out scale). DETECTION is
+    structural, against the artifact: >= 3 internal anchors resolving to
+    inventory PAGES with the CURRENT page among them (menus include the page
+    you are on; content links out, never to itself), and NO residual words
+    beyond the anchors + headings — a sidebar that also carries a promo is NOT
+    converted (conservation would silently excuse the promo's words; the
+    menu-as-content gate keeps it visible instead). Returns the tree-driven
+    {ns}:subNavigation replacement — classMap carries the source sidebar's own
+    wrapper classes for pixel fidelity — or None."""
+    parts = [v for v in (inst.get("fields") or {}).values() if isinstance(v, str)]
+    if isinstance(inst.get("skeleton"), str):
+        parts.append(inst["skeleton"])
+    blob = " ".join(parts)
+    hrefs = re.findall(r"""href=["']([^"'#?]+)""", blob)
+    hits = {h.strip("/").replace("/", "_") for h in hrefs if h.startswith("/")} & inv_slugs
+    if len(hits) < 3 or pk not in hits:
+        return None
+    soup = BeautifulSoup(re.sub(r"\{\{[^{}]*\}\}", " ", blob), "lxml")
+    for el in soup.find_all(["script", "style", "noscript", "template"]):
+        el.extract()
+    _w = lambda t: set(re.findall(r"[^\W\d_]{3,}", (t or "").lower()))
+    nav_words = set()
+    for el in soup.find_all(["a", "h1", "h2", "h3", "h4", "h5", "h6"]):
+        nav_words |= _w(el.get_text(" ", strip=True))
+    if _w(soup.get_text(" ", strip=True)) - nav_words:
+        return None                       # carries non-menu content — leave it
+    # classMap: the source sidebar's own wrapper classes (pixel fidelity in
+    # the tree-driven view; semantic sub-navigation__* stays as fallback)
+    cm = {}
+    box = next((u for u in soup.find_all("ul") if len(u.find_all("a")) >= 3), None)
+    if box is not None:
+        cm["list"] = " ".join(box.get("class") or [])
+        li = box.find("li")
+        if li is not None:
+            cm["item"] = " ".join(li.get("class") or [])
+        for a2 in box.find_all("a"):
+            h = ((a2.get("href") or "").split("#")[0].split("?")[0]
+                 .strip("/").replace("/", "_"))
+            key = "active" if h == pk else "link"
+            cm.setdefault(key, " ".join(a2.get("class") or []))
+        wrap = box.parent
+        if getattr(wrap, "name", None) is not None:
+            cm["box"] = " ".join(wrap.get("class") or [])
+            h2 = wrap.find(["h1", "h2", "h3", "h4"])
+            if h2 is not None:
+                cm["heading"] = " ".join(h2.get("class") or [])
+    out = {"type": "subNavigation", "nodeType": subnav_nt, "promoted": True,
+           "treeDrivenNav": True, "fields": {}, "skeleton": "",
+           "classMap": json.dumps({k: v for k, v in cm.items() if v},
+                                  ensure_ascii=False)}
+    if inst.get("parent") is not None:
+        out["parent"] = inst["parent"]
+    return out
+
+
 def _decompose_repeats(skeleton, ns, media_units=None, parent_fields=None):
     """CONTRACT decomposition (2026-07-16): repetition inside a region becomes
     CHILD NODE TYPES, never flat fields on the parent. Detect the largest group
@@ -895,6 +954,16 @@ def main():
     itm = {k.lower(): v for k, v in (manifest.get("instanceTypeMap") or {}).items()}
     surf = _node_field_surface(manifest)
     passthrough = manifest.get("passthroughType")
+    # crawl ledger for the subnavify pass — anchor hrefs resolve against it
+    inv_slugs = set()
+    try:
+        _inv = json.load(open(f"projects/{a.project}/workflow-output/page-inventory.json"))
+        _pgs = _inv.get("pages") or _inv
+        inv_slugs = (set(_pgs) if isinstance(_pgs, dict)
+                     else {p.get("slug") for p in _pgs if p.get("slug")})
+    except (OSError, ValueError):
+        pass
+    subnav_nt = f"{(passthrough or 'x:y').split(':')[0]}:subNavigation"
     # archetype container/child lookups for the library-instance remap
     child_of = {c["nodeType"]: c["childType"]["nodeType"]
                 for c in (manifest.get("components") or [])
@@ -983,6 +1052,15 @@ def main():
                     n_drop += 1
                 else:
                     transformed.append((True, inst))
+                continue
+            # in-page sub-nav (sibling menu frozen as content) -> tree-driven
+            # {ns}:subNavigation; its words are EXCLUDED from conservation
+            # below (they are the sibling pages' menu labels, owned by the
+            # page tree, not by this page's content)
+            _sn = _subnavify(inst, _pk, inv_slugs, subnav_nt) if inv_slugs else None
+            if _sn is not None:
+                transformed.append((True, _sn))
+                n_sem += 1
                 continue
             node = itm.get((inst.get("type") or "").lower())
             # LIBRARY instances (P2.5): containers with a libraryPlan and their
@@ -1114,7 +1192,8 @@ def main():
                 # atoms were absorbed as children of their container: their own
                 # row shows the container reference, text counted on the parent
                 _pl, _lo = _placed_text(_ins), _leftover_text(_ins)
-                row.update({"kind": ("library" if (_ins.get("libraryPlan") or _ins.get("libraryAtom"))
+                row.update({"kind": ("nav-replaced" if _ins.get("treeDrivenNav")
+                                     else "library" if (_ins.get("libraryPlan") or _ins.get("libraryAtom"))
                                      else ("passthrough" if _ins.get("passthrough") else "typed")),
                             "type": _ins.get("type"), "nodeType": _ins.get("nodeType"),
                             "atom": bool(_ins.get("libraryAtom")),
@@ -1172,10 +1251,14 @@ def main():
         _w = lambda t: set(re.findall(r"[^\W\d_]{3,}", (t or "").lower()))
         need = set()
         for r in rows:
-            if not str(r.get("kind", "")).startswith("dropped-") or r.get("kind") == "dropped-unknown":
-                need |= _w(r.pop("_ot", ""))
-            else:
+            k_ = str(r.get("kind", ""))
+            # nav-replaced rows are the sub-nav swapped for the tree-driven
+            # component: their words are the sibling pages' MENU labels (owned
+            # by the page tree), not this page's content — excluded by design.
+            if k_ == "nav-replaced" or (k_.startswith("dropped-") and k_ != "dropped-unknown"):
                 r.pop("_ot", None)
+            else:
+                need |= _w(r.pop("_ot", ""))
 
         def _auth_words(ins):
             out = set()
@@ -1193,8 +1276,8 @@ def main():
         # by-design drops (replaced chrome, zero-visible fragments) are NOT
         # content loss — conservation measures the CONTENT instances only
         excluded = sum(r["before"] for r in rows
-                       if str(r.get("kind", "")).startswith("dropped-")
-                       and r["kind"] in ("dropped-chrome", "dropped-empty"))
+                       if r.get("kind") in ("dropped-chrome", "dropped-empty",
+                                            "nav-replaced"))
         lost = sum(r["before"] for r in rows if r.get("kind") == "dropped-unknown")
         eff = max(before - excluded, 0)
         recon["pages"][_pk] = {

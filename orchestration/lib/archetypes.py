@@ -154,6 +154,14 @@ ARCHETYPES = {
               "fields": [f("body", RICHTEXT, i18n=True), f("startDate", "date, DatePicker"),
                          f("endDate", "date, DatePicker"), f("location", "string", i18n=True)],
               "views": ["default", "compact", "cm", "featured", "fullPage"]},
+    # ── in-page navigation (tree-driven, NOT chrome) ─────────────────────
+    # The source's sibling-service sidebar (operator finding 2026-07-20,
+    # speedpost-standard): a per-page menu of the parent section's child
+    # pages. Frozen as body content it can never follow the page tree —
+    # semanticize's subnavify pass swaps the captured sidebar for this type;
+    # the view renders parent title + sibling pages, current page active.
+    "subNavigation": {"name": "Section Sub-Navigation", "title": False, "mixins": [],
+                      "fields": [], "treeDriven": True, "views": ["default"]},
     # ── chrome (absolute-area) ────────────────────────────────────────────
     "mainNavigation": {"name": "Main Navigation", "title": False, "mixins": [],
                        "fields": [], "chrome": "header", "treeDriven": True, "views": ["default"]},

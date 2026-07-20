@@ -365,7 +365,7 @@ def main():
         # nothing maps to mainNavigation) — the skeleton path always emitted them;
         # the semantic path must too.
         present = {c["nodeType"] for c in components} | {c["nodeType"] for c in xcut}
-        for akey in ("mainNavigation", "jcrQuery", "cols", "section"):
+        for akey in ("mainNavigation", "subNavigation", "jcrQuery", "cols", "section"):
             node = f"{ns}:{ARCH.node_local(akey)}"
             if node in present:
                 continue

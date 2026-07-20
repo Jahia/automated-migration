@@ -54,6 +54,7 @@ def main():
         ("skeletonRender.ts", f"{module}/src/components/skeletonRender.ts"),
         (os.path.join("RawHtml", "default.server.tsx"), f"{module}/src/components/RawHtml/default.server.tsx"),
         (os.path.join("MainNavigation", "default.server.tsx"), f"{module}/src/components/MainNavigation/default.server.tsx"),
+        (os.path.join("SubNavigation", "default.server.tsx"), f"{module}/src/components/SubNavigation/default.server.tsx"),
         (os.path.join("Breadcrumb", "default.server.tsx"), f"{module}/src/components/Breadcrumb/default.server.tsx"),
     ]
     # Detect the model early: the archetype (semantic) model renders its chrome
@@ -125,8 +126,8 @@ def main():
             # clean stale per-component view dirs (e.g. a prior skeleton run's 40
             # one-off types) so the module is PURELY the semantic archetype set.
             # Keep the shell-shipped views + shared helpers.
-            keep = {"RawHtml", "MainNavigation", "Breadcrumb", "CardItem", "Cta", "Article",
-                    "JcrQuery", "GridRow"}
+            keep = {"RawHtml", "MainNavigation", "SubNavigation", "Breadcrumb", "CardItem",
+                    "Cta", "Article", "JcrQuery", "GridRow"}
             for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
                 for ntx in [c["nodeType"]] + ([c["childType"]["nodeType"]]
                                               if isinstance(c.get("childType"), dict)
@@ -183,8 +184,8 @@ def main():
             ns_prefix = (m.get("passthroughType") or f"{a.ns}:x").split(":")[0]
             for c in (m.get("components", []) or []) + (m.get("crossCutting", []) or []):
                 nt = c["nodeType"]
-                if nt.endswith(":mainNavigation") or nt.endswith(":rawHtml"):
-                    continue  # tree-driven nav + passthrough views ship in the shell
+                if nt.endswith((":mainNavigation", ":subNavigation", ":rawHtml")):
+                    continue  # tree-driven navs + passthrough views ship in the shell
                 kind = c.get("archetype") or chrome_kind(nt)
                 for vw in view_names(c, c.get("needsMainResource")):
                     write_semantic(nt, c.get("name"), kind, vw)
