@@ -52,19 +52,43 @@ def _dec(v):
 
 
 def astro_nav(page_html):
-    """navItems from an astro-island props attribute; [] when absent."""
-    for m in re.finditer(r'<astro-island[^>]*\sprops="([^"]*)"', page_html):
-        raw = htmllib.unescape(m.group(1))
-        if '"navItems"' not in raw:
-            continue
-        try:
-            props = json.loads(raw)
-        except ValueError:
-            continue
-        items = _dec(props.get("navItems", [1, []]))
-        if items:
-            return items
-    return []
+    """navItems from an astro-island props attribute; [] when absent.
+
+    QUOTE TRAP (2026-07-20, the three-section miss): Astro serializes island
+    attributes with SINGLE quotes when the JSON contains double quotes
+    (props='{"navItems":...}') — the double-quote-only regex never read the
+    real Navbar island, so the PERSONAL/BUSINESS/ENTERPRISE section wrapper
+    was invisible and the site was modeled on one section's menu. Match both."""
+    pats = (r"<astro-island[^>]*\sprops=\"([^\"]*)\"",
+            r"<astro-island[^>]*\sprops='([^']*)'")
+    best = []
+    for pat in pats:
+        for m in re.finditer(pat, page_html):
+            raw = htmllib.unescape(m.group(1))
+            if '"navItems"' not in raw:
+                continue
+            try:
+                props = json.loads(raw)
+            except ValueError:
+                continue
+            items = _dec(props.get("navItems", [1, []]))
+            if items and len(json.dumps(items)) > len(json.dumps(best)):
+                best = items  # keep the RICHEST navItems (the full Navbar)
+    return best
+
+
+def section_navs(items):
+    """Split a section-wrapper navItems ([{label:PERSONAL, subMenu:[...]},
+    {label:BUSINESS,...}]) into {section_label: menu_items}. Detection: every
+    top entry has a subMenu and no own href — plain menus return {} (single-
+    tree sites keep the old shape untouched)."""
+    if not items or not all(isinstance(x, dict) for x in items):
+        return {}
+    if all((x.get("subMenu") and not (x.get("href") or "").strip("/#"))
+           for x in items):
+        return {(x.get("label") or f"section-{i}"): x.get("subMenu") or []
+                for i, x in enumerate(items)}
+    return {}
 
 
 def dom_nav(page_html):

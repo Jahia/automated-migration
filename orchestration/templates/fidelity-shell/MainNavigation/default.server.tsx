@@ -81,9 +81,69 @@ jahiaComponent(
       home = null;
     }
     if (!home) return null;
-    const level1 = childPages(home);
+
+    // ── MULTI-SECTION IA (2026-07-20): sites whose source nav wraps several
+    // audience sections (Personal / Small Business / Enterprise) mark each
+    // section's root page with $NSmix:sectionRoot. The menu scopes to the
+    // CURRENT page's section subtree; a switcher bar (source's top tabs)
+    // lists home + every section root, labels from the editable sectionLabel.
+    const prop = (n: JCRNode, k: string): string => {
+      try {
+        return (n as unknown as { getPropertyAsString: (x: string) => string })
+          .getPropertyAsString(k) || "";
+      } catch {
+        return "";
+      }
+    };
+    const sectionRoots: JCRNode[] = [];
+    try {
+      const it = home.getNodes();
+      while (it.hasNext()) {
+        const n = it.nextNode();
+        try {
+          if (n.isNodeType("jnt:page") && n.isNodeType("$NSmix:sectionRoot")) sectionRoots.push(n);
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      /* no children */
+    }
+    let navRoot: JCRNode = home;
+    try {
+      const cur = (
+        renderContext as unknown as { getMainResource: () => { getNode: () => JCRNode } }
+      ).getMainResource().getNode();
+      const homePath = home.getPath();
+      const curPath = cur.getPath();
+      if (curPath.startsWith(homePath + "/")) {
+        const first = curPath.slice(homePath.length + 1).split("/")[0];
+        const cand = sectionRoots.find((r) => r.getPath() === `${homePath}/${first}`);
+        if (cand) navRoot = cand;
+      }
+    } catch {
+      /* main resource unavailable: home scope */
+    }
+    const switcher = sectionRoots.length > 0 ? [home, ...sectionRoots] : [];
+    const level1 = childPages(navRoot);
     return (
       <nav className="main-navigation" aria-label="Main">
+        {switcher.length > 0 && (
+          <div className="main-navigation__sections" role="navigation" aria-label="Site sections">
+            {switcher.map((s) => (
+              <a
+                key={s.getPath()}
+                href={buildNodeUrl(s as never)}
+                className={
+                  "main-navigation__section" +
+                  (s.getPath() === navRoot.getPath() ? " main-navigation__section--active" : "")
+                }
+              >
+                {prop(s, "sectionLabel") || label(s)}
+              </a>
+            ))}
+          </div>
+        )}
         <ul className="main-navigation__bar">
           {level1.map((l1) => {
             const level2 = childPages(l1);

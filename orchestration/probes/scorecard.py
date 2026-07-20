@@ -114,6 +114,55 @@ def main():
         if not ia_ok:
             problems.append(f"ia: L1 menu mismatch — {ia_detail[:220]}")
 
+        # ── multi-section IA (2026-07-20, operator correction): every section
+        # root page must render ITS OWN L1 menu (the source's per-section
+        # tree, navMobile authority) plus the section-switcher bar. The home
+        # check above only ever proved ONE section's menu.
+        sn = load(f"{wo}/section-navs.json", {})
+        for sec_label, sec_items in (sn or {}).items():
+            urls = []
+            def _cu(its):
+                for it in its or []:
+                    hh = (it.get("href") or "").split("#")[0].split("?")[0]
+                    if hh.startswith("/") and hh != "/":
+                        urls.append(hh.strip("/"))
+                    _cu(it.get("subMenu"))
+            _cu(sec_items)
+            first = {u.split("/")[0] for u in urls}
+            if len(first) != 1:
+                continue  # the prefixless default section IS home — checked above
+            root = first.pop()
+            exp_l1 = [re.sub(r"\s+", " ", (it.get("label") or "").strip())
+                      for it in sec_items if (it.get("label") or "").strip()]
+            req2 = urllib.request.Request(
+                f"{BASE}/cms/render/live/en/sites/{a.site}/home/{root}.html")
+            req2.add_header("Authorization", "Basic " + base64.b64encode(
+                f"{os.environ.get('JAHIA_USER', 'root')}:"
+                f"{os.environ.get('JAHIA_PASS', 'root')}".encode()).decode())
+            try:
+                h2 = urllib.request.urlopen(req2, timeout=60).read().decode("utf-8", "replace")
+            except Exception as e:
+                ia_ok = False
+                problems.append(f"ia[{sec_label}]: root render failed: {str(e)[:80]}")
+                continue
+            soup2 = BeautifulSoup(h2, "lxml")
+            got_l1 = []
+            bar2 = soup2.select_one("nav.main-navigation > ul.main-navigation__bar")
+            if bar2:
+                for li in bar2.find_all("li", recursive=False):
+                    lk = li.find("a", recursive=False)
+                    if lk:
+                        got_l1.append(re.sub(r"\s+", " ", lk.get_text(" ", strip=True)))
+            sw = [re.sub(r"\s+", " ", x.get_text(" ", strip=True))
+                  for x in soup2.select(".main-navigation__section")]
+            if [x.lower() for x in got_l1] != [x.lower() for x in exp_l1]:
+                ia_ok = False
+                problems.append(f"ia[{sec_label}]: L1 mismatch — expected {exp_l1} "
+                                f"/ rendered {got_l1}"[:240])
+            if not sw:
+                ia_ok = False
+                problems.append(f"ia[{sec_label}]: section switcher bar absent on /{root}")
+
     # ── completeness: content-load instances vs loader ledger ─────────────
     cl = load(f"orchestration/content/{a.project}.content-load.json", {})
     ledger = load(f"{wo}/load-ledger.json", {})

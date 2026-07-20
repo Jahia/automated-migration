@@ -253,6 +253,16 @@ def base_mixin_cnd(mixns):
         # view skips any page carrying it. Applied by build_nav_tree; editors
         # can remove it in jContent to surface a page in the menu.
         f"[{mixns}:hideFromNav] mixin",
+        # MULTI-SECTION IA (2026-07-20, operator correction): a site whose nav
+        # wraps several audience sections (singpost: Personal / Small Business
+        # / Enterprise, each with its OWN tree) marks each section's root page
+        # with this mixin. The navigation view scopes the menu to the CURRENT
+        # section's subtree and renders a section-switcher bar from the pages
+        # carrying it (+ home). sectionLabel = the switcher label, editable.
+        # Applied by build_nav_tree from section-navs.json; section roots keep
+        # hideFromNav so they never leak into another section's L1 menu.
+        f"[{mixns}:sectionRoot] mixin",
+        "  - sectionLabel (string) i18n",
     ]
 
 

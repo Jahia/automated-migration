@@ -246,8 +246,30 @@ def main():
             mixns_prefix = mf.get("mixns")
     except (FileNotFoundError, ValueError):
         pass
+    # ── MULTI-SECTION IA (2026-07-20): section roots (from section-navs.json)
+    # are switcher targets, NEVER L1 menu entries of another section — they
+    # keep hideFromNav, leave the L1 reorder, and get sectionRoot+sectionLabel.
+    # Root slug = the section's shared URL prefix; a prefixless section (the
+    # source's default audience, PERSONAL) is home itself.
+    section_roots = {}   # root slug ('' == home) -> section label
+    try:
+        sn = json.load(open(f"projects/{project}/workflow-output/section-navs.json"))
+        for label, items in sn.items():
+            urls = []
+            def _cu(its):
+                for it in its or []:
+                    h = (it.get("href") or "").split("#")[0].split("?")[0]
+                    if h.startswith("/") and h != "/":
+                        urls.append(h.strip("/"))
+                    _cu(it.get("subMenu"))
+            _cu(items)
+            first = {u.split("/")[0] for u in urls}
+            section_roots["" if len(first) != 1 else first.pop()] = label
+    except (FileNotFoundError, ValueError):
+        pass
+
     if mixns_prefix and not dry:
-        in_menu = {p.split("/")[0] for p in paths}
+        in_menu = {p.split("/")[0] for p in paths} - {r for r in section_roots if r}
         r = m.gql('query { jcr(workspace: EDIT) { nodeByPath(path: "%s") '
                   '{ children(typesFilter: {types: ["jnt:page"]}) { nodes { name } } } } }'
                   % home)
@@ -264,8 +286,24 @@ def main():
             except Exception as e:
                 print(f"  ! hideFromNav {name}: {str(e)[:120]}", file=sys.stderr)
 
+    # ── section-root stamping (sectionRoot mixin + editable sectionLabel) ──
+    if mixns_prefix and section_roots and not dry:
+        for root, label in section_roots.items():
+            path = home if not root else f"{home}/{root}"
+            try:
+                m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                      '{ addMixins(mixins: ["%s:sectionRoot"]) } } }'
+                      % (path, mixns_prefix))
+                m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                      '{ mutateProperty(name: "sectionLabel") '
+                      '{ setValue(language: "%s", value: %s) } } } }'
+                      % (path, locale, json.dumps(label.title() if label.isupper() else label)))
+                print(f"  ~ section root: {root or '(home)'} -> {label}")
+            except Exception as e:
+                print(f"  ! sectionRoot {root}: {str(e)[:120]}", file=sys.stderr)
+
     # ── pass 2: L1 order under /home == sitemap L1 order ──
-    l1 = [p for p in paths if "/" not in p]
+    l1 = [p for p in paths if "/" not in p and p.split("/")[0] not in section_roots]
     if not dry and l1:
         names = json.dumps(l1)
         r = m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '

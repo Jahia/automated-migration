@@ -332,6 +332,13 @@ def main():
     parser.add_argument('--no-render', action='store_true',
                         help='disable browser rendering (raw HTTP only) — server-rendered sites '
                              'only; client-rendered pages will capture the empty shell')
+    parser.add_argument('--url-list',
+                        help='file of URL paths (one per line, # comments) — crawl EXACTLY '
+                             'these, no link following (nav-driven scope, 2026-07-20 '
+                             'three-section pilot)')
+    parser.add_argument('--merge-inventory', action='store_true',
+                        help='merge crawled pages into the existing page-inventory.json '
+                             'instead of rewriting it (incremental section crawl)')
     args = parser.parse_args()
 
     proj = args.project
@@ -349,6 +356,16 @@ def main():
 
     # Crawl queue: (url, current_depth)
     queue = [(start_url, 0)]
+    if args.url_list:
+        base = f"https://{origin}"
+        queue = []
+        for line in open(args.url_list):
+            l = line.strip()
+            if not l or l.startswith('#'):
+                continue
+            queue.append((base + l if l.startswith('/') else l, depth))
+        # depth == current_depth on every seed: no link following — the list
+        # IS the scope (nav-driven, bounded by the source's own menus)
     visited = set()  # Normalized URLs
     pages = []
     failed = []
@@ -448,6 +465,15 @@ def main():
                     queue.append((link, current_depth + 1))
 
     # Write page-inventory.json
+    inv_prev_path = os.path.join(proj, 'workflow-output', 'page-inventory.json')
+    if args.merge_inventory and os.path.exists(inv_prev_path):
+        # incremental section crawl (2026-07-20): keep every previously
+        # crawled page, overwrite same-slug entries with the fresh capture
+        prev = json.load(open(inv_prev_path))
+        new_slugs = {p['slug'] for p in pages}
+        pages = [p for p in (prev.get('pages') or [])
+                 if p.get('slug') not in new_slugs] + pages
+        start_url = prev.get('siteUrl') or start_url
     inventory = {
         'siteUrl': start_url,
         'crawledAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
