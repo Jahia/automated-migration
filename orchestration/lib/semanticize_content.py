@@ -358,6 +358,15 @@ def _subnavify(inst, pk, inv_slugs, subnav_nt):
             h2 = wrap.find(["h1", "h2", "h3", "h4"])
             if h2 is not None:
                 cm["heading"] = " ".join(h2.get("class") or [])
+    # the sidebar BOX div lives in the SKELETON (the menu travelled into body,
+    # so its parsed parent is the classless fragment root): the box is the
+    # skeleton element that holds the {{f:body}} marker as direct text
+    if not cm.get("box") and inst.get("skeleton"):
+        sksoup = BeautifulSoup(inst["skeleton"], "lxml")
+        for el in sksoup.find_all(True):
+            if any(isinstance(c, str) and "{{f:" in c for c in el.contents):
+                cm["box"] = " ".join(el.get("class") or [])
+                break
     out = {"type": "subNavigation", "nodeType": subnav_nt, "promoted": True,
            "treeDrivenNav": True, "fields": {}, "skeleton": "",
            "classMap": json.dumps({k: v for k, v in cm.items() if v},
