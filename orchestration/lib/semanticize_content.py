@@ -853,7 +853,7 @@ def _semanticize_instance(inst, node, surf):
     return out
 
 
-def _normalize_slots(instances):
+def _normalize_slots(instances, mod_ns=None):
     """FINAL slot-pairing normalization (2026-07-20): every {{f:bodyN}}/
     {{f:labelN}} marker must have its value and every value its marker —
     across ALL decomposition paths (repeats, library atoms, nav swap).
@@ -919,7 +919,12 @@ def _normalize_slots(instances):
             if len(slots) <= 3:
                 pass3(it.get("children"))
                 continue
-            ns = (it.get("nodeType") or "x:y").split(":")[0]
+            # SEMANTIC instances carry `type`, not `nodeType` (load_content
+            # resolves the type map at load time) — falling back to the "x:y"
+            # placeholder minted 87 uncreatable x:cardItem children (observed
+            # live: Unknown node type). The MODULE namespace is the authority.
+            _ins_ns = (it.get("nodeType") or "").split(":")[0]
+            ns = _ins_ns or mod_ns or "x"
             kids = it.setdefault("children", [])
             for k in slots[3:]:
                 marker = "{{f:%s}}" % k
@@ -1227,7 +1232,7 @@ def main():
                 if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
                     ins["parent"] = None
         page["instances"] = kept
-        _normalize_slots(kept)
+        _normalize_slots(kept, (passthrough or "x:y").split(":")[0])
 
     # write the reconciliation artifact (orchestrator-reviewable; gated by
     # orchestration/probes/reconcile-check.py BEFORE any load)

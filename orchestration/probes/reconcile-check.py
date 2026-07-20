@@ -76,8 +76,37 @@ def main():
     except (FileNotFoundError, ValueError):
         print(f"WARN: {ip} unreadable — menu-as-content gate skipped", file=sys.stderr)
 
+    # valid node-type ledger from the manifest — a payload nodeType outside it
+    # can NEVER create on Jahia (observed live 2026-07-20: 87 x:cardItem
+    # children from the "x:y" placeholder fallback, every create rejected
+    # with Unknown node type and the content silently absent)
+    valid_nt = set()
+    mp = f"projects/{a.project}/workflow-output/component-manifest.json"
+    try:
+        _man = json.load(open(mp))
+        for c in (_man.get("components") or []) + (_man.get("crossCutting") or []):
+            valid_nt.add(c.get("nodeType"))
+            ct = c.get("childType")
+            if isinstance(ct, dict) and ct.get("nodeType"):
+                valid_nt.add(ct["nodeType"])
+        valid_nt |= set((_man.get("instanceTypeMap") or {}).values())
+        pt = _man.get("passthroughType")
+        if pt:
+            _mns = pt.split(":")[0]
+            valid_nt |= {pt, f"{_mns}:cardItem", f"{_mns}:cta",
+                         f"{_mns}:article", f"{_mns}:subNavigation"}
+        valid_nt.discard(None)
+    except (OSError, ValueError):
+        print(f"WARN: {mp} unreadable — node-type ledger gate skipped", file=sys.stderr)
+
     def check_inst(inst, pk, path):
         f = inst.get("fields") or {}
+        # GATE (2026-07-20): undeclared nodeType — the create is rejected by
+        # Jahia (Unknown node type) and the node's whole subtree vanishes
+        nt0 = inst.get("nodeType")
+        if valid_nt and nt0 and nt0 not in valid_nt:
+            bad.append(f"VALUE {pk}{path}: nodeType {nt0!r} is not declared by "
+                       f"the manifest (Jahia rejects the create; content vanishes)")
         # GATE (2026-07-17): gallery flatten — a body hoarding images means a
         # slide track was swept instead of decomposed into cardItem children
         b0 = f.get("body")
