@@ -369,6 +369,43 @@ def _cta_repair(inst, ns, page_titles):
     return repaired
 
 
+def _dedup_container_slots(instances):
+    """A container's swept body slots that DUPLICATE its decomposed children's
+    texts render the slide copy TWICE (observed live 2026-07-21: clipped text
+    strips wedged between carousel cards on home — the tail-append fix moved
+    the duplicate marker INSIDE the track and made it visible). Word-set
+    containment dedup: a slot of >= 10 words ALL present in the children's
+    combined text is the decomposition residue — dropped with its marker;
+    the words stay authorable on the child atoms (conservation intact)."""
+    _w = lambda t: set(re.findall(r"[^\W\d_]{3,}",
+                                  re.sub(r"<[^>]+>", " ", t or "").lower()))
+    by_parent = {}
+    for i, ins in enumerate(instances):
+        p = ins.get("parent")
+        if isinstance(p, int):
+            by_parent.setdefault(p, []).append(ins)
+    for i, ins in enumerate(instances):
+        kids = (ins.get("children") or []) + by_parent.get(i, [])
+        if not kids:
+            continue
+        kid_words = set()
+        for k2 in kids:
+            for v in (k2.get("fields") or {}).values():
+                if isinstance(v, str):
+                    kid_words |= _w(v)
+        if not kid_words:
+            continue
+        f = ins.get("fields") or {}
+        sk = ins.get("skeleton") or ""
+        for key in [k for k in list(f) if re.match(r"body\d*$", k)
+                    and isinstance(f[k], str)]:
+            words = _w(f[key])
+            if len(words) >= 10 and words <= kid_words:
+                f.pop(key)
+                sk = sk.replace("{{f:%s}}" % key, "", 1)
+        ins["skeleton"] = sk
+
+
 def _marker_into_root(sk, marker="{{f:body}}"):
     """Append `marker` INSIDE the skeleton's single root element (before its
     closing tag). Appended AFTER a single root, the swept body renders
@@ -1660,6 +1697,8 @@ def main():
                 if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
                     ins["parent"] = None
         page["instances"] = kept
+        # decomposition residue: container slots duplicating child texts drop
+        _dedup_container_slots(kept)
         _mod_ns = (passthrough or "x:y").split(":")[0]
         # slot normalization FIRST (its pass2 merges orphan bodyN values —
         # images included — into body, which must happen before the image
