@@ -1,0 +1,50 @@
+import { useEffect } from "react";
+
+/**
+ * SourceCarousel — client island for CAPTURED carousel markup (hybrid views).
+ *
+ * The source ships Embla-style structure (data-slot="carousel" >
+ * carousel-content > carousel-item) whose sliding lives in source JS the
+ * migration deliberately excludes — so the captured track froze and its
+ * arrow buttons were dead (operator finding 2026-07-21, home 'Featured
+ * products & services'). This island ADOPTS the captured controls: the
+ * viewport becomes a smooth scroll container and the source's own prev/next
+ * buttons drive it. Server markup stays byte-identical; only behavior is
+ * attached. Receives one serializable wrapperId (island contract).
+ */
+export default function SourceCarousel({ wrapperId }: { wrapperId: string }) {
+  useEffect(() => {
+    const wrap = document.getElementById(wrapperId);
+    if (!wrap) return;
+    const scope = (wrap.querySelector('[data-slot="carousel"]') as HTMLElement | null) ?? wrap;
+    const item = scope.querySelector('[data-slot="carousel-item"]');
+    const viewport =
+      (scope.querySelector('[data-slot="carousel-content"]') as HTMLElement | null) ??
+      ((item?.parentElement as HTMLElement | null) || null);
+    if (!viewport) return;
+    viewport.style.overflowX = "auto";
+    viewport.style.scrollBehavior = "smooth";
+    viewport.style.scrollbarWidth = "none";
+    const step = () => Math.max(viewport.clientWidth * 0.9, 240);
+    const btns = Array.from(scope.querySelectorAll("button")).filter(
+      (b) => !b.closest('[data-slot="carousel-item"]'),
+    );
+    const prev = btns[0];
+    const next = btns[btns.length - 1];
+    const onPrev = () => viewport.scrollBy({ left: -step() });
+    const onNext = () => viewport.scrollBy({ left: step() });
+    if (prev) {
+      prev.disabled = false;
+      prev.addEventListener("click", onPrev);
+    }
+    if (next && next !== prev) {
+      next.disabled = false;
+      next.addEventListener("click", onNext);
+    }
+    return () => {
+      prev?.removeEventListener("click", onPrev);
+      next?.removeEventListener("click", onNext);
+    };
+  }, [wrapperId]);
+  return null;
+}

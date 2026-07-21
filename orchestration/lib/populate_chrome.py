@@ -40,13 +40,57 @@ def _links(el, limit=12):
 
 
 def _mk_cta(ld, parent, name, label, href):
+    # chrome links rewire like every other anchor (2026-07-21: the header's
+    # top links kept SOURCE paths — /locate-us, /rate-calculator — dead on
+    # the migrated site while every page link was fixed); idempotent runs
+    # UPDATE the existing node so a rewire change reaches loaded chrome
+    href = ld._rewire_hrefs(href)
     try:
         ld.m.create(parent, f"{ld.ns}:cta", {"linkLabel": label, "linkOrig": href},
                     name=name, locale=ld.locale)
         return True
     except Exception as e:
+        if "already exists" in str(e):
+            try:
+                ld.m.update(f"{parent}/{name}", {"linkOrig": href}, locale=ld.locale)
+                return True
+            except Exception as e2:
+                print(f"  ! cta {name} update: {str(e2)[:100]}", file=sys.stderr)
+                return False
         print(f"  ! cta {name}: {str(e)[:100]}", file=sys.stderr)
         return False
+
+
+def _refresh_ctas(ld, base, depth=2):
+    """Re-run the href rewire over EXISTING chrome cta nodes (2026-07-21:
+    the idempotence skip froze the header's top links on dead SOURCE paths
+    — /locate-us, /rate-calculator — while every page anchor was fixed).
+    Walks `depth` levels under `base`, updating any changed linkOrig."""
+    fixed = 0
+    try:
+        # linkOrig is HIDDEN — content.get omits it (the known editor-visible
+        # trap); GraphQL property() is the only honest read
+        r = ld.m.gql('query{jcr(workspace:EDIT){nodeByPath(path:"%s")'
+                     '{children{nodes{path lo: property(name:"linkOrig", '
+                     'language:"%s"){value}}}}}}' % (base, ld.locale))
+        nodes = (((r or {}).get("jcr") or {}).get("nodeByPath") or {}) \
+            .get("children", {}).get("nodes") or []
+    except Exception:
+        return 0
+    for n in nodes:
+        p = n.get("path")
+        old = (n.get("lo") or {}).get("value")
+        try:
+            if old:
+                new = ld._rewire_hrefs(old)
+                if new != old:
+                    ld.m.update(p, {"linkOrig": new}, locale=ld.locale)
+                    fixed += 1
+        except Exception as e:
+            print(f"  ! refresh {p}: {str(e)[:80]}", file=sys.stderr)
+        if depth > 1:
+            fixed += _refresh_ctas(ld, p, depth - 1)
+    return fixed
 
 
 def populate_header(ld, html):
@@ -60,7 +104,8 @@ def populate_header(ld, html):
         kids = ld.m.gql('query{jcr(workspace:EDIT){nodeByPath(path:"%s")'
                         '{children{nodes{name}}}}}' % base)
         if (kids.get("jcr", {}).get("nodeByPath", {}) or {}).get("children", {}).get("nodes"):
-            print("  = siteHeader already populated — skipped")
+            nfix = _refresh_ctas(ld, base)
+            print(f"  = siteHeader already populated — {nfix} link target(s) refreshed")
             return
     except Exception:
         pass
@@ -202,8 +247,9 @@ def populate_footer(ld, html):
                 print(f"  + footer classMap <- {cmap}")
             except Exception as e:
                 print(f"  ! footer classMap: {str(e)[:100]}", file=sys.stderr)
-    print(f"  + footer: {ncol} new column(s) (had {len(existing)})"
-          f"{' + copyright' if cr else ''}")
+    nfix = _refresh_ctas(ld, base)
+    print(f"  + footer: {ncol} new column(s) (had {len(existing)}), "
+          f"{nfix} link target(s) refreshed{' + copyright' if cr else ''}")
 
 
 def main():

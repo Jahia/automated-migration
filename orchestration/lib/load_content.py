@@ -54,7 +54,9 @@ SKIP_PROP = {"jcr:title"}  # set via title/heading mapping, not raw
 # crash on an old entry. Separate consts because they invalidate at very
 # different cost (a ledger bump forces a full per-page JCR reconcile; a dam
 # bump only forces re-upload of media) — bumping one must not force the other.
-LEDGER_TOOL_VERSION = 3   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+LEDGER_TOOL_VERSION = 4   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+                          # v4 (2026-07-21): ALL internal markup anchors rewired (locale-
+                          # less sources never rewired - dead links site-wide)
                           # v3 (2026-07-21): entity hrefs rewired to mainResource
                           # node renders at write — every page must reload once
                           # v2 (2026-07-20): markup assets DAM-rewritten at write
@@ -377,10 +379,26 @@ class Loader:
             key = f"/en/{leaf}"
             if key not in m and not leaf.startswith("en_"):
                 m[key] = f"/sites/{self.site}/home/{rel}.html"
+        # the SOURCE origin — absolute internal hrefs rewire, foreign hosts
+        # never do (the generic regex below sees every absolute URL)
+        try:
+            from urllib.parse import urlparse
+            inv0 = load_json(f"projects/{self.project}/workflow-output/page-inventory.json", {})
+            pu = urlparse((inv0.get("siteUrl") or ""))
+            self._src_origin = f"{pu.scheme}://{pu.netloc}".lower() if pu.netloc else ""
+        except Exception:
+            self._src_origin = ""
         self._href_map_cache = m
         return m
 
-    _HREF_RE = re.compile(r'href="((?:https?://[^/"]+)?(/en(?:/[^"?#]*)?))([^"]*)"')
+    # ANY root-relative internal href (2026-07-21: the /en-locale-prefixed
+    # form was discoverasr-specific — on a locale-less source NO markup
+    # anchor ever rewired and every internal link stayed a dead source path;
+    # operator finding: home carousel 'Learn more' -> /sending-within-
+    # singapore/prepaid-label, a migrated page, 404 as-is). Unknown paths
+    # still pass through verbatim; absolute URLs rewire only on the source
+    # origin.
+    _HREF_RE = re.compile(r'href="((?:https?://[^/"]+)?(/[^"?#]*))([^"]*)"')
 
     # raster refs only — svg stays module-static (icons are design assets,
     # not contributor media); matches src=, srcset entries and css url()
@@ -445,21 +463,37 @@ class Loader:
         into classified collections follow to the mainResource node)."""
         text = self._rewire_assets(text)
         em = self._entity_href_map()
-        if em and text:
-            t0 = text.strip()
-            if t0 in em:
-                return em[t0]      # bare link value (linkOrig / cta href)
-            for sp, tgt in em.items():
-                if sp in text:
-                    text = (text.replace(f'href="{sp}"', f'href="{tgt}"')
-                                .replace(f"href='{sp}'", f"href='{tgt}'"))
-        if not text or "/en" not in text:
-            return text
+        if not text or ('href="' not in text and text.lstrip()[:1] == "<"):
+            if not text:
+                return text
         hm = self._href_map()
+        # BARE link values (linkOrig / chrome cta targets): the attribute
+        # regex never sees them; fragments/queries are preserved (observed
+        # 2026-07-21: '/support/...#using-popdrop' missed the exact-match)
+        if "href=" not in text and "<" not in text:
+            bare = text.strip()
+            if bare.startswith("/"):
+                m1 = re.match(r"([^#?]*)([#?].*)?$", bare)
+                core = m1.group(1).lower().rstrip("/")
+                suffix = m1.group(2) or ""
+                tgt1 = em.get(core) or hm.get(core) or hm.get("/en" + core)
+                if tgt1:
+                    return tgt1 + suffix
+            return text
+        if 'href="' not in text:
+            return text
+        src_origin = getattr(self, "_src_origin", "")
 
         def sub(mo):
-            path = mo.group(2).lower().rstrip("/") or "/en"
-            tgt = hm.get(path)
+            origin = mo.group(1)[: len(mo.group(1)) - len(mo.group(2))]
+            if origin and origin.lower() != src_origin:
+                return mo.group(0)          # foreign host — never rewire
+            path = mo.group(2).lower().rstrip("/")
+            # entity targets ride the SAME regex (fragments/queries preserved
+            # via group 3 — the old per-path string replace missed
+            # href="/support/...#using-popdrop", observed live)
+            tgt = (em.get(path) or hm.get(path)
+                   or (hm.get("/en" + path) if path else hm.get("")))
             if not tgt:
                 return mo.group(0)
             return f'href="{tgt}{mo.group(3)}"'

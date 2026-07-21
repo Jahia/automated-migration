@@ -407,6 +407,10 @@ def build_plan(p):
               # every raster a page serves must be a Media-manager reference
               # (frozen module-static imgs are invisible to editors, 2026-07-20)
               *([f"PROBE: python3 orchestration/probes/dam-ref-check.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
+              # no dead internal anchors: every href whose target is migrated
+              # (page or entity) must point at it (locale-less sources never
+              # rewired ANY markup anchor, 2026-07-21)
+              *([f"PROBE: python3 orchestration/probes/link-integrity.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",

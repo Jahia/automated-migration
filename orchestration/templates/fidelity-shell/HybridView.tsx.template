@@ -3,6 +3,7 @@ import {
   useServerContext,
   RenderChild,
   RenderChildren,
+  Island,
 } from "@jahia/javascript-modules-library";
 import { createElement, type ReactNode } from "react";
 import type { JCRNodeWrapper } from "org.jahia.services.content";
@@ -17,6 +18,7 @@ import {
 } from "../skeletonRender.js";
 import ArchetypeSection from "../ArchetypeSection.js";
 import { resolveSemantic } from "../resolveSemantic.js";
+import SourceCarousel from "../SourceCarousel.client.js";
 
 /**
  * $DISPLAYNAME — HYBRID default view of $NODETYPE (contract v2, 2026-07-16).
@@ -61,6 +63,29 @@ jahiaComponent(
       live,
     );
     const kids = childNodesOf(node);
+    // CAPTURED carousel tracks froze without the source JS (dead arrows,
+    // operator finding 2026-07-21): the SourceCarousel island adopts the
+    // captured controls — markup stays byte-identical, behavior attaches
+    let carouselId = "";
+    if (html.includes('data-slot="carousel-item"')) {
+      try {
+        carouselId = `srccar-${(node as unknown as { getIdentifier: () => string }).getIdentifier()}`;
+      } catch {
+        carouselId = "";
+      }
+    }
+    const withCarousel = (el: ReactNode): ReactNode =>
+      carouselId
+        ? createElement(
+            "div",
+            { id: carouselId, style: { display: "contents" } },
+            el,
+            createElement(Island as never, {
+              component: SourceCarousel,
+              props: { wrapperId: carouselId },
+            }),
+          )
+        : el;
 
     if (html.includes("{{child:")) {
       const placed = new Set<number>();
@@ -99,13 +124,13 @@ jahiaComponent(
       const missed = kids
         .map((k, i) => [k, i] as const)
         .filter(([, i]) => !placed.has(i));
-      return createElement(
+      return withCarousel(createElement(
         "div",
         { style: { display: "contents" } },
         body,
         missed.map(([k, i]) =>
           createElement(RenderChild as never, { key: `m${i}`, name: k.getName() })),
-      );
+      ));
     }
 
     const root = splitRoot(html);
@@ -119,13 +144,13 @@ jahiaComponent(
           dangerouslySetInnerHTML: { __html: html },
         });
     if (kids.length > 0) {
-      return createElement(
+      return withCarousel(createElement(
         "div",
         { style: { display: "contents" } },
         own,
         createElement(RenderChildren as never, {}),
-      );
+      ));
     }
-    return own;
+    return withCarousel(own);
   },
 );

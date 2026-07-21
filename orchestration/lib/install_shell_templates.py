@@ -118,6 +118,7 @@ def main():
                 ("ArchetypeSection.tsx.template", "ArchetypeSection.tsx"),
                 ("resolveSemantic.ts.template", "resolveSemantic.ts"),
                 ("CarouselControls.client.tsx.template", "CarouselControls.client.tsx"),
+                ("SourceCarousel.client.tsx.template", "SourceCarousel.client.tsx"),
             ):
                 content = open(os.path.join(sem_src, src_name), encoding="utf-8").read().replace("$NS", a.ns)
                 with open(f"{module}/src/components/{dst_name}", "w", encoding="utf-8") as f:
