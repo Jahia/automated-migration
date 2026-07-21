@@ -66,15 +66,37 @@ def classified_slugs(project, cfg=None):
         return {}
     pgs = inv.get("pages") or inv
     slugs = set(pgs) if isinstance(pgs, dict) else {p.get("slug") for p in pgs if p.get("slug")}
+    # SITEMAP slugs are PAGES, never entities: the source NAV links them, and
+    # tree-driven menus render the page tree (observed: a KB article slug in
+    # the Personal menu — deleting its page would hole the navigation)
+    nav = set()
+    try:
+        for line in open(f"orchestration/sitemaps/{project}.txt"):
+            sl = line.strip()
+            if sl and not sl.startswith("#"):
+                nav.add(sl.split("/")[-1].lower())
+    except OSError:
+        pass
     out = {}
     for fname, fcfg in (cfg.get("folders") or {}).items():
         listings = set(fcfg.get("listingPages") or [])
         for pref in fcfg.get("urlPrefixes") or []:
             sp = pref.strip("/").replace("/", "_") + "_"
             for s in slugs:
-                if s.startswith(sp) and s not in listings:
+                if s.startswith(sp) and s not in listings and s.lower() not in nav:
                     out[s] = (fname, fcfg)
     return out
+
+
+def entity_leaf(slug, fcfg):
+    """Node name for a classified slug: the part after the MATCHING prefix
+    (multi-prefix folders must test every prefix — using [0] named a node
+    after the whole slug and broke the href rewire, observed live)."""
+    for pr in fcfg.get("urlPrefixes") or []:
+        sp = pr.strip("/").replace("/", "_") + "_"
+        if slug.startswith(sp):
+            return slug[len(sp):][:80]
+    return slug[:80]
 
 
 def parse_date(text):
@@ -98,11 +120,18 @@ def article_core(mirror_path):
     soup = BeautifulSoup(open(mirror_path, encoding="utf-8", errors="replace").read(),
                          "lxml")
     main = soup.find("main") or soup.body
+    # title BEFORE the chrome strip (support pages carry the h1 inside a
+    # header element the strip removes — observed: empty jcr:title) and
+    # require non-empty text (decorative empty h2 precedes real headings)
+    title = ""
+    for hel in main.find_all(["h1", "h2"]):
+        title = re.sub(r"\s+", " ", hel.get_text(" ", strip=True)).strip()
+        if title:
+            break
     for el in main.find_all(["script", "style", "noscript", "template",
                              "header", "footer", "nav", "aside"]):
         el.extract()
     h1 = main.find(["h1", "h2"])
-    title = re.sub(r"\s+", " ", h1.get_text(" ", strip=True)).strip() if h1 else ""
     date_iso = None
     t = main.find("time")
     if t is not None:
@@ -174,8 +203,7 @@ def main():
                 print(f"  ! mirror missing for {slug} — skipped", file=sys.stderr)
                 continue
             title, date_iso, hero, body = article_core(mp)
-            pref = (fcfg.get("urlPrefixes") or [""])[0].strip("/").replace("/", "_") + "_"
-            leaf = (slug[len(pref):] if slug.startswith(pref) else slug)[:80]
+            leaf = entity_leaf(slug, fcfg)
             npath = f"{fpath}/{leaf}"
             if a.dry:
                 print(f"  [dry] {npath} <- {fcfg['type']} title={title[:48]!r} "

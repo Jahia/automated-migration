@@ -54,9 +54,10 @@ SKIP_PROP = {"jcr:title"}  # set via title/heading mapping, not raw
 # crash on an old entry. Separate consts because they invalidate at very
 # different cost (a ledger bump forces a full per-page JCR reconcile; a dam
 # bump only forces re-upload of media) — bumping one must not force the other.
-LEDGER_TOOL_VERSION = 2   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+LEDGER_TOOL_VERSION = 3   # page-instance load/reconcile algorithm (_plan_hash, _reconcile_verdict)
+                          # v3 (2026-07-21): entity hrefs rewired to mainResource
+                          # node renders at write — every page must reload once
                           # v2 (2026-07-20): markup assets DAM-rewritten at write
-                          # (operator mandate) — every page must reload once
 DAM_TOOL_VERSION = 1      # DAM dedupe-map upload/resolve algorithm (upload_dam)
 
 
@@ -412,13 +413,46 @@ class Loader:
 
         return self._ASSET_RE.sub(sub, text)
 
+    def _entity_href_map(self):
+        """{source-path: mainResource render URL} for every classified entity
+        slug (structured content 2026-07-21): a card/body/cta link into an
+        entity collection must FOLLOW to the node's own full-page render —
+        left as the source path it is a dead end (72 card links observed)."""
+        cached = getattr(self, "_entity_hrefs", None)
+        if cached is not None:
+            return cached
+        out = {}
+        try:
+            from load_main_resources import classified_slugs, entity_leaf
+            cfg = load_json(f"orchestration/content/{self.project}.mainresource.json", None)
+            if cfg:
+                base = cfg.get("contentsBase", "contents")
+                for slug, (fname, fcfg) in classified_slugs(self.project, cfg).items():
+                    leaf = entity_leaf(slug, fcfg)
+                    out["/" + slug.replace("_", "/")] = \
+                        f"/sites/{self.site}/{base}/{fname}/{leaf}.html"
+        except ImportError:
+            pass
+        self._entity_hrefs = out
+        return out
+
     def _rewire_hrefs(self, text):
         """Rewrite internal source anchors (href="/en/..." and the absolute
         form) to Jahia page URLs when the path maps to a migrated page;
         unknown paths stay verbatim (external world unchanged). Also the
         single choke point for the markup ASSET rewrite (all body/skeleton/
-        orig writes flow through here)."""
+        orig writes flow through here) and the ENTITY href rewire (links
+        into classified collections follow to the mainResource node)."""
         text = self._rewire_assets(text)
+        em = self._entity_href_map()
+        if em and text:
+            t0 = text.strip()
+            if t0 in em:
+                return em[t0]      # bare link value (linkOrig / cta href)
+            for sp, tgt in em.items():
+                if sp in text:
+                    text = (text.replace(f'href="{sp}"', f'href="{tgt}"')
+                                .replace(f"href='{sp}'", f"href='{tgt}'"))
         if not text or "/en" not in text:
             return text
         hm = self._href_map()
@@ -527,7 +561,8 @@ class Loader:
             if "linkLabel" in avail or "j:linkType" in avail:
                 avail.add("linkOrig")
             if "linkOrig" in avail:
-                post["linkOrig"] = lnk["href"][:1000]
+                # entity URLs rewire to the mainResource node's own render
+                post["linkOrig"] = self._rewire_hrefs(lnk["href"])[:1000]
             kind, target = self.resolve_link(lnk["href"])
             lnk["_kind"], lnk["_target"] = kind, target
             if kind == "external":
