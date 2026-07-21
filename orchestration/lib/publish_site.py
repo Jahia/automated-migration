@@ -96,11 +96,20 @@ def area_alignment(ld, area_path):
     return False, len(edit), 0
 
 
+_PURGE_UNPROVEN_STREAK = [0]   # consecutive pages whose purge never signalled
+
+
 def unpublish_publish_verify(ld, target, verify_area, label):
     """The proven unpublish-first sequence on one target, verified by (name,
     uuid) alignment of verify_area (None → publish blindly; the final belt is
     then the only verification). Raises RuntimeError after CYCLES failures —
-    the caller records the failure and continues with the other targets."""
+    the caller records the failure and continues with the other targets.
+    ADAPTIVE PURGE POLL (2026-07-21): after a full-site rebuild every page is
+    stale and this environment delivers no purge signal — 111 pages each
+    burning the full PURGE_POLL_S turned one publish into hours (observed
+    live). Three consecutive unproven purges drop the wait to 5s for the
+    rest of the run; the (name,uuid) ALIGNMENT poll below stays the real
+    correctness gate, unchanged."""
     edit = ld._area_children(verify_area, "EDIT") or {} if verify_area else None
     for attempt in range(CYCLES):
         # 1. unpublish: instant LIVE purge + publication-metadata reset
@@ -109,16 +118,20 @@ def unpublish_publish_verify(ld, target, verify_area, label):
         except Exception as e:
             print(f"    ! unpublish {target} (attempt {attempt + 1}): "
                   f"{str(e)[:140]}", file=sys.stderr)
-        deadline = time.time() + PURGE_POLL_S
+        purge_wait = 5 if _PURGE_UNPROVEN_STREAK[0] >= 3 else PURGE_POLL_S
+        deadline = time.time() + purge_wait
         live_n = ld._live_child_count(target)
         while live_n not in (0, None) and time.time() < deadline:
             time.sleep(2)
             live_n = ld._live_child_count(target)
         if live_n not in (0, None):
             # purge unproven — still publish (alignment below is the real gate)
+            _PURGE_UNPROVEN_STREAK[0] += 1
             print(f"    ! {label}: LIVE not proven purged by unpublish "
-                  f"(attempt {attempt + 1}/{CYCLES}) — publishing anyway",
-                  file=sys.stderr)
+                  f"(attempt {attempt + 1}/{CYCLES}, waited {purge_wait}s) — "
+                  f"publishing anyway", file=sys.stderr)
+        else:
+            _PURGE_UNPROVEN_STREAK[0] = 0
         # 2. publish: actually runs now that the metadata was reset
         try:
             ld.m.publish(target)
