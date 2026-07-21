@@ -19,6 +19,7 @@ Usage:
 """
 import argparse
 import json
+import os
 
 
 def step(id, title, task_type, criteria, deps=None, inputs=None, agent="code",
@@ -364,6 +365,20 @@ def build_plan(p):
               # to their sitemap sections next; step_nav's probe enforces strict)
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check --pre-nav"],
              deps=["step_mcp"]),
+        # STRUCTURED CONTENT (jmix:mainResource — AUTHORING-MODEL-REDESIGN §85,
+        # operator mandate 2026-07-21): entity collections (news, events,
+        # publications) are mainResource nodes in a jnt:contentFolder listed by
+        # a jcrQuery whose startNode targets the folder — NEVER frozen cardItem
+        # copies. The step existed (load_main_resources.py, ETL phase 2.5) but
+        # gen_plan never emitted it — the documented regression every generated
+        # plan inherited. Config-gated: runs when <p>.mainresource.json exists.
+        *([step("step_main_resources", "mainResource entities -> contentFolder (+ folder map)", "content",
+                [f"Run: python3 orchestration/lib/load_main_resources.py {P} {SITE}",
+                 # producing gate: every declared folder exists and holds >= 1
+                 # node of its type; no mainResource node outside a folder
+                 f"PROBE: bash orchestration/probes/mainresource.sh {P} {SITE} {PRIMARY_LOCALE}"],
+                deps=["step_pages"])]
+          if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
         # build_nav_tree restructures the flat crawl tree per the project
         # sitemap (sections, moves, L1 order); no-op when no sitemap exists.
@@ -406,6 +421,12 @@ def build_plan(p):
               # CONTRACT gate content side: no bodyN props in the JCR, no
               # container-collapse (content on parents, children empty)
               *([f"PROBE: python3 orchestration/probes/model-contract.py --phase content {SITE}"] if ARCH else []),
+              # STRUCTURED CONTENT wiring gate: every mainResource listing
+              # query's startNode resolves to a jnt:contentFolder (the core
+              # mis-wire: pointing at /home lists nothing) — pairs with
+              # step_main_resources' producing gate
+              *([f"PROBE: bash orchestration/probes/startnode.sh {P} {SITE} {PRIMARY_LOCALE}"]
+                if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
               adv(f"PROBE: python3 orchestration/probes/partition.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/contribution.py {P}"),
               adv(f"PROBE: python3 orchestration/probes/component_coverage.py {P}")],

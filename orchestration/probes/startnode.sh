@@ -23,8 +23,15 @@ m = MCP(project)
 manifest = json.load(open(f"projects/{project}/workflow-output/component-manifest.json"))
 mr_types = {c.get("nodeType") for c in manifest.get("components", []) if c.get("needsMainResource")}
 
+# the listing type is the manifest's jcrQuery archetype (namespace-agnostic;
+# the lsp: hardcode made this gate a no-op on every other project)
+q_nt = next((c.get("nodeType") for c in manifest.get("components", [])
+             if c.get("archetype") == "jcrQuery"), None) or \
+    next((c.get("nodeType") for c in manifest.get("components", [])
+          if c.get("nodeType", "").endswith(":jcrQuery")), "lsp:jcrQuery")
+
 # NB: content.search silently returns empty for limit > 100 — keep it <= 100.
-r = m.call("content.search", {"siteKey": site, "nodeType": "lsp:jcrQuery",
+r = m.call("content.search", {"siteKey": site, "nodeType": q_nt,
                               "locale": locale, "limit": 100})
 queries = r.get("results", r.get("nodes", [])) if isinstance(r, dict) else []
 
