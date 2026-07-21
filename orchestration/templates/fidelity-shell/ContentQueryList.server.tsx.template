@@ -1,0 +1,117 @@
+import {
+  jahiaComponent,
+  buildNodeUrl,
+  useJCRQuery,
+  server,
+  useServerContext,
+} from "@jahia/javascript-modules-library";
+import type { JCRNodeWrapper } from "org.jahia.services.content";
+
+/**
+ * $DISPLAYNAME — REAL QUERY view of $NODETYPE (structured-content doctrine,
+ * operator mandate 2026-07-21).
+ *
+ * Entity collections (news, events, publications) are jmix:mainResource
+ * nodes in a jnt:contentFolder. This view runs the actual JCR-SQL2 query
+ * (type + startNode + maxItems are editable properties) and renders one
+ * card per result: hero image weakref, date, title, teaser — the card link
+ * is buildNodeUrl(node), the node's own FULL-PAGE render. Editors add an
+ * article to the folder and every listing follows — no page edits.
+ */
+jahiaComponent(
+  {
+    componentType: "view",
+    nodeType: "$NODETYPE",
+    name: "default",
+    displayName: "$DISPLAYNAME",
+  },
+  (props: Record<string, unknown>, { renderContext }) => {
+    const type = typeof props.type === "string" && props.type ? props.type : "jmix:mainResource";
+    const start = props.startNode as JCRNodeWrapper | undefined;
+    let startPath = "";
+    try {
+      startPath = start ? start.getPath() : "";
+    } catch {
+      startPath = "";
+    }
+    if (!startPath) {
+      try {
+        const site = (renderContext as { getSite: () => { getPath: () => string } }).getSite();
+        startPath = `${site.getPath()}/contents`;
+      } catch {
+        return null;
+      }
+    }
+    const max = Number(props.maxItems) > 0 ? Number(props.maxItems) : 20;
+    // ORDER BY date when the entity carries one (article/event archetypes do);
+    // jcr:created is the deterministic fallback for date-less types.
+    const nodes = (useJCRQuery({
+      query:
+        `SELECT * FROM [${type}] AS n WHERE ISDESCENDANTNODE(n,'${startPath}') ` +
+        `ORDER BY n.[date] DESC, n.[jcr:created] DESC`,
+    }) || []) as JCRNodeWrapper[];
+    let cm: Record<string, string> = {};
+    try {
+      const raw = String(props.classMap ?? "");
+      if (raw) cm = JSON.parse(raw) as Record<string, string>;
+    } catch {
+      cm = {};
+    }
+    const cls = (k: string, fb: string): string => (cm[k] ? `${fb} ${cm[k]}` : fb);
+    const fmtDate = (n: JCRNodeWrapper): string => {
+      try {
+        if (!n.hasProperty("date")) return "";
+        const iso = n.getProperty("date").getString();
+        const [y, mo, d] = iso.slice(0, 10).split("-");
+        const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(mo) - 1];
+        return `${Number(d)} ${M} ${y}`;
+      } catch {
+        return "";
+      }
+    };
+    const teaser = (n: JCRNodeWrapper): string => {
+      try {
+        if (!n.hasProperty("body")) return "";
+        const txt = n.getProperty("body").getString().replace(/<[^>]+>/g, " ");
+        return txt.replace(/\s+/g, " ").trim().slice(0, 160);
+      } catch {
+        return "";
+      }
+    };
+    const imgUrl = (n: JCRNodeWrapper): string | undefined => {
+      try {
+        if (!n.hasProperty("image")) return undefined;
+        const img = n.getProperty("image").getNode() as JCRNodeWrapper;
+        server.render.addCacheDependency({ node: img }, renderContext as never);
+        return buildNodeUrl(img as never);
+      } catch {
+        return undefined;
+      }
+    };
+    return (
+      <div className={cls("root", "content-list")}>
+        {nodes.slice(0, max).map((n) => {
+          const url = buildNodeUrl(n as never);
+          const iu = imgUrl(n);
+          return (
+            <a key={n.getPath()} href={url} className={cls("card", "content-list__card")}>
+              {iu && (
+                <span className="content-list__media">
+                  <img src={iu} alt={n.getDisplayableName()} loading="eager" />
+                </span>
+              )}
+              <span className="content-list__body">
+                {fmtDate(n) && <span className="content-list__date">{fmtDate(n)}</span>}
+                <span className={cls("title", "content-list__title")}>
+                  {n.getDisplayableName()}
+                </span>
+                {teaser(n) && <span className="content-list__teaser">{teaser(n)}</span>}
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    );
+  },
+);

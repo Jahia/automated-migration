@@ -99,8 +99,39 @@ def main():
     except (OSError, ValueError):
         print(f"WARN: {mp} unreadable — node-type ledger gate skipped", file=sys.stderr)
 
+    # entity-listing contract (structured content, operator mandate
+    # 2026-07-21): a declared listing page's entity collection must be a
+    # QUERY instance over the mainResource folder — never frozen card copies
+    mr_listing = {}
+    try:
+        _mrc = json.load(open(f"orchestration/content/{a.project}.mainresource.json"))
+        for _fn, _fc in (_mrc.get("folders") or {}).items():
+            _pref = (_fc.get("urlPrefixes") or [""])[0].strip("/")
+            for _lp in _fc.get("listingPages") or []:
+                mr_listing[_lp] = _pref
+    except (OSError, ValueError):
+        pass
+
     def check_inst(inst, pk, path):
         f = inst.get("fields") or {}
+        # GATE (2026-07-21): FROZEN ENTITY LISTING — an instance on a declared
+        # listing page still carrying >= 2 links into the entity folder's url
+        # prefix is a frozen card copy of the collection (adding an article in
+        # jContent would never appear); it must be the jcrQuery instance.
+        if pk in mr_listing and not inst.get("queryList"):
+            _pref = mr_listing[pk]
+            _blob = (inst.get("skeleton") or "") + " ".join(
+                v for v in f.values() if isinstance(v, str))
+            for ch2 in inst.get("children") or []:
+                _blob += " " + (ch2.get("skeleton") or "") + " ".join(
+                    v for v in (ch2.get("fields") or {}).values()
+                    if isinstance(v, str))
+            _hits = len(re.findall(r"/%s/[A-Za-z0-9]" % re.escape(_pref), _blob))
+            if _hits >= 2:
+                bad.append(f"VALUE {pk}{path}: frozen entity listing — "
+                           f"{_hits} link(s) into /{_pref}/ as static cards "
+                           f"(must be the jcrQuery instance over the "
+                           f"mainResource folder)")
         # GATE (2026-07-20): undeclared nodeType — the create is rejected by
         # Jahia (Unknown node type) and the node's whole subtree vanishes
         nt0 = inst.get("nodeType")

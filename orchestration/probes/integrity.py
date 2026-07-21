@@ -263,11 +263,20 @@ def expected_pages(pp: str) -> list[str]:
     create_pages.py names each page after its slug (flat), EXCEPT a slug of
     "home" which maps to /home itself (no distinct child node)."""
     inv = load_json(os.path.join(REPO_ROOT, pp, "workflow-output", "page-inventory.json"), {})
+    # entity DETAILS are jmix:mainResource content, never pages (structured
+    # content 2026-07-21) — same exclusion create_pages/semanticize apply
+    mr = set()
+    try:
+        sys.path.insert(0, os.path.join(REPO_ROOT, "orchestration", "lib"))
+        from load_main_resources import classified_slugs
+        mr = set(classified_slugs(pp.split("/")[-1]))
+    except ImportError:
+        pass
     names = []
     hs = home_slug(pp)
     for p in inv.get("pages", []):
         slug = p.get("slug")
-        if not slug or slug == "home" or slug == hs:
+        if not slug or slug == "home" or slug == hs or slug in mr:
             continue
         names.append(slug)
     return names

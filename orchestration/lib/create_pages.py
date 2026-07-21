@@ -56,6 +56,18 @@ def main():
     inv_path = f"projects/{project}/workflow-output/page-inventory.json"
     inv = json.load(open(inv_path))
     pages = [p for p in inv.get("pages", []) if p.get("slug")]
+    # entity DETAILS are jmix:mainResource content in a contentFolder
+    # (structured content, 2026-07-21) — NEVER jnt:pages. Classified by the
+    # project's mainresource config; load_main_resources owns their load.
+    try:
+        from load_main_resources import classified_slugs
+        _mr = set(classified_slugs(project.split("/")[-1]))
+        if _mr:
+            pages = [p for p in pages if p["slug"] not in _mr]
+            print(f"[create_pages] {len(_mr)} entity detail slug(s) excluded "
+                  f"(mainResource, not pages)")
+    except ImportError:
+        pass
     # the crawl's HOME page slug is rarely "home" (discoverasr: "en", url ==
     # siteUrl). It must map to /sites/<site>/home itself, never /home/<slug> —
     # same rule as load_content._home_slug (loader wrote /home/main while a

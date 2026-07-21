@@ -46,20 +46,22 @@ for fname, f in mrl.get("folders", {}).items():
     d = m.call("content.list", {"parentPath": path, "childNodeType": ftype,
                                 "locale": locale, "limit": 100})
     kids = d.get("children", d.get("nodes", d.get("results", []))) if isinstance(d, dict) else []
-    pub = 0
-    for k in kids:
-        try:
-            st = m.call("publication.status", {"path": k["path"], "language": locale})
-            if st.get("publicationStatus") == "PUBLISHED":
-                pub += 1
-        except Exception:
-            pass
+    # EDIT-only doctrine (2026-07-21): the load NEVER publishes — publication
+    # is the single final act (publish_site.py publishes the declared folders
+    # right after /files). This gate verifies the PRODUCING step: nodes exist
+    # in EDIT with real content; LIVE parity belongs to the publish belt.
     if not kids:
         fails.append(f"{path}: 0 {ftype} nodes — listing has nothing to show")
-    elif not pub:
-        fails.append(f"{path}: {len(kids)} {ftype} node(s) but NONE published to live")
+    for k in kids:
+        try:
+            node = m.get(k["path"])
+            props = node.get("properties", {}) or {}
+            if not (props.get("jcr:title") or "").strip():
+                fails.append(f"{k['path']}: no jcr:title — empty entity node")
+        except Exception as e:
+            fails.append(f"{k['path']}: unreadable ({str(e)[:60]})")
     else:
-        print(f"  ok {path}: {pub}/{len(kids)} {ftype} published")
+        print(f"  ok {path}: {len(kids)} {ftype} node(s) in EDIT")
 
 if fails:
     print("FAIL:")

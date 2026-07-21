@@ -188,7 +188,36 @@ def main():
                     continue  # tree-driven navs + passthrough views ship in the shell
                 kind = c.get("archetype") or chrome_kind(nt)
                 for vw in view_names(c, c.get("needsMainResource")):
+                    if kind == "jcrQuery" and vw == "default":
+                        # STRUCTURED CONTENT (2026-07-21): the listing's default
+                        # view runs the REAL JCR query (mainResource cards with
+                        # buildNodeUrl links) — never the generic hybrid render
+                        qt = open(os.path.join(SRC, "ContentQueryList.server.tsx.template"),
+                                  encoding="utf-8").read()
+                        short = nt.split(":")[-1]
+                        qdir = f"{module}/src/components/{short[0].upper()}{short[1:]}"
+                        os.makedirs(qdir, exist_ok=True)
+                        with open(f"{qdir}/default.server.tsx", "w", encoding="utf-8") as fq:
+                            fq.write(qt.replace("$NODETYPE", nt)
+                                       .replace("$DISPLAYNAME", re.sub(r'"', "'", c.get("name") or short)))
+                        n_views += 1
+                        continue
                     write_semantic(nt, c.get("name"), kind, vw)
+            # mainResource CONTENT TEMPLATES (structured content 2026-07-21):
+            # every entity type renders full page at its own URL — chrome via
+            # Layout around the fullPage view (listing cards link here)
+            mrt = open(os.path.join(SRC, "MainResourceTemplate.server.tsx.template"),
+                       encoding="utf-8").read()
+            for c in (m.get("components", []) or []):
+                if not c.get("needsMainResource"):
+                    continue
+                short = c["nodeType"].split(":")[-1]
+                tdir = f"{module}/src/templates/{short[0].upper()}{short[1:]}"
+                os.makedirs(tdir, exist_ok=True)
+                with open(f"{tdir}/default.server.tsx", "w", encoding="utf-8") as ft:
+                    ft.write(mrt.replace("$NODETYPE", c["nodeType"])
+                                .replace("$DISPLAYNAME", re.sub(r'"', "'", c.get("name") or short)))
+                n_views += 1
             # CONTRACT reusable child objects — ONE definition each, views here
             write_semantic(f"{ns_prefix}:cardItem", "Card item", "teaserCard", "default")
             write_semantic(f"{ns_prefix}:cardItem", "Card item", "teaserCard", "compact")

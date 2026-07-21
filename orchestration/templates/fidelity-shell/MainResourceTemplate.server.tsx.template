@@ -1,0 +1,25 @@
+import { jahiaComponent, Render, useServerContext } from "@jahia/javascript-modules-library";
+import { Layout } from "../Layout.jsx";
+
+/**
+ * $DISPLAYNAME — CONTENT TEMPLATE for $NODETYPE (structured content,
+ * 2026-07-21). A jmix:mainResource node renders FULL PAGE at its own URL
+ * through this template: site chrome (Layout: nav, header, footer) around
+ * the node's fullPage view. Listing cards link here via buildNodeUrl.
+ */
+jahiaComponent(
+  {
+    componentType: "template",
+    nodeType: "$NODETYPE",
+    name: "default",
+    displayName: "$DISPLAYNAME (full page)",
+  },
+  ({ "jcr:title": title }: { "jcr:title": string }) => {
+    const { currentNode } = useServerContext();
+    return (
+      <Layout title={title} shell={null}>
+        <Render node={currentNode} view="fullPage" />
+      </Layout>
+    );
+  },
+);

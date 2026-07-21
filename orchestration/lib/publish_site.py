@@ -52,6 +52,7 @@ Usage:
   orchestration/assist/publish_site.sh <project> <site> [locale]
 """
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -191,6 +192,32 @@ def main():
         except Exception as e:
             failed.append(("files", str(e)[:140]))
             print(f"  ! {files_path}: publish failed: {str(e)[:140]}", file=sys.stderr)
+
+    # ── 1b. structured content (jmix:mainResource folders) — right after
+    #    /files for the same reason: the listing queries and detail URLs must
+    #    resolve in LIVE before the pages that reference them (EDIT-only
+    #    doctrine: load_main_resources never publishes) ──
+    mrl = {}
+    try:
+        mrl = json.load(open(f"orchestration/content/{a.project}.mainresource-load.json"))
+    except (OSError, ValueError):
+        pass
+    if mrl.get("folders"):
+        print("== structured content (mainResource folders) ==")
+    for fname, f in (mrl.get("folders") or {}).items():
+        fp = f.get("path")
+        if not fp:
+            continue
+        if a.dry:
+            print(f"  ~ {fp}: would publish")
+            continue
+        try:
+            ld.m.publish(fp)
+            published += 1
+            print(f"  + {fp}: published")
+        except Exception as e:
+            failed.append((f"contents/{fname}", str(e)[:140]))
+            print(f"  ! {fp}: publish failed: {str(e)[:140]}", file=sys.stderr)
 
     # ── 2. chrome areas ────────────────────────────────────────────────────
     if chrome:

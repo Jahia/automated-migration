@@ -311,6 +311,24 @@ def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
 _RASTER_RE = re.compile(r"\.(?:png|jpe?g|gif|webp|avif)(?:[?#]|$|['\")])", re.I)
 
 
+def _mr_listing_map(project):
+    """{listing_slug: (url_prefix, entity_type, folder_path)} from the
+    project's mainresource config — the structured-content contract
+    (operator mandate 2026-07-21)."""
+    try:
+        cfg = json.load(open(f"orchestration/content/{project}.mainresource.json"))
+    except (OSError, ValueError):
+        return {}
+    base = cfg.get("contentsBase", "contents")
+    out = {}
+    for fname, fcfg in (cfg.get("folders") or {}).items():
+        pref = (fcfg.get("urlPrefixes") or [""])[0].strip("/")
+        for lp in fcfg.get("listingPages") or []:
+            # SITE-RELATIVE (the loader prefixes /sites/<site>/)
+            out[lp] = (pref, fcfg["type"], f"{base}/{fname}")
+    return out
+
+
 def _img_unit_root(img):
     """Outermost ancestor whose visible content is ONLY this image — sizing
     and link wrappers travel WITH the unit (icon-blowup lesson: an image
@@ -1212,6 +1230,24 @@ def main():
     except (OSError, ValueError):
         pass
     subnav_nt = f"{(passthrough or 'x:y').split(':')[0]}:subNavigation"
+    # structured-content contract (2026-07-21): declared entity listings
+    # convert to REAL query instances; their frozen card copies drop, and
+    # entity DETAIL pages never enter the page pipeline at all — their
+    # content lives as mainResource nodes (load_main_resources reads the
+    # mirror DOM directly; segmentation never runs on post-hoc crawls)
+    try:
+        from load_main_resources import classified_slugs as _mr_slugs
+        _dropped_mr = [s for s in _mr_slugs(a.project) if s in data.get("pages", {})]
+        for s in _dropped_mr:
+            data["pages"].pop(s, None)
+        if _dropped_mr:
+            print(f"[semanticize_content] {len(_dropped_mr)} entity detail "
+                  f"page(s) routed to mainResource (not pages)")
+    except ImportError:
+        pass
+    listing_map = _mr_listing_map(a.project)
+    query_nt = next((c.get("nodeType") for c in (manifest.get("components") or [])
+                     if c.get("archetype") == "jcrQuery"), None)
     # archetype container/child lookups for the library-instance remap
     child_of = {c["nodeType"]: c["childType"]["nodeType"]
                 for c in (manifest.get("components") or [])
@@ -1247,6 +1283,7 @@ def main():
         recon_rows = []
         recon_pages[_pk] = recon_rows
         drop_reason = {}
+        _mr_hit, _mr_qnodes = set(), {}   # entity-listing conversion state
         # ARCHETYPE model: the fidelity `shell` spec (full source body around
         # <main> — nav/cookie-consent/notification chrome + SPA state) is NOT
         # used by the semantic Layout and must not become a 100KB rawHtml blob
@@ -1310,6 +1347,48 @@ def main():
                 transformed.append((True, _sn))
                 n_sem += 1
                 continue
+            # ENTITY LISTING conversion (structured content, 2026-07-21): on a
+            # declared listing page, an instance linking INTO the entity
+            # folder's url prefix becomes ONE {ns}:contentList QUERY instance
+            # (type + startNode + maxItems editable; cards render live from
+            # the mainResource nodes, links are buildNodeUrl full-page).
+            # Its parent-linked card atoms are ABSORBED — their words belong
+            # to the article nodes now (dropped-query, excluded by design).
+            if query_nt and _pk in listing_map:
+                _pref, _etype, _folder = listing_map[_pk]
+                _pat = re.compile(r"/%s/[A-Za-z0-9]" % re.escape(_pref))
+                _blob = " ".join(
+                    [v for v in (inst.get("fields") or {}).values()
+                     if isinstance(v, str)]
+                    + [inst.get("skeleton") or "", inst.get("imgOrig") or "",
+                       inst.get("href") or "", json.dumps(inst.get("link") or {})])
+                for _ch in inst.get("children") or []:
+                    _blob += " " + " ".join(
+                        [v for v in (_ch.get("fields") or {}).values()
+                         if isinstance(v, str)]
+                        + [_ch.get("skeleton") or "", _ch.get("href") or "",
+                           json.dumps(_ch.get("link") or {})])
+                if inst.get("parent") in _mr_hit:
+                    _mr_hit.add(_oi)
+                    _pq = _mr_qnodes.get(inst.get("parent"))
+                    if _pq is not None:
+                        _pq["fields"]["maxItems"] = str(
+                            int(_pq["fields"].get("maxItems") or 0) + 1)
+                    transformed.append((False, None))
+                    drop_reason[len(transformed) - 1] = "query"
+                    n_drop += 1
+                    continue
+                if _pat.search(_blob):
+                    _mr_hit.add(_oi)
+                    _qn = {"type": "jcrQuery", "nodeType": query_nt,
+                           "promoted": True, "queryList": True,
+                           "fields": {"type": _etype,
+                                      "maxItems": str(max(1, len(set(_pat.findall(_blob)))))},
+                           "startNodePath": _folder, "skeleton": ""}
+                    _mr_qnodes[_oi] = _qn
+                    transformed.append((True, _qn))
+                    n_sem += 1
+                    continue
             node = itm.get((inst.get("type") or "").lower())
             # LIBRARY instances (P2.5): containers with a libraryPlan and their
             # typed atoms (own nodeType, structured atomTitle/href/imageFile)
@@ -1441,6 +1520,7 @@ def main():
                 # row shows the container reference, text counted on the parent
                 _pl, _lo = _placed_text(_ins), _leftover_text(_ins)
                 row.update({"kind": ("nav-replaced" if _ins.get("treeDrivenNav")
+                                     else "query-replaced" if _ins.get("queryList")
                                      else "library" if (_ins.get("libraryPlan") or _ins.get("libraryAtom"))
                                      else ("passthrough" if _ins.get("passthrough") else "typed")),
                             "type": _ins.get("type"), "nodeType": _ins.get("nodeType"),
@@ -1513,7 +1593,8 @@ def main():
             # nav-replaced rows are the sub-nav swapped for the tree-driven
             # component: their words are the sibling pages' MENU labels (owned
             # by the page tree), not this page's content — excluded by design.
-            if k_ == "nav-replaced" or (k_.startswith("dropped-") and k_ != "dropped-unknown"):
+            if k_ in ("nav-replaced", "query-replaced") \
+                    or (k_.startswith("dropped-") and k_ != "dropped-unknown"):
                 r.pop("_ot", None)
             else:
                 need |= _w(r.pop("_ot", ""))
@@ -1539,7 +1620,8 @@ def main():
         # content loss — conservation measures the CONTENT instances only
         excluded = sum(r["before"] for r in rows
                        if r.get("kind") in ("dropped-chrome", "dropped-empty",
-                                            "nav-replaced"))
+                                            "dropped-query", "nav-replaced",
+                                            "query-replaced"))
         lost = sum(r["before"] for r in rows if r.get("kind") == "dropped-unknown")
         eff = max(before - excluded, 0)
         recon["pages"][_pk] = {

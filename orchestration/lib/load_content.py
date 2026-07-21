@@ -259,6 +259,18 @@ class Loader:
         """Weakref wiring (after mixins + props): media DAM copies and the
         internal link's j:linknode (its jmix:internalLink mixin and j:url were
         handled by apply_payload)."""
+        # entity listing (structured content 2026-07-21): startNode -> the
+        # declared contentFolder (site-relative in the payload; the site key
+        # is the loader's)
+        snp = payload.get("startNodePath")
+        if snp:
+            try:
+                self.m.set_weakref(path, "startNode",
+                                   f"/sites/{self.site}/{snp.strip('/')}",
+                                   locale=self.locale)
+                self.wire_stats["startNodeWired"] = self.wire_stats.get("startNodeWired", 0) + 1
+            except Exception as e:
+                print(f"    ! startNode on {path}: {str(e)[:120]}", file=sys.stderr)
         for m in payload.get("media") or []:
             dam = m.pop("_dam", None)
             if not dam:
@@ -467,6 +479,11 @@ class Loader:
         if f.get("title"):
             mixins.append("mix:title")
             post["jcr:title"] = f["title"][:250]
+        # query-listing props (structured content 2026-07-21): the jcrQuery
+        # archetype declares these natively — set when the type carries them
+        for qk in ("type", "maxItems", "sortBy"):
+            if f.get(qk) and qk in avail:
+                post[qk] = str(f[qk])[:250]
         for k, v in f.items():
             if not k.startswith("body") or not v:
                 continue
