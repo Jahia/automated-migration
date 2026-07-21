@@ -197,7 +197,8 @@ def _distill_classmap(skeleton):
     return json.dumps(cm, ensure_ascii=False) if cm else None
 
 
-def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
+def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None,
+                        min_run=20):
     """Selective authorability sweep: maximal text-bearing elements WITHOUT any
     marker move into the body field; marker-bearing structure stays."""
     resid = re.sub(r"\{\{[^}]+\}\}", " ", sk or "")
@@ -219,7 +220,7 @@ def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
             continue
         if any(el in t.descendants for t in taken):
             continue
-        if len(el.get_text(" ", strip=True)) >= 20:
+        if len(el.get_text(" ", strip=True)) >= min_run:
             moved.append(s_el)
             taken.append(el)
     # PARENT-GROUPED slots (2026-07-20, home hero +331px): sweeping elements
@@ -243,7 +244,7 @@ def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
     # a marker-bearing wrapper is invisible to the element mover — wrap+move it
     for tx in list(soup.body.strings if soup.body else []):
         t_s = str(tx)
-        if "{{" in t_s or len(t_s.strip()) < 20:
+        if "{{" in t_s or len(t_s.strip()) < min_run:
             continue
         if any(id(a) in taken_ids for a in tx.parents):
             continue  # inside a taken element — moves with its group
@@ -304,8 +305,88 @@ def _sweep_text_to_body(sk, fields, min_chars=60, children_out=None, ns=None):
     if moved_any:
         sk = "".join(str(c) for c in soup.body.children).strip()
         if fields.get("body") and "{{f:body}}" not in sk:
-            sk += "{{f:body}}"   # nothing replaced in place (edge) — keep tail fallback
+            sk = _marker_into_root(sk)   # nothing replaced in place (edge)
     return sk
+
+
+def _cta_repair(inst, ns, page_titles):
+    """CTA label/link recovery (last 2 gate reds, 2026-07-21). Two shapes:
+    (a) a NON-cta skeleton carrying an anchor markerized as {{link:href}}
+        with no link record — the target/label live in the source's OWN
+        data-url/data-label attributes (privy 'Enquire now'): excise the
+        anchor into a real cta child;
+    (b) a cta whose label was hydration-only: recover from data-label/
+        aria-label, else the TARGET page's inventory title ('Rate
+        Calculator') — the source rendered a label, losing it is worse."""
+    repaired = 0
+    sk = inst.get("skeleton") or ""
+    is_cta = (str(inst.get("nodeType") or "").endswith(":cta")
+              or inst.get("type") == "cta")
+    if not is_cta and "{{link:href}}" in sk and not inst.get("link"):
+        soup = BeautifulSoup(sk, "lxml")
+        kids = inst.setdefault("children", [])
+        changed = False
+        for a2 in soup.find_all("a", href="{{link:href}}"):
+            url = (a2.get("data-url") or "").strip()
+            label = (a2.get("data-label") or a2.get("aria-label")
+                     or a2.get_text(" ", strip=True) or "").strip()
+            if not url:
+                continue
+            idx = len(kids)
+            kids.append({"type": "cta", "nodeType": f"{ns}:cta",
+                         "promoted": True, "link": {"href": url},
+                         "fields": ({"linkLabel": label[:250]} if label else {}),
+                         "skeleton": str(a2)})
+            a2.replace_with(soup.new_string("{{child:%d}}" % idx))
+            changed = True
+            repaired += 1
+        if changed:
+            inst["skeleton"] = "".join(
+                str(c) for c in ((soup.body or soup).children))
+    if is_cta and "{{link:href}}" in sk:
+        f = inst.setdefault("fields", {})
+        renders = bool(re.search(r"<svg|<img", sk)) or bool(
+            re.sub(r"\{\{[^}]+\}\}|<[^>]+>", "", sk).strip())
+        if not f.get("linkLabel") and not renders:
+            soup = BeautifulSoup(sk, "lxml")
+            el = soup.find(attrs={"data-label": True}) or \
+                soup.find(attrs={"aria-label": True})
+            label = ((el.get("data-label") or el.get("aria-label")).strip()
+                     if el is not None else "")
+            if not label:
+                href = ((inst.get("link") or {}).get("href") or "").strip("/")
+                label = page_titles.get(href.replace("/", "_").lower(), "")
+            if label:
+                f["linkLabel"] = label[:250]
+                btn = soup.find("button") or soup.find("a")
+                if btn is not None:
+                    btn.append(soup.new_string("{{f:linkLabel}}"))
+                    inst["skeleton"] = "".join(
+                        str(c) for c in ((soup.body or soup).children))
+                repaired += 1
+    for ch in inst.get("children") or []:
+        repaired += _cta_repair(ch, ns, page_titles)
+    return repaired
+
+
+def _marker_into_root(sk, marker="{{f:body}}"):
+    """Append `marker` INSIDE the skeleton's single root element (before its
+    closing tag). Appended AFTER a single root, the swept body renders
+    OUTSIDE the layout (tail-append class: 17 gate reds, bodies painted
+    below their section band). Multi-root fragments keep the plain tail
+    append — a swept trailing sibling is legitimate there."""
+    if not sk:
+        return marker
+    soup = BeautifulSoup(sk, "lxml")
+    roots = [c for c in ((soup.body or soup).children)
+             if getattr(c, "name", None)]
+    head = sk.rstrip()
+    if len(roots) == 1:
+        close = f"</{roots[0].name}>"
+        if head.endswith(close):
+            i = head.rfind(close)
+            return head[:i] + marker + head[i:]
+    return sk + marker
 
 
 _RASTER_RE = re.compile(r"\.(?:png|jpe?g|gif|webp|avif)(?:[?#]|$|['\")])", re.I)
@@ -983,7 +1064,7 @@ def _semanticize_instance(inst, node, surf):
     if merged:
         fields["body"] = merged
         if "{{f:body}}" not in sk and sk:
-            sk += "{{f:body}}"
+            sk = _marker_into_root(sk)
     # LAST-RESORT AUTHORABILITY: text the lift missed moves into body
     # (one editable field beats frozen markup); child markers keep their spots.
     resid = re.sub(r"\{\{[^}]+\}\}", " ", sk or "")
@@ -1014,6 +1095,20 @@ def _semanticize_instance(inst, node, surf):
                                      ns=(node or "x:y").split(":")[0])
             if _sweep_kids:
                 out["children"] = _sweep_kids
+            # TOTAL-measured second pass (leftover class, 2026-07-21): a strip
+            # of repeated SHORT runs (Airmail / Surface Mail comparison cards:
+            # each run < 60 chars, 218 chars combined) slipped the per-group
+            # threshold while the leftover gate rightly measures the SUM.
+            # Sweep every markerless run into in-place editable slots.
+            resid2 = re.sub(r"<[^>]+>", " ",
+                            re.sub(r"\{\{[^}]+\}\}", " ", sk or ""))
+            if len(re.sub(r"\s+", " ", resid2).strip()) >= 60:
+                # min_run drops too: the strip is many SHORT runs
+                # ('Airmail' = 7 chars) that the default 20-char per-run
+                # floor declined while the gate measures the SUM
+                sk = _sweep_text_to_body(sk, fields, min_chars=1,
+                                         children_out=None, min_run=6,
+                                         ns=(node or "x:y").split(":")[0])
     if sk:
         out["skeleton"] = sk
         cm = _distill_classmap(sk)
@@ -1163,7 +1258,7 @@ def _normalize_slots(instances, mod_ns=None):
                 f["body"] = "\n".join(
                     x for x in [f.get("body", ""), merged] if x).strip()
                 if sk and "{{f:body}}" not in sk:
-                    sk += "{{f:body}}"
+                    sk = _marker_into_root(sk)
                     it["skeleton"] = sk
             pass2(it.get("children"))
 
@@ -1227,6 +1322,16 @@ def main():
         _pgs = _inv.get("pages") or _inv
         inv_slugs = (set(_pgs) if isinstance(_pgs, dict)
                      else {p.get("slug") for p in _pgs if p.get("slug")})
+    except (OSError, ValueError):
+        pass
+    # inventory titles (menu-label form) — cta label recovery of last resort
+    _page_titles = {}
+    try:
+        _inv2 = json.load(open(f"projects/{a.project}/workflow-output/page-inventory.json"))
+        for _p2 in (_inv2.get("pages") or []):
+            if _p2.get("slug") and _p2.get("title"):
+                _page_titles[_p2["slug"].lower()] = re.sub(
+                    r"\s*[|–-].{0,60}$", "", _p2["title"]).strip()
     except (OSError, ValueError):
         pass
     subnav_nt = f"{(passthrough or 'x:y').split(':')[0]}:subNavigation"
@@ -1447,7 +1552,7 @@ def main():
                     if merged_l:
                         f["body"] = merged_l
                         if "{{f:body}}" not in sk_l and sk_l:
-                            sk_l += "{{f:body}}"
+                            sk_l = _marker_into_root(sk_l)
                     if sk_l:
                         inst["skeleton"] = sk_l
                     if not f.get("title") and inst.get("skeleton"):
@@ -1564,6 +1669,8 @@ def main():
         _normalize_slots(kept, _mod_ns)
         _n2 = sum(_debodify_images(i2, _mod_ns) for i2 in kept)
         n_img_lift += _n2
+        for i2 in kept:
+            _cta_repair(i2, _mod_ns, _page_titles)
         if _n2:
             _normalize_slots(kept, _mod_ns)
 
