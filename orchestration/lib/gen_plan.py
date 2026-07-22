@@ -257,12 +257,42 @@ def build_plan(p):
               adv(f"PROBE: bash orchestration/probes/compose.sh {PP}"),
               f"Gate: compose review at {PP}/workflow-output/compose/compose-review.html"],
              deps=["step_content_extract"]),
+        # ── MODEL PHASE (MIGRATION-V3, operator mandate 2026-07-21): judgment
+        # where it belongs. The census is deterministic EVIDENCE; the model is
+        # AUTHORED by Claude from that evidence and REVIEWED by the operator
+        # (engine decision point — the run pauses); the approved model then
+        # compiles onto the manifest before any CND is emitted. Site-specific
+        # inputs to a migration are exactly: start URL, approved model, and
+        # the entity config the model emits. ──
+        *([step("step_model_census", "Corpus census (evidence for the component model)", "build",
+                [f"Run: python3 orchestration/lib/model_census.py {P}",
+                 f"PROBE: test -s {PP}/workflow-output/model-census.json"],
+                deps=["step_content_extract"]),
+           review_step("step_model_author",
+                       "AUTHOR + REVIEW the component model (the contract)",
+                       [f"Read {PP}/workflow-output/model-census.json and representative "
+                        f"mirror DOMs; author {PP}/workflow-output/component-model-review.md "
+                        f"(human canon: atoms w/ cta variants, composites w/ FIELD surfaces "
+                        f"and VIEW FAMILIES, entity map [nav-reachable=page; card-reached "
+                        f"prose=entity; ties->page], chrome, css slots, islands, scope "
+                        f"report) + component-model.json (machine twin). Per "
+                        f"orchestration/MIGRATION-V3-MODEL-FIRST.md Phase 1. The operator "
+                        f"amends and approves — nodeType identifiers freeze at first "
+                        f"deploy; the model governs names, fields, views.",
+                        f"Entity map -> orchestration/content/{P}.mainresource.json"],
+                       deps=["step_model_census"]),
+           step("step_model_apply", "Compile the approved model onto the manifest", "build",
+                [f"Run: python3 orchestration/lib/apply_component_model.py {P}",
+                 f"PROBE: test -s {PP}/workflow-output/component-model.json"],
+                deps=["step_model_author"])]
+          if ARCH else []),
         step("step_cnd", "Emit CND + view plan (wired-only sizing)", "build",
              [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json --content-load orchestration/content/{P}.content-load.json",
               f"PROBE: test -s {PP}/workflow-output/definitions.cnd",
               f"PROBE: grep -q \"{NS} = \" {PP}/workflow-output/definitions.cnd",
               f"PROBE: test -s {PP}/workflow-output/views.json"],
-             deps=["step_content_extract", "step_compose_gate"]),
+             deps=["step_content_extract", "step_compose_gate"]
+             + (["step_model_apply"] if ARCH else [])),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
              [adv(f"PROBE[900]: node orchestration/lib/reconstruct_probe.mjs {PP} 10 {THR}"),
               "Gate: present worst pages + semantic share, return status halt."],
