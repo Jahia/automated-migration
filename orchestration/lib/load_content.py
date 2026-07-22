@@ -549,7 +549,7 @@ class Loader:
             post["jcr:title"] = f["title"][:250]
         # query-listing props (structured content 2026-07-21): the jcrQuery
         # archetype declares these natively — set when the type carries them
-        for qk in ("type", "maxItems", "sortBy"):
+        for qk in ("type", "maxItems", "sortBy", "variant", "mediaSide"):
             if f.get(qk) and qk in avail:
                 post[qk] = str(f[qk])[:250]
         for k, v in f.items():

@@ -465,6 +465,9 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         "  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no",
         "  - linkLabel (string) i18n",
         "  - linkOrig (string) hidden",
+        # COMPONENT MODEL (operator-approved 2026-07-21): every button, text
+        # arrow and icon link is the SAME atom styled by an editable variant
+        "  - variant (string, choicelist[resourceBundle]) = 'textArrow'",
         "",
         f"[{ns}:cardItem] > jnt:content, mix:title, {mixns}:component, {mixns}:sourceMarkup orderable",
         "  - body (string, richtext) i18n",

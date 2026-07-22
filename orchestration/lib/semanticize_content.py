@@ -333,9 +333,12 @@ def _cta_repair(inst, ns, page_titles):
             if not url:
                 continue
             idx = len(kids)
+            _vf = {"variant": _cta_variant(str(a2))}
+            if label:
+                _vf["linkLabel"] = label[:250]
             kids.append({"type": "cta", "nodeType": f"{ns}:cta",
                          "promoted": True, "link": {"href": url},
-                         "fields": ({"linkLabel": label[:250]} if label else {}),
+                         "fields": _vf,
                          "skeleton": str(a2)})
             a2.replace_with(soup.new_string("{{child:%d}}" % idx))
             changed = True
@@ -404,6 +407,22 @@ def _dedup_container_slots(instances):
                 f.pop(key)
                 sk = sk.replace("{{f:%s}}" % key, "", 1)
         ins["skeleton"] = sk
+
+
+
+def _cta_variant(markup):
+    """Editable style variant from the cta's captured anatomy (component
+    model 2026-07-21): every button, text arrow and icon link is the SAME
+    atom — the variant drives the view."""
+    m = markup or ""
+    cls = " ".join(re.findall(r'class="([^"]*)"', m)).lower()
+    if re.search(r"bg-primary|bg-\[#|btn-primary|bg-secondary(?!-)", cls):
+        return "primaryButton"
+    if re.search(r"border(?:-\S+)?", cls) and "rounded" in cls:
+        return "secondaryButton"
+    if "<svg" in m and not re.sub(r"<[^>]+>", "", m).strip():
+        return "iconLink"
+    return "textArrow"
 
 
 def _marker_into_root(sk, marker="{{f:body}}"):
@@ -1181,6 +1200,7 @@ def _semanticize_instance(inst, node, surf):
             return out
         cta = {"type": "cta", "nodeType": f"{ns}:cta", "promoted": True,
                "fields": {}, "link": inst["link"]}
+        cta["fields"]["variant"] = _cta_variant(inst.get("skeleton") or "")
         if lbl:
             cta["fields"]["linkLabel"] = str(lbl)[:250]
             cta["linkLabel"] = str(lbl)[:250]
