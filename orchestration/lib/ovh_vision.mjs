@@ -104,25 +104,32 @@ export function ovhKey() {
 // Downscale a PNG buffer to <= maxW wide and <= maxH tall by an INTEGER box average
 // (fast, dependency-free). Vision models don't need full-res; a tall page screenshot
 // must be shrunk to fit context. Returns a PNG buffer.
-export function downscalePng(buf, maxW = 820, maxH = 4000) {
+export function downscalePng(buf, maxW = 820, maxH = 4000, maxBytes = 700 * 1024) {
   const src = PNG.sync.read(buf);
   const fx = Math.ceil(src.width / maxW), fy = Math.ceil(src.height / maxH);
-  const f = Math.max(1, fx, fy);
-  if (f === 1) return buf;
-  const w = Math.floor(src.width / f), h = Math.floor(src.height / f);
-  const out = new PNG({ width: w, height: h });
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let r = 0, g = 0, b = 0, a = 0, n = 0;
-      for (let dy = 0; dy < f; dy++) for (let dx = 0; dx < f; dx++) {
-        const si = ((y * f + dy) * src.width + (x * f + dx)) << 2;
-        r += src.data[si]; g += src.data[si + 1]; b += src.data[si + 2]; a += src.data[si + 3]; n++;
+  let f = Math.max(1, fx, fy);
+  if (f === 1 && buf.length <= maxBytes) return buf;
+  // Byte budget (2026-07-22): a ~1MB screenshot stalls the OVH gateway — the
+  // call times out on every attempt (import-solutions, 1029KB). Shrink further
+  // until the encoded PNG fits the budget; factor 8 is the sanity stop.
+  for (; ; f++) {
+    const w = Math.floor(src.width / Math.max(2, f)), h = Math.floor(src.height / Math.max(2, f));
+    const ff = Math.max(2, f);
+    const out = new PNG({ width: w, height: h });
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let r = 0, g = 0, b = 0, a = 0, n = 0;
+        for (let dy = 0; dy < ff; dy++) for (let dx = 0; dx < ff; dx++) {
+          const si = ((y * ff + dy) * src.width + (x * ff + dx)) << 2;
+          r += src.data[si]; g += src.data[si + 1]; b += src.data[si + 2]; a += src.data[si + 3]; n++;
+        }
+        const di = (y * w + x) << 2;
+        out.data[di] = r / n; out.data[di + 1] = g / n; out.data[di + 2] = b / n; out.data[di + 3] = a / n;
       }
-      const di = (y * w + x) << 2;
-      out.data[di] = r / n; out.data[di + 1] = g / n; out.data[di + 2] = b / n; out.data[di + 3] = a / n;
     }
+    const enc = PNG.sync.write(out);
+    if (enc.length <= maxBytes || ff >= 8) return enc;
   }
-  return PNG.sync.write(out);
 }
 
 // One vision+text call. `text` is the prompt, `pngBuf` the (already-downscaled) image.
