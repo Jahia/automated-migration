@@ -144,7 +144,13 @@ def build_plan(p):
         step("step_connect", "Env + Jahia reachable", "verify",
              [f"PROBE: bash orchestration/probes/connect.sh {PP}"]),
         step("step_crawl", "Crawl the source site", "build",
-             [f"Run: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2 --rate-delay 2 --max-asset-size 1",
+             # MENU-SCOPED capture (MIGRATION-V3 Phase 0): the IA truth is the
+             # source NAVIGATION — a BFS --max-pages sample is the twice-burned
+             # 18-random-pages failure. The archetype model crawls the menu;
+             # the legacy skeleton path keeps the bounded BFS.
+             [(f"Run: python3 orchestration/lib/nav_scope_crawl.py {PP} {URL} --rate-delay 2 --max-asset-size 1"
+               if ARCH else
+               f"Run: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2 --rate-delay 2 --max-asset-size 1"),
               f"PROBE: test -s {PP}/workflow-output/page-inventory.json"],
              deps=["step_connect"]),
         step("step_localize", "Local mirror + offline mirror gate", "build",

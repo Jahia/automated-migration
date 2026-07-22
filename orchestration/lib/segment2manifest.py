@@ -348,6 +348,10 @@ def main():
         for akey, b in sorted(by_arch.items(), key=lambda kv: -kv[1]["freq"]):
             comp = ARCH.to_manifest_component(akey, ns, mixns,
                                               covers_roles=sorted(b["covers"]))
+            # the archetype KEY itself always maps (semanticize emits
+            # instances typed by archetype key - e.g. converted jcrQuery
+            # listings; a missing key silently skips their load, observed)
+            instance_type_map.setdefault(akey.lower(), comp["nodeType"])
             comp["frequency"] = b["freq"]
             comp["pages"] = sorted(b["pages"])
             if comp.get("chrome"):
