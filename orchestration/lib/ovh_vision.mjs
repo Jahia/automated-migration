@@ -14,15 +14,34 @@ import { appendUsage, normalizeOpenAIUsage } from './llm_ledger.mjs';
 // (DeepSeek rejects the `image_url` content variant outright with a 400) must also
 // set VISION_TEXT_ONLY=1 so the screenshot part is dropped from the request — the
 // numbered outline (tag/class, geometry, BG/LEAF flags, snippets) carries the call.
-const VISION_URL = process.env.VISION_BASE_URL
-  ? process.env.VISION_BASE_URL.replace(/\/+$/, '') + '/chat/completions'
+// VISION_* resolve process.env FIRST, then the repo .env.local — the engine's step
+// env does not carry these vars (same gap as the API key, 2026-07-22), so the
+// checked-out .env.local is the source of truth for orchestrated probe runs.
+function envLocal(name) {
+  if (process.env[name]) return process.env[name];
+  try {
+    for (const line of _fs.readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
+      const m = line.match(new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=\\s*"?([^"\\n]+)"?`));
+      if (m) return m[1].trim();
+    }
+  } catch { /* no .env.local */ }
+  return undefined;
+}
+const VISION_BASE = envLocal('VISION_BASE_URL');
+const VISION_URL = VISION_BASE
+  ? VISION_BASE.replace(/\/+$/, '') + '/chat/completions'
   : 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions';
-export const OVH_VISION_MODEL = process.env.VISION_MODEL || 'Qwen2.5-VL-72B-Instruct';
-export const VISION_TEXT_ONLY = process.env.VISION_TEXT_ONLY === '1';
+export const OVH_VISION_MODEL = envLocal('VISION_MODEL') || 'Qwen2.5-VL-72B-Instruct';
+// Reasoning suppression (Qwen3.5 on OVH): reasoning_effort:"none" turns the
+// thinking phase off entirely — 0.4s replies instead of 3+ min timeouts. Only
+// sent when configured; older endpoints (Qwen2.5-VL) don't take the param.
+const VISION_REASONING_EFFORT = envLocal('VISION_REASONING_EFFORT');
+export const VISION_TEXT_ONLY = envLocal('VISION_TEXT_ONLY') === '1';
 // Per-call abort. 180s fits OVH vision; a text-only endpoint emitting the full
-// components JSON for a 400+ block outline can legitimately run longer.
-const VISION_TIMEOUT_MS = Number(process.env.VISION_TIMEOUT_MS) || 180000;
-const VISION_PROVIDER = !process.env.VISION_BASE_URL ? 'ovh'
+// components JSON for a 400+ block outline can legitimately run longer, and
+// reasoning models (Qwen3.5) spend minutes thinking before the JSON starts.
+const VISION_TIMEOUT_MS = Number(envLocal('VISION_TIMEOUT_MS')) || 180000;
+const VISION_PROVIDER = !VISION_BASE ? 'ovh'
   : VISION_URL.includes('deepseek') ? 'deepseek-direct' : 'custom';
 
 // ── LLM usage ledger wiring ───────────────────────────────────────
@@ -112,16 +131,17 @@ export function downscalePng(buf, maxW = 820, maxH = 4000) {
 // legitimately needs > 8000 output tokens for its components JSON — DeepSeek returns
 // EMPTY content when json_object output is truncated at max_tokens (observed 2026-07-06:
 // tokens_out == 8000 exactly, 0-char reply).
-const VISION_MAX_TOKENS = Number(process.env.VISION_MAX_TOKENS) || 8000;
+const VISION_MAX_TOKENS = Number(envLocal('VISION_MAX_TOKENS')) || 8000;
 export async function ovhVision(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
   const key = ovhKey();
   const content = [{ type: 'text', text }];
   if (pngBuf && !VISION_TEXT_ONLY) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });
   const body = JSON.stringify({
     model, max_tokens: maxTokens, temperature,
+    ...(VISION_REASONING_EFFORT ? { reasoning_effort: VISION_REASONING_EFFORT } : {}),
     // JSON-mode: DeepSeek's v4 models burn the budget in reasoning_content and can
     // return an EMPTY content (or prose) without it. Prompts already demand JSON.
-    ...(process.env.VISION_JSON === '1' ? { response_format: { type: 'json_object' } } : {}),
+    ...(envLocal('VISION_JSON') === '1' ? { response_format: { type: 'json_object' } } : {}),
     // STREAM (2026-07-17): v4 is a REASONING model — non-streaming, it produces
     // ZERO bytes for minutes while it thinks and the provider's gateway idle-kills
     // the connection ('terminated' on every big-outline page). Streaming keeps
