@@ -2,6 +2,7 @@
 // DeepSeek has no vision; the segmentation decision needs to SEE the page, so the
 // visual grouping call goes to Qwen2.5-VL-72B on OVH. Key from $OVH_API_KEY or the
 // kepler provider block in ~/.config/opencode/opencode.jsonc (never committed).
+import _fs from 'node:fs';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -62,6 +63,14 @@ export function resolveLedgerProject(explicit) {
 
 export function ovhKey() {
   if (process.env.VISION_API_KEY) return process.env.VISION_API_KEY;
+  // .env.local fallback (2026-07-22: the engine's step env lacked the key -
+  // every probe reads the repo .env.local, this one must too)
+  try {
+    for (const line of _fs.readFileSync(new URL('../../.env.local', import.meta.url), 'utf8').split('\n')) {
+      const m = line.match(/^\s*(?:export\s+)?(VISION_API_KEY|OVH_API_KEY)\s*=\s*"?([^"\n]+)"?/);
+      if (m) return m[2].trim();
+    }
+  } catch { /* no .env.local */ }
   if (process.env.OVH_API_KEY) return process.env.OVH_API_KEY;
   try {
     const cfg = fs.readFileSync(path.join(os.homedir(), '.config/opencode/opencode.jsonc'), 'utf8');
