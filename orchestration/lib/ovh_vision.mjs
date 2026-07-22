@@ -132,7 +132,32 @@ export function downscalePng(buf, maxW = 820, maxH = 4000) {
 // EMPTY content when json_object output is truncated at max_tokens (observed 2026-07-06:
 // tokens_out == 8000 exactly, 0-char reply).
 const VISION_MAX_TOKENS = Number(envLocal('VISION_MAX_TOKENS')) || 8000;
-export async function ovhVision(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
+
+// Network-level retry (2026-07-22): the OVH gateway drops streams mid-response
+// ('terminated') and long big-outline calls can hit the local abort — both are
+// transient infrastructure faults, not model verdicts. A dropped stream must
+// not fail a page (it cost a whole 5-run consensus batch 8 pages). Retry the
+// SAME call up to 2 more times on network faults and 429/5xx; auth and 4xx
+// model errors rethrow immediately.
+export async function ovhVision(text, pngBuf, opts = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise(r => setTimeout(r, attempt * 10000));
+    try { return await ovhVisionOnce(text, pngBuf, opts); }
+    catch (e) {
+      const m = String(e && e.message || e);
+      const retryable = /terminated|fetch failed|socket|ECONNRESET|other side closed/i.test(m)
+        || e?.name === 'AbortError' || e?.name === 'TimeoutError' || /aborted/i.test(m)
+        || / (429|5\d\d):/.test(m);
+      if (!retryable || attempt === 2) throw e;
+      lastErr = e;
+      console.error(`    ~ vision retry ${attempt + 1}/2 after: ${m.slice(0, 90)}`);
+    }
+  }
+  throw lastErr;
+}
+
+async function ovhVisionOnce(text, pngBuf, { maxTokens = VISION_MAX_TOKENS, temperature = 0, model = OVH_VISION_MODEL, ledgerProject, caller } = {}) {
   const key = ovhKey();
   const content = [{ type: 'text', text }];
   if (pngBuf && !VISION_TEXT_ONLY) content.push({ type: 'image_url', image_url: { url: `data:image/png;base64,${pngBuf.toString('base64')}` } });
