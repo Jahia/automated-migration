@@ -94,7 +94,14 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # FAIL at step_publish_final, not three gates later at G2.
 PHASE_CHECKS: dict[str, dict[str, bool]] = {
     "step_pages": {"pages": True, "instances": False, "media": False, "live": False, "publish": False},
+    # v3 content-story steps BEFORE the load (2026-07-23: step_main_resources
+    # fell to DEFAULT_CHECKS and the belt demanded instances+media+live on
+    # legitimately-empty pages — an unknown phase must never mean "expect
+    # everything"): pages exist, content does not yet.
+    "step_main_resources": {"pages": True, "instances": False, "media": False, "live": False, "publish": False},
+    "step_nav": {"pages": True, "instances": False, "media": False, "live": False, "publish": False},
     "step_content_load": {"pages": True, "instances": True, "media": True, "live": False, "publish": False},
+    "step_component_css": {"pages": True, "instances": True, "media": True, "live": False, "publish": False},
     "step_publish_final": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
     "step_ground_truth": {"pages": True, "instances": True, "media": True, "live": True, "publish": True},
     "step_publish_parity": {"pages": True, "instances": True, "media": True, "live": False, "publish": False},
