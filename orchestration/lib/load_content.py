@@ -1410,8 +1410,13 @@ class Loader:
                     for n, ch in enumerate(kids):
                         # a child payload may carry its OWN nodeType (navify's
                         # {ns}:mainNavigation tree-driven child); manifest
-                        # childType stays the default for skeleton items
-                        cnt_ch = ch.get("nodeType") or cnt
+                        # childType stays the default for skeleton items.
+                        # Belt (2026-07-23): a nodeType stranded in `type`
+                        # (colon-qualified) still creates rather than being
+                        # silently skipped while the completeness check counts it
+                        cnt_ch = (ch.get("nodeType")
+                                  or (ch.get("type") if ":" in str(ch.get("type") or "") else None)
+                                  or cnt)
                         if not cnt_ch:
                             continue
                         if ch.get("navChild"):

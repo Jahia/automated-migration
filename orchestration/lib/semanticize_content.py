@@ -1059,6 +1059,12 @@ def _semanticize_instance(inst, node, surf):
       - recurses into embedded children."""
     out = dict(inst)
     out["promoted"] = True
+    # stamp the resolved nodeType (2026-07-23): children rely on it — the
+    # loader creates a child ONLY from ch.nodeType or the manifest childType;
+    # without the stamp, a child typed through the recursion carried the
+    # nodeType in `type` and was SILENTLY skipped (investor-relations, 6 kids)
+    if not out.get("nodeType") and isinstance(node, str) and ":" in node:
+        out["nodeType"] = node
     fields = dict(inst.get("fields") or {})
     for k, v in list(fields.items()):
         if isinstance(v, str) and "<" in v:

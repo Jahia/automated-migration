@@ -333,6 +333,18 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
         "  - query (string, textarea)",
         "  - maxItems (long) = 10",
         "  - subNodeView (string) = 'card'",
+        # entity-listing wiring (2026-07-23): the loader posts type/sortBy and
+        # a startNode weakref for structured-content listings — undeclared,
+        # every content.update failed 'Couldn't find definition for property'
+        "  - type (string)",
+        "  - sortBy (string)",
+        "  - startNode (weakreference)",
+        # a role can map a STATIC card band onto jcrQuery (itm is anatomy-
+        # driven); its decomposed children must still create rather than
+        # ConstraintViolation (corporate_investor-relations, 2026-07-23)
+        f"  + * ({ns}:cardItem)",
+        f"  + * ({ns}:cta)",
+        f"  + * ({ns}:subNavigation)",
         "",
         f"[{ns}:gridRow] > jnt:content, {mixns}:component",
         "  - columns (long) = 3 < 1, 2, 3, 4, 6, 12",
@@ -479,6 +491,9 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         "  - imageOrig (string, textarea) hidden",
         "  - imageOrigRef (string) hidden",
         f"  + * ({ns}:cta)",
+        # the sub-nav excision can land its subNavigation child inside a
+        # cardItem (menu in a decomposed kid's body — admail class, 2026-07-23)
+        f"  + * ({ns}:subNavigation)",
         "",
         "// ── structural set (rule 22): ALWAYS shipped ──",
         "// tree-driven breadcrumb — no content needed, rendered by the Layout",
