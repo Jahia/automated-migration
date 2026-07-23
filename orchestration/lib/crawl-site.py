@@ -474,6 +474,10 @@ def main():
         pages = [p for p in (prev.get('pages') or [])
                  if p.get('slug') not in new_slugs] + pages
         start_url = prev.get('siteUrl') or start_url
+    # capture variants are never page identities (2026-07-23: .recon slugs —
+    # chrome re-captures of existing pages — leaked into the inventory via a
+    # mirror-derived url-list and downstream tried to create duplicate pages)
+    pages = [p for p in pages if not (p.get('slug') or '').endswith('.recon')]
     inventory = {
         'siteUrl': start_url,
         'crawledAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
