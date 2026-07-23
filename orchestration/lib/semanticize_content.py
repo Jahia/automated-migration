@@ -1856,6 +1856,21 @@ def main():
             _cta_repair(i2, _mod_ns, _page_titles)
         if _n2:
             _normalize_slots(kept, _mod_ns)
+        # DEAD-ITEM catch-all (2026-07-23, postage-paid POPStop card): a kid
+        # with NO fields but visible skeleton text renders content the editor
+        # cannot touch (model-contract display-not-editable). Sweep the text
+        # into body — one editable field beats frozen markup.
+        def _revive(node):
+            for ch in node.get("children") or []:
+                _revive(ch)
+                f = ch.setdefault("fields", {})
+                sk_c = ch.get("skeleton") or ""
+                if not any(isinstance(v, str) and v.strip() for v in f.values()) \
+                        and sk_c and len(_visible(re.sub(r"\{\{[^}]+\}\}", " ", sk_c))) >= 6:
+                    ch["skeleton"] = _sweep_text_to_body(sk_c, f, min_chars=1,
+                                                         min_run=4, ns=_mod_ns)
+        for i2 in kept:
+            _revive(i2)
 
     # write the reconciliation artifact (orchestrator-reviewable; gated by
     # orchestration/probes/reconcile-check.py BEFORE any load)

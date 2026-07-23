@@ -109,11 +109,18 @@ def phase_content(site):
         return json.loads(urllib.request.urlopen(req, timeout=60).read())
 
     bad = 0
-    # 1. no node carries a bodyN property
+    # 1. no node carries a bodyN property — EXCEPT through the contribBodyN
+    # slot mixins (2026-07-23, same exception the type-level rule already
+    # grants): a positioned run whose marker lives in a DIFFERENT wrapper
+    # than body's rides its own sanctioned slot (structure-aware merge,
+    # 2026-07-20 hero fix) — folding it would rip it out of its grid cell.
+    # Flattened repetition = body2 WITHOUT the slot mixin.
     d = gql('{jcr(workspace:EDIT){nodesByQuery(query:"SELECT * FROM [nt:base] AS n '
             f"WHERE ISDESCENDANTNODE(n,'/sites/{site}') AND n.[body2] IS NOT NULL\","
-            'queryLanguage:SQL2,limit:20){nodes{path}}}}')
-    hits = [n["path"] for n in d["data"]["jcr"]["nodesByQuery"]["nodes"]]
+            'queryLanguage:SQL2,limit:20){nodes{path mixinTypes{name}}}}}')
+    hits = [n["path"] for n in d["data"]["jcr"]["nodesByQuery"]["nodes"]
+            if not any("contribBody" in (m.get("name") or "")
+                       for m in (n.get("mixinTypes") or []))]
     bad += fail_list("jcr-bodyN (flattened repetition loaded onto parents)", hits)
 
     # 2. containers carry their content ON CHILDREN: a jnt:contentList-ish parent
@@ -140,7 +147,8 @@ def phase_content(site):
             'queryLanguage:SQL2,limit:1000){nodes{path type:primaryNodeType{name} '
             'sk:property(name:"skeleton"){value} '
             't:property(name:"jcr:title",language:"en"){value} '
-            'b:property(name:"body",language:"en"){value}}}}}')
+            'b:property(name:"body",language:"en"){value} '
+            'b2:property(name:"body2",language:"en"){value}}}}}')
     nodes = ((d.get("data") or {}).get("jcr") or {}).get("nodesByQuery", {}).get("nodes") or []
     if not nodes:
         # a gate that cannot MEASURE must fail loudly, never pass silently
@@ -163,8 +171,12 @@ def phase_content(site):
         residual = re.sub(r"\{\{[^}]+\}\}", " ", sk)
         residual = re.sub(r"<[^>]+>", " ", residual)
         residual = re.sub(r"\s+", " ", residual).strip()
+        b2 = ((n.get("b2") or {}).get("value")) or ""
+        # a positioned body2 SLOT is an editable field (contrib mixin — same
+        # amendment as rule 1, 2026-07-23); only title+body+slots all empty
+        # counts as dead authoring
         if n["type"]["name"].endswith(":cardItem") and len(residual) >= 24 \
-                and not t.strip() and not b.strip():
+                and not t.strip() and not b.strip() and not b2.strip():
             dead.append(f"{n['path']} (skeleton text {len(residual)} chars, no editable field)")
         if len(residual) >= 60:
             hoarding.append(f"{n['path']} [{n['type']['name']}] holds "
