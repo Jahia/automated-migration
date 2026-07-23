@@ -26,6 +26,7 @@ Usage: inventory-coverage.py <project> <site> --phase content|site
 """
 import argparse
 import base64
+import html
 import json
 import os
 import re
@@ -45,7 +46,11 @@ def gql(q):
 
 
 def norm(t):
-    return re.sub(r"\s+", " ", (t or "")).strip().lower()
+    # unescape FIRST (2026-07-23): the payload stores markup with HTML
+    # entities ('Increase Trust &amp; Security'), the inventory stores the
+    # rendered text ('... & ...') — without unescaping, every heading with
+    # an &/'/" read as missing (probe false negative, never a real loss)
+    return re.sub(r"\s+", " ", html.unescape(t or "")).strip().lower()
 
 
 def load(p, what):
@@ -71,23 +76,41 @@ def phase_content(project, inv, thr_h, thr_i):
                 h2o.setdefault(ob, lb)
     except (FileNotFoundError, ValueError):
         pass
+    # entity-routed pages (semanticize pops them from the pages payload; they
+    # load as jmix:mainResource nodes) are gated by the mainresource probe —
+    # counting their headings here double-reports what another gate owns
+    entity_slugs = set()
+    try:
+        mr = json.load(open(f"orchestration/content/{project}.mainresource.json"))
+        prefixes = []
+        for fo in (mr.get("folders") or {}).values():
+            prefixes += [p for p in (fo.get("urlPrefixes") or []) if p]
+        for slug in (inv.get("pages") or {}):
+            if any(slug.startswith(p.replace("/", "_")) and slug != p.replace("/", "_")
+                   for p in prefixes):
+                entity_slugs.add(slug)
+    except (FileNotFoundError, ValueError):
+        pass
+
+    def walk_blob(i, blob):
+        f = i.get("fields") or {}
+        blob += [str(v) for v in f.values() if isinstance(v, str)]
+        blob.append(i.get("skeleton") or "")
+        blob += [m.get("file") or "" for m in i.get("media") or []]
+        for ch in i.get("children") or []:   # ANY depth — nested decomposition
+            walk_blob(ch, blob)
+
     bad, checked_h, hit_h, checked_i, hit_i = [], 0, 0, 0, 0
     for slug, pg in (inv.get("pages") or {}).items():
         pl = (cl.get("pages") or {}).get(slug)
         if pl is None:
+            if slug in entity_slugs:
+                continue                       # owned by the mainresource gate
             bad.append(f"PAGE {slug}: in inventory but absent from content-load")
             continue
         blob = []
         for i in pl.get("instances") or []:
-            f = i.get("fields") or {}
-            blob += [str(v) for v in f.values() if isinstance(v, str)]
-            blob.append(i.get("skeleton") or "")
-            blob += [m.get("file") or "" for m in i.get("media") or []]
-            for ch in i.get("children") or []:
-                cf = ch.get("fields") or {}
-                blob += [str(v) for v in cf.values() if isinstance(v, str)]
-                blob.append(ch.get("skeleton") or "")
-                blob += [m.get("file") or "" for m in ch.get("media") or []]
+            walk_blob(i, blob)
         blob = norm(" ".join(blob))
         for r in pg.get("regions") or []:
             for h in r.get("headings") or []:

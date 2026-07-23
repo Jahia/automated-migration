@@ -1742,7 +1742,21 @@ def main():
             # the hero). Whitespace/chrome fragments still drop below MIN_VIS.
             html = (inst.get("fields") or {}).get("html", "")
             if not _visible(html) and inst.get("skeleton"):
-                html = re.sub(r"\{\{child:\d+\}\}", "", inst["skeleton"])
+                # REHYDRATE lifted raw instances (2026-07-23, teaser-row class):
+                # raw_lifted_instance moves the text runs into bodyN fields and
+                # leaves a marker skeleton — judging emptiness on the skeleton
+                # alone dropped the instance WITH its lifted fields (the
+                # bottom teaser row on ~10 service pages, 100+ headings).
+                # Substituting the markers back yields the verbatim markup.
+                html = inst["skeleton"]
+                for _k, _v in (inst.get("fields") or {}).items():
+                    if isinstance(_v, str):
+                        html = html.replace("{{f:%s}}" % _k, _v)
+                for _mu in inst.get("media") or []:
+                    html = html.replace("{{media:%s}}" % (_mu.get("name") or ""),
+                                        _mu.get("orig") or "")
+                html = re.sub(r"\{\{child:\d+\}\}", "", html)
+                html = re.sub(r"\{\{[^}]+\}\}", " ", html)
             html = _clean_html(html) if html else ""
             if len(_visible(html)) >= MIN_VIS:
                 transformed.append((True, {"type": "rawHtml", "passthrough": True,
