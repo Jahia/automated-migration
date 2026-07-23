@@ -395,6 +395,10 @@ def type_block_semantic(comp, ns, mixns):
     # CTAs repeat anywhere. Both reusable child objects, 0..N, orderable.
     lines.append(f"  + * ({ns}:cardItem)")
     lines.append(f"  + * ({ns}:cta)")
+    # the sub-nav excision (2026-07-23) splices a tree-driven subNavigation
+    # CHILD inside content bands (sidebar+column layout) — without this rule
+    # the loader's create fails ConstraintViolation on every service page
+    lines.append(f"  + * ({ns}:subNavigation)")
     return "\n".join(lines), ""
 
 
