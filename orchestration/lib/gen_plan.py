@@ -272,7 +272,11 @@ def build_plan(p):
         # the entity config the model emits. ──
         *([step("step_model_census", "Corpus census (evidence for the component model)", "build",
                 [f"Run: python3 orchestration/lib/model_census.py {P}",
-                 f"PROBE: test -s {PP}/workflow-output/model-census.json"],
+                 # the UI's model-review card links artifacts/zone-overlay/index.html —
+                 # the v3 boundary evidence is the segmap gallery (2026-07-23: 404'd)
+                 f"Run: python3 orchestration/lib/segmap_gallery.py {P}",
+                 f"PROBE: test -s {PP}/workflow-output/model-census.json",
+                 f"PROBE: test -s {PP}/workflow-output/zone-overlay/index.html"],
                 deps=["step_content_extract"]),
            review_step("step_model_author",
                        "AUTHOR + REVIEW the component model (the contract)",
