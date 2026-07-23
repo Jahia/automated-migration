@@ -1,0 +1,83 @@
+{
+  "goal": "discoverASR — identification des ZONES et CONTENT TYPES (orchestrateur-driven, EDIT-only, réutilise le mirror local). HALT à chaque étape avec observabilité : (1) mirror scrape-vs-live, (2) zoning + carte visuelle des composants. AUCUN deploy/load/pixel avant validation. Identité v2 (ns asr2 / site discoverasrv2 / module discoverasr-v2) pour ne pas collisionner le modèle P6 asr déployé.",
+  "repo_dir": "/Users/jmaurel/Documents/GitHub/jahiaMigration",
+  "epics": [
+    {
+      "id": "epic_zone_identify",
+      "title": "Zone & content-type identification (halt à chaque étape)",
+      "goal": "Depuis le mirror local de discoverasr : valider offline + scrape-vs-live (halt), puis détecter les zones + émettre le component model + la carte visuelle du zonage et valider (halt). Aucun deploy/load/pixel.",
+      "stories": [
+        {
+          "id": "story_identify",
+          "title": "Identifier + valider les zones et content types",
+          "description": "connect -> mirror probe -> HALT revue mirror -> zone_detect + bridge + overlay + artefact -> HALT revue model.",
+          "steps": [
+            {
+              "id": "step_connect",
+              "title": "Mirror local présent (réutilisé, pas de re-scrape)",
+              "task_type": "verify",
+              "acceptance_criteria": [
+                "PROBE: test -s projects/discoverasr/workflow-output/local-mirror/mirror.json"
+              ],
+              "max_attempts": 1,
+              "inputs": { "project_path": "projects/discoverasr" }
+            },
+            {
+              "id": "step_mirror",
+              "title": "Mirror gate: rend 100% offline + fidélité scrape-vs-live",
+              "task_type": "verify",
+              "depends_on": ["step_connect"],
+              "acceptance_criteria": [
+                "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/discoverasr 10"
+              ],
+              "max_attempts": 1,
+              "inputs": { "project_path": "projects/discoverasr" }
+            },
+            {
+              "id": "step_mirror_review",
+              "title": "Mirror gate (HALT) — valider le scrape vs le site live",
+              "task_type": "verify",
+              "depends_on": ["step_mirror"],
+              "review": true,
+              "acceptance_criteria": [
+                "Gate: présenter le rendu offline + la fidélité scrape-vs-live (slider local↔live). return status halt."
+              ],
+              "max_attempts": 1,
+              "inputs": { "project_path": "projects/discoverasr" }
+            },
+            {
+              "id": "step_zone_bridge",
+              "title": "Zone detection + component model + carte visuelle + observabilité",
+              "task_type": "build",
+              "depends_on": ["step_mirror_review"],
+              "acceptance_criteria": [
+                "Run: ZONE3_JSON_DIR=projects/discoverasr/workflow-output python3 orchestration/lib/zone_detect.py discoverasr",
+                "Run: python3 orchestration/lib/zone_to_contentload.py discoverasr discoverasrv2 --ns asr2 --module discoverasr-v2 --overlay",
+                "Run: node orchestration/lib/zone_overlay_probe.mjs projects/discoverasr",
+                "Run: python3 orchestration/lib/zone_review_artifact.py discoverasr",
+                "PROBE: test -s projects/discoverasr/workflow-output/component-manifest.json",
+                "PROBE: test -s projects/discoverasr/workflow-output/zone-overlay/index.html",
+                "PROBE: test -s projects/discoverasr/workflow-output/zone-review.html",
+                "PROBE: python3 orchestration/probes/contribution.py discoverasr"
+              ],
+              "max_attempts": 1,
+              "inputs": { "project_path": "projects/discoverasr" }
+            },
+            {
+              "id": "step_component_model_review",
+              "title": "Component model gate (HALT) — valider zoning (table + carte visuelle des composants)",
+              "task_type": "verify",
+              "depends_on": ["step_zone_bridge"],
+              "review": true,
+              "acceptance_criteria": [
+                "Gate: présenter zone-review.html + zone-overlay/index.html (frontières par page) + namingQuality/genericShare. return status halt."
+              ],
+              "max_attempts": 1,
+              "inputs": { "project_path": "projects/discoverasr" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

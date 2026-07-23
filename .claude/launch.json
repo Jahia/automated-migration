@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "manual-tool",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["orchestration/lib/manual_server.py", "discoverasr", "8899"],
+      "port": 8899
+    }
+  ]
+}
