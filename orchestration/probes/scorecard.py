@@ -80,7 +80,23 @@ def main():
     if os.path.isfile(sm):
         l1_slugs = [l.strip() for l in open(sm)
                     if l.strip() and not l.startswith("#") and "/" not in l.strip()]
-        l1_expected = [labels.get(s, s) for s in l1_slugs]
+        # section roots (BUSINESS/ENTERPRISE) are switcher targets, never home
+        # L1 entries (2026-07-23) — same single-root rule as the section check
+        sec_roots = set()
+        sn0 = load(f"{wo}/section-navs.json", {})
+        for _lab, _its in (sn0 or {}).items():
+            _urls = []
+            def _cu0(its):
+                for it in its or []:
+                    hh = (it.get("href") or "").split("#")[0].split("?")[0]
+                    if hh.startswith("/") and hh != "/":
+                        _urls.append(hh.strip("/"))
+                    _cu0(it.get("subMenu"))
+            _cu0(_its)
+            _first = {u.split("/")[0] for u in _urls}
+            if len(_first) == 1:
+                sec_roots.add(_first.pop())
+        l1_expected = [labels.get(s, s) for s in l1_slugs if s not in sec_roots]
     if l1_expected:
         import urllib.request, base64
         req = urllib.request.Request(

@@ -161,8 +161,28 @@ def phase_site(project, site, inv):
     sm = f"orchestration/sitemaps/{project}.txt"
     if os.path.isfile(sm) and os.path.isfile(lp):
         labels = json.load(open(lp))
+        # section roots (BUSINESS/ENTERPRISE) are switcher targets, never home
+        # L1 entries (2026-07-23) — same single-root rule as the scorecard
+        sec_roots = set()
+        try:
+            sn = json.load(open(f"projects/{project}/workflow-output/section-navs.json"))
+            for _its in (sn or {}).values():
+                _urls = []
+                def _cu(its):
+                    for it in its or []:
+                        hh = (it.get("href") or "").split("#")[0].split("?")[0]
+                        if hh.startswith("/") and hh != "/":
+                            _urls.append(hh.strip("/"))
+                        _cu(it.get("subMenu"))
+                _cu(_its)
+                _first = {u.split("/")[0] for u in _urls}
+                if len(_first) == 1:
+                    sec_roots.add(_first.pop())
+        except (FileNotFoundError, ValueError):
+            pass
         l1 = [labels.get(x.strip(), x.strip()) for x in open(sm)
-              if x.strip() and not x.startswith("#") and "/" not in x.strip()]
+              if x.strip() and not x.startswith("#") and "/" not in x.strip()
+              and x.strip() not in sec_roots]
         d = gql('{jcr(workspace:EDIT){nodeByPath(path:"/sites/%s/home")'
                 '{children(typesFilter:{types:["jnt:page"]}){nodes{name '
                 'mix:mixinTypes{name} t:property(name:"jcr:title",language:"en"){value}}}}}}' % site)

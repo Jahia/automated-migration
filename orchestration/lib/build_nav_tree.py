@@ -341,6 +341,26 @@ def main():
             except Exception as e:
                 print(f"  ! hideFromNav {name}: {str(e)[:120]}", file=sys.stderr)
 
+    # ── pass 1d: the INVERSE of 1c (2026-07-23, scorecard ia[BUSINESS]):
+    # a page flagged hideFromNav while it sat flat outside the then-known menu
+    # keeps the stale mixin when a later sitemap NESTS it into a section — the
+    # bar then silently skips a legitimate menu entry. Every sitemap path is
+    # IN the menu by definition: strip the mixin wherever it survives. ──
+    if mixns_prefix and not dry:
+        for p in paths:
+            # a bare SECTION ROOT stays hidden (1c rule: switcher target,
+            # never an L1 entry of another section)
+            if p in section_roots:
+                continue
+            node_path = f"{home}/{p}"
+            try:
+                m.gql('mutation { jcr(workspace: EDIT) { mutateNode(pathOrId: "%s") '
+                      '{ removeMixins(mixins: ["%s:hideFromNav"]) } } }'
+                      % (node_path, mixns_prefix))
+                print(f"  ~ unhidden (in menu IA): {p}")
+            except Exception:
+                pass   # mixin absent / page not created — nothing to strip
+
     # ── section-root stamping (sectionRoot mixin + editable sectionLabel) ──
     if mixns_prefix and section_roots and not dry:
         for root, label in section_roots.items():
