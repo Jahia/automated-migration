@@ -192,6 +192,34 @@ def main():
 
     emit(items, "", 1)
 
+    # multi-section IA (2026-07-23, scorecard ia[BUSINESS]/[ENTERPRISE] rendered
+    # []): non-default sections live in the home page's section wrapper
+    # (section-navs.json); their pages must NEST under the section root or the
+    # section's L1 menu renders EMPTY (the nav is the page tree). A section
+    # whose internal urls share ONE first segment nests under that root; the
+    # prefixless default section is the emit() above.
+    try:
+        sn = json.load(open(f"projects/{a.project}/workflow-output/section-navs.json"))
+    except Exception:
+        sn = {}
+    for sec_label, sec_items in (sn or {}).items():
+        urls = []
+        def _cu(its):
+            for it in its or []:
+                hh = (it.get("href") or "").split("#")[0].split("?")[0]
+                if hh.startswith("/") and hh != "/":
+                    urls.append(hh.strip("/"))
+                _cu(it.get("subMenu"))
+        _cu(sec_items)
+        first = {u.split("/")[0] for u in urls}
+        if len(first) != 1:
+            continue
+        root = first.pop()
+        if root not in lines:
+            lines.append(root)
+            labels.setdefault(root, sec_label.title())
+        emit(sec_items, root, 1)
+
     os.makedirs("orchestration/sitemaps", exist_ok=True)
     with open(f"orchestration/sitemaps/{a.project}.txt", "w") as f:
         f.write(f"# REAL site IA extracted from the source nav ({strategy})\n")
