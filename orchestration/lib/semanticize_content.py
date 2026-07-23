@@ -688,6 +688,12 @@ def _subnavify(inst, pk, inv_slugs, subnav_nt):
     hits = {h.strip("/").replace("/", "_") for h in hrefs if h.startswith("/")} & inv_slugs
     if len(hits) < 3 or pk not in hits:
         return None
+    # a band whose CHILDREN carry real content (the sidebar+column layout,
+    # 2026-07-23) must never pure-convert — the menu is excised surgically by
+    # _subnav_excise instead, keeping the column content intact
+    if any((c.get("fields") or {}) or (c.get("children") or [])
+           for c in (inst.get("children") or [])):
+        return None
     soup = BeautifulSoup(re.sub(r"\{\{[^{}]*\}\}", " ", blob), "lxml")
     for el in soup.find_all(["script", "style", "noscript", "template"]):
         el.extract()
@@ -695,6 +701,12 @@ def _subnavify(inst, pk, inv_slugs, subnav_nt):
     nav_words = set()
     for el in soup.find_all(["a", "h1", "h2", "h3", "h4", "h5", "h6"]):
         nav_words |= _w(el.get_text(" ", strip=True))
+    # the sidebar's own heading may arrive SPLIT into the title field (the
+    # promoted path extracts it out of the markup, 2026-07-23) — it is the
+    # same display copy the heading-tag allowance covers, and it is carried
+    # onto the subNavigation node below; promo copy still refuses (it lives
+    # in body text, never in title)
+    nav_words |= _w((inst.get("fields") or {}).get("title"))
     if _w(soup.get_text(" ", strip=True)) - nav_words:
         return None                       # carries non-menu content — leave it
     # classMap: the source sidebar's own wrapper classes (pixel fidelity in
@@ -743,6 +755,76 @@ def _subnavify(inst, pk, inv_slugs, subnav_nt):
     if inst.get("parent") is not None:
         out["parent"] = inst["parent"]
     return out
+
+
+def _subnav_excise(inst, pk, inv_slugs, subnav_nt):
+    """Sidebar menu EMBEDDED in a content band (2026-07-23, direct-mail class):
+    the two-column layout promotes as ONE band — sidebar menu in a body field,
+    the article column in children. Pure conversion would destroy the content,
+    so the menu <ul> is excised from its field and a tree-driven subNavigation
+    CHILD is spliced at the same spot via a {{child:K}} marker. Detection is
+    structural (same bar as _subnavify): >=3 anchors resolving to inventory
+    pages, current page among them, and the <ul> is menu-pure (anchors only).
+    Mutates inst in place; returns True when a menu was excised."""
+    f = inst.get("fields") or {}
+    for key in sorted(f):
+        val = f[key]
+        if not isinstance(val, str) or "<ul" not in val:
+            continue
+        soup = BeautifulSoup(val, "lxml")
+        for ul in soup.find_all(("ul", "ol")):
+            anchors = ul.find_all("a")
+            if len(anchors) < 3:
+                continue
+            slugs = [((a.get("href") or "").split("#")[0].split("?")[0]
+                      .strip("/").replace("/", "_")) for a in anchors]
+            hits = set(slugs) & inv_slugs
+            if len(hits) < 3 or pk not in hits or len(hits) < 0.8 * len(anchors):
+                continue
+            words = set(re.findall(r"[^\W\d_]{3,}", ul.get_text(" ", strip=True).lower()))
+            aw = set()
+            for a2 in anchors:
+                aw |= set(re.findall(r"[^\W\d_]{3,}", a2.get_text(" ", strip=True).lower()))
+            if words - aw:
+                continue                    # ul carries non-menu copy — leave it
+            # conservation: the menu labels move to the page tree (rendered
+            # live by the subNavigation child) — recorded so the reconcile
+            # accounting excludes exactly these words for this row
+            inst["_navExcised"] = ((inst.get("_navExcised") or "") + " "
+                                   + ul.get_text(" ", strip=True)).strip()
+            cm = {"list": " ".join(ul.get("class") or [])}
+            li = ul.find("li")
+            if li is not None:
+                cm["item"] = " ".join(li.get("class") or [])
+            for a2 in anchors:
+                h = ((a2.get("href") or "").split("#")[0].split("?")[0]
+                     .strip("/").replace("/", "_"))
+                cm.setdefault("active" if h == pk else "link",
+                              " ".join(a2.get("class") or []))
+            ul.decompose()
+            body = soup.body or soup
+            f[key] = "".join(str(c) for c in body.children).strip()
+            kids = inst.setdefault("children", [])
+            kids.append({"type": "subNavigation", "nodeType": subnav_nt,
+                         "promoted": True, "treeDrivenNav": True, "fields": {},
+                         "skeleton": "",
+                         "classMap": json.dumps({k: v for k, v in cm.items() if v},
+                                                ensure_ascii=False)})
+            marker = "{{f:%s}}" % key
+            sk = inst.get("skeleton") or ""
+            if marker in sk:
+                inst["skeleton"] = sk.replace(
+                    marker, marker + " {{child:%d}}" % (len(kids) - 1), 1)
+            return True
+    # the sidebar may live in a CHILD's body (admail: the band decomposes to
+    # dozens of items and the menu is one of them) — recurse; the excised-words
+    # record bubbles up because conservation rows are per top-level instance
+    for ch in inst.get("children") or []:
+        if _subnav_excise(ch, pk, inv_slugs, subnav_nt):
+            inst["_navExcised"] = ((inst.get("_navExcised") or "") + " "
+                                   + (ch.pop("_navExcised", "") or "")).strip()
+            return True
+    return False
 
 
 def _decompose_repeats(skeleton, ns, media_units=None, parent_fields=None):
@@ -1145,7 +1227,13 @@ def _semanticize_instance(inst, node, surf):
             # markers move to body; marker-bearing structure stays in place).
             # Sweep-children only when the instance has none of its own (the
             # {{child:N}} indexes would collide with inst children otherwise).
-            _sweep_kids = [] if not inst.get("children") else None
+            # guard on OUT, not inst (2026-07-23, online-security/admail word
+            # loss): the early decompose above may already have carved kids
+            # into out["children"] — letting the sweep mint its own list here
+            # CLOBBERED them (26% of the page's words vanished with the
+            # replaced children, and the {{child:N}} markers re-pointed at the
+            # wrong nodes)
+            _sweep_kids = [] if not out.get("children") else None
             sk = _sweep_text_to_body(sk, fields, min_chars=60,
                                      children_out=_sweep_kids,
                                      ns=(node or "x:y").split(":")[0])
@@ -1176,7 +1264,11 @@ def _semanticize_instance(inst, node, surf):
     if inst.get("children"):
         out["children"] = [_semanticize_instance(
             {**ch, "type": ch.get("type") or child_node or inst["type"]},
-            ch.get("type") or child_node, surf) for ch in inst["children"]]
+            # node must be a REAL nodeType — a child's bare type KEY ('cta')
+            # leaked here and minted 'cta:cta' nested children (2026-07-23,
+            # exposed by deeper componentization): own nodeType > manifest
+            # childType > parent node
+            ch.get("nodeType") or child_node or node, surf) for ch in inst["children"]]
     # CONTRACT: repetition inside the region -> {ns}:cardItem CHILDREN (never
     # flat parent fields); the lifted link -> a {ns}:cta CHILD (never a mixin)
     ns = (node or "x:y").split(":")[0]
@@ -1509,6 +1601,11 @@ def main():
                 transformed.append((True, _sn))
                 n_sem += 1
                 continue
+            # menu EMBEDDED in a content band: excise the sibling-menu <ul>
+            # into a tree-driven subNavigation CHILD (in-place); the band then
+            # continues through normal typing with its content intact
+            if inv_slugs:
+                _subnav_excise(inst, _pk, inv_slugs, subnav_nt)
             # ENTITY LISTING conversion (structured content, 2026-07-21): on a
             # declared listing page, an instance linking INTO the entity
             # folder's url prefix becomes ONE {ns}:contentList QUERY instance
@@ -1630,7 +1727,13 @@ def main():
                 continue
             typed = (inst.get("promoted") or inst.get("skeleton")) and node and node != passthrough
             if typed:
-                transformed.append((True, _semanticize_instance(inst, node, surf)))
+                _ti = _semanticize_instance(inst, node, surf)
+                # second excision chance: a SKELETON-borne sidebar menu only
+                # reaches fields/children once decomposition has run (admail
+                # item-38 class, 2026-07-23) — the pre-typing pass cannot see it
+                if inv_slugs:
+                    _subnav_excise(_ti, _pk, inv_slugs, subnav_nt)
+                transformed.append((True, _ti))
                 n_sem += 1
                 continue
             # untyped: keep substantial verbatim content (fields.html, or for a
@@ -1688,6 +1791,7 @@ def main():
                             "type": _ins.get("type"), "nodeType": _ins.get("nodeType"),
                             "atom": bool(_ins.get("libraryAtom")),
                             "parent": _ins.get("parent"),
+                            "_navX": _ins.get("_navExcised") or "",
                             "placed": _pl, "leftover": _lo})
                 # EVIDENCE, not counts: when a row under-places, name the words
                 if orig_vis.get(_i, 0) > 80 and (_pl + _lo) < orig_vis[_i] * 0.8:
@@ -1762,8 +1866,12 @@ def main():
             if k_ in ("nav-replaced", "query-replaced") \
                     or (k_.startswith("dropped-") and k_ != "dropped-unknown"):
                 r.pop("_ot", None)
+                r.pop("_navX", None)
             else:
-                need |= _w(r.pop("_ot", ""))
+                # words excised into the tree-driven subNavigation child are
+                # the sibling pages' menu labels — excluded, same as the pure
+                # nav-replaced path
+                need |= _w(r.pop("_ot", "")) - _w(r.pop("_navX", ""))
 
         def _auth_words(ins):
             out = set()

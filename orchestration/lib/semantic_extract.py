@@ -325,7 +325,19 @@ def _agnostic_component_nodes(soup):
         anchors = [body]
 
     for anc in anchors:
-        for comp in _find_component_row(anc):
+        rows = _find_component_row(anc)
+        # The anchor must never swallow the page (2026-07-23, singpost rebuild):
+        # a Tailwind main whose bands are all <section> siblings carries ONLY
+        # layout classes, so _homogeneous sees N x ('section', ()) and returns
+        # [main] as "one container" - which the anchor-skip below then drops,
+        # leaving ZERO main-content components site-wide (1576 instances fell
+        # to rawHtml and were dropped as empty). Descend one level instead so
+        # each band resolves at its own altitude.
+        if rows == [anc]:
+            rows = []
+            for c in (x for x in anc.children if _is_block(x)):
+                rows.extend(_find_component_row(c, 1))
+        for comp in rows:
             # don't re-emit a chrome region already captured, and skip the anchor
             if comp is anc or comp.name in CHROME_TAGS:
                 continue
