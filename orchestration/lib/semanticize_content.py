@@ -162,30 +162,53 @@ def _mark_title_in_skeleton(skeleton, title):
     return skeleton
 
 
-def _distill_classmap(skeleton):
+def _distill_classmap(skeleton, media=None):
     """MANDATE (2026-07-16): views must wear the ORIGINAL site's classes so the
     already-linked source CSS styles the Jahia-rendered markup. Distill the
     source class names from the node's structure markup: root element, first
     heading, first image, first link/button, and the repeating-item signature.
-    Stored as a hidden JSON prop; resolveSemantic feeds it to the views."""
-    if not skeleton:
+    Stored as a hidden JSON prop; resolveSemantic feeds it to the views.
+
+    `media` = the instance's lifted-image payloads. A DAM-lifted image is GONE
+    from the skeleton, so its class AND width/height attrs must be recovered
+    from the lift's `orig` markup — without them a 30px payment icon rendered
+    at the DAM file's natural size (business_payment-solutions live was 3.2x
+    the source height, 2026-07-24 height-explosion class)."""
+    if not skeleton and not media:
         return None
+    if not skeleton:
+        skeleton = ""
     soup = BeautifulSoup(skeleton, "lxml")
     root = next((c for c in (soup.body.children if soup.body else [])
                  if getattr(c, "name", None)), None)
-    if root is None:
-        return None
     cm = {}
 
     def cls(el):
         return " ".join(el.get("class") or []) if el is not None else ""
 
-    cm["root"] = cls(root)
-    h = next((x for t in ("h1", "h2", "h3", "h4", "h5", "h6")
-              for x in [root.find(t)] if x is not None), None)
-    cm["title"] = cls(h)
-    cm["image"] = cls(root.find("img"))
-    cm["link"] = cls(root.find("a"))
+    if root is None and not media:
+        return None
+    if root is not None:
+        cm["root"] = cls(root)
+        h = next((x for t in ("h1", "h2", "h3", "h4", "h5", "h6")
+                  for x in [root.find(t)] if x is not None), None)
+        cm["title"] = cls(h)
+        cm["image"] = cls(root.find("img"))
+        cm["link"] = cls(root.find("a"))
+    # lifted-image sizing: the first media payload's orig markup is the truth
+    # of how the source displayed it (class + explicit width/height)
+    if media and not cm.get("image"):
+        orig = (media[0] or {}).get("orig") or ""
+        io = BeautifulSoup(orig, "lxml").find("img") if orig else None
+        if io is not None:
+            cm["image"] = cls(io)
+            for attr, key in (("width", "imageW"), ("height", "imageH")):
+                v = (io.get(attr) or "").strip()
+                if v.isdigit():
+                    cm[key] = v
+    if root is None:
+        cm = {k: v for k, v in cm.items() if v}
+        return json.dumps(cm, ensure_ascii=False) if cm else None
     # the wrapper that holds the {{child:N}} markers = the items row/track
     marker_parent = None
     for el in root.find_all(True):
@@ -929,7 +952,7 @@ def _decompose_repeats(skeleton, ns, media_units=None, parent_fields=None):
             lambda m: m.group(0) if m.group(1) in ch["fields"] else "",
             ch["skeleton"])
         ch["skeleton"] = _sweep_text_to_body(ch["skeleton"], ch["fields"], min_chars=40)
-        cm = _distill_classmap(ch["skeleton"])
+        cm = _distill_classmap(ch["skeleton"], ch.get("media"))
         if cm:
             ch["classMap"] = cm
         if title:
@@ -1024,7 +1047,7 @@ def _decompose_library(transformed, ns):
             atom["skeleton"] = _sweep_text_to_body(item_sk, atom.setdefault("fields", {}),
                                                     min_chars=40)
             item_sk = atom["skeleton"]
-            cm = _distill_classmap(item_sk)
+            cm = _distill_classmap(item_sk, atom.get("media"))
             if cm:
                 atom["classMap"] = cm
             f = atom.setdefault("fields", {})
@@ -1065,7 +1088,7 @@ def _decompose_library(transformed, ns):
                 _lbl = BeautifulSoup(slide_html, "lxml").get_text(" ", strip=True)
                 if _lbl and len(_lbl) <= 80 and not atom["fields"].get("title"):
                     atom["fields"]["title"] = _lbl   # rule 24: the label is editable
-                cm2 = _distill_classmap(atom["skeleton"])
+                cm2 = _distill_classmap(atom["skeleton"], atom.get("media"))
                 if cm2:
                     atom["classMap"] = cm2
                 # the step-1 body was derived for the ITEMIZE skeleton this
@@ -1095,7 +1118,7 @@ def _decompose_library(transformed, ns):
                 sk = sk.replace(frag, "{{child:%d}}" % n, 1)
                 swapped += 1
         parent["skeleton"] = _sweep_text_to_body(sk, parent.setdefault("fields", {}))
-        cm3 = _distill_classmap(parent["skeleton"])
+        cm3 = _distill_classmap(parent["skeleton"], parent.get("media"))
         if cm3:
             parent["classMap"] = cm3
     return swapped
@@ -1318,7 +1341,7 @@ def _semanticize_instance(inst, node, surf):
                                          ns=(node or "x:y").split(":")[0])
     if sk:
         out["skeleton"] = sk
-        cm = _distill_classmap(sk)
+        cm = _distill_classmap(sk, out.get("media"))
         if cm:
             out["classMap"] = cm
     out["fields"] = fields
