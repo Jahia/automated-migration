@@ -1745,6 +1745,33 @@ def main():
         # a plan WITHOUT atoms is a bare slide track needing the gallery rescue
         _plans_with_atoms = {a2.get("parent") for a2 in page.get("instances", [])
                              if a2.get("libraryAtom") and a2.get("parent") is not None}
+        _band_no = 0
+        _arch_nt = {c.get("archetype"): c.get("nodeType")
+                    for c in (manifest.get("components") or [])
+                    if c.get("archetype") and c.get("nodeType")}
+
+        def _structural_type(inst, band_no):
+            """Shape-derived nodeType for bands the vision left unnamed —
+            deterministic, from the instance's own anatomy. None defers to
+            the role key; position 0 always defers (a real hero leads)."""
+            if band_no == 0 or inst.get("parent") is not None:
+                return None
+            kids = inst.get("children") or []
+            f = inst.get("fields") or {}
+            sk = inst.get("skeleton") or ""
+            has_media = (bool(inst.get("media")) or "{{media:" in sk
+                         or "<img" in sk or bool(inst.get("imgOrig")))
+            has_body = any(k2 == "body" or (k2.startswith("body") and k2[4:].isdigit())
+                           for k2 in f)
+            if len(kids) >= 3:
+                return _arch_nt.get("cardGrid")
+            if has_media and (f.get("title") or has_body):
+                return _arch_nt.get("mediaText")
+            if f.get("title") and (inst.get("link") or not has_body):
+                return _arch_nt.get("banner")
+            if has_body:
+                return _arch_nt.get("richTextSection")
+            return None
         transformed = []                       # (keep: bool, instance | None)
         for _oi, inst in enumerate(page.get("instances", [])):
             if inst.get("area"):
@@ -1826,7 +1853,18 @@ def main():
                     n_sem += 1
                     continue
             # per-page vision typing FIRST; the global role key is the fallback
-            node = _vision_node(inst) or itm.get((inst.get("type") or "").lower())
+            # STRUCTURAL fallback between vision and role (2026-07-24,
+            # promote/import family): when the segmentation collapsed to
+            # coarse regions (Global Header / Main Content / Footer) the
+            # vision has no per-band name and role keys typed EVERY band
+            # sgp:hero (8/8 on enterprise_promote-your-brands, worst family
+            # of the sweep at 40-45%). The instance's own shape is a better
+            # judge than a generic role key: cards -> cardGrid, image beside
+            # prose -> mediaText, title+link w/o media -> banner. Position 0
+            # keeps its role/vision typing (a real hero leads the page).
+            node = _vision_node(inst) or _structural_type(inst, _band_no) \
+                or itm.get((inst.get("type") or "").lower())
+            _band_no += 1
             # LIBRARY instances (P2.5): containers with a libraryPlan and their
             # typed atoms (own nodeType, structured atomTitle/href/imageFile)
             # are created natively by load_content's library path as REAL typed
