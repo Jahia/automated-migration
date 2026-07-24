@@ -133,12 +133,20 @@ def _folder_types(comp_root):
     if not os.path.isdir(comp_root):
         return out
     for d in sorted(os.listdir(comp_root)):
-        cnd = os.path.join(comp_root, d, "definition.cnd")
-        if not os.path.isfile(cnd):
+        if not os.path.isdir(os.path.join(comp_root, d)):
             continue
-        m = re.search(r"^\[\s*\w+:(\w+)\s*\]", open(cnd, encoding="utf-8").read(), re.M)
-        if m:
-            out[d] = m.group(1).lower()
+        cnd = os.path.join(comp_root, d, "definition.cnd")
+        if os.path.isfile(cnd):
+            m = re.search(r"^\[\s*\w+:(\w+)\s*\]", open(cnd, encoding="utf-8").read(), re.M)
+            if m:
+                out[d] = m.group(1).lower()
+                continue
+        # shell-shipped folders (CardItem, Cta) declare their type in
+        # settings/definitions.cnd, not locally — the folder NAME is the local
+        # type (2026-07-23: cardItem = 1740 nodes / 597 captured classes and
+        # NO css module because this mapper skipped cnd-less folders)
+        if any(f.endswith(".server.tsx") for f in os.listdir(os.path.join(comp_root, d))):
+            out[d] = d.lower()
     return out
 
 
