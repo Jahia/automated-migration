@@ -73,6 +73,35 @@ function Img({ url, alt, className }: { url?: string; alt?: string; className?: 
 const mc = (source: string | undefined, fallback: string): string =>
   source && source.trim() ? `${source} ${fallback}` : fallback;
 
+/** SOURCE-ANATOMY split (2026-07-24 layout campaign): the capture distills the
+ *  band's wrapper CHAIN and its media/text column split into classMap slots
+ *  (chain / cols / bodyOrder — see _distill_classmap). Reproducing that
+ *  nesting matters because the source's grid/flex CSS is structure-sensitive:
+ *  a flattened wrapper tree stacks what the source lays out side-by-side. */
+interface SourceCol {
+  cls: string;
+  role: string;
+  chain?: string;
+  hasTitle?: boolean;
+}
+function parseCols(v?: string): SourceCol[] | null {
+  if (!v) return null;
+  try {
+    const a = JSON.parse(v) as SourceCol[];
+    return Array.isArray(a) && a.length === 2 && a.some((c) => c.role === "media") ? a : null;
+  } catch {
+    return null;
+  }
+}
+/** wrap `inner` in the captured single-child wrapper tiers (outermost first) */
+function chainWrap(inner: ReactNode, chain?: string): ReactNode {
+  const tiers = (chain || "").split("|").filter(Boolean);
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    inner = <div className={tiers[i]}>{inner}</div>;
+  }
+  return inner;
+}
+
 export default function ArchetypeSection({
   kind,
   view,
@@ -97,6 +126,48 @@ export default function ArchetypeSection({
   // columns rendered title-only while their cta children sat in the JCR,
   // 2026-07-20; chrome-render-check gates this class).
   const childSlot = isContainer || f.hasChildren ? <RenderChildren /> : null;
+
+  // shared source-anatomy renderer for hero/mediaText default views: the two
+  // captured columns render IN DOCUMENT ORDER (reversed bands stay reversed),
+  // each wearing its source classes + inner wrapper tiers
+  const renderSplit = (split: SourceCol[], h: ReactNode): ReactNode =>
+    chainWrap(
+      <>
+        {split.map((c, i) =>
+          c.role === "media" ? (
+            <div key={i} className={c.cls}>
+              {c.hasTitle ? h : null}
+              {chainWrap(<Img url={f.imgUrl} alt={f.imgAlt} className={cls.image} />, c.chain)}
+            </div>
+          ) : (
+            <div key={i} className={c.cls}>
+              {chainWrap(
+                <>
+                  {!split.some((x) => x.role === "media" && x.hasTitle) ? h : null}
+                  {subtitle}
+                  <Rich html={f.body} />
+                  <Cta href={f.href} label={f.ctaLabel} />
+                  {childSlot}
+                </>,
+                c.chain,
+              )}
+            </div>
+          ),
+        )}
+      </>,
+      cls.chain,
+    );
+  const splitCols = parseCols(cls.cols);
+  if (splitCols && view === "default" && (kind === "hero" || kind === "mediaText")) {
+    const h = kind === "hero"
+      ? (f.title ? <h1 className={mc(cls.title, "title")}>{f.title}</h1> : null)
+      : heading;
+    return (
+      <section className={mc(cls.root, `${kind === "hero" ? "hero hero--source" : "media-text media-text--source"} ${kind}`)}>
+        {renderSplit(splitCols, h)}
+      </section>
+    );
+  }
 
   switch (kind) {
     // ─── HERO: full-bleed cover; text order flips per view ──────────────────

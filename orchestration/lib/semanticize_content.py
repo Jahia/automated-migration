@@ -193,6 +193,61 @@ def _distill_classmap(skeleton):
             marker_parent = el
             break
     cm["items"] = cls(marker_parent)
+    # WRAPPER-CHAIN anatomy (2026-07-24 layout campaign): semantic views used
+    # to flatten the source's grid/flex nesting (hero 2-col with track panel,
+    # media-beside-prose bands) into one generic wrapper — the largest pixel
+    # divergence left once typing was faithful. Capture, generically:
+    #   chain    '|'-joined classes of the single-child wrapper tiers under
+    #            the root, down to the first split;
+    #   cols     JSON [{cls, role, chain}] for a 2-3 way split: role 'media'
+    #            (holds {{media:}}/title, no body markers) vs 'text' (body
+    #            markers); each column's own single-child tiers ride in its
+    #            chain (the hero's blue panel lives there);
+    #   bodyOrder skeleton marker order of body slots (slot NUMBERS are
+    #            page-global, so numeric order can invert the panel heading).
+    # ArchetypeSection reproduces the nesting by wearing these; absent slots
+    # keep the flat semantic layouts (fresh authored nodes).
+    _CONTENT_TAGS = {"h1", "h2", "h3", "h4", "h5", "h6", "img", "a", "p",
+                     "ul", "ol", "button", "input", "svg", "iframe", "table"}
+
+    def _single_chain(el, limit=4):
+        # descend only through WRAPPER tiers: stop at content elements and at
+        # any tier that directly holds a {{...}} marker (markers are text
+        # nodes — an h1 next to {{media:image}} looked like an only child and
+        # the h1's classes leaked onto a wrapper div)
+        tiers, cur = [], el
+        while len(tiers) < limit:
+            if any("{{" in str(x) for x in cur.children
+                   if not getattr(x, "name", None)):
+                break
+            kids = [c for c in cur.children if getattr(c, "name", None)]
+            if len(kids) != 1 or kids[0].name in _CONTENT_TAGS:
+                break
+            cur = kids[0]
+            tiers.append(cls(cur))
+        return tiers, cur
+    tiers, split_at = _single_chain(root)
+    if any(t for t in tiers):
+        cm["chain"] = "|".join(tiers)
+    split_kids = [c for c in split_at.children if getattr(c, "name", None)]
+    if 2 <= len(split_kids) <= 3:
+        cols = []
+        for k in split_kids:
+            blob = str(k)
+            role = ("media" if (("{{media:" in blob or k.find("img") is not None)
+                                and "{{f:body" not in blob) else "text")
+            kt, _ = _single_chain(k)
+            cols.append({"cls": cls(k), "role": role,
+                         "chain": "|".join(kt) if any(kt) else "",
+                         "hasTitle": "{{f:title}}" in blob})
+        roles = {c["role"] for c in cols}
+        # exactly one media + one text column — the only anatomy the split
+        # renderer reproduces without guessing content placement
+        if len(cols) == 2 and roles == {"media", "text"}:
+            cm["cols"] = json.dumps(cols, ensure_ascii=False)
+    border = re.findall(r"\{\{f:(body\d*)\}\}", skeleton)
+    if len(border) > 1:
+        cm["bodyOrder"] = " ".join(dict.fromkeys(border))
     cm = {k: v for k, v in cm.items() if v}
     return json.dumps(cm, ensure_ascii=False) if cm else None
 

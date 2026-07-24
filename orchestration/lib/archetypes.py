@@ -93,7 +93,11 @@ SHARED_MIXINS = {
 # optional layout choicelist (per-instance variation — NOT a new type), an optional
 # typed childType (containers), view names, and mainResource flag.
 def _card_child():
-    return {"key": "card", "name": "Card", "title": True,
+    # key MUST be the shipped CONTRACT atom 'cardItem' (cnd_emit syncs the
+    # manifest to ns:cardItem anyway, but a segment2manifest rerun WITHOUT the
+    # module step resurrected 'sgp:card' here and every library atom died at
+    # load with Unknown node type, 2026-07-24)
+    return {"key": "cardItem", "name": "Card", "title": True,
             "mixins": ["media", "cta"], "fields": [f("body", RICHTEXT, i18n=True)]}
 
 
@@ -359,14 +363,20 @@ def classify_region(name, kind="component", is_container=False, needs_mr=False):
     if needs_mr:
         return ("event" if toks & {"event", "agenda", "webinar"} else "article"), "mainResource"
 
+    # mediaText IS container-capable (2026-07-24, structural-gap forensics):
+    # its view renders children in the prose column and every emitted type
+    # carries `+ *` child rules. Demoting "Two Column Content (Reversed)" /
+    # "In The Shop" bands to a generic stacked section was the single biggest
+    # layout divergence left after the typing fix (vPost / Mobile App /
+    # In-The-Shop rendered stacked instead of image-beside-prose).
     _CONTAINER_OK = ("cardGrid", "accordion", "jcrQuery", "section", "cols",
-                     "footer", "article", "event")
+                     "footer", "article", "event", "mediaText")
     for akey, kws in _CLASS_RULES:
         if any((" " + kw.replace("-", " ") + " ") in hay or kw in toks for kw in kws):
             # a container region must resolve to a container-capable archetype:
             # genuine grids/carousels already matched cardGrid via keyword; a
-            # container that matched a NON-container archetype (mediaText/banner/
-            # hero) is a layout SECTION (2-col split, "In The Shop"), not cards.
+            # container that matched a NON-container archetype (banner/hero)
+            # is a layout SECTION, not cards.
             if is_container and akey not in _CONTAINER_OK:
                 return "section", "container"
             return akey, "keyword"

@@ -137,8 +137,19 @@ export function resolveSemantic(
     return n === "" ? 1 : Number(n);
   };
   const bySlot = (a: string, b: string): number => slotNo(a) - slotNo(b);
+  // skeleton marker order wins when captured — slot NUMBERS are page-global
+  // and can invert intra-node order (the hero panel heading is body2, the
+  // quick links body: numeric order put the links first)
+  const bodyOrder = typeof cls.bodyOrder === "string" ? cls.bodyOrder.split(" ") : [];
+  const byOrder = (a: string, b: string): number => {
+    const ia = bodyOrder.indexOf(a);
+    const ib = bodyOrder.indexOf(b);
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    if (ia >= 0 || ib >= 0) return ia >= 0 ? -1 : 1;
+    return bySlot(a, b);
+  };
   const bodies = Object.keys(bodySlots)
-    .sort(bySlot)
+    .sort(byOrder)
     .map((k) => fixFilesWorkspace(bodySlots[k], live))
     .filter((v) => v.trim().length > 0);
   const label =
