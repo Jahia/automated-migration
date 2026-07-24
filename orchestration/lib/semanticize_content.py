@@ -1864,6 +1864,24 @@ def main():
             # keeps its role/vision typing (a real hero leads the page).
             node = _vision_node(inst) or _structural_type(inst, _band_no) \
                 or itm.get((inst.get("type") or "").lower())
+            # ANATOMY override (2026-07-24): a mid-page band typed hero/banner
+            # that carries an image AND paragraph-length prose is a media-text
+            # row whatever the vision called it ('Call to Action' on
+            # business_promote-your-products buried the prose on the photo;
+            # its enterprise twin typed mediaText structurally and scored 10
+            # points higher). Cover banners keep: no image, or title+button
+            # only. Position 0 keeps its hero.
+            if _band_no > 0 and node in (_arch_nt.get("hero"), _arch_nt.get("banner")):
+                _f2 = inst.get("fields") or {}
+                _prose = sum(len(_visible(v)) for _k2, v in _f2.items()
+                             if isinstance(v, str)
+                             and (_k2 == "body" or (_k2.startswith("body")
+                                                    and _k2[4:].isdigit())))
+                _sk2 = inst.get("skeleton") or ""
+                _hm2 = (bool(inst.get("media")) or "{{media:" in _sk2
+                        or "<img" in _sk2 or bool(inst.get("imgOrig")))
+                if _hm2 and _prose >= 120 and len(inst.get("children") or []) < 3:
+                    node = _arch_nt.get("mediaText") or node
             _band_no += 1
             # LIBRARY instances (P2.5): containers with a libraryPlan and their
             # typed atoms (own nodeType, structured atomTitle/href/imageFile)
