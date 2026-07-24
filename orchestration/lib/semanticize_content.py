@@ -212,6 +212,21 @@ def _distill_classmap(skeleton, media=None):
         cm["title"] = cls(h)
         cm["image"] = cls(root.find("img"))
         cm["link"] = cls(root.find("a"))
+    # the lifted image's own WRAPPER tiers (its marker's ancestors, outer ->
+    # inner): a recovered class like 'absolute w-full h-full' is only valid
+    # INSIDE them — without the source's relative w-[140px] wrapper, three
+    # 140px step icons filled the whole section (enterprise_import-solutions
+    # rendered 2177px wide, worst page of the sweep, 2026-07-24)
+    mk = soup.find(string=lambda s: s and "{{media:" in s)
+    if mk is not None:
+        tiers, el = [], mk.parent
+        while (el is not None and el is not root
+               and getattr(el, "name", None) not in (None, "body", "html")):
+            tiers.append(cls(el))
+            el = el.parent
+        tiers.reverse()
+        if any(tiers):
+            cm["imageChain"] = "|".join(tiers)
     # lifted-image sizing: the first media payload's orig markup is the truth
     # of how the source displayed it (class + explicit width/height)
     if media and not cm.get("image"):
