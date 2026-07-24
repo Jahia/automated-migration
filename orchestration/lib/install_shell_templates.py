@@ -149,6 +149,11 @@ def main():
                 vs = [v.get("name") for v in (c.get("views") or []) if v.get("name")] or ["default"]
                 if needs_mr and "fullPage" not in vs:
                     vs.append("fullPage")
+                # SKELETON = PROVENANCE ONLY (operator mandate 2026-07-23):
+                # every component keeps the captured-markup render as an
+                # explicit, editor-selectable 'source' view
+                if "source" not in vs:
+                    vs.append("source")
                 return vs
 
             def write_semantic(nt, display, kind, view_name):
@@ -172,7 +177,12 @@ def main():
                 # JS — obsolete since slide decomposition splices {{child:N}}
                 # items into the intact track. Semantic layouts remain as
                 # VARIANT views and the fallback for uncaptured nodes.
-                tpl = hyb if view_name == "default" else sem
+                # SEMANTIC-FIRST (operator mandate 2026-07-23, reverses the
+                # above): skeleton stores provenance but never renders the
+                # DEFAULT — components render through ArchetypeSection (real
+                # Jahia views: fields/children + classMap + captured CSS).
+                # The captured-markup render survives as the 'source' view.
+                tpl = hyb if view_name == "source" else sem
                 out = (tpl.replace("$NODETYPE", nt)
                           .replace("$DISPLAYNAME", re.sub(r'"', "'", display or short))
                           .replace("$KIND", kind)
