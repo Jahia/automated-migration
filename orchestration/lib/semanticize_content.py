@@ -39,6 +39,20 @@ _JUNK_UNWRAP = ("astro-island", "astro-slot")
 _JUNK_DROP = ("astro-dev-toolbar", "template", "script", "noscript")
 
 
+# scroll-reveal HIDDEN-STATE utilities (2026-07-24): the raw source DOM ships
+# content at opacity-0/invisible until its own JS reveals it on scroll. That
+# is a JS lifecycle state, NOT design — captured as-is it renders content
+# invisible for every no-JS reader and the JS-off pixel gate (home's In The
+# Shop / vPost / Mobile App images were gray boxes; Support band lost its
+# photo). Strip the tokens from every captured class surface.
+_HIDDEN_STATE_TOKENS = {"opacity-0", "invisible"}
+
+
+def _strip_hidden_state(clsstr):
+    return " ".join(t for t in (clsstr or "").split()
+                    if t not in _HIDDEN_STATE_TOKENS)
+
+
 def _clean_html(html):
     """Strip framework transcription artifacts from a content HTML string."""
     if not html or "<" not in html:
@@ -54,6 +68,8 @@ def _clean_html(html):
                                                             "client", "opts", "props",
                                                             "component-url", "component-export")]:
             del tag.attrs[attr]
+        if tag.get("class") and _HIDDEN_STATE_TOKENS & set(tag.get("class")):
+            tag["class"] = [t for t in tag["class"] if t not in _HIDDEN_STATE_TOKENS]
     return "".join(str(c) for c in (soup.body.children if soup.body else [])).strip()
 
 
@@ -184,7 +200,8 @@ def _distill_classmap(skeleton, media=None):
     cm = {}
 
     def cls(el):
-        return " ".join(el.get("class") or []) if el is not None else ""
+        return _strip_hidden_state(
+            " ".join(el.get("class") or [])) if el is not None else ""
 
     if root is None and not media:
         return None

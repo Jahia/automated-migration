@@ -250,14 +250,24 @@ export default function ArchetypeSection({
 
     // ─── BANNER: full-width call-to-action band ─────────────────────────────
     case "banner":
+      // the band's photo IS the banner (source: absolute cover behind the
+      // inner content) — dropping it left white text on the fallback gray
+      // (Support & Service Updates, 2026-07-24)
       return (
         <section className={mc(cls.root, `banner ${kind}`)}>
-          <div className="banner__inner">
-            {heading}
-            <Rich html={f.body} />
-            <Cta href={f.href} label={f.ctaLabel} />
-            {childSlot}
-          </div>
+          <Img url={f.imgUrl} alt={f.imgAlt} className={mc(cls.image, "banner__media")} w={cls.imageW} h={cls.imageH} />
+          {/* the captured wrapper tiers carry the band's own background
+              (Support & Service Updates: a blue gradient) — without them the
+              white source text sits invisible on the fallback gray */}
+          {chainWrap(
+            <div className="banner__inner">
+              {heading}
+              <Rich html={f.body} />
+              <Cta href={f.href} label={f.ctaLabel} />
+              {childSlot}
+            </div>,
+            cls.chain,
+          )}
         </section>
       );
 

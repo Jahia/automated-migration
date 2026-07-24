@@ -54,7 +54,7 @@ a.cta:hover {
 }
 
 /* ---- hero --------------------------------------------------------------- */
-.hero {
+.hero:not(.hero--source) {
   position: relative;
   overflow: hidden;
 }
@@ -93,7 +93,9 @@ a.cta:hover {
 }
 
 /* ---- media + text ------------------------------------------------------- */
-.media-text {
+/* semantic fallback layout — stands down when the view reproduces the
+   source anatomy (media-text--source), footer--source precedent */
+.media-text:not(.media-text--source) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(1rem, 4vw, 3rem);
@@ -103,7 +105,7 @@ a.cta:hover {
   padding: clamp(1.5rem, 4vw, 3rem);
 }
 @media (max-width: 780px) {
-  .media-text {
+  .media-text:not(.media-text--source) {
     grid-template-columns: 1fr;
   }
 }
@@ -111,6 +113,19 @@ a.cta:hover {
 /* ---- banner ------------------------------------------------------------- */
 .banner {
   background: #f5f5f5;
+  position: relative;
+  overflow: hidden;
+}
+/* source cover photo behind the inner content; classless fallback stays bounded */
+.banner .banner__media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.banner .banner__inner {
+  position: relative;
 }
 .banner__inner {
   max-width: 1240px;
