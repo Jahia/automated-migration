@@ -459,7 +459,14 @@ export default function ArchetypeSection({
           )}
           <Rich html={f.body} />
           <Cta href={f.href} label={f.ctaLabel} />
-          {childSlot}
+          {/* the captured items-row classes ARE the source's grid — without
+              them 6 culture tiles stack full-width (corporate_careers lived
+              at 1.8x source height, 2026-07-24) */}
+          {cls.items ? (
+            <div className={mc(cls.items, "section__items")}>{childSlot}</div>
+          ) : (
+            childSlot
+          )}
         </section>
       );
   }
