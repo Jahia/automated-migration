@@ -2013,6 +2013,37 @@ def main():
                 if ins["parent"] is not None and kept[ins["parent"]].get("passthrough"):
                     ins["parent"] = None
         page["instances"] = kept
+        # MEDIA-SIZING post-pass (2026-07-24): some atoms distill their
+        # classMap BEFORE the media lift (skeleton root was the <img> itself,
+        # so the image slot stayed empty and the media param was empty) — the
+        # payment-mode icon chips rendered at natural file size and exploded
+        # business_payment-solutions to 3.2x source height. Merge the sizing
+        # recovery from media[0].orig into every FINAL instance/child whose
+        # classMap still lacks it.
+        def _merge_media_sizing(ins):
+            for node in [ins] + list(ins.get("children") or []):
+                med = node.get("media") or []
+                if not med:
+                    continue
+                try:
+                    cm0 = json.loads(node.get("classMap") or "{}")
+                except ValueError:
+                    cm0 = {}
+                if cm0.get("imageW") or cm0.get("imageH"):
+                    continue
+                orig = (med[0] or {}).get("orig") or ""
+                io = BeautifulSoup(orig, "lxml").find("img") if orig else None
+                if io is None:
+                    continue
+                icls = _strip_hidden_state(" ".join(io.get("class") or []))
+                if icls and not cm0.get("image"):
+                    cm0["image"] = icls
+                for attr, key in (("width", "imageW"), ("height", "imageH")):
+                    v = (io.get(attr) or "").strip()
+                    if v.isdigit():
+                        cm0[key] = v
+                if cm0:
+                    node["classMap"] = json.dumps(cm0, ensure_ascii=False)
         # decomposition residue: container slots duplicating child texts drop
         _dedup_container_slots(kept)
         _mod_ns = (passthrough or "x:y").split(":")[0]
@@ -2043,6 +2074,11 @@ def main():
                                                          min_run=4, ns=_mod_ns)
         for i2 in kept:
             _revive(i2)
+        # media-sizing merge runs LAST: _debodify_images above is what CREATES
+        # the media payloads for image-only atoms (first placement of this
+        # pass sat before the sweep and matched nothing, verified live)
+        for i2 in kept:
+            _merge_media_sizing(i2)
 
     # write the reconciliation artifact (orchestrator-reviewable; gated by
     # orchestration/probes/reconcile-check.py BEFORE any load)
