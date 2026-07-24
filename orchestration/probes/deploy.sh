@@ -37,7 +37,26 @@ case "${JAHIA_USER:-}" in
   *) export JAHIA_USER="${JAHIA_USER:-root}:${JAHIA_PASS:?JAHIA_PASS required to compose jahia-deploy credentials}" ;;
 esac
 export JAHIA_HOST="${JAHIA_HOST:-${JAHIA_URL:?JAHIA_URL required}}"
+
+# NEVER-SEEN-VERSION discipline (2026-07-23): Jahia skips re-registering type
+# definitions for any module VERSION it ever processed — a changed CND deployed
+# on a seen version silently keeps the OLD definitions (cost: 3 manual bumps in
+# one day). Stamp the CND surface; on change, bump the minor version before
+# deploying. Stamp updates only after a successful deploy.
+cnd_hash=$(cat "$proj"/settings/definitions.cnd "$proj"/src/components/*/definition.cnd 2>/dev/null | shasum -a 256 | cut -d' ' -f1)
+stamp="$proj/workflow-output/.cnd-deploy-stamp"
+if [ -n "$cnd_hash" ] && [ "$(cat "$stamp" 2>/dev/null)" != "$cnd_hash" ] && [ -f "$stamp" ]; then
+  node -e "
+    const fs=require('fs'); const p='$proj/package.json';
+    const pkg=JSON.parse(fs.readFileSync(p,'utf8'));
+    const [ma,mi]=pkg.version.split('.').map(Number);
+    pkg.version=[ma,mi+1,0].join('.');
+    fs.writeFileSync(p,JSON.stringify(pkg,null,2));
+    console.log('deploy.sh: CND changed -> version bumped to '+pkg.version+' (never-seen-version rule)');
+  "
+fi
 ( cd "$proj" && yarn build && yarn jahia-deploy )
+[ -n "$cnd_hash" ] && printf '%s' "$cnd_hash" > "$stamp"
 
 # rule 14: 'Operation successful' is NOT 'bundle started' — an unresolvable
 # nodetype requirement (a view registered for an undeclared type) leaves the

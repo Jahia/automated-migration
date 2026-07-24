@@ -280,6 +280,7 @@
         "Run: python3 orchestration/lib/semanticize_content.py singpost --manifest projects/singpost/workflow-output/component-manifest.json",
         "PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/singpost.content-load.json')); sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\"",
         "PROBE: python3 orchestration/probes/reconcile-check.py singpost",
+        "PROBE: python3 orchestration/probes/archetype-utilization.py singpost",
         "PROBE: python3 orchestration/probes/inventory-coverage.py singpost singpost --phase content",
         "Run: python3 orchestration/probes/partition.py singpost || true",
         "Run: python3 orchestration/probes/contribution.py singpost || true",

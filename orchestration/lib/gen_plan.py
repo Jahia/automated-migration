@@ -244,7 +244,11 @@ def build_plan(p):
               # RECONCILIATION gate (2026-07-16): scraped text is CONSERVED into
               # properties/children (coverage floor), no structure-markup
               # leftovers, value-level applicability — blocking, BEFORE any load
-              *([f"PROBE: python3 orchestration/probes/reconcile-check.py {P}"] if ARCH else []),
+              *([f"PROBE: python3 orchestration/probes/reconcile-check.py {P}",
+                 # LOADED-distribution check needs content-load.json — at
+                 # step_group it silently skips (file absent in a fresh run);
+                 # here it gates for real (2026-07-23)
+                 f"PROBE: python3 orchestration/probes/archetype-utilization.py {P}"] if ARCH else []),
               # INVENTORY coverage: every heading/image the DOM analysis found
               # is placed in the payload (blocking, pre-load)
               *([f"PROBE: python3 orchestration/probes/inventory-coverage.py {P} {SITE} --phase content"] if ARCH else []),
