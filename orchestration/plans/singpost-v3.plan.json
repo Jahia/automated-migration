@@ -1,5 +1,5 @@
 {
- "goal": "Migrate https://www.singpost.com to a Jahia JS module (project: singpost, site: singpost, ns: sgp) \u2014 v2 full loop, fidelity >=99%/page vs local mirror",
+ "goal": "Migrate https://www.singpost.com to a Jahia JS module (project: singpost, site: singpost, ns: sgp) — v2 full loop, fidelity >=99%/page vs local mirror",
  "repo_dir": "/Users/stephane/Runtimes/0.Modules/automated-migration",
  "model": "opencode/deepseek-v4-flash",
  "epics": [
@@ -141,7 +141,7 @@
           }
          ],
          "skip": [],
-         "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/singpost/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe \u2014 hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
+         "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/singpost/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe — hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
         },
         {
          "id": "ab_test",
@@ -164,7 +164,7 @@
           }
          ],
          "skip": [],
-         "notes": "Information strategy: runs the heuristic arm into projects/singpost/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/singpost/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red \u2014 the NEXT decision has the A/B report."
+         "notes": "Information strategy: runs the heuristic arm into projects/singpost/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/singpost/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red — the NEXT decision has the A/B report."
         },
         {
          "id": "heuristic_arm",
@@ -199,7 +199,7 @@
          "halt": true,
          "patches": [],
          "skip": [],
-         "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only \u2014 recorded as a waiver."
+         "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only — recorded as a waiver."
         }
        ]
       },
@@ -238,8 +238,8 @@
        },
        "acceptance_criteria": [
         "Review: projects/singpost/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and projects/singpost/workflow-output/segment/*.segmap.html overlays.",
-        "Decide: POST /runs/{run_id}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors \u2014 never page URLs) appended to projects/singpost/workflow-output/scope-rules.json + action=apply_and_rerun.",
-        "Gate: scheduled decision point \u2014 the engine pauses (decision_pending); this step is never sent to an agent."
+        "Decide: POST /runs/{run_id}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to projects/singpost/workflow-output/scope-rules.json + action=apply_and_rerun.",
+        "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
        ],
        "max_attempts": 3,
        "review": true
@@ -340,7 +340,7 @@
         "site": "singpost"
        },
        "acceptance_criteria": [
-        "Read projects/singpost/workflow-output/model-census.json and representative mirror DOMs; author projects/singpost/workflow-output/component-model-review.md (human canon: atoms w/ cta variants, composites w/ FIELD surfaces and VIEW FAMILIES, entity map [nav-reachable=page; card-reached prose=entity; ties->page], chrome, css slots, islands, scope report) + component-model.json (machine twin). Per orchestration/MIGRATION-V3-MODEL-FIRST.md Phase 1. The operator amends and approves \u2014 nodeType identifiers freeze at first deploy; the model governs names, fields, views.",
+        "Read projects/singpost/workflow-output/model-census.json and representative mirror DOMs; author projects/singpost/workflow-output/component-model-review.md (human canon: atoms w/ cta variants, composites w/ FIELD surfaces and VIEW FAMILIES, entity map [nav-reachable=page; card-reached prose=entity; ties->page], chrome, css slots, islands, scope report) + component-model.json (machine twin). Per orchestration/MIGRATION-V3-MODEL-FIRST.md Phase 1. The operator amends and approves — nodeType identifiers freeze at first deploy; the model governs names, fields, views.",
         "Entity map -> orchestration/content/singpost.mainresource.json"
        ],
        "max_attempts": 3,
@@ -682,6 +682,7 @@
         "Run: python3 orchestration/lib/load_content.py singpost singpost --clean --locale en",
         "PROBE: python3 orchestration/lib/create_pages.py singpost singpost --check",
         "PROBE: python3 orchestration/probes/clean-render.py singpost --model archetype",
+        "PROBE: python3 orchestration/probes/load-parity.py singpost singpost",
         "PROBE: python3 orchestration/probes/model-contract.py --phase content singpost",
         "PROBE: bash orchestration/probes/startnode.sh singpost singpost en",
         "Run: python3 orchestration/probes/partition.py singpost || true",
@@ -808,9 +809,9 @@
         "site": "singpost"
        },
        "acceptance_criteria": [
-        "Review: the pre-triaged failure classes (projects/singpost/workflow-output/exceptions-triage.json \u2014 pattern vs page-specific, per-class counts + suggested actions) alongside the per-page probe results (projects/singpost/workflow-output/contribution + partition + publish-parity + roundtrip outputs) \u2014 pages that did not fit the frozen profile.",
+        "Review: the pre-triaged failure classes (projects/singpost/workflow-output/exceptions-triage.json — pattern vs page-specific, per-class counts + suggested actions) alongside the per-page probe results (projects/singpost/workflow-output/contribution + partition + publish-parity + roundtrip outputs) — pages that did not fit the frozen profile.",
         "Decide: POST /runs/{run_id}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into projects/singpost/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
-        "Gate: scheduled decision point \u2014 the engine pauses (decision_pending); this step is never sent to an agent."
+        "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
        ],
        "max_attempts": 3,
        "review": true

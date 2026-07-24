@@ -1270,13 +1270,19 @@ def _semanticize_instance(inst, node, surf):
     # embedded typed children -> same hybrid treatment
     child_node = (surf.get(node) or {}).get("child")
     if inst.get("children"):
+        # last-resort child type is the universal ITEM atom, never the parent
+        # band type: hero/newsArticle/richTextSection have no child rule for
+        # themselves, so parent-typed kids die at load with ConstraintViolation
+        # (2026-07-24: receiving hero's 4 quick-link kids stamped sgp:hero) —
+        # and the CONTRACT below says repetition inside a region IS cardItem
+        _atom = f"{(node or 'x:y').split(':')[0]}:cardItem"
         out["children"] = [_semanticize_instance(
             {**ch, "type": ch.get("type") or child_node or inst["type"]},
             # node must be a REAL nodeType — a child's bare type KEY ('cta')
             # leaked here and minted 'cta:cta' nested children (2026-07-23,
             # exposed by deeper componentization): own nodeType > manifest
-            # childType > parent node
-            ch.get("nodeType") or child_node or node, surf) for ch in inst["children"]]
+            # childType > cardItem atom
+            ch.get("nodeType") or child_node or _atom, surf) for ch in inst["children"]]
     # CONTRACT: repetition inside the region -> {ns}:cardItem CHILDREN (never
     # flat parent fields); the lifted link -> a {ns}:cta CHILD (never a mixin)
     ns = (node or "x:y").split(":")[0]

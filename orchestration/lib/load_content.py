@@ -1013,7 +1013,11 @@ class Loader:
                 names.append(nm2)
                 names_by_idx[idx] = nm2
                 continue
-            nt = self.type_map.get(inst["type"].lower())
+            # mirror of the create loop (2026-07-24): the per-instance
+            # nodeType stamp wins; role map is the unstamped fallback
+            nt = ((inst.get("nodeType")
+                   if ":" in str(inst.get("nodeType") or "") else None)
+                  or self.type_map.get(inst["type"].lower()))
             if not nt:
                 continue
             abs_area = area_for(nt, self.manifest, self.site)
@@ -1312,7 +1316,16 @@ class Loader:
                     failed += 1
                 continue
 
-            nt = self.type_map.get(inst["type"].lower())
+            # PER-INSTANCE nodeType stamp FIRST (2026-07-24 stale-type class):
+            # semanticize's per-page vision join stamps the band's true type on
+            # the instance; resolving via the manifest role map here silently
+            # re-typed 65 pages' bands (home: 7/8 sgp:hero) because role keys
+            # ('relative', 'space-y-4') collide across archetypes. The role map
+            # stays as the fallback for unstamped instances. Mirrored in
+            # _expected_main_children — the two MUST stay in lockstep.
+            nt = ((inst.get("nodeType")
+                   if ":" in str(inst.get("nodeType") or "") else None)
+                  or self.type_map.get(inst["type"].lower()))
             if not nt:
                 skip("unmapped")
                 continue  # unmapped helper

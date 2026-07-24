@@ -107,16 +107,57 @@ export function resolveSemantic(
   } catch {
     homeUrl = undefined;
   }
+  // SLOT-NUMBERED rich text (2026-07-24): the loader keys a node's richtext
+  // runs body, body2..bodyN (page-global slot numbers — a node may carry ONLY
+  // body3). The skeleton view references slots by marker; the semantic surface
+  // must aggregate them in order or the node renders empty (observed live:
+  // every carousel card body sat in body2..4, invisible). Same for the CTA
+  // label slots label/label2..N. Enumerate via node.getProperties() like
+  // skeletonRender does — mixin-injected slot props are not guaranteed on the
+  // props object.
+  const bodySlots: Record<string, string> = {};
+  const labelSlots: Record<string, string> = {};
+  try {
+    const it = node.getProperties();
+    while (it.hasNext()) {
+      const p = it.nextProperty();
+      try {
+        const name = String(p.getName());
+        if (/^body\d*$/.test(name)) bodySlots[name] = p.getString();
+        else if (/^label\d*$/.test(name)) labelSlots[name] = p.getString();
+      } catch {
+        /* unreadable prop — skip */
+      }
+    }
+  } catch {
+    /* not a JCR content node */
+  }
+  const slotNo = (k: string): number => {
+    const n = k.replace(/^[a-z]+/i, "");
+    return n === "" ? 1 : Number(n);
+  };
+  const bySlot = (a: string, b: string): number => slotNo(a) - slotNo(b);
+  const bodies = Object.keys(bodySlots)
+    .sort(bySlot)
+    .map((k) => fixFilesWorkspace(bodySlots[k], live))
+    .filter((v) => v.trim().length > 0);
+  const label =
+    str("ctaLabel") ??
+    str("linkLabel") ??
+    Object.keys(labelSlots)
+      .sort(bySlot)
+      .map((k) => labelSlots[k])
+      .find((v) => v.trim().length > 0);
   return {
     homeUrl,
     title: str("jcr:title"),
     subtitle: str("subtitle"),
-    body: str("body"),
+    body: bodies.length ? bodies.join("\n") : undefined,
     text: str("text"),
     imgUrl,
     imgAlt,
     href,
-    ctaLabel: str("ctaLabel") ?? str("linkLabel"),
+    ctaLabel: label,
     hasChildren,
     editMode,
     cls,

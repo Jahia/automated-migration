@@ -470,6 +470,11 @@ def build_plan(p):
               # of source junk — cookie consent, SPA islands, framework attrs,
               # source nav, shell blob nodes (2026-07-15 SingPost audit gap).
               *([f"PROBE: python3 orchestration/probes/clean-render.py {SITE} --model archetype"] if ARCH else []),
+              # LOAD PARITY (2026-07-24 stale-load class): the live EDIT tree
+              # must wear the load artifact's types page-by-page — a retyped
+              # content-load.json with an unreloaded site went undetected by
+              # every file-level gate (home: 7/8 bands stale sgp:hero)
+              *([f"PROBE: python3 orchestration/probes/load-parity.py {P} {SITE}"] if ARCH else []),
               # CONTRACT gate content side: no bodyN props in the JCR, no
               # container-collapse (content on parents, children empty)
               *([f"PROBE: python3 orchestration/probes/model-contract.py --phase content {SITE}"] if ARCH else []),
