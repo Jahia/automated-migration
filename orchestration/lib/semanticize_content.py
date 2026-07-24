@@ -1570,6 +1570,47 @@ def main():
             _ot = _visible(" ".join(_parts))
             orig_vis[_i] = len(_ot)
             orig_text[_i] = _ot
+        # PER-PAGE vision typing (2026-07-23, loaded-concentration class): the
+        # global role->type bridge first-claims generic wrapper roles for one
+        # archetype (hero took 69% of loaded bands). THIS page's segmentation
+        # knows what each band IS: index its components by root (tag, class
+        # fingerprint) so an instance types from the vision name first, the
+        # global role key only as fallback.
+        _vidx = {}
+        try:
+            _seg = json.load(open(f"projects/{a.project}/workflow-output/"
+                                  f"segment/{_pk}.segmentation.json"))
+            _vnodes = {n["id"]: n for n in _seg.get("nodes") or []
+                       if isinstance(n, dict) and "id" in n}
+            def _vadd(c):
+                b = _vnodes.get(c.get("rootId"))
+                if b is not None:
+                    key = ((b.get("tag") or "").lower(),
+                           " ".join(sorted((b.get("cls") or "").split())))
+                    _vidx.setdefault(key, re.sub(r"[^a-z0-9]+", "-",
+                                                 (c.get("name") or "").lower()).strip("-"))
+                for ch in c.get("children") or []:
+                    _vadd(ch)
+            for _c in _seg.get("components") or []:
+                _vadd(_c)
+        except Exception:
+            pass
+
+        def _vision_node(inst):
+            """itm nodeType from THIS page's vision component covering the
+            instance's skeleton root; None when unsegmented/unmatched."""
+            if not _vidx:
+                return None
+            sk = inst.get("skeleton") or ""
+            m = re.match(r"\s*<([a-zA-Z][a-zA-Z0-9]*)([^>]*)>", sk)
+            if not m:
+                return None
+            tag = m.group(1).lower()
+            cm = re.search(r'class="([^"]*)"', m.group(2))
+            key = (tag, " ".join(sorted((cm.group(1) if cm else "").split())))
+            vn = _vidx.get(key)
+            return itm.get(vn) if vn else None
+
         # library plans WITH paired atoms decompose via _decompose_library;
         # a plan WITHOUT atoms is a bare slide track needing the gallery rescue
         _plans_with_atoms = {a2.get("parent") for a2 in page.get("instances", [])
@@ -1654,7 +1695,8 @@ def main():
                     transformed.append((True, _qn))
                     n_sem += 1
                     continue
-            node = itm.get((inst.get("type") or "").lower())
+            # per-page vision typing FIRST; the global role key is the fallback
+            node = _vision_node(inst) or itm.get((inst.get("type") or "").lower())
             # LIBRARY instances (P2.5): containers with a libraryPlan and their
             # typed atoms (own nodeType, structured atomTitle/href/imageFile)
             # are created natively by load_content's library path as REAL typed
