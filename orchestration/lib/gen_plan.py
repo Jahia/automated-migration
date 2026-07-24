@@ -192,7 +192,11 @@ def build_plan(p):
                  + (" --archetypes" if ARCH else ""),
                  f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
                  f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
-                 f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json"],
+                 f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json",
+                 # the model's types must actually be USED (2026-07-23: a
+                 # needs_mr misroute loaded the whole site as 3 types and no
+                 # gate noticed — fidelity rides skeletons, not types)
+                 f"PROBE: python3 orchestration/probes/archetype-utilization.py {P}"],
                 deps=["step_segment"])]
           if SEGMENTATION == "vision" else
           [step("step_group", "LLM grouping (bounded) + partition gate", "build",

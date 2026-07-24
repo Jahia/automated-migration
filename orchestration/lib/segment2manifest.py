@@ -227,6 +227,27 @@ def main():
     except Exception:
         pass
 
+    # entity pages per the OPERATOR-approved entity map (2026-07-23): needs_mr
+    # routed by fuzzy heuristic-role overlap with LEARNED detail entityRoles —
+    # generic Tailwind classes ('hidden', 'max-w-7xl') — sent 120/243 roles to
+    # the article type and starved every other archetype (9 of 11 model types
+    # loaded ZERO instances). A region is mainResource-ish ONLY when it lives
+    # exclusively on entity DETAIL pages (mainresource.json urlPrefixes).
+    entity_prefixes = []
+    try:
+        _mr = json.load(open(f"orchestration/content/{a.project}.mainresource.json"))
+        for _fo in (_mr.get("folders") or {}).values():
+            entity_prefixes += [p.replace("/", "_")
+                                for p in (_fo.get("urlPrefixes") or []) if p]
+    except Exception:
+        pass
+
+    def region_needs_mr(e):
+        pages = [p for p in (e.get("pages") or []) if p]
+        return bool(pages) and bool(entity_prefixes) and all(
+            any(p.startswith(pref + "_") for pref in entity_prefixes)
+            for p in pages)
+
     # known heuristic candidate roles — the promotion vocabulary. Vision roots
     # rarely land on the EXACT element the heuristic altitude picked (outer
     # section vs inner items wrapper), so each vision component also claims the
@@ -325,7 +346,7 @@ def main():
         low = []
         for key, e in agg.items():
             is_cont = e["kind"] == "container" or bool(e.get("childShapes"))
-            needs_mr = any(hr in detail for hr in e["heurRoles"])
+            needs_mr = region_needs_mr(e)
             akey, conf = ARCH.classify_region(e["name"], e.get("kind", "component"),
                                               is_container=is_cont, needs_mr=needs_mr)
             b = by_arch.setdefault(akey, {"covers": set(), "freq": 0, "pages": set(),
@@ -421,7 +442,7 @@ def main():
                      "nodeType": f"{ns}:{camel(key)}Item",
                      "fields": fields_from_shape(cs) or
                      [{"name": "title", "type": "string", "i18n": True, "mandatory": False}]}
-        needs_mr = any(hr in detail for hr in e["heurRoles"])
+        needs_mr = region_needs_mr(e)
         fields = fields_from_shape(dom_shape)
         # every skeleton component lifts its heading into jcr:title — the type
         # MUST carry mix:title (cnd_emit keys it on a 'title' field) or the

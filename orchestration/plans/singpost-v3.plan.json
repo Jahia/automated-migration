@@ -219,7 +219,8 @@
         "Run: python3 orchestration/lib/segment2manifest.py singpost --ns sgp --mixns sgpmix --archetypes",
         "Run: python3 orchestration/lib/make_overrides.py singpost --module singpost",
         "PROBE: test -s projects/singpost/workflow-output/component-manifest.json",
-        "PROBE: test -s projects/singpost/workflow-output/passthrough-overrides.json"
+        "PROBE: test -s projects/singpost/workflow-output/passthrough-overrides.json",
+        "PROBE: python3 orchestration/probes/archetype-utilization.py singpost"
        ],
        "max_attempts": 3
       },
