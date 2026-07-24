@@ -77,6 +77,31 @@ def main():
                    f"({', '.join(live) or 'none'}) < {MIN_LIVE_TYPES} — the model's "
                    f"types are dead weight")
 
+    # LOADED distribution (2026-07-23, second blind spot): role shares can be
+    # healthy while the PAYLOAD skews — generic high-frequency wrapper roles
+    # ('relative', 'w-full') are first-claimed by one archetype's regions, so
+    # occurrence-weighted typing collapses again (hero took 65% of loaded
+    # bands while the role shares read fine). Measure the artifact that
+    # actually loads: top-level instances per resolved type.
+    try:
+        cl = json.load(open(f"orchestration/content/{a.project}.content-load.json"))
+        litm = {k.lower(): v for k, v in itm.items()}
+        loaded = Counter()
+        for pg in (cl.get("pages") or {}).values():
+            for i in pg.get("instances") or []:
+                nt = i.get("nodeType") or litm.get((i.get("type") or "").lower())
+                if nt and local(nt) not in STRUCTURAL:
+                    loaded[nt] += 1
+        ltotal = sum(loaded.values())
+        for nt, c in loaded.most_common():
+            if ltotal and c / ltotal > 0.50:
+                bad.append(f"loaded-concentration: {nt} carries {c}/{ltotal} loaded "
+                           f"bands ({c / ltotal:.0%} > 50%) — the role->type bridge "
+                           f"is occurrence-collapsing (generic wrapper roles "
+                           f"first-claimed by one archetype)")
+    except (FileNotFoundError, ValueError):
+        pass   # pre-extract phases: manifest checks above still gate
+
     if bad:
         print("FAIL: archetype-utilization —", file=sys.stderr)
         for b in bad:
