@@ -1254,10 +1254,12 @@ def _semanticize_instance(inst, node, surf):
                             re.sub(r"\{\{[^}]+\}\}", " ", sk or ""))
             if len(re.sub(r"\s+", " ", resid2).strip()) >= 60:
                 # min_run drops too: the strip is many SHORT runs
-                # ('Airmail' = 7 chars) that the default 20-char per-run
-                # floor declined while the gate measures the SUM
+                # ('Airmail' = 7 chars, 'IRAS'/'CPF' badges = 3-4 chars) that
+                # a per-run floor declined while the gate measures the SUM
+                # (pay bill directory, 2026-07-23: 18 four-char badges = 93
+                # leftover chars). The 60-char total guard above still gates.
                 sk = _sweep_text_to_body(sk, fields, min_chars=1,
-                                         children_out=None, min_run=6,
+                                         children_out=None, min_run=3,
                                          ns=(node or "x:y").split(":")[0])
     if sk:
         out["skeleton"] = sk
@@ -1587,8 +1589,15 @@ def main():
                 if b is not None:
                     key = ((b.get("tag") or "").lower(),
                            " ".join(sorted((b.get("cls") or "").split())))
-                    _vidx.setdefault(key, re.sub(r"[^a-z0-9]+", "-",
-                                                 (c.get("name") or "").lower()).strip("-"))
+                    # ORDERED list per fingerprint (2026-07-23 collision class):
+                    # the outline normalizes classes, so most bands on a page
+                    # share one fingerprint — first-wins gave them ALL the
+                    # first band's name ('Hero Section', hero 42% overshoot).
+                    # Document order disambiguates: instances consume names
+                    # positionally.
+                    _vidx.setdefault(key, []).append(
+                        re.sub(r"[^a-z0-9]+", "-",
+                               (c.get("name") or "").lower()).strip("-"))
                 for ch in c.get("children") or []:
                     _vadd(ch)
             for _c in _seg.get("components") or []:
@@ -1598,7 +1607,9 @@ def main():
 
         def _vision_node(inst):
             """itm nodeType from THIS page's vision component covering the
-            instance's skeleton root; None when unsegmented/unmatched."""
+            instance's skeleton root; both sequences run in document order, so
+            each instance CONSUMES the next name for its fingerprint. None
+            when unsegmented/unmatched/exhausted."""
             if not _vidx:
                 return None
             sk = inst.get("skeleton") or ""
@@ -1608,8 +1619,11 @@ def main():
             tag = m.group(1).lower()
             cm = re.search(r'class="([^"]*)"', m.group(2))
             key = (tag, " ".join(sorted((cm.group(1) if cm else "").split())))
-            vn = _vidx.get(key)
-            return itm.get(vn) if vn else None
+            names = _vidx.get(key)
+            if not names:
+                return None
+            vn = names.pop(0)
+            return itm.get(vn)
 
         # library plans WITH paired atoms decompose via _decompose_library;
         # a plan WITHOUT atoms is a bare slide track needing the gallery rescue
