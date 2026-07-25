@@ -287,7 +287,14 @@ export default function ArchetypeSection({
         <section className={mc(cls.root, `rich-text ${kind}`)}>
           {heading}
           <Rich html={f.body} />
-          {childSlot}
+          {/* decomposed kids keep the source items-row grid (same fix as the
+              generic section: bare childSlot stacked 3 use-case cards
+              full-width on enterprise_import-solutions) */}
+          {cls.items ? (
+            <div className={mc(cls.items, "section__items")}>{childSlot}</div>
+          ) : (
+            childSlot
+          )}
         </section>
       );
 
