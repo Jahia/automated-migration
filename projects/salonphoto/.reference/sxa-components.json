@@ -1,6 +1,6 @@
 {
   "sourceIsSxa": true,
-  "componentTypeCount": 36,
+  "componentTypeCount": 41,
   "components": [
     {
       "type": "content",
@@ -22,7 +22,11 @@
         "description-2",
         "description-3",
         "heading",
+        "icon-1",
+        "icon-2",
+        "icon-3",
         "image-push",
+        "surtitre",
         "title",
         "title-1",
         "title-2",
@@ -41,40 +45,43 @@
         "fa-brands"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 122,
+      "instances": 354,
       "pages": [
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
         "a-propos.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
         "agenda-photo.html",
-        "animations.html",
-        "comment-venir-au-salon.html",
-        "dates-acces-horaires.html",
-        "expositions-photos.html",
-        "faq.html",
-        "lien-billetterie.html"
+        "analog-chronicles-spring.html",
+        "animations.html"
       ]
     },
     {
-      "type": "plain-html",
+      "type": "rich-text",
       "aliases": [
-        "plain-html"
+        "basic-vertical-space",
+        "rich-text"
       ],
-      "fields": [],
+      "fields": [
+        "description"
+      ],
       "childTypes": [],
       "isContainer": false,
-      "linkSeries": 1,
-      "listItems": 0,
+      "linkSeries": 9,
+      "listItems": 22,
       "hasIcons": [],
-      "modelHint": null,
-      "instances": 43,
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 345,
       "pages": [
-        "Infos-Pratiques.html",
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
         "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
+        "analog-chronicles-spring.html",
+        "appareil-photo-pour-debuter.html",
+        "bitrate-video.html"
       ]
     },
     {
@@ -95,42 +102,67 @@
         "fa-solid"
       ],
       "modelHint": null,
-      "instances": 41,
+      "instances": 257,
       "pages": [
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
         "a-propos.html",
         "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
         "agenda-photo.html",
-        "animations.html",
-        "catalogue.html",
-        "comment-venir-au-salon.html",
-        "dates-acces-horaires.html",
-        "expositions-photos.html"
+        "analog-chronicles-spring.html"
       ]
     },
     {
-      "type": "rich-text",
+      "type": "plain-html",
       "aliases": [
-        "rich-text"
+        "plain-html"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 183,
+      "pages": [
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
+      ]
+    },
+    {
+      "type": "image",
+      "aliases": [
+        "container-bp",
+        "image"
       ],
       "fields": [
-        "description"
+        "imagecaption"
       ],
       "childTypes": [],
       "isContainer": false,
-      "linkSeries": 9,
-      "listItems": 10,
+      "linkSeries": 0,
+      "listItems": 0,
       "hasIcons": [],
-      "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 29,
+      "modelHint": null,
+      "instances": 171,
       "pages": [
-        "a-propos.html",
-        "comment-venir-au-salon.html",
-        "dates-acces-horaires.html",
-        "faq.html",
-        "fr-FR.html",
-        "lien-billetterie.html",
-        "qui-expose.html",
-        "qui-visite.html"
+        "Benoit-Henri-Tyszkiewicz.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "appareil-photo-pour-debuter.html",
+        "bruno-barbey-visions-sur-le-monde.html",
+        "choisir-son-appareil-photo.html",
+        "christophe-brachet-coulisses-du-7e-art.html",
+        "conference-nikon.html",
+        "definition-resolution.html"
       ]
     },
     {
@@ -157,16 +189,16 @@
         "fa-regular"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 27,
+      "instances": 158,
       "pages": [
-        "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
       ]
     },
     {
@@ -191,16 +223,16 @@
         "fa-ticket-simple"
       ],
       "modelHint": null,
-      "instances": 27,
+      "instances": 158,
       "pages": [
-        "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
       ]
     },
     {
@@ -220,16 +252,16 @@
         "fa-ticket-simple"
       ],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 27,
+      "instances": 158,
       "pages": [
-        "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
       ]
     },
     {
@@ -244,16 +276,16 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 27,
+      "instances": 158,
       "pages": [
-        "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
       ]
     },
     {
@@ -283,16 +315,16 @@
         "fa-youtube"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 27,
+      "instances": 158,
       "pages": [
-        "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
       ]
     },
     {
@@ -302,24 +334,25 @@
         "navigation-title"
       ],
       "fields": [
-        "navigationtitle"
+        "navigationtitle",
+        "title"
       ],
       "childTypes": [],
       "isContainer": false,
-      "linkSeries": 3,
-      "listItems": 3,
+      "linkSeries": 4,
+      "listItems": 4,
       "hasIcons": [],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 26,
+      "instances": 157,
       "pages": [
-        "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "actus.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html"
+        "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
+        "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
+        "Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2.html",
+        "Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc-2.html",
+        "Atelier-ZOOM-UP-avec-Laurence-Leblanc.html",
+        "Benoit-Henri-Tyszkiewicz.html"
       ]
     },
     {
@@ -327,11 +360,14 @@
       "aliases": [
         "banner-title2",
         "banner-title3",
+        "banner-title4",
         "small-banner",
         "title"
       ],
       "fields": [
         "arriere-titre",
+        "date-de-publication",
+        "sous-titre",
         "titre"
       ],
       "childTypes": [],
@@ -340,16 +376,16 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 25,
+      "instances": 119,
       "pages": [
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
         "Infos-Pratiques.html",
         "a-propos.html",
         "actualite-photo.html",
         "actualites.html",
-        "agenda-photo.html",
-        "animations-ateliers.html",
-        "animations.html",
-        "catalogue.html"
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html"
       ]
     },
     {
@@ -366,16 +402,16 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 18,
+      "instances": 112,
       "pages": [
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
         "a-propos.html",
         "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
         "agenda-photo.html",
-        "animations.html",
-        "catalogue.html",
-        "comment-venir-au-salon.html",
-        "dates-acces-horaires.html",
-        "expositions-photos.html"
+        "analog-chronicles-spring.html"
       ]
     },
     {
@@ -392,16 +428,99 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 18,
+      "instances": 112,
       "pages": [
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
         "a-propos.html",
         "actus.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
         "agenda-photo.html",
-        "animations.html",
-        "catalogue.html",
-        "comment-venir-au-salon.html",
-        "dates-acces-horaires.html",
-        "expositions-photos.html"
+        "analog-chronicles-spring.html"
+      ]
+    },
+    {
+      "type": "structured-data",
+      "aliases": [
+        "structured-data"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 97,
+      "pages": [
+        "Benoit-Henri-Tyszkiewicz.html",
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
+        "analog-chronicles-spring.html",
+        "appareil-photo-pour-debuter.html",
+        "bitrate-video.html",
+        "boitier-video.html"
+      ]
+    },
+    {
+      "type": "content-block-vertical-image",
+      "aliases": [
+        "content-block-vertical-image",
+        "left-img",
+        "right-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 2,
+      "listItems": 10,
+      "hasIcons": [],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
+      "instances": 34,
+      "pages": [
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
+        "affiche-salon-de-la-photo-paris-2025.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
+        "bruno-barbey-visions-sur-le-monde.html",
+        "exposition-martin-parr-global-warning.html",
+        "exposition-valerie-belin-les-choses-entre-elles.html",
+        "festival-montier.html",
+        "genesis-platinum.html"
+      ]
+    },
+    {
+      "type": "content-block",
+      "aliases": [
+        "content-block",
+        "left-img",
+        "order-sm",
+        "right-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 6,
+      "hasIcons": [],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
+      "instances": 28,
+      "pages": [
+        "Collodion-humide-Marjolaine-Vuarnesson.html",
+        "affiche-salon-de-la-photo-paris-2026.html",
+        "analog-chronicles-spring.html",
+        "christophe-brachet-coulisses-du-7e-art.html",
+        "composition-photographique.html",
+        "exposition-david-delaplace.html",
+        "exposition-nikos-aliagas.html",
+        "eyes-of-belga-portrait-voyage.html"
       ]
     },
     {
@@ -419,6 +538,7 @@
         "fonction",
         "lien-blog",
         "lien-instagram",
+        "nom",
         "prenom",
         "societe",
         "title"
@@ -434,15 +554,53 @@
         "fa-solid"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 10,
+      "instances": 13,
       "pages": [
         "actus.html",
         "agenda-photo.html",
         "animations.html",
         "expositions-photos.html",
         "fr-FR.html",
+        "grandes-rencontres.html",
         "photo-pass.html",
         "rencontres-photo.html"
+      ]
+    },
+    {
+      "type": "video-content-block",
+      "aliases": [
+        "bg-gray-1",
+        "video-content-block"
+      ],
+      "fields": [
+        "arriere-titre",
+        "description",
+        "title"
+      ],
+      "childTypes": [
+        "link",
+        "plain-html",
+        "video"
+      ],
+      "isContainer": true,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-3x",
+        "fa-brands",
+        "fa-youtube"
+      ],
+      "modelHint": null,
+      "instances": 13,
+      "pages": [
+        "christophe-brachet-coulisses-du-7e-art.html",
+        "composition-photographique.html",
+        "etre-publie-dans-un-magazine-photo.html",
+        "eyes-of-belga-portrait-voyage.html",
+        "faire-connaitre-son-entreprise-de-photographie.html",
+        "fr-FR.html",
+        "lina-khezzar-devenir-photographe-que-les-clients-choisissent.html",
+        "mathieu-forget-art-levitation.html"
       ]
     },
     {
@@ -512,6 +670,32 @@
       ]
     },
     {
+      "type": "picture-grid",
+      "aliases": [
+        "container-bp",
+        "picture-grid"
+      ],
+      "fields": [
+        "description",
+        "picturegriditemcta",
+        "picturegriditemdescription",
+        "picturegriditemsoustitre",
+        "picturegriditemtitre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 4,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 5,
+      "pages": [
+        "fr-FR.html",
+        "grandes-rencontres.html",
+        "lien-billetterie.html"
+      ]
+    },
+    {
       "type": "partners-2-list",
       "aliases": [
         "container-bp",
@@ -557,53 +741,6 @@
       ]
     },
     {
-      "type": "picture-grid",
-      "aliases": [
-        "container-bp",
-        "picture-grid"
-      ],
-      "fields": [
-        "description",
-        "picturegriditemcta",
-        "picturegriditemdescription",
-        "picturegriditemsoustitre",
-        "picturegriditemtitre"
-      ],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 4,
-      "listItems": 0,
-      "hasIcons": [],
-      "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 4,
-      "pages": [
-        "fr-FR.html",
-        "lien-billetterie.html"
-      ]
-    },
-    {
-      "type": "content-block",
-      "aliases": [
-        "content-block",
-        "left-img"
-      ],
-      "fields": [
-        "description",
-        "title"
-      ],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 0,
-      "listItems": 6,
-      "hasIcons": [],
-      "modelHint": "repeating list items → child component (jmix:list + child type)",
-      "instances": 4,
-      "pages": [
-        "qui-expose.html",
-        "qui-visite.html"
-      ]
-    },
-    {
       "type": "facet-dropdown",
       "aliases": [
         "facet-component",
@@ -627,9 +764,30 @@
       ]
     },
     {
-      "type": "structured-data",
+      "type": "video",
       "aliases": [
-        "structured-data"
+        "video"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 4,
+      "pages": [
+        "christophe-brachet-coulisses-du-7e-art.html",
+        "eyes-of-belga-portrait-voyage.html",
+        "lina-khezzar-devenir-photographe-que-les-clients-choisissent.html",
+        "mathieu-forget-art-levitation.html"
+      ]
+    },
+    {
+      "type": "divider",
+      "aliases": [
+        "container-bp",
+        "divider"
       ],
       "fields": [],
       "childTypes": [],
@@ -640,8 +798,9 @@
       "modelHint": null,
       "instances": 3,
       "pages": [
-        "fr-FR.html",
-        "lien-billetterie.html"
+        "Benoit-Henri-Tyszkiewicz.html",
+        "exposition-valerie-belin-les-choses-entre-elles.html",
+        "la-seine-la-seine.html"
       ]
     },
     {
@@ -773,34 +932,6 @@
       ]
     },
     {
-      "type": "video-content-block",
-      "aliases": [
-        "bg-gray-1",
-        "video-content-block"
-      ],
-      "fields": [
-        "arriere-titre",
-        "description",
-        "title"
-      ],
-      "childTypes": [
-        "plain-html"
-      ],
-      "isContainer": true,
-      "linkSeries": 1,
-      "listItems": 0,
-      "hasIcons": [
-        "fa-3x",
-        "fa-brands",
-        "fa-youtube"
-      ],
-      "modelHint": null,
-      "instances": 1,
-      "pages": [
-        "fr-FR.html"
-      ]
-    },
-    {
       "type": "contact-block",
       "aliases": [
         "contact-block",
@@ -833,27 +964,6 @@
       "instances": 1,
       "pages": [
         "fr-FR.html"
-      ]
-    },
-    {
-      "type": "content-block-vertical-image",
-      "aliases": [
-        "content-block-vertical-image",
-        "left-img"
-      ],
-      "fields": [
-        "description",
-        "title"
-      ],
-      "childTypes": [],
-      "isContainer": false,
-      "linkSeries": 1,
-      "listItems": 0,
-      "hasIcons": [],
-      "modelHint": null,
-      "instances": 1,
-      "pages": [
-        "photo-pass.html"
       ]
     },
     {
@@ -923,6 +1033,44 @@
       "instances": 1,
       "pages": [
         "actus.html"
+      ]
+    },
+    {
+      "type": "container-bp",
+      "aliases": [
+        "container-bp"
+      ],
+      "fields": [],
+      "childTypes": [
+        "column-splitter"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "exposition-martin-parr-global-warning.html"
+      ]
+    },
+    {
+      "type": "column-splitter",
+      "aliases": [
+        "column-splitter"
+      ],
+      "fields": [],
+      "childTypes": [
+        "image"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "exposition-martin-parr-global-warning.html"
       ]
     }
   ],

@@ -1,0 +1,240 @@
+{
+  "_README": "Declares the jmix:mainResource content architecture for salonphoto. mainResource units are NOT pages: they are content nodes created inside a jnt:contentFolder and listed by a sdp:jcrQuery whose startNode points at that folder. Consumed by orchestration/lib/load_main_resources.py, gated by orchestration/probes/startnode.sh + mainresource.sh. Human-editable; every folder below was derived from MEASURED evidence (card-reached detail URLs found in the scoped mirror + the census's uncrawled-prefix ledger), never from assumption. THE RULE: nav-reachable = page; card-reached dated prose = entity; ties break to page.",
+  "_evidence": {
+    "menuPages": 27,
+    "rule": "None of the URL prefixes below appears in the source MENU (orchestration/sitemaps/salonphoto.txt) — each is reached only from listing cards, and each card carries a date + a category badge + a title. That is the entity signature.",
+    "uncrawledPrefixLedger": {
+      "animations-ateliers/programme-salon/Evenement": 37,
+      "actualite-photo/agenda-photo": 20,
+      "actualite-photo/actus": 9,
+      "animations-ateliers/expositions-photos": 9,
+      "animations-ateliers/animations": 6,
+      "infos-pratiques/catalogue": 6
+    },
+    "note": "Entity DETAIL pages are deliberately absent from the menu-scoped capture. They must be crawled (--url-list of the detail URLs) before load_main_resources can run; that same crawl also completes the declared-component inventory, since the 2026-06 run saw 42 declared types against this run's 36 — the 6 extras (image-content-block-description, key-figures, anchors-links, item-content-popin-picture, event-list, video) live on detail pages.",
+    "sitemapEnumeration": {
+      "_why": "The menu gives the IA; the SITEMAP gives entity completeness. 144 fr-FR URLs, 122 of them outside our 27-page menu capture.",
+      "actualite-photo/actus": 57,
+      "actualite-photo/agenda-photo": 20,
+      "animations-ateliers/expositions-photos": 7,
+      "presse-createur-contenus/communiques-dossiers-presse": 7,
+      "animations-ateliers/animations": 5,
+      "exposants/salon": 5,
+      "salon/profil-visiteur": 4,
+      "animations-ateliers/rencontres-photo": 4,
+      "infos-pratiques/catalogue": 3,
+      "salon/rse": 2,
+      "_note": "The sitemap does NOT list the programme /Evenement/ events (37) nor the catalogue /Exposant//Marque//Produit/ details (33) — those are search-indexed items, found only by the link census. Sitemap UNION link census is the complete entity set: ~187 details."
+    }
+  },
+  "contentsBase": "contents",
+  "chromeTypes": [
+    "top-bar",
+    "header-navigation",
+    "navigation",
+    "image-de-fond",
+    "breadcrumb",
+    "snippet",
+    "previous-next",
+    "footer",
+    "link"
+  ],
+  "titleType": "title",
+  "bodyTypes": [
+    "content",
+    "rich-text",
+    "video-content-block"
+  ],
+  "folders": {
+    "actualites": {
+      "type": "sdp:newsArticle",
+      "urlPrefixes": [
+        "actualite-photo/actus"
+      ],
+      "listingPages": [
+        "actualite-photo_actus",
+        "actualite-photo",
+        "actualite-photo_actualites"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "date": "date-de-publication",
+        "summary": "content"
+      },
+      "_evidence": "57 article URLs enumerated from /sitemap.xml — the listing renders only 6 and hides the rest behind a load-more that calls the absent SXA search API, so the captured DOM showed 9 links. MEASURED field surface from two fetched details: title component carries field-titre + field-date-de-publication; the standfirst is the intro band's field-content (it matches the meta description); body prose is field-description across content/rich-text bands.",
+      "_count": 57
+    },
+    "agenda": {
+      "type": "sdp:event",
+      "urlPrefixes": [
+        "actualite-photo/agenda-photo"
+      ],
+      "listingPages": [
+        "actualite-photo_agenda-photo"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "startDate": "date-de-publication",
+        "summary": "descriptif"
+      },
+      "_evidence": "19 detail cards on actualite-photo_agenda-photo: 'Agenda | Expositions | DD/MM/YYYY | <exhibition title>' -> /fr-FR/actualite-photo/agenda-photo/<slug>. Dated, venue-bearing prose = event, not article.",
+      "_count": 20,
+      "_countSource": "/sitemap.xml (deterministic enumeration)"
+    },
+    "programme": {
+      "type": "sdp:event",
+      "urlPrefixes": [
+        "animations-ateliers/programme-salon/Evenement",
+        "animations-ateliers/programme-salon"
+      ],
+      "listingPages": [
+        "animations-ateliers_programme-salon",
+        "animations-ateliers"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "startDate": "date-de-publication",
+        "location": "lieu"
+      },
+      "_evidence": "The LARGEST entity cluster: 37 uncrawled links under a literal /Evenement/ path segment (the source's own word for it). The programme-salon listing renders them inside tabs/accordion, so a link-selector sweep of the listing found 0 — the census's prefix ledger is what surfaced them. Same Jahia type as agenda, different folder + listing.",
+      "_secondShape": "The programme family has TWO URL shapes: /programme-salon/Evenement/<slug> (37, the listing's own links) and /programme-salon/<slug> (linked from article prose). Both are the same entity. The prefix matches with a trailing slash, so the listing PAGE itself (/programme-salon, no trailing segment) is untouched."
+    },
+    "expositions": {
+      "type": "sdp:event",
+      "urlPrefixes": [
+        "animations-ateliers/expositions-photos"
+      ],
+      "listingPages": [
+        "animations-ateliers_expositions-photos"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "startDate": "date-de-publication"
+      },
+      "_evidence": "9 uncrawled detail links. OPEN QUESTION for the review gate: these may be sub-pages rather than entities — the listing page has only 5 bands. If the details turn out to be nav-reachable, the rule breaks the tie to PAGE and this folder is dropped.",
+      "_count": 7,
+      "_countSource": "/sitemap.xml (deterministic enumeration)"
+    },
+    "animations": {
+      "type": "sdp:event",
+      "urlPrefixes": [
+        "animations-ateliers/animations"
+      ],
+      "listingPages": [
+        "animations-ateliers_animations"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "startDate": "date-de-publication"
+      },
+      "_evidence": "6 uncrawled detail links, same open question as expositions.",
+      "_count": 5,
+      "_countSource": "/sitemap.xml (deterministic enumeration)"
+    },
+    "rencontres": {
+      "type": "sdp:event",
+      "urlPrefixes": [
+        "animations-ateliers/rencontres-photo"
+      ],
+      "listingPages": [
+        "animations-ateliers_rencontres-photo"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "startDate": "date-de-publication"
+      },
+      "_evidence": "MISSED in the first pass, found by the link census: 3 card-reached details (forum-pros, grandes-rencontres, tete-a-tete-filles-de-la-photo). Two of them are linked from the HOME page's picture-grid, which is what exposed the gap.",
+      "_count": 4,
+      "_countSource": "/sitemap.xml (deterministic enumeration)"
+    },
+    "communiques": {
+      "type": "sdp:newsArticle",
+      "urlPrefixes": [
+        "presse-createur-contenus/communiques-dossiers-presse"
+      ],
+      "listingPages": [
+        "presse-createur-contenus"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "date": "date-de-publication",
+        "summary": "content"
+      },
+      "_evidence": "7 press releases enumerated from /sitemap.xml. This family was invisible to BOTH the menu capture (the press area is not in the main menu) and the first link census (its only in-page links are in the FOOTER, which the census was not scanning). Same type as actualites, own folder + listing."
+    }
+  },
+  "_scopeQuestions": [
+    {
+      "id": "exposants-catalogue",
+      "question": "The exhibitor catalogue (/fr-FR/infos-pratiques/catalogue, + an uncrawled /fr-FR/exposants) is a searchable exhibitor directory. Its list is NOT in the captured DOM — the page's 43 internal links are all mega-menu chrome, and the catalogue itself carries SXA facet components (facet-dropdown x4, facet-aggregated, facet-summary, load-more) whose /sxa/search backend does not exist in Jahia.",
+      "options": [
+        "Model exhibitors as a sdp:exhibitor mainResource folder + a sdp:jcrQuery listing with category facets rendered client-side (the supercar-garage pattern) — needs a browser capture of the live list to get the real exhibitor data",
+        "Keep the catalogue page as an editorial page with a link out to the existing exhibitor platform (no entity migration)",
+        "Out of scope for this migration"
+      ],
+      "recommendation": "Decide at the model gate. Do NOT let a facet component ship: it renders empty controls that list nothing (measured on supercar-garage).",
+      "blocking": true,
+      "resolved": true,
+      "resolution": "The catalogue is a THREE-AXIS directory — /Exposant/ (15), /Marque/ (11), /Produit/ (7) = 33 card-reached details, all found by the link census. Recommendation: ONE new archetype `sdp:directoryEntry` (mix:title + sdpmix:media logo + sdpmix:cta website + body richtext + jmix:categorized + standNumber + a `kind` choicelist exposant|marque|produit), loaded into three folders and listed by one sdp:jcrQuery with client-side category chips. Three separate types would duplicate one field shape and fail dup-shapes.sh; reusing sdp:newsArticle would label a printer 'Actualité'.",
+      "blockingWhy": "Needs ONE new archetype approved (sdp:directoryEntry). Approve, refuse, or scope the catalogue out."
+    },
+    {
+      "id": "profil-visiteur-children",
+      "question": "salon/profil-visiteur has 3 card-reached children (amateur-averti, createur-contenus, professionnel) — 'Le salon selon votre profil'.",
+      "recommendation": "PAGES, not entities: they are audience landing pages, carry no date, and the rule breaks ties to page. Declared in scope-rules pagesToCrawl.",
+      "blocking": false
+    }
+  ],
+  "_articleBodyFinding": "MEASURED on 2 article details: an article body is not one rich-text field but a SEQUENCE of bands — content (standfirst + section headings + prose), rich-text, content-block-vertical-image (image+text), video-content-block ('En vidéo'), image. So sdp:newsArticle keeps title/date/summary/hero/categories as PROPERTIES and composes its body from CHILD content nodes (richTextSection / mediaText / video), the same archetype vocabulary as page bands, rendered with RenderChildren. Flattening it into one richtext would make every in-article image and video block non-contributable.",
+  "_deferredFolders": {
+    "catalogue-exposants": {
+      "_status": "PENDING OPERATOR APPROVAL — ONE new archetype sdp:directoryEntry (AGENTS 2b)",
+      "type": "sdp:directoryEntry",
+      "listingPages": [
+        "infos-pratiques_catalogue"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "body": "description"
+      },
+      "urlPrefixes": [
+        "infos-pratiques/catalogue/Exposant"
+      ],
+      "_kind": "exposant",
+      "_evidence": "15 detail links under the source's own /Exposant/ segment (INSTA-360, MPB-3, PROMATTEX, SONY-WORLD-PHOTOGRAPHY-AWARDS-4, ...)"
+    },
+    "catalogue-marques": {
+      "_status": "PENDING OPERATOR APPROVAL — ONE new archetype sdp:directoryEntry (AGENTS 2b)",
+      "type": "sdp:directoryEntry",
+      "listingPages": [
+        "infos-pratiques_catalogue"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "body": "description"
+      },
+      "urlPrefixes": [
+        "infos-pratiques/catalogue/Marque"
+      ],
+      "_kind": "marque",
+      "_evidence": "11 detail links under /Marque/ (e.g. EPSON-TETENAL-4)"
+    },
+    "catalogue-produits": {
+      "_status": "PENDING OPERATOR APPROVAL — ONE new archetype sdp:directoryEntry (AGENTS 2b)",
+      "type": "sdp:directoryEntry",
+      "listingPages": [
+        "infos-pratiques_catalogue"
+      ],
+      "fieldMap": {
+        "title": "titre",
+        "body": "description"
+      },
+      "urlPrefixes": [
+        "infos-pratiques/catalogue/Produit"
+      ],
+      "_kind": "produit",
+      "_evidence": "7 detail links under /Produit/ (e.g. DNP-Imprimante-QW410-TETENAL)"
+    }
+  },
+  "_deferredWhy": "The catalogue's 3 axes need ONE new archetype (sdp:directoryEntry, 33 details: 15 exhibitors / 11 brands / 7 products) which is not approved yet, and a type that is not in the CND fails every create. Deferred so the 6 approved entity folders load now; move them back under `folders` the moment the type is approved — nothing else changes."
+}

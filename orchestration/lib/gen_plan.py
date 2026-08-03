@@ -225,12 +225,30 @@ def build_plan(p):
               f"PROBE: test -s {PP}/workflow-output/local-mirror/mirror.json",
               f"PROBE[900]: node orchestration/lib/mirror_probe.mjs {PP} 10"],
              deps=["step_crawl"]),
+        # ENTITY DETAILS ARE PART OF THE CORPUS (2026-08-03). The menu gives the IA;
+        # it is NOT the content inventory. Entity details (news, agenda, programme,
+        # press) live at their own URLs, carry their own components, and on the
+        # fixture site outnumber the menu pages 132 to 27 — so identifying components
+        # from menu pages alone authors the model from ~17% of the content units and
+        # cannot see the types that only appear on a detail page (the 2026-06 corpus of
+        # this same source declared 42 types where the menu-only crawl sees 36). This
+        # step ran in the CONTENT epic, i.e. after the model was already frozen. It now
+        # runs in CAPTURE, before declared_inventory / zone_detect / census / islands.
+        # No-op when the project declares no entities.
+        *([step("step_entity_crawl", "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
+                "build",
+                [f"Run: python3 orchestration/lib/entity_crawl.py {P}{SLANG} --rate-delay 2",
+                 f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}",
+                 f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}"],
+                deps=["step_localize"])]
+          if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
         step("step_inventory", "SITE INVENTORY: deterministic DOM analysis (landmarks, "
              "chrome anatomy, per-region anatomy, theme)", "build",
              [f"Run: python3 orchestration/lib/site_inventory.py {P}",
               f"PROBE: python3 -c \"import json,sys; d=json.load(open('{PP}/workflow-output/site-inventory.json')); "
               f"sys.exit(0 if d.get('pages') and d.get('chrome') else 1)\""],
-             deps=["step_localize"]),
+             deps=["step_entity_crawl"] if os.path.exists(
+                 f"orchestration/content/{P}.mainresource.json") else ["step_localize"]),
         step("step_semantic", "Deterministic candidates + partitions", "build",
              [f"Run: python3 orchestration/lib/scope_apply.py {PP}",
               f"Run: python3 orchestration/lib/semantic_extract.py {PP}",
@@ -549,17 +567,7 @@ def build_plan(p):
         # copies. The step existed (load_main_resources.py, ETL phase 2.5) but
         # gen_plan never emitted it — the documented regression every generated
         # plan inherited. Config-gated: runs when <p>.mainresource.json exists.
-        *([step("step_entity_crawl", "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
-                "build",
-                # the menu is the IA, not the corpus: entity details live at their own
-                # URLs and load_main_resources reads each one's core from the mirror.
-                # Union of the source's sitemap families and the card-reached links the
-                # sitemap omits (search-indexed items).
-                [f"Run: python3 orchestration/lib/entity_crawl.py {P}{SLANG} --rate-delay 2",
-                 f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}",
-                 f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}"],
-                deps=["step_pages"]),
-           step("step_main_resources", "mainResource entities -> contentFolder (+ folder map)", "content",
+        *([step("step_main_resources", "mainResource entities -> contentFolder (+ folder map)", "content",
                 [f"Run: python3 orchestration/lib/load_main_resources.py {P} {SITE}",
                  # producing gate: every declared folder exists and holds >= 1
                  # node of its type; no mainResource node outside a folder
@@ -567,7 +575,7 @@ def build_plan(p):
                  # the body is COMPOSED of band children, never one flattened richtext
                  f"PROBE: python3 orchestration/probes/mainresource-model.py --phase content {SITE} --locale {PRIMARY_LOCALE}",
                  f"PROBE: python3 orchestration/probes/entity-coverage.py {P} --expect {SITE} --locale {PRIMARY_LOCALE}"],
-                deps=["step_entity_crawl"])]
+                deps=["step_pages"])]
           if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
         # build_nav_tree restructures the flat crawl tree per the project

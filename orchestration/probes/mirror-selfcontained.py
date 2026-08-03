@@ -60,6 +60,10 @@ def main():
     except (OSError, ValueError):
         rules = {}
     kept = {h.lower() for h in (rules.get("keptEmbeds") or [])}
+    # a target recorded as accepted (e.g. an asset the SOURCE itself 404s) is a decision
+    # on the record, not an un-declared fetch — match on the URL path, not the host
+    accepted_paths = [str(t.get("path", "")).strip("/").lower()
+                      for t in (rules.get("acceptedTargets") or []) if t.get("path")]
 
     offenders = Counter()
     where = {}
@@ -77,8 +81,11 @@ def main():
                 rels = set(rel.split())
                 if not (rels & FETCH_RELS) or (rels & META_RELS):
                     continue
-            host = re.sub(r"^https?://", "", u.group(1)).split("/")[0].lower()
+            full = u.group(1).lower()
+            host = re.sub(r"^https?://", "", full).split("/")[0].lower()
             if host in kept:
+                continue
+            if any(ap and ap in full for ap in accepted_paths):
                 continue
             key = f"{tag} -> {host}"
             offenders[key] += 1

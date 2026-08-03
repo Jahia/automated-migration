@@ -108,6 +108,24 @@ def main():
             if re.match(r"^https?:/", href) and not host_re.match(href):
                 kinds["external"] += 1
                 continue
+            # SCHEME-LESS EXTERNALS (2026-08-03): article prose links out with a bare
+            # domain (href="www.musee-marine.fr") or a bare address
+            # (href="info@quaidelaphoto.fr"). Both are external, but a naive path
+            # normalizer reads them as relative internal paths and demands a decision
+            # for a museum's website. Only detail pages do this, so a menu-only corpus
+            # never exposed it. A first segment that looks like a host (a dot plus a
+            # 2-6 char TLD) or any '@' is external.
+            _first = href.lstrip("/").split("/")[0]
+            # a host needs only TWO labels (quaidelaphoto.fr), so match `label(.label)+`
+            # and exclude file extensions — otherwise `sitemap.xml` would read as a host
+            _FILE_EXT = {"pdf", "jpg", "jpeg", "png", "gif", "svg", "webp", "ico", "css",
+                         "js", "json", "xml", "html", "htm", "zip", "doc", "docx", "xls",
+                         "xlsx", "ppt", "pptx", "mp4", "mp3", "txt", "csv", "aspx"}
+            _looks_host = (re.match(r"^([\w-]+\.)+[a-z]{2,10}$", _first, re.I)
+                           and _first.rsplit(".", 1)[-1].lower() not in _FILE_EXT)
+            if "@" in _first or _looks_host:
+                kinds["external"] += 1
+                continue
             target = norm(href)
             if not target:
                 kinds["home"] += 1

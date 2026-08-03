@@ -67,12 +67,31 @@
               "max_attempts": 3
             },
             {
+              "id": "step_entity_crawl",
+              "title": "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_localize"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/entity_crawl.py salonphoto --lang fr-FR --rate-delay 2",
+                "PROBE: python3 orchestration/probes/capture-slugs.py projects/salonphoto --lang fr-FR",
+                "PROBE: python3 orchestration/probes/mirror-selfcontained.py projects/salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
               "id": "step_inventory",
               "title": "SITE INVENTORY: deterministic DOM analysis (landmarks, chrome anatomy, per-region anatomy, theme)",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_localize"
+                "step_entity_crawl"
               ],
               "inputs": {
                 "project": "projects/salonphoto",
@@ -556,31 +575,12 @@
               "max_attempts": 3
             },
             {
-              "id": "step_entity_crawl",
-              "title": "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_pages"
-              ],
-              "inputs": {
-                "project": "projects/salonphoto",
-                "site": "salonphoto"
-              },
-              "acceptance_criteria": [
-                "Run: python3 orchestration/lib/entity_crawl.py salonphoto --lang fr-FR --rate-delay 2",
-                "PROBE: python3 orchestration/probes/capture-slugs.py projects/salonphoto --lang fr-FR",
-                "PROBE: python3 orchestration/probes/mirror-selfcontained.py projects/salonphoto"
-              ],
-              "max_attempts": 3
-            },
-            {
               "id": "step_main_resources",
               "title": "mainResource entities -> contentFolder (+ folder map)",
               "task_type": "content",
               "agent": "code",
               "depends_on": [
-                "step_entity_crawl"
+                "step_pages"
               ],
               "inputs": {
                 "project": "projects/salonphoto",

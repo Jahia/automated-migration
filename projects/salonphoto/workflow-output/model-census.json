@@ -1,19 +1,146 @@
 {
- "pages": 27,
+ "pages": 159,
  "boundary": {
-  "declared": 27
+  "declared": 158,
+  "toplevel-div": 1
  },
  "bandsPerPage": {
   "actualite-photo": 3,
   "actualite-photo_actualites": 3,
   "actualite-photo_actus": 6,
+  "actualite-photo_actus_Collodion-humide-Marjolaine-Vuarnesson": 8,
+  "actualite-photo_actus_affiche-salon-de-la-photo-paris-2025": 9,
+  "actualite-photo_actus_affiche-salon-de-la-photo-paris-2026": 9,
+  "actualite-photo_actus_analog-chronicles-spring": 9,
+  "actualite-photo_actus_appareil-photo-pour-debuter": 10,
+  "actualite-photo_actus_bitrate-video": 6,
+  "actualite-photo_actus_boitier-video": 6,
+  "actualite-photo_actus_choisir-son-appareil-photo": 14,
+  "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art": 11,
+  "actualite-photo_actus_composition-photographique": 13,
+  "actualite-photo_actus_conference-nikon": 8,
+  "actualite-photo_actus_definition-resolution": 8,
+  "actualite-photo_actus_etre-publie-dans-un-magazine-photo": 7,
+  "actualite-photo_actus_eyes-of-belga-portrait-voyage": 12,
+  "actualite-photo_actus_faire-connaitre-son-entreprise-de-photographie": 10,
+  "actualite-photo_actus_ffpmi": 6,
+  "actualite-photo_actus_filtres-optiques": 8,
+  "actualite-photo_actus_fnp": 8,
+  "actualite-photo_actus_format-heif": 10,
+  "actualite-photo_actus_formation-professionnelle": 7,
+  "actualite-photo_actus_gestion-couleurs": 6,
+  "actualite-photo_actus_hydrides-pro-capteurs-cmos-bsi-stacked": 6,
+  "actualite-photo_actus_ia-generative-innovation-encadrement": 9,
+  "actualite-photo_actus_ia-retouche-photo-video": 6,
+  "actualite-photo_actus_ia-workflow-photographe": 8,
+  "actualite-photo_actus_idee-cadeau-noel-photographe": 14,
+  "actualite-photo_actus_impression-directe-ou-contrecollage": 6,
+  "actualite-photo_actus_lina-khezzar-devenir-photographe-que-les-clients-choisissent": 11,
+  "actualite-photo_actus_mathieu-forget-art-levitation": 10,
+  "actualite-photo_actus_meilleurs-drones-photo-et-video": 11,
+  "actualite-photo_actus_nicolas-doretti-secrets-portrait-authentique": 12,
+  "actualite-photo_actus_nouvelles-pratiques-pro": 8,
+  "actualite-photo_actus_objectif-camera": 6,
+  "actualite-photo_actus_ordinateur-photographe-professionnel": 13,
+  "actualite-photo_actus_photo-animaliere-thomas-jean": 15,
+  "actualite-photo_actus_photo-mode-lina-khezaar": 15,
+  "actualite-photo_actus_photo-pose-longue-michael-protillo": 18,
+  "actualite-photo_actus_photographe-visibilite": 10,
+  "actualite-photo_actus_photographes-souvenirs-en-securite": 10,
+  "actualite-photo_actus_portrait-voyage": 13,
+  "actualite-photo_actus_portrait": 14,
+  "actualite-photo_actus_pourquoi-photographier-raw": 8,
+  "actualite-photo_actus_pouvoir-storytelling-photographie": 9,
+  "actualite-photo_actus_quand-comment-utiliser-flash": 7,
+  "actualite-photo_actus_realiser-un-livre-photo": 10,
+  "actualite-photo_actus_reflex-hybride-quel-appareil-choisir": 8,
+  "actualite-photo_actus_reparation-seconde-main-upcycling-sldp": 12,
+  "actualite-photo_actus_retouche-photo-ia": 13,
+  "actualite-photo_actus_rolling-shutter": 6,
+  "actualite-photo_actus_salon-de-la-photo-2026-nouveau-logo": 8,
+  "actualite-photo_actus_souffleurs-de-sens": 9,
+  "actualite-photo_actus_studio-tech-phototrend-juillet-2026": 15,
+  "actualite-photo_actus_studio-tech-phototrend-juin-2026": 20,
+  "actualite-photo_actus_thomas-beauquesne-heure-bleue": 12,
+  "actualite-photo_actus_triangle-exposition-photographie": 6,
+  "actualite-photo_actus_upp": 7,
   "actualite-photo_agenda-photo": 6,
+  "actualite-photo_agenda-photo_Benoit-Henri-Tyszkiewicz": 17,
+  "actualite-photo_agenda-photo_bruno-barbey-visions-sur-le-monde": 16,
+  "actualite-photo_agenda-photo_edward-watson-modernite-revelee": 20,
+  "actualite-photo_agenda-photo_exposition-kate-barry": 18,
+  "actualite-photo_agenda-photo_exposition-martin-parr-global-warning": 16,
+  "actualite-photo_agenda-photo_exposition-or-norme-guerlain": 24,
+  "actualite-photo_agenda-photo_exposition-valerie-belin-les-choses-entre-elles": 18,
+  "actualite-photo_agenda-photo_exterieurs-annie-ernaux": 18,
+  "actualite-photo_agenda-photo_festival-circulations": 19,
+  "actualite-photo_agenda-photo_genesis-platinum": 17,
+  "actualite-photo_agenda-photo_jean-gaumy-et-la-mer": 16,
+  "actualite-photo_agenda-photo_la-seine-la-seine": 26,
+  "actualite-photo_agenda-photo_lee-miller": 13,
+  "actualite-photo_agenda-photo_lhumus-du-monde": 25,
+  "actualite-photo_agenda-photo_made-in-india": 16,
+  "actualite-photo_agenda-photo_patrizia-mussa-theatralites": 17,
+  "actualite-photo_agenda-photo_superfacial": 19,
+  "actualite-photo_agenda-photo_yasuhiro-ishimoto-des-lignes-et-des-corps": 18,
+  "actualite-photo_agenda-photo_zooms-japan-2025": 25,
   "animations-ateliers": 3,
   "animations-ateliers_animations-ateliers": 3,
   "animations-ateliers_animations": 5,
+  "animations-ateliers_animations_foire-internationale-de-bievres": 12,
+  "animations-ateliers_animations_lectures-portfolio": 9,
+  "animations-ateliers_animations_photos-spots": 9,
+  "animations-ateliers_animations_world-premiere": 8,
   "animations-ateliers_expositions-photos": 5,
+  "animations-ateliers_expositions-photos_exposition-david-delaplace": 9,
+  "animations-ateliers_expositions-photos_exposition-nikos-aliagas": 7,
+  "animations-ateliers_expositions-photos_festival-montier": 11,
+  "animations-ateliers_expositions-photos_grande-expo": 24,
+  "animations-ateliers_expositions-photos_prix-bayeux": 13,
+  "animations-ateliers_expositions-photos_zooms": 20,
   "animations-ateliers_programme-salon": 4,
+  "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus": 1,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc": 1,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors": 1,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2": 1,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet": 1,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc-2": 1,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc": 1,
+  "animations-ateliers_programme-salon_Evenement_Calculer-le-prix-d'une-exposition": 1,
+  "animations-ateliers_programme-salon_Evenement_Conference-La-photographie-de-voyage-sortir-des-sentiers-battus": 1,
+  "animations-ateliers_programme-salon_Evenement_Conference-Le-voyage-photo-et-ses-bonnes-pratiques": 1,
+  "animations-ateliers_programme-salon_Evenement_De-la-photographie-a-la-video": 1,
+  "animations-ateliers_programme-salon_Evenement_De-la-visibilite-aux-clients-batir-une-strategie-Instagram-qui-rapporte": 1,
+  "animations-ateliers_programme-salon_Evenement_Demonstration-de-collodion-humide": 1,
+  "animations-ateliers_programme-salon_Evenement_Diversifier-son-activite-les-10-conseils-aux-Photographes-Tous-statuts": 1,
+  "animations-ateliers_programme-salon_Evenement_Droit-d'auteur-et-calcul-perilleux": 1,
+  "animations-ateliers_programme-salon_Evenement_DxO-PhotoLab-avec-Mathieu-Bachon-alias-Nohcab": 1,
+  "animations-ateliers_programme-salon_Evenement_Exposition-Montier-Festival-Photo": 1,
+  "animations-ateliers_programme-salon_Evenement_Exposition-Prix-Bayeux": 1,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Adrien-Vautier": 1,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Arnaud-Baumann": 1,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Christophe-Brachet-Tanguy-Mendrisse-and-Baptiste-Langinier": 1,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Nikos-Aliagas": 1,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Olivier-Culmann-and-Samuel-Bollendorf": 1,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-avec-Sophie-Zenon": 1,
+  "animations-ateliers_programme-salon_Evenement_Jean-Christophe-Bechet-signature-de-livres": 1,
+  "animations-ateliers_programme-salon_Evenement_LECTURE-DE-PORTFOLIO-2": 1,
+  "animations-ateliers_programme-salon_Evenement_La-6e-Transition-200-ans-de-revolutions-photo-et-pourquoi-l-IA-ne-prendra-pas-votre-place": 1,
+  "animations-ateliers_programme-salon_Evenement_La-Grande-Exposition": 1,
+  "animations-ateliers_programme-salon_Evenement_Le-Vademecum-du-photographe-un-guide-complet-pour-comprendre-tous-les-statuts-et-specificites-du-metier": 1,
+  "animations-ateliers_programme-salon_Evenement_Le-portrait-Corporate-avec-Nicolas-Kalogeropoulos": 1,
+  "animations-ateliers_programme-salon_Evenement_Lecture-de-portfolio": 1,
+  "animations-ateliers_programme-salon_Evenement_Nouveau-ne-la-specialite-qui-ne-s-improvise-pas-securite-hygiene-et-bonnes-pratiques": 1,
+  "animations-ateliers_programme-salon_Evenement_Parcours-de-photographe-Solomon-Jamy-Brown-qui-exposera-sur-notre-stand": 1,
+  "animations-ateliers_programme-salon_Evenement_Portrait-de-personnalite-pour-la-presse-faire-poser-et-imposer": 1,
+  "animations-ateliers_programme-salon_Evenement_Se-lancer-comme-photographe-pro-en-2026-tout-ce-qu-on-ne-vous-dit-pas-ailleurs": 1,
+  "animations-ateliers_programme-salon_Evenement_Visite-soufflee-pour-malvoyants-et-non-voyants": 1,
+  "animations-ateliers_programme-salon_Evenement_Vivre-de-la-photographie-sociale-en-2026-quel-business-model-choisir-pour-maximiser-votre-chiffre-d-affaires": 1,
+  "animations-ateliers_programme-salon_Evenement_Workshop-Cansonr-Infinity-Choisir-son-papier-sublimer-son-image": 1,
   "animations-ateliers_rencontres-photo": 5,
+  "animations-ateliers_rencontres-photo_forum-pros": 12,
+  "animations-ateliers_rencontres-photo_grandes-rencontres": 11,
+  "animations-ateliers_rencontres-photo_tete-a-tete-filles-de-la-photo": 9,
   "home": 12,
   "infos-pratiques": 3,
   "infos-pratiques_Infos-Pratiques": 3,
@@ -23,6 +150,12 @@
   "infos-pratiques_faq": 33,
   "infos-pratiques_photo-pass": 12,
   "lien-billetterie": 14,
+  "presse-createur-contenus_communiques-dossiers-presse_cp-1-2026": 7,
+  "presse-createur-contenus_communiques-dossiers-presse_cp-2": 7,
+  "presse-createur-contenus_communiques-dossiers-presse_cp-bilan-2025": 7,
+  "presse-createur-contenus_communiques-dossiers-presse_cp-culturel": 7,
+  "presse-createur-contenus_communiques-dossiers-presse_cp-laureats-zooms-2025": 7,
+  "presse-createur-contenus_communiques-dossiers-presse_cp-test-1": 7,
   "salon": 3,
   "salon_a-propos": 12,
   "salon_partenaires": 5,
@@ -35,7 +168,7 @@
  "sectionFamilies": [
   {
    "signature": "plain",
-   "count": 151,
+   "count": 934,
    "sample": {
     "page": "actualite-photo",
     "band": "title",
@@ -46,7 +179,7 @@
   },
   {
    "signature": "repeat",
-   "count": 54,
+   "count": 409,
    "sample": {
     "page": "actualite-photo",
     "band": "page-list",
@@ -57,46 +190,76 @@
   },
   {
    "signature": "carousel",
-   "count": 2,
+   "count": 6,
    "sample": {
-    "page": "home",
-    "band": "carousel",
-    "heading": "La billetterie du Salon Photo & Vid\u00e9o 2026 est ouverte !",
-    "imgs": 4,
-    "links": 6
+    "page": "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art",
+    "band": "video-content-block",
+    "heading": "Plongez dans l'univers de Christophe Brachet",
+    "imgs": 1,
+    "links": 2
    }
   }
  ],
  "bandTypes": [
   {
-   "band": "content",
-   "count": 38,
+   "band": "rich-text",
+   "count": 345,
    "signature": "plain"
   },
   {
-   "band": "rich-text",
-   "count": 29,
+   "band": "content",
+   "count": 270,
+   "signature": "plain"
+  },
+  {
+   "band": "image",
+   "count": 169,
    "signature": "plain"
   },
   {
    "band": "breadcrumb",
-   "count": 26,
+   "count": 157,
    "signature": "plain"
   },
   {
    "band": "title",
-   "count": 25,
+   "count": 119,
    "signature": "plain"
   },
   {
    "band": "snippet",
-   "count": 18,
+   "count": 112,
+   "signature": "plain"
+  },
+  {
+   "band": "content-block-vertical-image",
+   "count": 34,
+   "signature": "plain"
+  },
+  {
+   "band": "link",
+   "count": 32,
+   "signature": "plain"
+  },
+  {
+   "band": "content-block",
+   "count": 28,
    "signature": "plain"
   },
   {
    "band": "plain-html",
-   "count": 15,
+   "count": 16,
    "signature": "plain"
+  },
+  {
+   "band": "video-content-block",
+   "count": 13,
+   "signature": "carousel"
+  },
+  {
+   "band": "search-results",
+   "count": 9,
+   "signature": "repeat"
   },
   {
    "band": "page-list",
@@ -109,34 +272,24 @@
    "signature": "repeat"
   },
   {
-   "band": "search-results",
-   "count": 6,
-   "signature": "repeat"
-  },
-  {
    "band": "simple-title",
    "count": 6,
    "signature": "plain"
   },
   {
-   "band": "link",
+   "band": "picture-grid",
    "count": 5,
    "signature": "plain"
   },
   {
-   "band": "picture-grid",
-   "count": 4,
-   "signature": "repeat"
-  },
-  {
-   "band": "content-block",
-   "count": 4,
-   "signature": "repeat"
-  },
-  {
    "band": "div",
-   "count": 2,
+   "count": 3,
    "signature": "repeat"
+  },
+  {
+   "band": "divider",
+   "count": 3,
+   "signature": "plain"
   },
   {
    "band": "partners-2-list",
@@ -159,6 +312,11 @@
    "signature": "plain"
   },
   {
+   "band": "card",
+   "count": 1,
+   "signature": "plain"
+  },
+  {
    "band": "carousel",
    "count": 1,
    "signature": "carousel"
@@ -167,11 +325,6 @@
    "band": "quicklinks",
    "count": 1,
    "signature": "repeat"
-  },
-  {
-   "band": "video-content-block",
-   "count": 1,
-   "signature": "plain"
   },
   {
    "band": "contact-block",
@@ -187,20 +340,39 @@
    "band": "date-lieu-horaires",
    "count": 1,
    "signature": "repeat"
-  },
-  {
-   "band": "content-block-vertical-image",
-   "count": 1,
-   "signature": "plain"
   }
  ],
  "ctaAnatomies": {
-  "button": 35,
+  "button": 160,
   "textArrow": 10
  },
  "uncrawledPrefixes": [
   {
+   "prefix": "fr-FR/animations-ateliers",
+   "links": 263
+  },
+  {
+   "prefix": "(root)",
+   "links": 196
+  },
+  {
+   "prefix": "fr-FR",
+   "links": 160
+  },
+  {
+   "prefix": "fr-FR/actualite-photo",
+   "links": 88
+  },
+  {
+   "prefix": "fr-FR/actualite-photo/actus",
+   "links": 77
+  },
+  {
    "prefix": "fr-FR/infos-pratiques",
+   "links": 40
+  },
+  {
+   "prefix": "fr-FR/actualite-photo/agenda-photo",
    "links": 39
   },
   {
@@ -208,56 +380,32 @@
    "links": 37
   },
   {
+   "prefix": "fr-FR/animations-ateliers/programme-salon/,-w-,",
+   "links": 37
+  },
+  {
    "prefix": "fr-FR/salon",
    "links": 33
   },
   {
-   "prefix": "fr-FR/animations-ateliers",
-   "links": 32
-  },
-  {
-   "prefix": "fr-FR",
-   "links": 29
-  },
-  {
-   "prefix": "(root)",
-   "links": 28
-  },
-  {
-   "prefix": "fr-FR/actualite-photo/agenda-photo",
-   "links": 20
-  },
-  {
-   "prefix": "fr-FR/actualite-photo",
-   "links": 13
-  },
-  {
-   "prefix": "fr-FR/actualite-photo/actus",
-   "links": 9
-  },
-  {
    "prefix": "fr-FR/animations-ateliers/expositions-photos",
-   "links": 9
+   "links": 15
   },
   {
    "prefix": "fr-FR/animations-ateliers/animations",
-   "links": 6
+   "links": 10
   },
   {
-   "prefix": "fr-FR/infos-pratiques/catalogue",
-   "links": 6
+   "prefix": "fr-FR/presse-createur-contenus",
+   "links": 8
+  },
+  {
+   "prefix": "catalog-exhibitor-full",
+   "links": 7
   },
   {
    "prefix": "fr-FR/animations-ateliers/rencontres-photo",
-   "links": 4
-  },
-  {
-   "prefix": "fr-FR/infos-pratiques/catalogue/Exposant",
-   "links": 4
-  },
-  {
-   "prefix": "fr-FR/infos-pratiques/catalogue/Produit",
-   "links": 4
+   "links": 7
   }
  ],
  "chrome": {

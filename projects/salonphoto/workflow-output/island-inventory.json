@@ -1,33 +1,158 @@
 {
  "project": "salonphoto",
- "pages": 27,
+ "pages": 159,
  "vendorScripts": [
   "swiffy-slider"
  ],
  "byBehaviour": {
-  "form": 27,
+  "form": 158,
+  "videoPlayer": 26,
   "facetFilter": 10,
-  "modal": 5,
+  "modal": 8,
   "carousel": 2,
-  "videoPlayer": 2,
   "map": 1
  },
  "units": [
   {
    "component": "footer",
    "behaviour": "form",
-   "instances": 27,
+   "instances": 158,
    "pages": [
     "actualite-photo",
     "actualite-photo_actualites",
     "actualite-photo_actus",
+    "actualite-photo_actus_Collodion-humide-Marjolaine-Vuarnesson",
+    "actualite-photo_actus_affiche-salon-de-la-photo-paris-2025",
+    "actualite-photo_actus_affiche-salon-de-la-photo-paris-2026",
+    "actualite-photo_actus_analog-chronicles-spring",
+    "actualite-photo_actus_appareil-photo-pour-debuter",
+    "actualite-photo_actus_bitrate-video",
+    "actualite-photo_actus_boitier-video",
+    "actualite-photo_actus_choisir-son-appareil-photo",
+    "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art",
+    "actualite-photo_actus_composition-photographique",
+    "actualite-photo_actus_conference-nikon",
+    "actualite-photo_actus_definition-resolution",
+    "actualite-photo_actus_etre-publie-dans-un-magazine-photo",
+    "actualite-photo_actus_eyes-of-belga-portrait-voyage",
+    "actualite-photo_actus_faire-connaitre-son-entreprise-de-photographie",
+    "actualite-photo_actus_ffpmi",
+    "actualite-photo_actus_filtres-optiques",
+    "actualite-photo_actus_fnp",
+    "actualite-photo_actus_format-heif",
+    "actualite-photo_actus_formation-professionnelle",
+    "actualite-photo_actus_gestion-couleurs",
+    "actualite-photo_actus_hydrides-pro-capteurs-cmos-bsi-stacked",
+    "actualite-photo_actus_ia-generative-innovation-encadrement",
+    "actualite-photo_actus_ia-retouche-photo-video",
+    "actualite-photo_actus_ia-workflow-photographe",
+    "actualite-photo_actus_idee-cadeau-noel-photographe",
+    "actualite-photo_actus_impression-directe-ou-contrecollage",
+    "actualite-photo_actus_lina-khezzar-devenir-photographe-que-les-clients-choisissent",
+    "actualite-photo_actus_mathieu-forget-art-levitation",
+    "actualite-photo_actus_meilleurs-drones-photo-et-video",
+    "actualite-photo_actus_nicolas-doretti-secrets-portrait-authentique",
+    "actualite-photo_actus_nouvelles-pratiques-pro",
+    "actualite-photo_actus_objectif-camera",
+    "actualite-photo_actus_ordinateur-photographe-professionnel",
+    "actualite-photo_actus_photo-animaliere-thomas-jean",
+    "actualite-photo_actus_photo-mode-lina-khezaar",
+    "actualite-photo_actus_photo-pose-longue-michael-protillo",
+    "actualite-photo_actus_photographe-visibilite",
+    "actualite-photo_actus_photographes-souvenirs-en-securite",
+    "actualite-photo_actus_portrait",
+    "actualite-photo_actus_portrait-voyage",
+    "actualite-photo_actus_pourquoi-photographier-raw",
+    "actualite-photo_actus_pouvoir-storytelling-photographie",
+    "actualite-photo_actus_quand-comment-utiliser-flash",
+    "actualite-photo_actus_realiser-un-livre-photo",
+    "actualite-photo_actus_reflex-hybride-quel-appareil-choisir",
+    "actualite-photo_actus_reparation-seconde-main-upcycling-sldp",
+    "actualite-photo_actus_retouche-photo-ia",
+    "actualite-photo_actus_rolling-shutter",
+    "actualite-photo_actus_salon-de-la-photo-2026-nouveau-logo",
+    "actualite-photo_actus_souffleurs-de-sens",
+    "actualite-photo_actus_studio-tech-phototrend-juillet-2026",
+    "actualite-photo_actus_studio-tech-phototrend-juin-2026",
+    "actualite-photo_actus_thomas-beauquesne-heure-bleue",
+    "actualite-photo_actus_triangle-exposition-photographie",
+    "actualite-photo_actus_upp",
     "actualite-photo_agenda-photo",
+    "actualite-photo_agenda-photo_Benoit-Henri-Tyszkiewicz",
+    "actualite-photo_agenda-photo_bruno-barbey-visions-sur-le-monde",
+    "actualite-photo_agenda-photo_edward-watson-modernite-revelee",
+    "actualite-photo_agenda-photo_exposition-kate-barry",
+    "actualite-photo_agenda-photo_exposition-martin-parr-global-warning",
+    "actualite-photo_agenda-photo_exposition-or-norme-guerlain",
+    "actualite-photo_agenda-photo_exposition-valerie-belin-les-choses-entre-elles",
+    "actualite-photo_agenda-photo_exterieurs-annie-ernaux",
+    "actualite-photo_agenda-photo_festival-circulations",
+    "actualite-photo_agenda-photo_genesis-platinum",
+    "actualite-photo_agenda-photo_jean-gaumy-et-la-mer",
+    "actualite-photo_agenda-photo_la-seine-la-seine",
+    "actualite-photo_agenda-photo_lee-miller",
+    "actualite-photo_agenda-photo_lhumus-du-monde",
+    "actualite-photo_agenda-photo_made-in-india",
+    "actualite-photo_agenda-photo_patrizia-mussa-theatralites",
+    "actualite-photo_agenda-photo_superfacial",
+    "actualite-photo_agenda-photo_yasuhiro-ishimoto-des-lignes-et-des-corps",
+    "actualite-photo_agenda-photo_zooms-japan-2025",
     "animations-ateliers",
     "animations-ateliers_animations",
     "animations-ateliers_animations-ateliers",
+    "animations-ateliers_animations_foire-internationale-de-bievres",
+    "animations-ateliers_animations_lectures-portfolio",
+    "animations-ateliers_animations_photos-spots",
+    "animations-ateliers_animations_world-premiere",
     "animations-ateliers_expositions-photos",
+    "animations-ateliers_expositions-photos_exposition-david-delaplace",
+    "animations-ateliers_expositions-photos_exposition-nikos-aliagas",
+    "animations-ateliers_expositions-photos_festival-montier",
+    "animations-ateliers_expositions-photos_grande-expo",
+    "animations-ateliers_expositions-photos_prix-bayeux",
+    "animations-ateliers_expositions-photos_zooms",
     "animations-ateliers_programme-salon",
+    "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus",
+    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc",
+    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors",
+    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet",
+    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2",
+    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc",
+    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc-2",
+    "animations-ateliers_programme-salon_Evenement_Calculer-le-prix-d'une-exposition",
+    "animations-ateliers_programme-salon_Evenement_Conference-La-photographie-de-voyage-sortir-des-sentiers-battus",
+    "animations-ateliers_programme-salon_Evenement_Conference-Le-voyage-photo-et-ses-bonnes-pratiques",
+    "animations-ateliers_programme-salon_Evenement_De-la-photographie-a-la-video",
+    "animations-ateliers_programme-salon_Evenement_De-la-visibilite-aux-clients-batir-une-strategie-Instagram-qui-rapporte",
+    "animations-ateliers_programme-salon_Evenement_Demonstration-de-collodion-humide",
+    "animations-ateliers_programme-salon_Evenement_Diversifier-son-activite-les-10-conseils-aux-Photographes-Tous-statuts",
+    "animations-ateliers_programme-salon_Evenement_Droit-d'auteur-et-calcul-perilleux",
+    "animations-ateliers_programme-salon_Evenement_DxO-PhotoLab-avec-Mathieu-Bachon-alias-Nohcab",
+    "animations-ateliers_programme-salon_Evenement_Exposition-Montier-Festival-Photo",
+    "animations-ateliers_programme-salon_Evenement_Exposition-Prix-Bayeux",
+    "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Adrien-Vautier",
+    "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Arnaud-Baumann",
+    "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Christophe-Brachet-Tanguy-Mendrisse-and-Baptiste-Langinier",
+    "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Nikos-Aliagas",
+    "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Olivier-Culmann-and-Samuel-Bollendorf",
+    "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-avec-Sophie-Zenon",
+    "animations-ateliers_programme-salon_Evenement_Jean-Christophe-Bechet-signature-de-livres",
+    "animations-ateliers_programme-salon_Evenement_LECTURE-DE-PORTFOLIO-2",
+    "animations-ateliers_programme-salon_Evenement_La-6e-Transition-200-ans-de-revolutions-photo-et-pourquoi-l-IA-ne-prendra-pas-votre-place",
+    "animations-ateliers_programme-salon_Evenement_La-Grande-Exposition",
+    "animations-ateliers_programme-salon_Evenement_Le-Vademecum-du-photographe-un-guide-complet-pour-comprendre-tous-les-statuts-et-specificites-du-metier",
+    "animations-ateliers_programme-salon_Evenement_Le-portrait-Corporate-avec-Nicolas-Kalogeropoulos",
+    "animations-ateliers_programme-salon_Evenement_Lecture-de-portfolio",
+    "animations-ateliers_programme-salon_Evenement_Nouveau-ne-la-specialite-qui-ne-s-improvise-pas-securite-hygiene-et-bonnes-pratiques",
+    "animations-ateliers_programme-salon_Evenement_Parcours-de-photographe-Solomon-Jamy-Brown-qui-exposera-sur-notre-stand",
+    "animations-ateliers_programme-salon_Evenement_Portrait-de-personnalite-pour-la-presse-faire-poser-et-imposer",
+    "animations-ateliers_programme-salon_Evenement_Se-lancer-comme-photographe-pro-en-2026-tout-ce-qu-on-ne-vous-dit-pas-ailleurs",
+    "animations-ateliers_programme-salon_Evenement_Vivre-de-la-photographie-sociale-en-2026-quel-business-model-choisir-pour-maximiser-votre-chiffre-d-affaires",
+    "animations-ateliers_programme-salon_Evenement_Workshop-Cansonr-Infinity-Choisir-son-papier-sublimer-son-image",
     "animations-ateliers_rencontres-photo",
+    "animations-ateliers_rencontres-photo_forum-pros",
+    "animations-ateliers_rencontres-photo_grandes-rencontres",
+    "animations-ateliers_rencontres-photo_tete-a-tete-filles-de-la-photo",
     "home",
     "infos-pratiques",
     "infos-pratiques_Infos-Pratiques",
@@ -37,6 +162,12 @@
     "infos-pratiques_faq",
     "infos-pratiques_photo-pass",
     "lien-billetterie",
+    "presse-createur-contenus_communiques-dossiers-presse_cp-1-2026",
+    "presse-createur-contenus_communiques-dossiers-presse_cp-2",
+    "presse-createur-contenus_communiques-dossiers-presse_cp-bilan-2025",
+    "presse-createur-contenus_communiques-dossiers-presse_cp-culturel",
+    "presse-createur-contenus_communiques-dossiers-presse_cp-laureats-zooms-2025",
+    "presse-createur-contenus_communiques-dossiers-presse_cp-test-1",
     "salon",
     "salon_a-propos",
     "salon_partenaires",
@@ -46,13 +177,77 @@
     "salon_rse",
     "salon_salon"
    ],
-   "pageCount": 27,
+   "pageCount": 158,
    "vendor": null,
    "shippedIsland": null,
    "contract": {
     "action": "/formbuilder?sc_site=Photo&fxb.FormItemId=1e603ab4-a2d1-48b7",
     "inputs": 16,
     "note": ""
+   }
+  },
+  {
+   "component": "video-content-block",
+   "behaviour": "videoPlayer",
+   "instances": 13,
+   "pages": [
+    "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art",
+    "actualite-photo_actus_composition-photographique",
+    "actualite-photo_actus_etre-publie-dans-un-magazine-photo",
+    "actualite-photo_actus_eyes-of-belga-portrait-voyage",
+    "actualite-photo_actus_faire-connaitre-son-entreprise-de-photographie",
+    "actualite-photo_actus_lina-khezzar-devenir-photographe-que-les-clients-choisissent",
+    "actualite-photo_actus_mathieu-forget-art-levitation",
+    "actualite-photo_actus_nicolas-doretti-secrets-portrait-authentique",
+    "actualite-photo_actus_portrait-voyage",
+    "actualite-photo_actus_pouvoir-storytelling-photographie",
+    "actualite-photo_actus_retouche-photo-ia",
+    "actualite-photo_actus_thomas-beauquesne-heure-bleue",
+    "home"
+   ],
+   "pageCount": 13,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "provider": "youtube"
+   }
+  },
+  {
+   "component": "plain-html",
+   "behaviour": "videoPlayer",
+   "instances": 9,
+   "pages": [
+    "actualite-photo_actus_composition-photographique",
+    "actualite-photo_actus_etre-publie-dans-un-magazine-photo",
+    "actualite-photo_actus_faire-connaitre-son-entreprise-de-photographie",
+    "actualite-photo_actus_nicolas-doretti-secrets-portrait-authentique",
+    "actualite-photo_actus_portrait-voyage",
+    "actualite-photo_actus_pouvoir-storytelling-photographie",
+    "actualite-photo_actus_retouche-photo-ia",
+    "actualite-photo_actus_thomas-beauquesne-heure-bleue",
+    "home"
+   ],
+   "pageCount": 9,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "provider": "youtube"
+   }
+  },
+  {
+   "component": "search-results",
+   "behaviour": "modal",
+   "instances": 7,
+   "pages": [
+    "animations-ateliers_expositions-photos_zooms",
+    "animations-ateliers_rencontres-photo_grandes-rencontres",
+    "infos-pratiques_photo-pass"
+   ],
+   "pageCount": 3,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "triggers": 0
    }
   },
   {
@@ -73,17 +268,20 @@
    }
   },
   {
-   "component": "search-results",
-   "behaviour": "modal",
+   "component": "video",
+   "behaviour": "videoPlayer",
    "instances": 4,
    "pages": [
-    "infos-pratiques_photo-pass"
+    "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art",
+    "actualite-photo_actus_eyes-of-belga-portrait-voyage",
+    "actualite-photo_actus_lina-khezzar-devenir-photographe-que-les-clients-choisissent",
+    "actualite-photo_actus_mathieu-forget-art-levitation"
    ],
-   "pageCount": 1,
+   "pageCount": 4,
    "vendor": null,
    "shippedIsland": null,
    "contract": {
-    "triggers": 0
+    "provider": "youtube"
    }
   },
   {
@@ -201,20 +399,6 @@
    }
   },
   {
-   "component": "plain-html",
-   "behaviour": "videoPlayer",
-   "instances": 1,
-   "pages": [
-    "home"
-   ],
-   "pageCount": 1,
-   "vendor": null,
-   "shippedIsland": null,
-   "contract": {
-    "provider": "youtube"
-   }
-  },
-  {
    "component": "tabs",
    "behaviour": "modal",
    "instances": 1,
@@ -226,20 +410,6 @@
    "shippedIsland": null,
    "contract": {
     "triggers": 0
-   }
-  },
-  {
-   "component": "video-content-block",
-   "behaviour": "videoPlayer",
-   "instances": 1,
-   "pages": [
-    "home"
-   ],
-   "pageCount": 1,
-   "vendor": null,
-   "shippedIsland": null,
-   "contract": {
-    "provider": "youtube"
    }
   }
  ]

@@ -1,6 +1,6 @@
 {
   "siteUrl": "https://www.lesalondelaphoto.com/fr-FR",
-  "crawledAt": "2026-08-03T14:15:47Z",
+  "crawledAt": "2026-08-03T16:00:01Z",
   "pages": [
     {
       "url": "https://www.lesalondelaphoto.com/fr-FR",
@@ -229,10 +229,10 @@
   "skippedUtility": 1,
   "skippedLang": 0,
   "_provenance": {
-    "run_id": "run_1785766541230",
+    "run_id": "run_1785772795162",
     "step_id": "step_crawl",
-    "generated_at": "2026-08-03T14:15:47Z",
-    "git_sha": "b19e28ff2cdf-dirty",
+    "generated_at": "2026-08-03T16:00:01Z",
+    "git_sha": "f71676d25f6a-dirty",
     "tool": "crawl-site.py",
     "args": [
       "projects/salonphoto",

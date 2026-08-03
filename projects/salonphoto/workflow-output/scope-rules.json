@@ -35,10 +35,10 @@
       "id": "exclude-trackers-and-chatbot",
       "action": "exclude",
       "match": {
-        "selector": "script[data-cf-beacon], script[chatbotid], link[href*='chatbase'], div[id^='chatbase'], button[aria-controls='chatbase-bubble-window'], iframe[src*='googletagmanager'], script[src*='googletagmanager'], script:-soup-contains('googletagmanager'), script:-soup-contains('gtag(')"
+        "selector": "script[data-cf-beacon], script[chatbotid], link[href*='chatbase'], div[id^='chatbase'], button[aria-controls='chatbase-bubble-window'], iframe[src*='googletagmanager'], script[src*='googletagmanager'], script:-soup-contains('googletagmanager'), script:-soup-contains('gtag('), script[src*='dobby.weezevent'], script[src*='weezevent.net']"
       },
       "scope": "site",
-      "reason": "Runtime telemetry and third-party widgets, not site content. Cloudflare's own RUM beacon (script[data-cf-beacon]) and the chatbase chatbot survived localization with rewritten relative srcs, so reviewing the mirror produced POST /cdn-cgi/rum -> 404 and GET /api/get-chatbot-styles -> 404 plus a live chat bubble over the hero (operator observation 2026-08-03, read as a Cloudflare block). The GTM noscript iframe is a 0x0 hidden tracker. None of it is migratable content: Jahia has its own analytics/consent story, and a chatbot is a post-migration integration decision. The GTM bootstrap is an INLINE script that builds its own src at runtime, so an attribute-URL selector misses it — matched by text instead (soupsieve :-soup-contains).",
+      "reason": "Runtime telemetry and third-party widgets, not site content. Cloudflare's own RUM beacon (script[data-cf-beacon]) and the chatbase chatbot survived localization with rewritten relative srcs, so reviewing the mirror produced POST /cdn-cgi/rum -> 404 and GET /api/get-chatbot-styles -> 404 plus a live chat bubble over the hero (operator observation 2026-08-03, read as a Cloudflare block). The GTM noscript iframe is a 0x0 hidden tracker. None of it is migratable content: Jahia has its own analytics/consent story, and a chatbot is a post-migration integration decision. The GTM bootstrap is an INLINE script that builds its own src at runtime, so an attribute-URL selector misses it — matched by text instead (soupsieve :-soup-contains). The entity DETAIL pages carry a further tracker the menu pages did not: dobby.weezevent.net/<uuid>.js on 131 of 159 pages (Weezevent's remarketing beacon, distinct from the widget.weezevent.com ticketing iframe which IS kept content). Only surfaced once the corpus included detail pages — a menu-only capture cannot see it.",
       "decidedBy": "claude+operator",
       "date": "2026-08-03"
     },
@@ -124,6 +124,22 @@
     {
       "path": "campagnes",
       "reason": "Two social-campaign landing pages (campagnes/zooms-facebook, campagnes/zooms-instagram) for the Prix du Public des Zooms, one per channel. Present in /sitemap.xml, linked from NO page on the site and reached only from social posts — they are tracking entry points, not site content. Out of scope; revisit if the campaign is being re-run on the Jahia site."
+    },
+    {
+      "path": "img/placeholder_profile_picture.08282499.jpg",
+      "reason": "A BROKEN IMAGE ON THE SOURCE: 16 <img> references on the 'Portrait de personnalite' programme pages point at /img/placeholder_profile_picture.08282499.jpg, which the origin answers with HTTP 404 (an HTML error page). Nothing to localize and nothing to migrate — the defect is upstream. Recorded so the self-containment gate stays honest rather than being widened."
+    },
+    {
+      "path": "catalog-exhibitor-full",
+      "reason": "A THIRD catalogue URL shape (/catalog-exhibitor-full/<exhibitor>), linked from programme event detail pages to the speaker's exhibiting company. Only visible once detail pages were captured. It belongs to the DEFERRED catalogue decision (sdp:directoryEntry, 33 details across /Exposant/, /Marque/, /Produit/): when that type is approved this becomes a fourth urlPrefix on the exhibitor folder rather than an accepted target."
+    },
+    {
+      "path": "animations-ateliers/programme-salon/,-w-,",
+      "reason": "A MALFORMED SOURCE LINK: the programme detail template leaked an unresolved placeholder into the href (`/programme-salon/,-w-,/,-w-,`), on 2 event pages. Broken upstream, nothing to migrate."
+    },
+    {
+      "path": "Le-salon/Actualites",
+      "reason": "A LEGACY URL shape (capitalised /Le-salon/Actualites/<slug>) still linked from one article's prose; the live site 301s it to /actualite-photo/actus/<slug>. The write-time link rewire maps it onto the migrated article when the slug resolves; recorded here so the census does not demand a page for a redirect."
     }
   ],
   "_targets_README": "pagesToCrawl and acceptedTargets are the DECISION register for internal link targets the menu-scoped capture does not reach. probes/link-census.py fails on any internal link whose target is in none of: captured pages, mainresource urlPrefixes, the sitemap, pagesToCrawl, acceptedTargets. A decision may be 'crawl it' or 'accept it out of scope', but it may never be silence."

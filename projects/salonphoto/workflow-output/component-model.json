@@ -18,13 +18,13 @@
   },
   "evidence": {
     "menuPages": 27,
-    "declaredComponentTypes": 36,
+    "declaredComponentTypes": 41,
     "zoneRegime": "framework-semantic classes",
     "domCoverageByAnchors": "99%",
-    "censusBands": 207,
+    "censusBands": 1349,
     "templateClusters": 5,
     "islandBehaviours": 6,
-    "islandInstances": 47,
+    "islandInstances": 205,
     "artifacts": [
       "projects/salonphoto/.reference/declared-components.json",
       "projects/salonphoto/workflow-output/zone3-salonphoto.json",
@@ -53,7 +53,10 @@
       "entityPrefix": 100,
       "acceptedTarget": 32,
       "menuPageCrawlPending": 27
-    }
+    },
+    "corpusPages": 159,
+    "entityDetailPages": 132,
+    "_note": "Re-measured over the FULL corpus. The first model was authored from 27 menu pages = 17% of content units; entity details added 5 declared types, 1142 bands, and 13x the video weight."
   },
   "templates": [
     {
@@ -183,7 +186,8 @@
         "simple-title"
       ],
       "_scope": "TEMPLATE-level on 25/26 inner pages (title x25) + banner2 x1",
-      "_fields": "titre + arriere-titre (the ghosted background word) + image-de-fond background"
+      "_fields": "titre + arriere-titre (the ghosted background word) + image-de-fond background",
+      "_fullCorpusEvidence": "On detail pages the `title` component (x119) carries date-de-publication and sous-titre alongside titre — the same component supplies a page title banner AND an entity's title+date, which is why the entity map reads title from it."
     },
     "sdp:richTextSection": {
       "name": "Rich Text Section",
@@ -203,15 +207,21 @@
     "sdp:mediaText": {
       "name": "Media & Text",
       "views": [
-        "default"
+        "default",
+        "figure",
+        "video"
       ],
       "_sxaSource": [
         "content-block",
         "content-block-vertical-image",
-        "image-content-block-description"
+        "image-content-block-description",
+        "image",
+        "video",
+        "video-content-block"
       ],
       "_layoutProperty": "layout = imageRight | imageLeft",
-      "_scope": "content-block x4 + content-block-vertical-image x1; the image+prose split band"
+      "_scope": "content-block x4 + content-block-vertical-image x1; the image+prose split band",
+      "_fullCorpusEvidence": "Re-decided on the 159-page corpus (was 27): `image` x171 with an imagecaption field is the site's most-used content component and was INVISIBLE to the menu-only model — it is the in-article figure, so it maps here with a `figure` view (caption -> body). `video-content-block` x13 (a container of link/plain-html/video) and its `video` x4 child take a `video` view. One type, three views, rather than three types."
     },
     "sdp:cardGrid": {
       "name": "Card Grid",
@@ -518,6 +528,18 @@
     {
       "type": "load-more",
       "reason": "paging UI of the absent SXA search backend; sdp:jcrQuery handles paging"
+    },
+    {
+      "type": "divider",
+      "reason": "x3, a horizontal rule: presentation, no content"
+    },
+    {
+      "type": "column-splitter",
+      "reason": "x1, a layout splitter whose only child is an image band"
+    },
+    {
+      "type": "container-bp",
+      "reason": "x1, a Bootstrap breakpoint wrapper"
     }
   ],
   "scopeReport": {
