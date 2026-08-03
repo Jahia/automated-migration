@@ -138,7 +138,21 @@ export function downscalePng(buf, maxW = 820, maxH = 4000, maxBytes = 700 * 1024
 // legitimately needs > 8000 output tokens for its components JSON — DeepSeek returns
 // EMPTY content when json_object output is truncated at max_tokens (observed 2026-07-06:
 // tokens_out == 8000 exactly, 0-char reply).
-const VISION_MAX_TOKENS = Number(envLocal('VISION_MAX_TOKENS')) || 8000;
+// FLOOR, not a default (2026-08-03): an 8000-token cap truncates the json_object
+// reply on any page past ~100 outline blocks, and a truncated reply is not a slow
+// reply — it is a WRONG one that costs 3x. Measured on a 153-block page: at 8000 the
+// page burned all 3 retry attempts and still landed 39.6% leaf coverage (below the
+// 50% bar); at 24000 the same page took ONE attempt and reached 83.3%. The cap was
+// configuration, so a stale .env.local silently degraded every run — it is now
+// enforced in code and only ever raised by the environment, never lowered.
+const VISION_MAX_TOKENS_FLOOR = 24000;
+const _visionCapEnv = Number(envLocal('VISION_MAX_TOKENS')) || 0;
+const VISION_MAX_TOKENS = Math.max(VISION_MAX_TOKENS_FLOOR, _visionCapEnv);
+if (_visionCapEnv && _visionCapEnv < VISION_MAX_TOKENS_FLOOR) {
+  console.error(`[ovh_vision] VISION_MAX_TOKENS=${_visionCapEnv} is below the `
+    + `${VISION_MAX_TOKENS_FLOOR} floor (truncated JSON = wrong segmentation, 3x the `
+    + `calls) — raised to ${VISION_MAX_TOKENS}`);
+}
 
 // Network-level retry (2026-07-22): the OVH gateway drops streams mid-response
 // ('terminated') and long big-outline calls can hit the local abort — both are

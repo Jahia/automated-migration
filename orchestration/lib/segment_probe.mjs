@@ -189,6 +189,9 @@ const RETRIES = Number(flags.retries) || 3;
 const MIN_COVERAGE = Number(flags['min-coverage']) || 50;
 // v1 stability default = 2 (best-pair protocol); v2 consensus default = 3 upfront runs.
 const STABILITY = Number(flags.stability) || (CONSENSUS ? 3 : 2);
+// consensus runs go in PARALLEL by default (independent samples); opt out with
+// --runs-serial when an endpoint rate-limits concurrent requests.
+const RUNS_SERIAL = !!flags['runs-serial'];
 // scope rules in force (ASSIST-PLAN §5) — reported in the v2 segment-check.
 // (The DOM-level application lives in the shared scope_rules library/consumers.)
 let scopeRules = [];
@@ -291,8 +294,16 @@ async function segmentStable(nodes, shot, slug) {
 // (FROZEN bars from segment_consensus.mjs) — and the medoid run itself must have
 // cleared the deterministic gate (parses, real ids only).
 async function segmentConsensus(nodes, shot, slug, N) {
-  const runs = [];
-  for (let i = 1; i <= N; i++) runs.push(await segmentGated(nodes, shot, `${slug}#${i}`));
+  // The N runs are INDEPENDENT samples of the same page + same screenshot:
+  // segmentGated holds all its state locally (its own evaluator, feedback and
+  // retry loop), and the agreement/medoid maths below is order-independent. Running
+  // them serially therefore bought nothing and cost everything: measured 2026-08-03,
+  // 81 strictly sequential vision calls (27 pages x 3) ran at 14.6 min/page and blew
+  // a 3h10m budget with 13 of 27 pages done. Same calls, same gates, in parallel.
+  // --runs-serial restores the old behaviour if an endpoint ever punishes concurrency.
+  const runs = RUNS_SERIAL
+    ? await (async () => { const r = []; for (let i = 1; i <= N; i++) r.push(await segmentGated(nodes, shot, `${slug}#${i}`)); return r; })()
+    : await Promise.all(Array.from({ length: N }, (_, i) => segmentGated(nodes, shot, `${slug}#${i + 1}`)));
   const sets = runs.map(rootSet);
   const { agreement, pairwise } = meanPairwiseJaccard(sets);
   const mi = medoidIndex(sets);

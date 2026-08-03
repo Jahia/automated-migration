@@ -144,7 +144,7 @@
               },
               "acceptance_criteria": [
                 "Run: echo segmentation is executed by the engine probe",
-                "PROBE[11340]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
+                "PROBE[24300]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
               ],
               "max_attempts": 2,
               "strategies": [
@@ -163,7 +163,7 @@
                       },
                       "acceptance_criteria": [
                         "Run: node orchestration/lib/adjudicate_ingest.mjs projects/salonphoto",
-                        "PROBE[11340]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
+                        "PROBE[24300]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
                       ]
                     }
                   ],
@@ -186,7 +186,7 @@
                       "acceptance_criteria": [
                         "Run: echo ab evidence",
                         "PROBE[2700]: bash orchestration/lib/ab_segment.sh projects/salonphoto",
-                        "PROBE[11340]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
+                        "PROBE[24300]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
                       ]
                     }
                   ],

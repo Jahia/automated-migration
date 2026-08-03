@@ -84,16 +84,22 @@ def build_plan(p):
     # pages' specific content as ONE anonymous rawHtml blob each (signature
     # matching only types recurring components) — the fragment-soup failure the
     # component_coverage gate now also blocks downstream.
-    # BUDGET (measured 2026-08-03, salonphoto/Qwen3.5-9B): ~5.6 min per page for
-    # --consensus --stability 3 (3 vision passes/page). A constant 2700s therefore
-    # covers only ~8 pages: on a 27-page corpus the probe timed out twice and parked
-    # the run at decision_pending with 8/27 segmented. segment_probe is INCREMENTAL
-    # (a retry resumes, never re-bills), so the budget must simply be large enough for
-    # the whole corpus: 420s/page over the crawl inventory, floor 2700s, ceiling 4h.
+    # BUDGET — calibrate from SUSTAINED throughput, not a fast sample. Measured
+    # (2026-08-03, Qwen3.5-9B via OVH, --consensus --stability 3 = 3 vision passes
+    # per page): the first 8 pages ran at 5.6 min/page, but the SUSTAINED rate over
+    # a full 3h10m attempt was **14.6 min/page** (13 of 27 pages) — big-DOM pages
+    # (a 33-band FAQ) and endpoint throttling dominate the tail. A 420s/page budget
+    # calibrated on the fast head therefore still timed out with half the corpus
+    # unsegmented. 900s/page + an 8h ceiling covers a ~30-page corpus in ONE attempt.
+    # segment_probe is INCREMENTAL, so a restart resumes and never re-bills.
+    # NOTE the real lesson: at ~15 min/page, vision costs ~7h for 27 pages. For a
+    # source whose CMS DECLARES its components (declared_inventory finds an adapter),
+    # that spend buys nothing the declaration does not already give deterministically
+    # — a declared-source arm belongs in seg_strategies.
     SEG_BUDGET = 2700
     try:
         _inv = json.load(open(f"{PP}/workflow-output/page-inventory.json"))
-        SEG_BUDGET = max(2700, min(14400, 420 * len(_inv.get("pages") or [])))
+        SEG_BUDGET = max(2700, min(28800, 900 * len(_inv.get("pages") or [])))
     except (OSError, ValueError):
         pass
     SEG_PROBE = (f"PROBE[{SEG_BUDGET}]: node orchestration/lib/segment_probe.mjs {PP} "
