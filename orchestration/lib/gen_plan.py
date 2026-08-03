@@ -71,6 +71,22 @@ def build_plan(p):
     SLANG = f" --lang {p['source_lang']}" if p.get("source_lang") else ""
     PP = f"projects/{P}"
     URI = f"https://jahia.com/{P}/nt/1.0"
+    # ADAPTER-FIRST (2026-08-03): when the source's CMS DECLARES its component
+    # boundaries in the DOM, the declaration IS the segmentation — complete,
+    # deterministic, free. Vision is for sources that hide their structure, and
+    # running it anyway is not a harmless belt: on a 27-page SXA corpus it projected
+    # ~7h and went 0-for-27 against the frozen 0.8 consensus bar while the
+    # declaration gave 36 types with fields + containers in seconds. So a declaring
+    # source SKIPS step_segment outright rather than reaching the declared_arm only
+    # after exhausting the vision budget. `--force-vision` overrides (A/B work).
+    DECLARED = False
+    try:
+        _d = json.load(open(f"{PP}/.reference/declared-components.json"))
+        DECLARED = bool(_d.get("components")) and _d.get("adapter") not in (None, "none")
+    except (OSError, ValueError):
+        DECLARED = False
+    if p.get("force_vision"):
+        DECLARED = False
     common = {"project": P, "project_path": PP, "namespace": NS,
               "mixNamespace": MIXNS, "siteKey": SITE, "moduleName": MODULE}
 
@@ -117,7 +133,7 @@ def build_plan(p):
     seg_strategies = [
         {"id": "claude_adjudicate",
          "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
-         "when": "on_retries_exhausted", "order": 1, "arm_swap": False, "halt": False,
+         "when": "on_retries_exhausted", "order": 2, "arm_swap": False, "halt": False,
          "patches": [{"step_id": "step_segment",
                       "inputs": {"project": PP},
                       "acceptance_criteria": [
@@ -131,7 +147,7 @@ def build_plan(p):
                    "cluster majority with adjudicated pages counting green-by-adjudication.")},
         {"id": "ab_test",
          "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
-         "when": "on_retries_exhausted", "order": 2, "arm_swap": False, "halt": False,
+         "when": "on_retries_exhausted", "order": 3, "arm_swap": False, "halt": False,
          "patches": [{"step_id": "step_segment",
                       "inputs": {"project": PP},
                       "acceptance_criteria": [
@@ -145,7 +161,7 @@ def build_plan(p):
                    "unchanged and probably still red — the NEXT decision has the A/B report.")},
         {"id": "heuristic_arm",
          "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
-         "when": "on_retries_exhausted", "order": 3, "arm_swap": True, "halt": False,
+         "when": "on_retries_exhausted", "order": 4, "arm_swap": True, "halt": False,
          "patches": [{"step_id": "step_group",
                       "inputs": {"project": PP},
                       "acceptance_criteria": heuristic_criteria}],
@@ -153,9 +169,34 @@ def build_plan(p):
          "notes": ("Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-"
                    "PROBE lint): step_segment is skipped and step_group becomes the exact "
                    "criteria gen_plan emits for --segmentation heuristic.")},
+        {"id": "declared_arm",
+         "title": "Arm swap: build the manifest from the SOURCE'S OWN declaration (no vision)",
+         "when": "on_retries_exhausted", "order": 1, "arm_swap": True, "halt": False,
+         "patches": [{"step_id": "step_group",
+                      "inputs": {"project": PP},
+                      "acceptance_criteria": [
+                          f"Run: python3 orchestration/lib/declared2manifest.py {P} --ns {NS} --mixns {MIXNS}",
+                          f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
+                          f"PROBE: bash orchestration/probes/sxa-coverage.sh {PP}",
+                          f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
+                          f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json"]}],
+         "skip": ["step_segment"],
+         "notes": ("FIRST strategy when the source DECLARES its components in the DOM "
+                   "(declared_inventory found an adapter: SXA div.component + field-*, "
+                   "Drupal paragraph--type-*, an explicit data-component). Measured "
+                   "2026-08-03 on a 27-page SXA corpus: the vision arm projected ~7h and "
+                   "went 0-for-27 against the frozen 0.8 consensus bar (agreement "
+                   "0.556-0.778; the home page's medoid run returned ONE component with "
+                   "zero containers for a 12-band page), while the declaration gave 36 "
+                   "types with fields + containers and extract_content --adapter sxa gave "
+                   "556 instances / 121k chars of real field text in under 3 minutes. "
+                   "sxa-coverage.sh is the completeness gate: every declared type mapped "
+                   "or explicitly ignored. Content extraction must run with --adapter sxa "
+                   "(see step_content_extract). A source that declares NOTHING cannot use "
+                   "this arm — declared2manifest exits non-zero and the ladder moves on.")},
         {"id": "manual_review",
          "title": "Manual review (Julian): halt with the segmentation bundle",
-         "when": "on_retries_exhausted", "order": 4, "arm_swap": False, "halt": True,
+         "when": "on_retries_exhausted", "order": 5, "arm_swap": False, "halt": True,
          "patches": [], "skip": [],
          "notes": ("Converts the decision into halted (gate_type: segmentation) with the review "
                    "bundle (segmap overlays, consensus diff). Overriding a red segmentation "
@@ -241,7 +282,18 @@ def build_plan(p):
         # nondeterminism, so a red verdict is signal, not noise — one auto-retry
         # (continuing incrementally where the first left off), then the decision
         # ladder takes over instead of re-billing another full vision round.
-        *([{**step("step_segment", "Vision segmentation (protocol v2: consensus, ALL pages)", "build",
+        *([step("step_group", "DECLARED source -> SEMANTIC archetype manifest (no vision)",
+                "build",
+                [f"Run: python3 orchestration/lib/declared2manifest.py {P} --ns {NS} --mixns {MIXNS}",
+                 f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
+                 f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
+                 f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json",
+                 # every declared type mapped or explicitly ignored — no silent drops
+                 f"PROBE: bash orchestration/probes/sxa-coverage.sh {PP}",
+                 f"PROBE: python3 orchestration/probes/archetype-utilization.py {P}"],
+                deps=["step_zoning"])]
+          if (ARCH and DECLARED) else
+          [{**step("step_segment", "Vision segmentation (protocol v2: consensus, ALL pages)", "build",
                    ["Run: echo segmentation is executed by the engine probe",
                     SEG_PROBE],
                    deps=["step_semantic"], max_attempts=2),
@@ -258,7 +310,7 @@ def build_plan(p):
                  # gate noticed — fidelity rides skeletons, not types)
                  f"PROBE: python3 orchestration/probes/archetype-utilization.py {P}"],
                 deps=["step_segment"])]
-          if SEGMENTATION == "vision" else
+          if SEGMENTATION == "vision" and not (ARCH and DECLARED) else
           [step("step_group", "LLM grouping (bounded) + partition gate", "build",
                 heuristic_criteria,
                 deps=["step_semantic"])]),
@@ -290,7 +342,16 @@ def build_plan(p):
         # richtext props per type from the OBSERVED lift (wired-only types:
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
         step("step_content_extract", "Content-load payload + partition/contribution/component gates", "build",
-             [f"Run: python3 orchestration/lib/extract_content.py {P}",
+             [# the DECLARED arm's manifest is keyed by the source's declared type
+              # names, so extraction must read the same declaration (--adapter sxa);
+              # the vision arm's manifest keeps the vision-driven default. The flag is
+              # chosen from the manifest's own generatedFrom stamp — no second source
+              # of truth to drift.
+              f"Run: python3 -c \"import json,subprocess,sys; "
+              f"m=json.load(open('{PP}/workflow-output/component-manifest.json')); "
+              f"dec='declared2manifest' in (m.get('generatedFrom') or ''); "
+              f"sys.exit(subprocess.run([sys.executable,'orchestration/lib/extract_content.py','{P}','{SITE}']"
+              f"+(['--adapter','sxa'] if dec else [])).returncode)\"",
               # archetype model: map the skeleton content-load onto the semantic
               # archetype field surface (title/body/image/cta + typed children).
               *([f"Run: python3 orchestration/lib/semanticize_content.py {P} "
@@ -698,6 +759,9 @@ def main():
     ap.add_argument("--model", default="opencode/deepseek-v4-flash")
     ap.add_argument("--segmentation", choices=["vision", "heuristic"], default="vision",
                     help="component-model arm: vision (P2 A/B winner, default) or heuristic")
+    ap.add_argument("--force-vision", action="store_true",
+                    help="run vision segmentation even when the source declares its "
+                         "components (A/B comparisons only)")
     ap.add_argument("--archetypes", action="store_true",
                     help="SEMANTIC authoring model (redesign §10): archetype manifest + "
                          "semantic CND/views + content→field mapper; fidelity gates demote "
@@ -726,6 +790,7 @@ def main():
         "module": a.module or a.project,
         "title": a.title or f"{a.site} (migrated)",
         "archetypes": a.archetypes,
+        "force_vision": a.force_vision,
         "max_pages": a.max_pages, "threshold": a.threshold,
         "per_cluster": a.per_cluster,
         "segmentation": a.segmentation,

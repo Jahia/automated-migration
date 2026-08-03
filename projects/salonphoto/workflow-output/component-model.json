@@ -194,9 +194,11 @@
       "_sxaSource": [
         "rich-text",
         "content",
-        "page-list"
+        "page-list",
+        "contact-block"
       ],
-      "_scope": "the workhorse: content x122 + rich-text x29 declared instances; census signature 'plain' x151 of 207 bands"
+      "_scope": "the workhorse: content x122 + rich-text x29 declared instances; census signature 'plain' x151 of 207 bands",
+      "_contactBlockNote": "contact-block (1 instance, home) is the newsletter/contact band: prose + a form. Decided as richTextSection; its form is an island decision, already recorded under islands."
     },
     "sdp:mediaText": {
       "name": "Media & Text",

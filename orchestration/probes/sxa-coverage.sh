@@ -41,7 +41,10 @@ for c in inv["components"]:
         alias_of[a] = c["type"]
 
 mapped = set()
-for comp in m.get("components", []):
+# crossCutting (chrome: header/nav/footer) types are MODELLED, just routed to an
+# AbsoluteArea instead of a page area - scanning only the components list reported the
+# source's header, nav and top-bar as unaccounted (2026-08-03).
+for comp in (m.get("components", []) + m.get("crossCutting", [])):
     for s in comp.get("sxaSource", []):
         mapped.add(alias_of.get(s, s))
 ignored = set(alias_of.get(s, s) for s in m.get("sxaIgnored", []))

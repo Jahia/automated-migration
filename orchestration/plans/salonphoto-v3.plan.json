@@ -131,122 +131,23 @@
               "max_attempts": 3
             },
             {
-              "id": "step_segment",
-              "title": "Vision segmentation (protocol v2: consensus, ALL pages)",
-              "task_type": "build",
-              "agent": "code",
-              "depends_on": [
-                "step_semantic"
-              ],
-              "inputs": {
-                "project": "projects/salonphoto",
-                "site": "salonphoto"
-              },
-              "acceptance_criteria": [
-                "Run: echo segmentation is executed by the engine probe",
-                "PROBE[24300]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
-              ],
-              "max_attempts": 2,
-              "strategies": [
-                {
-                  "id": "claude_adjudicate",
-                  "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
-                  "when": "on_retries_exhausted",
-                  "order": 1,
-                  "arm_swap": false,
-                  "halt": false,
-                  "patches": [
-                    {
-                      "step_id": "step_segment",
-                      "inputs": {
-                        "project": "projects/salonphoto"
-                      },
-                      "acceptance_criteria": [
-                        "Run: node orchestration/lib/adjudicate_ingest.mjs projects/salonphoto",
-                        "PROBE[24300]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
-                      ]
-                    }
-                  ],
-                  "skip": [],
-                  "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/salonphoto/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe — hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
-                },
-                {
-                  "id": "ab_test",
-                  "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
-                  "when": "on_retries_exhausted",
-                  "order": 2,
-                  "arm_swap": false,
-                  "halt": false,
-                  "patches": [
-                    {
-                      "step_id": "step_segment",
-                      "inputs": {
-                        "project": "projects/salonphoto"
-                      },
-                      "acceptance_criteria": [
-                        "Run: echo ab evidence",
-                        "PROBE[2700]: bash orchestration/lib/ab_segment.sh projects/salonphoto",
-                        "PROBE[24300]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
-                      ]
-                    }
-                  ],
-                  "skip": [],
-                  "notes": "Information strategy: runs the heuristic arm into projects/salonphoto/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/salonphoto/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red — the NEXT decision has the A/B report."
-                },
-                {
-                  "id": "heuristic_arm",
-                  "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
-                  "when": "on_retries_exhausted",
-                  "order": 3,
-                  "arm_swap": true,
-                  "halt": false,
-                  "patches": [
-                    {
-                      "step_id": "step_group",
-                      "inputs": {
-                        "project": "projects/salonphoto"
-                      },
-                      "acceptance_criteria": [
-                        "Run: python3 orchestration/lib/group_llm.py projects/salonphoto --model deepseek-v4-flash --ns sdp --out projects/salonphoto/workflow-output/grouping.json",
-                        "PROBE: python3 orchestration/lib/assemble_manifest.py projects/salonphoto/workflow-output/semantic-candidates.json --group projects/salonphoto/workflow-output/grouping.json --ns sdp --out projects/salonphoto/workflow-output/component-manifest.json"
-                      ]
-                    }
-                  ],
-                  "skip": [
-                    "step_segment"
-                  ],
-                  "notes": "Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-PROBE lint): step_segment is skipped and step_group becomes the exact criteria gen_plan emits for --segmentation heuristic."
-                },
-                {
-                  "id": "manual_review",
-                  "title": "Manual review (Julian): halt with the segmentation bundle",
-                  "when": "on_retries_exhausted",
-                  "order": 4,
-                  "arm_swap": false,
-                  "halt": true,
-                  "patches": [],
-                  "skip": [],
-                  "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only — recorded as a waiver."
-                }
-              ]
-            },
-            {
               "id": "step_group",
-              "title": "Vision -> SEMANTIC archetype manifest",
+              "title": "DECLARED source -> SEMANTIC archetype manifest (no vision)",
               "task_type": "build",
               "agent": "code",
               "depends_on": [
-                "step_segment"
+                "step_zoning"
               ],
               "inputs": {
                 "project": "projects/salonphoto",
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/segment2manifest.py salonphoto --ns sdp --mixns sdpmix --archetypes",
+                "Run: python3 orchestration/lib/declared2manifest.py salonphoto --ns sdp --mixns sdpmix",
                 "Run: python3 orchestration/lib/make_overrides.py salonphoto --module salonphoto",
                 "PROBE: test -s projects/salonphoto/workflow-output/component-manifest.json",
                 "PROBE: test -s projects/salonphoto/workflow-output/passthrough-overrides.json",
+                "PROBE: bash orchestration/probes/sxa-coverage.sh projects/salonphoto",
                 "PROBE: python3 orchestration/probes/archetype-utilization.py salonphoto"
               ],
               "max_attempts": 3
@@ -305,7 +206,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/extract_content.py salonphoto",
+                "Run: python3 -c \"import json,subprocess,sys; m=json.load(open('projects/salonphoto/workflow-output/component-manifest.json')); dec='declared2manifest' in (m.get('generatedFrom') or ''); sys.exit(subprocess.run([sys.executable,'orchestration/lib/extract_content.py','salonphoto','salonphoto']+(['--adapter','sxa'] if dec else [])).returncode)\"",
                 "Run: python3 orchestration/lib/semanticize_content.py salonphoto --manifest projects/salonphoto/workflow-output/component-manifest.json",
                 "PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/salonphoto.content-load.json')); sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\"",
                 "PROBE: python3 orchestration/probes/reconcile-check.py salonphoto",

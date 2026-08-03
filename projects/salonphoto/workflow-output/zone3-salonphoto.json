@@ -646,10 +646,10 @@
  },
  "source": "scoped-mirror",
  "_provenance": {
-  "run_id": "run_1785750064959",
+  "run_id": "run_1785766541230",
   "step_id": "step_zoning",
-  "generated_at": "2026-08-03T09:42:31Z",
-  "git_sha": "fc8386cdb1d0-dirty",
+  "generated_at": "2026-08-03T14:17:07Z",
+  "git_sha": "b19e28ff2cdf-dirty",
   "tool": "zone_detect.py",
   "args": [
    "salonphoto"
