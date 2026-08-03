@@ -1,0 +1,267 @@
+{
+ "pages": 27,
+ "boundary": {
+  "declared": 27
+ },
+ "bandsPerPage": {
+  "actualite-photo": 3,
+  "actualite-photo_actualites": 3,
+  "actualite-photo_actus": 6,
+  "actualite-photo_agenda-photo": 6,
+  "animations-ateliers": 3,
+  "animations-ateliers_animations-ateliers": 3,
+  "animations-ateliers_animations": 5,
+  "animations-ateliers_expositions-photos": 5,
+  "animations-ateliers_programme-salon": 4,
+  "animations-ateliers_rencontres-photo": 5,
+  "home": 12,
+  "infos-pratiques": 3,
+  "infos-pratiques_Infos-Pratiques": 3,
+  "infos-pratiques_catalogue": 3,
+  "infos-pratiques_comment-venir-au-salon": 16,
+  "infos-pratiques_dates-acces-horaires": 11,
+  "infos-pratiques_faq": 33,
+  "infos-pratiques_photo-pass": 12,
+  "lien-billetterie": 14,
+  "salon": 3,
+  "salon_a-propos": 12,
+  "salon_partenaires": 5,
+  "salon_profil-visiteur": 5,
+  "salon_qui-expose": 13,
+  "salon_qui-visite": 8,
+  "salon_rse": 8,
+  "salon_salon": 3
+ },
+ "sectionFamilies": [
+  {
+   "signature": "plain",
+   "count": 151,
+   "sample": {
+    "page": "actualite-photo",
+    "band": "title",
+    "heading": "ACTUALIT\u00c9 PHOTO",
+    "imgs": 1,
+    "links": 0
+   }
+  },
+  {
+   "signature": "repeat",
+   "count": 54,
+   "sample": {
+    "page": "actualite-photo",
+    "band": "page-list",
+    "heading": "Conseils & Actualit\u00e9s",
+    "imgs": 2,
+    "links": 3
+   }
+  },
+  {
+   "signature": "carousel",
+   "count": 2,
+   "sample": {
+    "page": "home",
+    "band": "carousel",
+    "heading": "La billetterie du Salon Photo & Vid\u00e9o 2026 est ouverte !",
+    "imgs": 4,
+    "links": 6
+   }
+  }
+ ],
+ "bandTypes": [
+  {
+   "band": "content",
+   "count": 38,
+   "signature": "plain"
+  },
+  {
+   "band": "rich-text",
+   "count": 29,
+   "signature": "plain"
+  },
+  {
+   "band": "breadcrumb",
+   "count": 26,
+   "signature": "plain"
+  },
+  {
+   "band": "title",
+   "count": 25,
+   "signature": "plain"
+  },
+  {
+   "band": "snippet",
+   "count": 18,
+   "signature": "plain"
+  },
+  {
+   "band": "plain-html",
+   "count": 15,
+   "signature": "plain"
+  },
+  {
+   "band": "page-list",
+   "count": 8,
+   "signature": "repeat"
+  },
+  {
+   "band": "accordion",
+   "count": 8,
+   "signature": "repeat"
+  },
+  {
+   "band": "search-results",
+   "count": 6,
+   "signature": "repeat"
+  },
+  {
+   "band": "simple-title",
+   "count": 6,
+   "signature": "plain"
+  },
+  {
+   "band": "link",
+   "count": 5,
+   "signature": "plain"
+  },
+  {
+   "band": "picture-grid",
+   "count": 4,
+   "signature": "repeat"
+  },
+  {
+   "band": "content-block",
+   "count": 4,
+   "signature": "repeat"
+  },
+  {
+   "band": "div",
+   "count": 2,
+   "signature": "repeat"
+  },
+  {
+   "band": "partners-2-list",
+   "count": 2,
+   "signature": "plain"
+  },
+  {
+   "band": "tabs",
+   "count": 2,
+   "signature": "repeat"
+  },
+  {
+   "band": "banner2",
+   "count": 1,
+   "signature": "plain"
+  },
+  {
+   "band": "load-more",
+   "count": 1,
+   "signature": "plain"
+  },
+  {
+   "band": "carousel",
+   "count": 1,
+   "signature": "carousel"
+  },
+  {
+   "band": "quicklinks",
+   "count": 1,
+   "signature": "repeat"
+  },
+  {
+   "band": "video-content-block",
+   "count": 1,
+   "signature": "plain"
+  },
+  {
+   "band": "contact-block",
+   "count": 1,
+   "signature": "plain"
+  },
+  {
+   "band": "partners-carrousel",
+   "count": 1,
+   "signature": "carousel"
+  },
+  {
+   "band": "date-lieu-horaires",
+   "count": 1,
+   "signature": "repeat"
+  },
+  {
+   "band": "content-block-vertical-image",
+   "count": 1,
+   "signature": "plain"
+  }
+ ],
+ "ctaAnatomies": {
+  "button": 35,
+  "textArrow": 10
+ },
+ "uncrawledPrefixes": [
+  {
+   "prefix": "fr-FR/infos-pratiques",
+   "links": 39
+  },
+  {
+   "prefix": "fr-FR/animations-ateliers/programme-salon/Evenement",
+   "links": 37
+  },
+  {
+   "prefix": "fr-FR/salon",
+   "links": 33
+  },
+  {
+   "prefix": "fr-FR/animations-ateliers",
+   "links": 32
+  },
+  {
+   "prefix": "fr-FR",
+   "links": 29
+  },
+  {
+   "prefix": "(root)",
+   "links": 28
+  },
+  {
+   "prefix": "fr-FR/actualite-photo/agenda-photo",
+   "links": 20
+  },
+  {
+   "prefix": "fr-FR/actualite-photo",
+   "links": 13
+  },
+  {
+   "prefix": "fr-FR/actualite-photo/actus",
+   "links": 9
+  },
+  {
+   "prefix": "fr-FR/animations-ateliers/expositions-photos",
+   "links": 9
+  },
+  {
+   "prefix": "fr-FR/animations-ateliers/animations",
+   "links": 6
+  },
+  {
+   "prefix": "fr-FR/infos-pratiques/catalogue",
+   "links": 6
+  },
+  {
+   "prefix": "fr-FR/animations-ateliers/rencontres-photo",
+   "links": 4
+  },
+  {
+   "prefix": "fr-FR/infos-pratiques/catalogue/Exposant",
+   "links": 4
+  },
+  {
+   "prefix": "fr-FR/infos-pratiques/catalogue/Produit",
+   "links": 4
+  }
+ ],
+ "chrome": {
+  "header": true,
+  "footer": true
+ }
+}

@@ -1,0 +1,280 @@
+{
+  "siteUrl": "https://www.lesalondelaphoto.com/fr-FR",
+  "crawledAt": "2026-08-03T09:41:11Z",
+  "pages": [
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR",
+      "slug": "home",
+      "title": "Salon de la Photo",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR.html",
+      "contentLength": 214144
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/actualite-photo",
+      "slug": "actualite-photo",
+      "title": "Actualit\u00e9 Photo",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo.html",
+      "contentLength": 173144
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/actualite-photo/actualites",
+      "slug": "actualite-photo_actualites",
+      "title": "Actualit\u00e9 Photo",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/actualites.html",
+      "contentLength": 173155
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/actualite-photo/actus",
+      "slug": "actualite-photo_actus",
+      "title": "Conseils &amp; Actualit\u00e9s",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/actus.html",
+      "contentLength": 186541
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/actualite-photo/agenda-photo",
+      "slug": "actualite-photo_agenda-photo",
+      "title": "Agenda photo \u00e0 ne pas manquer",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/actualite-photo/agenda-photo.html",
+      "contentLength": 208869
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/animations-ateliers",
+      "slug": "animations-ateliers",
+      "title": "Animations et ateliers",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/animations-ateliers.html",
+      "contentLength": 176467
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/animations-ateliers/animations",
+      "slug": "animations-ateliers_animations",
+      "title": "Les animations",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/animations-ateliers/animations.html",
+      "contentLength": 178504
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/animations-ateliers/animations-ateliers",
+      "slug": "animations-ateliers_animations-ateliers",
+      "title": "Animations et ateliers",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/animations-ateliers/animations-ateliers.html",
+      "contentLength": 176487
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/animations-ateliers/expositions-photos",
+      "slug": "animations-ateliers_expositions-photos",
+      "title": "Les expositions photos",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/animations-ateliers/expositions-photos.html",
+      "contentLength": 182746
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/animations-ateliers/programme-salon",
+      "slug": "animations-ateliers_programme-salon",
+      "title": "Le programme du salon",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/animations-ateliers/programme-salon.html",
+      "contentLength": 289229
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/animations-ateliers/rencontres-photo",
+      "slug": "animations-ateliers_rencontres-photo",
+      "title": "Les rencontres photo",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/animations-ateliers/rencontres-photo.html",
+      "contentLength": 177213
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques",
+      "slug": "infos-pratiques",
+      "title": "Infos pratiques",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques.html",
+      "contentLength": 178071
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/Infos-Pratiques",
+      "slug": "infos-pratiques_Infos-Pratiques",
+      "title": "Infos pratiques",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/Infos-Pratiques.html",
+      "contentLength": 178087
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue",
+      "slug": "infos-pratiques_catalogue",
+      "title": "Liste des exposants",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue.html",
+      "contentLength": 230846
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/comment-venir-au-salon",
+      "slug": "infos-pratiques_comment-venir-au-salon",
+      "title": "Transport &amp; H\u00e9bergement",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/comment-venir-au-salon.html",
+      "contentLength": 187157
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/dates-acces-horaires",
+      "slug": "infos-pratiques_dates-acces-horaires",
+      "title": "Dates, acc\u00e8s,plan",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/dates-acces-horaires.html",
+      "contentLength": 179335
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/faq",
+      "slug": "infos-pratiques_faq",
+      "title": "Questions fr\u00e9quentes visiteur",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/faq.html",
+      "contentLength": 239376
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/photo-pass",
+      "slug": "infos-pratiques_photo-pass",
+      "title": "D\u00e9couvrez les lieux qui nous inspirent \u00e0 l'occasion du Salon Photo &amp; Vid\u00e9o !",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/photo-pass.html",
+      "contentLength": 242620
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/lien-billetterie",
+      "slug": "lien-billetterie",
+      "title": "Billetterie",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/lien-billetterie.html",
+      "contentLength": 181543
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon",
+      "slug": "salon",
+      "title": "Le Salon Photo &amp; Vid\u00e9o, le rendez-vous pour vivre, cr\u00e9er et progresser",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon.html",
+      "contentLength": 176649
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/a-propos",
+      "slug": "salon_a-propos",
+      "title": "D\u00e9couvrez le Salon Photo &amp; Vid\u00e9o",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/a-propos.html",
+      "contentLength": 180886
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/partenaires",
+      "slug": "salon_partenaires",
+      "title": "Nos Partenaires",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/partenaires.html",
+      "contentLength": 194188
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/profil-visiteur",
+      "slug": "salon_profil-visiteur",
+      "title": "Le salon selon votre profil",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/profil-visiteur.html",
+      "contentLength": 174643
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/qui-expose",
+      "slug": "salon_qui-expose",
+      "title": "Qui expose ?",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/qui-expose.html",
+      "contentLength": 180895
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/qui-visite",
+      "slug": "salon_qui-visite",
+      "title": "Qui visite ?",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/qui-visite.html",
+      "contentLength": 177429
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/rse",
+      "slug": "salon_rse",
+      "title": "Salon Photo &amp; Vid\u00e9o 2026 : un \u00e9v\u00e9nement engag\u00e9 et plus responsable",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/rse.html",
+      "contentLength": 179295
+    },
+    {
+      "url": "https://www.lesalondelaphoto.com/fr-FR/salon/salon",
+      "slug": "salon_salon",
+      "title": "Le Salon Photo &amp; Vid\u00e9o, le rendez-vous pour vivre, cr\u00e9er et progresser",
+      "httpStatus": 200,
+      "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/salon.html",
+      "contentLength": 180034
+    }
+  ],
+  "totalPages": 27,
+  "failedPages": [],
+  "assetsDownloaded": 0,
+  "assetsBytes": 0,
+  "maxPages": "unlimited",
+  "depth": 3,
+  "lang": "fr-FR",
+  "skippedUtility": 1,
+  "skippedLang": 0,
+  "_provenance": {
+    "run_id": "run_1785750064959",
+    "step_id": "step_crawl",
+    "generated_at": "2026-08-03T09:41:11Z",
+    "git_sha": "fc8386cdb1d0-dirty",
+    "tool": "crawl-site.py",
+    "args": [
+      "projects/salonphoto",
+      "https://www.lesalondelaphoto.com/fr-FR",
+      "--url-list",
+      "projects/salonphoto/workflow-output/nav-urls.txt",
+      "--merge-inventory",
+      "--lang",
+      "fr-FR",
+      "--rate-delay",
+      "2",
+      "--max-asset-size",
+      "1"
+    ],
+    "page_set": [
+      "home",
+      "actualite-photo",
+      "actualite-photo_actualites",
+      "actualite-photo_actus",
+      "actualite-photo_agenda-photo",
+      "animations-ateliers",
+      "animations-ateliers_animations",
+      "animations-ateliers_animations-ateliers",
+      "animations-ateliers_expositions-photos",
+      "animations-ateliers_programme-salon",
+      "animations-ateliers_rencontres-photo",
+      "infos-pratiques",
+      "infos-pratiques_Infos-Pratiques",
+      "infos-pratiques_catalogue",
+      "infos-pratiques_comment-venir-au-salon",
+      "infos-pratiques_dates-acces-horaires",
+      "infos-pratiques_faq",
+      "infos-pratiques_photo-pass",
+      "lien-billetterie",
+      "salon",
+      "salon_a-propos",
+      "salon_partenaires",
+      "salon_profil-visiteur",
+      "salon_qui-expose",
+      "salon_qui-visite",
+      "salon_rse",
+      "salon_salon"
+    ]
+  }
+}

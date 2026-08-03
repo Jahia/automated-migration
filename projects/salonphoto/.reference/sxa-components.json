@@ -1,0 +1,930 @@
+{
+  "sourceIsSxa": true,
+  "componentTypeCount": 36,
+  "components": [
+    {
+      "type": "content",
+      "aliases": [
+        "basic-vertical-space",
+        "block-3-icons",
+        "container-bp",
+        "content",
+        "hover",
+        "img-content-block-l",
+        "img-content-block-r-v2",
+        "pages-pushes",
+        "text-gray-850"
+      ],
+      "fields": [
+        "content",
+        "description",
+        "description-1",
+        "description-2",
+        "description-3",
+        "heading",
+        "image-push",
+        "title",
+        "title-1",
+        "title-2",
+        "title-3"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 8,
+      "hasIcons": [
+        "fa-3x",
+        "fa-accessible-icon",
+        "fa-badge-check",
+        "fa-ballot",
+        "fa-bicycle",
+        "fa-brands"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
+      "instances": 122,
+      "pages": [
+        "a-propos.html",
+        "agenda-photo.html",
+        "animations.html",
+        "comment-venir-au-salon.html",
+        "dates-acces-horaires.html",
+        "expositions-photos.html",
+        "faq.html",
+        "lien-billetterie.html"
+      ]
+    },
+    {
+      "type": "plain-html",
+      "aliases": [
+        "plain-html"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 43,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "link",
+      "aliases": [
+        "link"
+      ],
+      "fields": [
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 2,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-chevron-left",
+        "fa-chevron-right",
+        "fa-solid"
+      ],
+      "modelHint": null,
+      "instances": 41,
+      "pages": [
+        "a-propos.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations.html",
+        "catalogue.html",
+        "comment-venir-au-salon.html",
+        "dates-acces-horaires.html",
+        "expositions-photos.html"
+      ]
+    },
+    {
+      "type": "rich-text",
+      "aliases": [
+        "rich-text"
+      ],
+      "fields": [
+        "description"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 9,
+      "listItems": 10,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 29,
+      "pages": [
+        "a-propos.html",
+        "comment-venir-au-salon.html",
+        "dates-acces-horaires.html",
+        "faq.html",
+        "fr-FR.html",
+        "lien-billetterie.html",
+        "qui-expose.html",
+        "qui-visite.html"
+      ]
+    },
+    {
+      "type": "top-bar",
+      "aliases": [
+        "top-bar",
+        "top-navbar"
+      ],
+      "fields": [
+        "texte",
+        "texte-1",
+        "texte-2"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 8,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-brands",
+        "fa-facebook-f",
+        "fa-instagram",
+        "fa-linkedin-in",
+        "fa-magnifying-glass",
+        "fa-regular"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
+      "instances": 27,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "header-navigation",
+      "aliases": [
+        "header-navigation"
+      ],
+      "fields": [
+        "cta-title-1",
+        "date",
+        "lieu"
+      ],
+      "childTypes": [
+        "navigation",
+        "plain-html"
+      ],
+      "isContainer": true,
+      "linkSeries": 2,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-regular",
+        "fa-ticket-simple"
+      ],
+      "modelHint": null,
+      "instances": 27,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "navigation",
+      "aliases": [
+        "navigation"
+      ],
+      "fields": [
+        "navigationtitle"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 27,
+      "listItems": 27,
+      "hasIcons": [
+        "fa-regular",
+        "fa-ticket-simple"
+      ],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 27,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "image-de-fond",
+      "aliases": [
+        "image-de-fond"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 27,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "footer",
+      "aliases": [
+        "footer"
+      ],
+      "fields": [
+        "email",
+        "lien",
+        "texte-1",
+        "texte-email",
+        "texte-newsletter",
+        "texte-reseaux-sociaux",
+        "validation-valid"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 18,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-brands",
+        "fa-facebook-f",
+        "fa-instagram",
+        "fa-linkedin-in",
+        "fa-x-twitter",
+        "fa-youtube"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
+      "instances": 27,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "breadcrumb",
+      "aliases": [
+        "breadcrumb",
+        "navigation-title"
+      ],
+      "fields": [
+        "navigationtitle"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 3,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 26,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html"
+      ]
+    },
+    {
+      "type": "title",
+      "aliases": [
+        "banner-title2",
+        "banner-title3",
+        "small-banner",
+        "title"
+      ],
+      "fields": [
+        "arriere-titre",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 25,
+      "pages": [
+        "Infos-Pratiques.html",
+        "a-propos.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "agenda-photo.html",
+        "animations-ateliers.html",
+        "animations.html",
+        "catalogue.html"
+      ]
+    },
+    {
+      "type": "snippet",
+      "aliases": [
+        "snippet"
+      ],
+      "fields": [],
+      "childTypes": [
+        "previous-next"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 18,
+      "pages": [
+        "a-propos.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations.html",
+        "catalogue.html",
+        "comment-venir-au-salon.html",
+        "dates-acces-horaires.html",
+        "expositions-photos.html"
+      ]
+    },
+    {
+      "type": "previous-next",
+      "aliases": [
+        "previous-next"
+      ],
+      "fields": [],
+      "childTypes": [
+        "link"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 18,
+      "pages": [
+        "a-propos.html",
+        "actus.html",
+        "agenda-photo.html",
+        "animations.html",
+        "catalogue.html",
+        "comment-venir-au-salon.html",
+        "dates-acces-horaires.html",
+        "expositions-photos.html"
+      ]
+    },
+    {
+      "type": "search-results",
+      "aliases": [
+        "actus",
+        "container-bp",
+        "search-results",
+        "speakers"
+      ],
+      "fields": [
+        "date-de-publication",
+        "descriptif",
+        "description",
+        "fonction",
+        "lien-blog",
+        "lien-instagram",
+        "prenom",
+        "societe",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 19,
+      "listItems": 19,
+      "hasIcons": [
+        "fa-blog",
+        "fa-brands",
+        "fa-instagram",
+        "fa-solid"
+      ],
+      "modelHint": "social-link series → child component (platform/icon + j:linkType)",
+      "instances": 10,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html",
+        "animations.html",
+        "expositions-photos.html",
+        "fr-FR.html",
+        "photo-pass.html",
+        "rencontres-photo.html"
+      ]
+    },
+    {
+      "type": "page-list",
+      "aliases": [
+        "level-2",
+        "page-list"
+      ],
+      "fields": [
+        "content",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 7,
+      "listItems": 7,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 8,
+      "pages": [
+        "Infos-Pratiques.html",
+        "actualite-photo.html",
+        "actualites.html",
+        "animations-ateliers.html",
+        "infos-pratiques.html",
+        "salon.html"
+      ]
+    },
+    {
+      "type": "accordion",
+      "aliases": [
+        "accordion",
+        "container-bp"
+      ],
+      "fields": [],
+      "childTypes": [
+        "content"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 10,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 8,
+      "pages": [
+        "faq.html"
+      ]
+    },
+    {
+      "type": "simple-title",
+      "aliases": [
+        "simple-title"
+      ],
+      "fields": [
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 6,
+      "pages": [
+        "fr-FR.html",
+        "photo-pass.html"
+      ]
+    },
+    {
+      "type": "partners-2-list",
+      "aliases": [
+        "container-bp",
+        "partners-2-list"
+      ],
+      "fields": [
+        "description",
+        "lien-partenaire-2",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 13,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 5,
+      "pages": [
+        "comment-venir-au-salon.html",
+        "partenaires.html",
+        "photo-pass.html"
+      ]
+    },
+    {
+      "type": "Slide",
+      "aliases": [
+        "Slide"
+      ],
+      "fields": [
+        "description",
+        "slidesmalltitle",
+        "slidetext"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 4,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "picture-grid",
+      "aliases": [
+        "container-bp",
+        "picture-grid"
+      ],
+      "fields": [
+        "description",
+        "picturegriditemcta",
+        "picturegriditemdescription",
+        "picturegriditemsoustitre",
+        "picturegriditemtitre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 4,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 4,
+      "pages": [
+        "fr-FR.html",
+        "lien-billetterie.html"
+      ]
+    },
+    {
+      "type": "content-block",
+      "aliases": [
+        "content-block",
+        "left-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 6,
+      "hasIcons": [],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
+      "instances": 4,
+      "pages": [
+        "qui-expose.html",
+        "qui-visite.html"
+      ]
+    },
+    {
+      "type": "facet-dropdown",
+      "aliases": [
+        "facet-component",
+        "facet-dropdown",
+        "facet-themes-actualites",
+        "facet-themespagearticle",
+        "facet-type",
+        "facet-typepagearticle"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 4,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "structured-data",
+      "aliases": [
+        "structured-data"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 3,
+      "pages": [
+        "fr-FR.html",
+        "lien-billetterie.html"
+      ]
+    },
+    {
+      "type": "tabs",
+      "aliases": [
+        "tabs"
+      ],
+      "fields": [],
+      "childTypes": [
+        "content",
+        "partners-2-list",
+        "search-results"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 4,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 2,
+      "pages": [
+        "partenaires.html",
+        "photo-pass.html"
+      ]
+    },
+    {
+      "type": "container",
+      "aliases": [
+        "col-12",
+        "container"
+      ],
+      "fields": [],
+      "childTypes": [
+        "facet-aggregated"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 2,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "facet-aggregated",
+      "aliases": [
+        "container-bp",
+        "facet-aggregated",
+        "filter-actu"
+      ],
+      "fields": [],
+      "childTypes": [
+        "facet-dropdown",
+        "facet-summary"
+      ],
+      "isContainer": true,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 2,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "facet-summary",
+      "aliases": [
+        "facet-summary"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 2,
+      "pages": [
+        "actus.html",
+        "agenda-photo.html"
+      ]
+    },
+    {
+      "type": "carousel",
+      "aliases": [
+        "carousel"
+      ],
+      "fields": [],
+      "childTypes": [
+        "Slide"
+      ],
+      "isContainer": true,
+      "linkSeries": 2,
+      "listItems": 4,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "quicklinks",
+      "aliases": [
+        "bg-gray-1",
+        "quicklinks"
+      ],
+      "fields": [
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 3,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-circle-info",
+        "fa-list",
+        "fa-regular",
+        "fa-ticket-simple"
+      ],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 1,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "video-content-block",
+      "aliases": [
+        "bg-gray-1",
+        "video-content-block"
+      ],
+      "fields": [
+        "arriere-titre",
+        "description",
+        "title"
+      ],
+      "childTypes": [
+        "plain-html"
+      ],
+      "isContainer": true,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [
+        "fa-3x",
+        "fa-brands",
+        "fa-youtube"
+      ],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "contact-block",
+      "aliases": [
+        "contact-block",
+        "container-bp"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "partners-carrousel",
+      "aliases": [
+        "partners-carrousel"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 27,
+      "listItems": 4,
+      "hasIcons": [],
+      "modelHint": "link series → child component (label + j:linkType)",
+      "instances": 1,
+      "pages": [
+        "fr-FR.html"
+      ]
+    },
+    {
+      "type": "content-block-vertical-image",
+      "aliases": [
+        "content-block-vertical-image",
+        "left-img"
+      ],
+      "fields": [
+        "description",
+        "title"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "photo-pass.html"
+      ]
+    },
+    {
+      "type": "date-lieu-horaires",
+      "aliases": [
+        "container-bp",
+        "date-lieu-horaires"
+      ],
+      "fields": [
+        "description-1",
+        "description-2",
+        "description-3",
+        "titre-1",
+        "titre-2",
+        "titre-3"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 1,
+      "listItems": 4,
+      "hasIcons": [
+        "fa-calendar-days",
+        "fa-map-location-dot",
+        "fa-regular",
+        "fa-solid",
+        "fa-ticket-simple"
+      ],
+      "modelHint": "repeating list items → child component (jmix:list + child type)",
+      "instances": 1,
+      "pages": [
+        "dates-acces-horaires.html"
+      ]
+    },
+    {
+      "type": "banner2",
+      "aliases": [
+        "banner2"
+      ],
+      "fields": [
+        "description",
+        "sous-titre",
+        "titre"
+      ],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "actus.html"
+      ]
+    },
+    {
+      "type": "load-more",
+      "aliases": [
+        "load-more"
+      ],
+      "fields": [],
+      "childTypes": [],
+      "isContainer": false,
+      "linkSeries": 0,
+      "listItems": 0,
+      "hasIcons": [],
+      "modelHint": null,
+      "instances": 1,
+      "pages": [
+        "actus.html"
+      ]
+    }
+  ],
+  "adapter": "sitecore-sxa"
+}

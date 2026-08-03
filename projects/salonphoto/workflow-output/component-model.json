@@ -1,0 +1,558 @@
+{
+  "_README": "The COMPONENT MODEL for salonphoto — authored by Claude from deterministic evidence, amended and approved by the operator at step_model_author. apply_component_model.py consumes `types` + `childTypes`; every other key is the reviewable canon (zoning map, entities, islands, chrome, templates, scope report). nodeType identifiers FREEZE at first deploy: the model governs display names, fields and views, never renames a deployed type.",
+  "project": "salonphoto",
+  "source": {
+    "startUrl": "https://www.lesalondelaphoto.com/fr-FR",
+    "cms": "sitecore-sxa",
+    "detectionScores": {
+      "sitecore-sxa": 33,
+      "wordpress": 8
+    },
+    "locale": "fr-FR",
+    "contentLocales": [
+      "fr"
+    ],
+    "ns": "sdp",
+    "mixns": "sdpmix",
+    "siteKey": "salonphoto"
+  },
+  "evidence": {
+    "menuPages": 27,
+    "declaredComponentTypes": 36,
+    "zoneRegime": "framework-semantic classes",
+    "domCoverageByAnchors": "99%",
+    "censusBands": 207,
+    "templateClusters": 5,
+    "islandBehaviours": 6,
+    "islandInstances": 47,
+    "artifacts": [
+      "projects/salonphoto/.reference/declared-components.json",
+      "projects/salonphoto/workflow-output/zone3-salonphoto.json",
+      "projects/salonphoto/workflow-output/model-census.json",
+      "projects/salonphoto/workflow-output/island-inventory.json",
+      "orchestration/sitemaps/salonphoto.txt",
+      "orchestration/content/salonphoto.mainresource.json"
+    ],
+    "entityCounts": {
+      "actualites": 57,
+      "communiques": 7,
+      "agenda": 20,
+      "programme": 37,
+      "catalogue (3 axes)": 33,
+      "expositions": 7,
+      "animations": 5,
+      "rencontres": 4,
+      "_total": "~187 details; sources: /sitemap.xml (144 fr URLs) UNION the link census (card-reached details the sitemap omits)"
+    },
+    "linkCensus": {
+      "totalLinks": 1836,
+      "capturedPage": 876,
+      "external": 405,
+      "pageCrawlDeclared": 289,
+      "home": 107,
+      "entityPrefix": 100,
+      "acceptedTarget": 32,
+      "menuPageCrawlPending": 27
+    }
+  },
+  "templates": [
+    {
+      "name": "home",
+      "pages": [
+        "home"
+      ],
+      "tell": "the ONLY page with 0 breadcrumbs and the only .component.carousel (measured across all 27 pages)",
+      "areas": [
+        {
+          "name": "hero",
+          "allowedNodeTypes": [
+            "sdp:cardGrid",
+            "sdp:hero",
+            "sdp:banner"
+          ],
+          "note": "the 4-slide key-visual carousel"
+        },
+        {
+          "name": "main",
+          "allowedNodeTypes": [
+            "sdp:layoutSection",
+            "sdp:cols",
+            "sdp:richTextSection",
+            "sdp:mediaText",
+            "sdp:cardGrid",
+            "sdp:banner",
+            "sdp:jcrQuery",
+            "sdp:accordion",
+            "sdp:statCallout"
+          ],
+          "note": "OPEN composition surface led by sdp:cols"
+        }
+      ]
+    },
+    {
+      "name": "standard",
+      "pages": "the other 26 pages",
+      "tell": "breadcrumb (26/26) + a .component.title page-title banner (25/26) + one main column; 22 of them fall in one arrangement cluster",
+      "areas": [
+        {
+          "name": "pageTitle",
+          "allowedNodeTypes": [
+            "sdp:banner"
+          ],
+          "note": "the title/arriere-titre banner"
+        },
+        {
+          "name": "main",
+          "allowedNodeTypes": [
+            "sdp:layoutSection",
+            "sdp:cols",
+            "sdp:richTextSection",
+            "sdp:mediaText",
+            "sdp:cardGrid",
+            "sdp:banner",
+            "sdp:jcrQuery",
+            "sdp:accordion",
+            "sdp:statCallout",
+            "sdp:subNavigation"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MainResource",
+      "pages": "none in the menu — renders sdp:newsArticle / sdp:event full-page",
+      "tell": "entity detail URLs (article / agenda / programme). Not a crawled page role: the template exists to render a mainResource node at its own URL",
+      "areas": [
+        {
+          "name": "main",
+          "allowedNodeTypes": [
+            "sdp:richTextSection",
+            "sdp:mediaText",
+            "sdp:cardGrid",
+            "sdp:banner"
+          ]
+        }
+      ]
+    }
+  ],
+  "_templateNote": "3 templates, matching the 3 universal roles. The 3 singleton arrangement clusters (salon_a-propos, salon_partenaires, agenda-photo+photo-pass) differ by CONTENT MIX, not skeleton — they stay on `standard`. A 4th template would buy nothing and cost a governance contract.",
+  "types": {
+    "sdp:siteHeader": {
+      "name": "Site Header",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "top-bar",
+        "header-navigation"
+      ],
+      "_scope": "ABSOLUTE (27/27 pages)",
+      "_content": "top-bar: 5 social links + '#SalonPhotoetVideo' + 2 CTAs (Devenir exposant / Votre espace exposant) + search. header-navigation: logo, date ('8-11 OCTOBRE 2026'), lieu ('Grande Halle de la Villette'), the 'Acheter mon billet' CTA."
+    },
+    "sdp:mainNavigation": {
+      "name": "Main Navigation",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "navigation"
+      ],
+      "_scope": "ABSOLUTE — tree-driven, 6 L1 items x up to 7 children (Level1 x135 / Level2 x459 keys)",
+      "_note": "NEVER frozen markup: the page tree IS the menu (rule 13). 2 levels is what the source has; the view supports 3."
+    },
+    "sdp:footer": {
+      "name": "Footer",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "footer"
+      ],
+      "_scope": "ABSOLUTE (27/27) — newsletter form (texte-newsletter/texte-email/email/validation-valid), socials (texte-reseaux-sociaux), link columns (lien x243, sib=6), logo",
+      "_childType": "sdp:footerLink"
+    },
+    "sdp:banner": {
+      "name": "Page Title Banner",
+      "views": [
+        "default",
+        "hero"
+      ],
+      "_sxaSource": [
+        "title",
+        "banner2",
+        "simple-title"
+      ],
+      "_scope": "TEMPLATE-level on 25/26 inner pages (title x25) + banner2 x1",
+      "_fields": "titre + arriere-titre (the ghosted background word) + image-de-fond background"
+    },
+    "sdp:richTextSection": {
+      "name": "Rich Text Section",
+      "views": [
+        "default",
+        "intro"
+      ],
+      "_sxaSource": [
+        "rich-text",
+        "content",
+        "page-list"
+      ],
+      "_scope": "the workhorse: content x122 + rich-text x29 declared instances; census signature 'plain' x151 of 207 bands"
+    },
+    "sdp:mediaText": {
+      "name": "Media & Text",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "content-block",
+        "content-block-vertical-image",
+        "image-content-block-description"
+      ],
+      "_layoutProperty": "layout = imageRight | imageLeft",
+      "_scope": "content-block x4 + content-block-vertical-image x1; the image+prose split band"
+    },
+    "sdp:cardGrid": {
+      "name": "Card Grid",
+      "views": [
+        "default",
+        "carousel",
+        "pictureGrid",
+        "logoWall"
+      ],
+      "_sxaSource": [
+        "picture-grid",
+        "carousel",
+        "partners-carrousel",
+        "partners-2-list",
+        "quicklinks"
+      ],
+      "_childType": "sdp:cardItem",
+      "_scope": "RECORD tier: picture-grid x4 (repeat), carousel x1 (4 Slides), partners-carrousel x1, partners-2-list x5, quicklinks x1",
+      "_note": "ONE container type, four views — this is where SXA's five different repeating-tile components collapse. The layout property (grid|carousel|slider) drives the rest."
+    },
+    "sdp:accordion": {
+      "name": "Accordion",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "accordion",
+        "tabs"
+      ],
+      "_childType": "sdp:accordionItem",
+      "_scope": "accordion x8 (all on infos-pratiques_faq, the 33-band page) + tabs x2"
+    },
+    "sdp:jcrQuery": {
+      "name": "Content List",
+      "views": [
+        "default",
+        "grid",
+        "inline"
+      ],
+      "_sxaSource": [
+        "search-results",
+        "page-list",
+        "event-list",
+        "load-more",
+        "facet-dropdown",
+        "facet-aggregated",
+        "facet-summary"
+      ],
+      "_scope": "search-results x10 + page-list x8: the LISTING components. Replaces every SXA facet/search construct.",
+      "_note": "CRITICAL: SXA facets hit /sxa/search, which has no Jahia backend — 10 facetFilter island instances measured. They become a real sdp:jcrQuery over a mainResource folder, with the badge values as Jahia CATEGORIES filtered client-side (proven on supercar-garage). A ported facet renders empty controls that list nothing."
+    },
+    "sdp:layoutSection": {
+      "name": "Layout Section",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "container",
+        "snippet"
+      ],
+      "_scope": "layout plumbing that holds real children (container x2, snippet x18)"
+    },
+    "sdp:cols": {
+      "name": "Columns",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [],
+      "_note": "The layout primitive every OPEN area is led by (migration rule 16: every module ships a GridRow). SXA expresses columns as Bootstrap classes on the component wrapper, so there is no source type to map — it is required regardless."
+    },
+    "sdp:statCallout": {
+      "name": "Stat Callout",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "date-lieu-horaires",
+        "key-figures"
+      ],
+      "_scope": "date-lieu-horaires x1 (3 title/description pairs = 3 stats). key-figures was declared in the 2026-06 corpus and is expected back once detail pages are crawled."
+    },
+    "sdp:subNavigation": {
+      "name": "Section Sub-Navigation",
+      "views": [
+        "default"
+      ],
+      "_sxaSource": [
+        "page-list"
+      ],
+      "_note": "Tree-driven sibling menu. Candidate wherever page-list renders the parent section's children rather than content cards — to be confirmed per instance at load time."
+    },
+    "sdp:newsArticle": {
+      "name": "Actualité",
+      "views": [
+        "default",
+        "compact",
+        "cm",
+        "featured",
+        "fullPage"
+      ],
+      "_mainResource": true,
+      "_folder": "contents/actualites",
+      "_scope": "6 card-reached dated details under actualite-photo/actus (9 uncrawled links)",
+      "_folders": [
+        "contents/actualites (57)",
+        "contents/communiques (7)"
+      ],
+      "_measuredFieldSurface": {
+        "title": "field-titre on the `title` component (also the <title> tag)",
+        "date": "field-date-de-publication on the same `title` component — e.g. '27/07/2026'",
+        "summary": "the intro band's field-content — identical to the page's meta description",
+        "image": "/-/media/Project/.../salon/actu/<slug>/... with real alt text -> DAM weakref, alt becomes the DAM node's jcr:title",
+        "categories": "the listing badge vocabulary (Actualités / Professionnels / Amateurs) -> jmix:categorized, never CND fields",
+        "body": "NOT one richtext: a SEQUENCE of bands — content (standfirst, section headings, prose), rich-text, content-block-vertical-image (image+text), video-content-block ('En vidéo'), image"
+      },
+      "_modelAsk": "Make the article a CONTAINER: keep title/date/summary/hero/categories as properties, compose the body from CHILD content nodes (sdp:richTextSection / sdp:mediaText / video) rendered with RenderChildren. The shipped `article` archetype currently declares a single `body` richtext, so this needs a producer change in archetypes.py — a Phase-4 build item, not a hand patch.",
+      "_why": "Flattening the body into one richtext would make every in-article image block and the video section non-contributable, and would violate the rule that every visitor-readable string is an editable field."
+    },
+    "sdp:event": {
+      "name": "Événement",
+      "views": [
+        "default",
+        "compact",
+        "cm",
+        "featured",
+        "fullPage"
+      ],
+      "_mainResource": true,
+      "_folders": [
+        "contents/agenda",
+        "contents/programme",
+        "contents/expositions",
+        "contents/animations"
+      ],
+      "_scope": "72 card-reached dated details: programme/Evenement 37, agenda-photo 20, expositions-photos 9, animations 6",
+      "_note": "ONE type, four folders. Agenda entries and salon programme events share a field surface (title/date/location/body/image); separating them into two types would duplicate a shape (dup-shapes.sh would fail it)."
+    }
+  },
+  "childTypes": {
+    "sdp:cardItem": {
+      "addFields": [
+        {
+          "name": "eyebrow",
+          "type": "string",
+          "i18n": true,
+          "mandatory": false
+        }
+      ],
+      "_why": "Every measured card carries a category badge above the title ('Actualités', 'Agenda', 'Expositions', 'Professionnels'). On mainResource cards that badge is a Jahia category, but on hand-authored grid tiles (picture-grid: picturegriditemsoustitre) it is contributed text — so the atom needs one editable eyebrow slot. Rule 24: every visitor-readable string is a contributor field."
+    }
+  },
+  "islands": [
+    {
+      "behaviour": "carousel",
+      "component": "carousel (hero key visual)",
+      "instances": 1,
+      "pages": [
+        "home"
+      ],
+      "decision": "ADOPT — new island SxaCarousel",
+      "contract": {
+        "track": "div.carousel-inner > ul.slides",
+        "item": "li.slide",
+        "controls": [
+          "a.prev-text",
+          "a.next-text"
+        ],
+        "autoplay": {
+          "timeout": 4000,
+          "isPauseEnabled": true,
+          "transition": "FadeInTransition"
+        },
+        "source": "data-properties JSON on the component root; behaviour lives in the SXA XA-API bundle we exclude"
+      },
+      "note": "The shipped SourceCarousel island targets Embla `[data-slot=\"carousel\"]` (SingPost) and will NOT attach to this markup. Fade transition + 4s autoplay + pause-on-hover must be honoured or the hero shows one frozen slide."
+    },
+    {
+      "behaviour": "carousel",
+      "component": "partners-carrousel",
+      "instances": 1,
+      "pages": [
+        "home"
+      ],
+      "vendor": "swiffy-slider",
+      "decision": "ADOPT — new island SwiffySlider",
+      "contract": {
+        "track": "div.swiffy-slider > ul.slider-container",
+        "item": "li.row",
+        "controls": [
+          "button.slider-nav",
+          "button.slider-nav.slider-nav-next"
+        ],
+        "indicators": "div.slider-indicators > button (4)",
+        "css": "cdn.jsdelivr.net/npm/swiffy-slider@1.6.0 — vendor it into static/ (recorded in scope-rules keptEmbeds)"
+      },
+      "note": "Scroll-snap paging + indicator buttons. A second, structurally different carousel: two islands, not one."
+    },
+    {
+      "behaviour": "collapsible",
+      "component": "accordion / tabs",
+      "instances": 10,
+      "pages": [
+        "infos-pratiques_faq",
+        "salon_partenaires",
+        "..."
+      ],
+      "decision": "ADOPT — one Collapsible island on sdp:accordion",
+      "contract": {
+        "triggers": "[data-toggle=collapse] / [aria-expanded]",
+        "panels": ".collapse"
+      },
+      "note": "FAQ is the 33-band page: 8 accordions. Must render flat/expanded in Page Builder edit mode (renderContext.isEditMode)."
+    },
+    {
+      "behaviour": "facetFilter",
+      "component": "facet-dropdown / facet-aggregated / facet-summary + load-more",
+      "instances": 11,
+      "pages": [
+        "actualite-photo_actus",
+        "actualite-photo_agenda-photo"
+      ],
+      "decision": "REPLACE — not an island: a sdp:jcrQuery + Jahia categories + client-side chip filter",
+      "note": "There is no /sxa/search backend in Jahia. Porting the widget ships empty dropdowns that list nothing (measured on supercar-garage). The badge vocabularies (Actualités/Professionnels/Amateurs, Agenda/Expositions) become a category tree."
+    },
+    {
+      "behaviour": "form",
+      "component": "footer newsletter",
+      "instances": 27,
+      "decision": "ADOPT minimal — a client island that posts to a Jahia endpoint, or Jahia Forms",
+      "note": "One instance per page via the footer AbsoluteArea, not 27 components. Sitecore ExperienceForms scripts are excluded."
+    },
+    {
+      "behaviour": "videoPlayer",
+      "component": "video-content-block / plain-html(YouTube)",
+      "instances": 2,
+      "decision": "STATIC — server-rendered <iframe>",
+      "note": "No island needed. Never emit <video><source type=\"video/youtube\"> — it never plays (harness-known)."
+    },
+    {
+      "behaviour": "map",
+      "component": "plain-html(Google My Maps)",
+      "instances": 1,
+      "pages": [
+        "infos-pratiques_photo-pass"
+      ],
+      "decision": "STATIC — server-rendered <iframe>, kept embed"
+    },
+    {
+      "behaviour": "modal",
+      "component": "search-results / tabs popins",
+      "instances": 5,
+      "decision": "DEFER to the review gate",
+      "note": "item-content-popin-picture was declared in the 2026-06 corpus; likely a speaker/exhibitor detail popin. Decide once detail pages are crawled."
+    }
+  ],
+  "chrome": {
+    "header": [
+      "sdp:siteHeader",
+      "sdp:mainNavigation"
+    ],
+    "footer": [
+      "sdp:footer"
+    ],
+    "breadcrumb": "template-level, rendered from the page tree (26/26 pages) — sxaIgnored, never a content component",
+    "note": "AbsoluteArea singletons must be POPULATED to render in the Page Builder edit canvas (harness-known); jmix:hiddenType stays on them."
+  },
+  "sxaIgnored": [
+    {
+      "type": "plain-html",
+      "reason": "43 instances: 27 zero-height spacers (scope-excluded), 10 empty, 1 script. The 5 that carry a real iframe are modelled as embeds on their host band."
+    },
+    {
+      "type": "image-de-fond",
+      "reason": "a background-image wrapper — becomes an image property on the hosting band, not a type"
+    },
+    {
+      "type": "breadcrumb",
+      "reason": "template-level, from the page tree"
+    },
+    {
+      "type": "snippet",
+      "reason": "layout wrapper; maps to sdp:layoutSection when it holds children"
+    },
+    {
+      "type": "previous-next",
+      "reason": "prev/next on entity details — a MainResource template concern, not a placeable component"
+    },
+    {
+      "type": "link",
+      "reason": "a bare anchor (41 instances): a field on its host band, never a component"
+    },
+    {
+      "type": "navigationtitle",
+      "reason": "an SXA field wrapper (798 instances), not a component — the L2 tier's field noise"
+    },
+    {
+      "type": "structured-data",
+      "reason": "JSON-LD only, scope-excluded; SEO lives on sdpmix:seo"
+    },
+    {
+      "type": "container",
+      "reason": "Bootstrap layout wrapper; sdp:cols / sdp:layoutSection cover it"
+    },
+    {
+      "type": "load-more",
+      "reason": "paging UI of the absent SXA search backend; sdp:jcrQuery handles paging"
+    }
+  ],
+  "scopeReport": {
+    "excluded": [
+      {
+        "id": "exclude-onetrust-consent",
+        "why": "OneTrust banner + preference centre + its cdn.cookielaw.org loader, 27/27 pages. Was supplying 20+ of 35 ABSOLUTE zone keys before exclusion."
+      },
+      {
+        "id": "exclude-trackers-and-chatbot",
+        "why": "Cloudflare RUM beacon, chatbase chatbot, GTM (noscript iframe + inline bootstrap). Caused /cdn-cgi/rum and /api/get-chatbot-styles 404s in the reviewed mirror."
+      },
+      {
+        "id": "exclude-spacer-plain-html",
+        "why": "27 zero-height spacers"
+      },
+      {
+        "id": "exclude-structured-data",
+        "why": "3 JSON-LD-only components"
+      }
+    ],
+    "keptEmbeds": [
+      "www.youtube.com",
+      "widget.weezevent.com",
+      "www.google.com",
+      "impactco2.fr",
+      "cdn.jsdelivr.net"
+    ],
+    "openQuestions": [
+      "Exhibitor catalogue (/infos-pratiques/catalogue + /exposants): entity folder, editorial page with an outbound link, or out of scope? Its list is not in the captured DOM (facet-driven).",
+      "expositions-photos (9) and animations (6): entity details or sub-pages? The rule breaks ties to PAGE; confirm by crawling 2 samples.",
+      "Ticketing (/fr-FR/billet) was skipped as a utility URL by design — confirm that is wanted, since 'Acheter mon billet' is the site's primary CTA (the lien-billetterie page with its 2 Weezevent widgets IS captured).",
+      "Detail-page crawl is required before load_main_resources: ~87 entity URLs. It also completes the declared inventory (36 types now vs 42 in the 2026-06 corpus; the 6 extras live on detail pages)."
+    ]
+  },
+  "cssSlots": {
+    "strategy": "Hybrid: every emitted view wears the source's captured classes (classMap slots) over the semantic fallback skin, and per-component CSS is captured into each SDC folder after load (step_component_css).",
+    "theme": "Comexposium Master1-Photo Model-Site theme + Bootstrap 4 + FontAwesome Pro. 147/156 assets localized; 9 residual font/image files and the swiffy-slider CSS must be vendored in step_assets."
+  }
+}

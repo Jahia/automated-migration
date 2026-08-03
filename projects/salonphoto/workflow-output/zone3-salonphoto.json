@@ -1,0 +1,687 @@
+{
+ "proj": "salonphoto",
+ "npages": 27,
+ "regime": "framework-semantic classes",
+ "coverage": 99,
+ "tiers": {
+  "L1": 5,
+  "L2": 59,
+  "L3": 21
+ },
+ "ntemplates": 5,
+ "templates": [
+  [
+   "actualite-photo",
+   "actualite-photo_actualites",
+   "actualite-photo_actus",
+   "animations-ateliers",
+   "animations-ateliers_animations",
+   "animations-ateliers_animations-ateliers",
+   "animations-ateliers_expositions-photos",
+   "animations-ateliers_programme-salon",
+   "animations-ateliers_rencontres-photo",
+   "infos-pratiques",
+   "infos-pratiques_Infos-Pratiques",
+   "infos-pratiques_catalogue",
+   "infos-pratiques_comment-venir-au-salon",
+   "infos-pratiques_dates-acces-horaires",
+   "infos-pratiques_faq",
+   "lien-billetterie",
+   "salon",
+   "salon_profil-visiteur",
+   "salon_qui-expose",
+   "salon_qui-visite",
+   "salon_rse",
+   "salon_salon"
+  ],
+  [
+   "actualite-photo_agenda-photo",
+   "infos-pratiques_photo-pass"
+  ],
+  [
+   "home"
+  ],
+  [
+   "salon_a-propos"
+  ],
+  [
+   "salon_partenaires"
+  ]
+ ],
+ "scopes": {
+  "ABSOLUTE": [
+   {
+    "name": "Nav",
+    "key": "tag:nav",
+    "tier": "L1",
+    "pages": 27,
+    "inst": 53,
+    "sib": 0,
+    "var": 0.43,
+    "ld": 0.89,
+    "library": "section",
+    "library_conf": 0.4,
+    "sample": "le salon le salon découvrez le salon photo & vidéo qui expose ? qui visite ? le salon selon votre profil nos p",
+    "children": [
+     {
+      "name": "Level1",
+      "tier": "L3",
+      "pages": 27,
+      "inst": 135,
+      "library": "section",
+      "sample": "animations et ateliers animations et ateliers le programme du salon le"
+     },
+     {
+      "name": "Breadcrumb Item",
+      "tier": "L2",
+      "pages": 26,
+      "inst": 69,
+      "library": "card",
+      "sample": "découvrez le salon photo & vidéo |"
+     }
+    ]
+   },
+   {
+    "name": "Header",
+    "key": "tag:header",
+    "tier": "L1",
+    "pages": 27,
+    "inst": 28,
+    "sib": 0,
+    "var": 0.07,
+    "ld": 0.82,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "#salonphotoetvideo devenir exposant votre espace exposant 8-11 octobre 2026 - grande halle de la villette ache",
+    "children": []
+   },
+   {
+    "name": "Parent Row",
+    "key": "cls:parent-row",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.65,
+    "library": "gridRow",
+    "library_conf": 0.45,
+    "sample": "#salonphotoetvideo devenir exposant votre espace exposant",
+    "children": [
+     {
+      "name": "Socials",
+      "tier": "L3",
+      "pages": 27,
+      "inst": 54,
+      "library": "section",
+      "sample": "rejoignez la communauté"
+     },
+     {
+      "name": "Texte 2",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 27,
+      "library": "richText",
+      "sample": "votre espace exposant"
+     }
+    ]
+   },
+   {
+    "name": "Grid",
+    "key": "cls:grid",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.87,
+    "library": "gridRow",
+    "library_conf": 0.45,
+    "sample": "8-11 octobre 2026 - grande halle de la villette acheter mon billet le salon le salon découvrez le salon photo ",
+    "children": [
+     {
+      "name": "Cta Area",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 27,
+      "library": "section",
+      "sample": "acheter mon billet"
+     },
+     {
+      "name": "Navigation Main",
+      "tier": "L3",
+      "pages": 27,
+      "inst": 27,
+      "library": "richText",
+      "sample": "le salon le salon découvrez le salon photo & vidéo qui expose ? qui vi"
+     }
+    ]
+   },
+   {
+    "name": "Footer",
+    "key": "tag:footer",
+    "tier": "L1",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.59,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "rejoignez la communauté vous avez des questions ? consultez notre faq  newsletter : j’accepte de recevoir la n",
+    "children": []
+   },
+   {
+    "name": "Grid 1",
+    "key": "cls:grid-1",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.43,
+    "library": "gridRow",
+    "library_conf": 0.45,
+    "sample": "rejoignez la communauté vous avez des questions ? consultez notre faq  newsletter : j’accepte de recevoir la n",
+    "children": [
+     {
+      "name": "Texte Email",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 27,
+      "library": "richText",
+      "sample": "vous avez des questions ?"
+     },
+     {
+      "name": "Email",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 27,
+      "library": "richText",
+      "sample": "consultez notre faq"
+     },
+     {
+      "name": "Form Control Checkbox",
+      "tier": "L3",
+      "pages": 27,
+      "inst": 27,
+      "library": "section",
+      "sample": "newsletter : j’accepte de recevoir la newsletter"
+     },
+     {
+      "name": "Link Container",
+      "tier": "L3",
+      "pages": 27,
+      "inst": 27,
+      "library": "section",
+      "sample": "espace presse espace exposant contacts paramètres des cookies"
+     }
+    ]
+   },
+   {
+    "name": "Grid 2",
+    "key": "cls:grid-2",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "gridRow",
+    "library_conf": 0.45,
+    "sample": "organisé par",
+    "children": [
+     {
+      "name": "Img Container",
+      "tier": "L3",
+      "pages": 27,
+      "inst": 27,
+      "library": "section",
+      "sample": "organisé par"
+     }
+    ]
+   },
+   {
+    "name": "Ml",
+    "key": "cls:ml",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.95,
+    "library": "section",
+    "library_conf": 0.4,
+    "sample": "plan du site mentions légales & cgu protection des données cookies carrière accessibilité : non conforme",
+    "children": [
+     {
+      "name": "Lien",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 243,
+      "library": "card",
+      "sample": "accessibilité : non conforme"
+     }
+    ]
+   }
+  ],
+  "TEMPLATE": [],
+  "COMPONENT": [
+   {
+    "name": "Navigationtitle",
+    "key": "cls:field-navigationtitle",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 798,
+    "sib": 0,
+    "var": 0.03,
+    "ld": 1.0,
+    "library": "heading",
+    "library_conf": 0.6,
+    "sample": "découvrez le salon photo & vidéo",
+    "children": []
+   },
+   {
+    "name": "Component Content",
+    "key": "cls:component-content",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 490,
+    "sib": 0,
+    "var": 0.54,
+    "ld": 0.43,
+    "library": "section",
+    "library_conf": 0.4,
+    "sample": "rejoignez la communauté vous avez des questions ? consultez notre faq  newsletter : j’accepte de recevoir la n",
+    "children": [
+     {
+      "name": "Description",
+      "tier": "L2",
+      "pages": 15,
+      "inst": 116,
+      "library": "richText",
+      "sample": "structurer notre démarche responsable et communiquer avec cohérence no"
+     },
+     {
+      "name": "Content",
+      "tier": "L2",
+      "pages": 23,
+      "inst": 88,
+      "library": "richText",
+      "sample": "le salon photo & vidéo 2026 est un espace de rencontres, de transmissi"
+     },
+     {
+      "name": "Titre",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 62,
+      "library": "richText",
+      "sample": "le salon photo & vidéo, le rendez-vous pour vivre, créer et progresser"
+     },
+     {
+      "name": "Nav",
+      "tier": "L1",
+      "pages": 27,
+      "inst": 53,
+      "library": "section",
+      "sample": "le salon le salon découvrez le salon photo & vidéo qui expose ? qui vi"
+     },
+     {
+      "name": "Heading",
+      "tier": "L2",
+      "pages": 3,
+      "inst": 45,
+      "library": "heading",
+      "sample": "je suis journaliste, créateur de contenu, rédacteur, photographe… comm"
+     },
+     {
+      "name": "Lien Partenaire 2",
+      "tier": "L2",
+      "pages": 3,
+      "inst": 28,
+      "library": "richText",
+      "sample": "découvrir la foire internationale de bièvres"
+     }
+    ]
+   },
+   {
+    "name": "Desktop Hidden",
+    "key": "cls:desktop-hidden",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 135,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 1.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "animations et ateliers",
+    "children": []
+   },
+   {
+    "name": "Texte 1",
+    "key": "cls:field-texte-1",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 54,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "devenir exposant",
+    "children": []
+   },
+   {
+    "name": "Validation Valid",
+    "key": "cls:field-validation-valid",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 54,
+    "sib": 2,
+    "var": 0.02,
+    "ld": 1.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "",
+    "children": []
+   },
+   {
+    "name": "Texte",
+    "key": "cls:field-texte",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "#salonphotoetvideo",
+    "children": []
+   },
+   {
+    "name": "Texte 2",
+    "key": "cls:field-texte-2",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "votre espace exposant",
+    "children": []
+   },
+   {
+    "name": "Date",
+    "key": "cls:field-date",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "8-11 octobre 2026",
+    "children": []
+   },
+   {
+    "name": "Lieu",
+    "key": "cls:field-lieu",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "- grande halle de la villette",
+    "children": []
+   },
+   {
+    "name": "Cta Area",
+    "key": "cls:cta-area",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 1.0,
+    "library": "section",
+    "library_conf": 0.4,
+    "sample": "acheter mon billet",
+    "children": [
+     {
+      "name": "Cta 1",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 27,
+      "library": "section",
+      "sample": "acheter mon billet"
+     }
+    ]
+   },
+   {
+    "name": "Texte Reseaux Sociaux",
+    "key": "cls:field-texte-reseaux-sociaux",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "rejoignez la communauté",
+    "children": []
+   },
+   {
+    "name": "Texte Email",
+    "key": "cls:field-texte-email",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "vous avez des questions ?",
+    "children": []
+   },
+   {
+    "name": "Email",
+    "key": "cls:field-email",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 1.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "consultez notre faq",
+    "children": []
+   },
+   {
+    "name": "Texte Newsletter",
+    "key": "cls:field-texte-newsletter",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 27,
+    "sib": 0,
+    "var": 0.04,
+    "ld": 0.0,
+    "library": "richText",
+    "library_conf": 0.3,
+    "sample": "newsletter :",
+    "children": []
+   }
+  ],
+  "RECORD": [
+   {
+    "name": "Component",
+    "key": "cls:component",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 498,
+    "sib": 31,
+    "var": 0.55,
+    "ld": 0.43,
+    "library": "card",
+    "library_conf": 0.4,
+    "sample": "rejoignez la communauté vous avez des questions ? consultez notre faq  newsletter : j’accepte de recevoir la n",
+    "children": [
+     {
+      "name": "Component Content",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 490,
+      "library": "section",
+      "sample": "rejoignez la communauté vous avez des questions ? consultez notre faq "
+     },
+     {
+      "name": "Search Result List",
+      "tier": "L3",
+      "pages": 7,
+      "inst": 10,
+      "library": "section",
+      "sample": "playground pigalle duperré 20 rue duperré 75009 paris playground pigal"
+     }
+    ]
+   },
+   {
+    "name": "Level2",
+    "key": "cls:level2",
+    "tier": "L3",
+    "pages": 27,
+    "inst": 459,
+    "sib": 6,
+    "var": 0.04,
+    "ld": 1.0,
+    "library": "card",
+    "library_conf": 0.4,
+    "sample": "découvrez le salon photo & vidéo",
+    "children": [
+     {
+      "name": "Navigationtitle",
+      "tier": "L2",
+      "pages": 27,
+      "inst": 798,
+      "library": "heading",
+      "sample": "découvrez le salon photo & vidéo"
+     }
+    ]
+   },
+   {
+    "name": "Lien",
+    "key": "cls:field-lien",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 243,
+    "sib": 6,
+    "var": 0.04,
+    "ld": 1.0,
+    "library": "card",
+    "library_conf": 0.4,
+    "sample": "accessibilité : non conforme",
+    "children": []
+   },
+   {
+    "name": "Title",
+    "key": "cls:field-title",
+    "tier": "L2",
+    "pages": 27,
+    "inst": 190,
+    "sib": 3,
+    "var": 0.46,
+    "ld": 0.14,
+    "library": "heading",
+    "library_conf": 0.6,
+    "sample": "comment faire publier ses photos dans un magazine ? les conseils de thibaut godet, rédacteur en chef de répons",
+    "children": []
+   },
+   {
+    "name": "Breadcrumb Item",
+    "key": "cls:breadcrumb-item",
+    "tier": "L2",
+    "pages": 26,
+    "inst": 69,
+    "sib": 3,
+    "var": 0.33,
+    "ld": 0.84,
+    "library": "card",
+    "library_conf": 0.4,
+    "sample": "découvrez le salon photo & vidéo |",
+    "children": []
+   },
+   {
+    "name": "Item",
+    "key": "cls:item",
+    "tier": "L3",
+    "pages": 9,
+    "inst": 78,
+    "sib": 10,
+    "var": 0.72,
+    "ld": 0.17,
+    "library": "card",
+    "library_conf": 0.4,
+    "sample": "salon photo & vidéo 2026 : un événement engagé et plus responsable le salon photo & vidéo 2026 est un espace d",
+    "children": [
+     {
+      "name": "Card",
+      "tier": "L2",
+      "pages": 12,
+      "inst": 56,
+      "library": "card",
+      "sample": "salon photo & vidéo 2026 : un événement engagé et plus responsable le "
+     }
+    ]
+   }
+  ]
+ },
+ "source": "scoped-mirror",
+ "_provenance": {
+  "run_id": "run_1785750064959",
+  "step_id": "step_zoning",
+  "generated_at": "2026-08-03T09:42:31Z",
+  "git_sha": "fc8386cdb1d0-dirty",
+  "tool": "zone_detect.py",
+  "args": [
+   "salonphoto"
+  ],
+  "page_set": [
+   "home",
+   "actualite-photo",
+   "actualite-photo_actualites",
+   "actualite-photo_actus",
+   "actualite-photo_agenda-photo",
+   "animations-ateliers",
+   "animations-ateliers_animations",
+   "animations-ateliers_animations-ateliers",
+   "animations-ateliers_expositions-photos",
+   "animations-ateliers_programme-salon",
+   "animations-ateliers_rencontres-photo",
+   "infos-pratiques",
+   "infos-pratiques_Infos-Pratiques",
+   "infos-pratiques_catalogue",
+   "infos-pratiques_comment-venir-au-salon",
+   "infos-pratiques_dates-acces-horaires",
+   "infos-pratiques_faq",
+   "infos-pratiques_photo-pass",
+   "lien-billetterie",
+   "salon",
+   "salon_a-propos",
+   "salon_partenaires",
+   "salon_profil-visiteur",
+   "salon_qui-expose",
+   "salon_qui-visite",
+   "salon_rse",
+   "salon_salon"
+  ]
+ }
+}

@@ -1,0 +1,246 @@
+{
+ "project": "salonphoto",
+ "pages": 27,
+ "vendorScripts": [
+  "swiffy-slider"
+ ],
+ "byBehaviour": {
+  "form": 27,
+  "facetFilter": 10,
+  "modal": 5,
+  "carousel": 2,
+  "videoPlayer": 2,
+  "map": 1
+ },
+ "units": [
+  {
+   "component": "footer",
+   "behaviour": "form",
+   "instances": 27,
+   "pages": [
+    "actualite-photo",
+    "actualite-photo_actualites",
+    "actualite-photo_actus",
+    "actualite-photo_agenda-photo",
+    "animations-ateliers",
+    "animations-ateliers_animations",
+    "animations-ateliers_animations-ateliers",
+    "animations-ateliers_expositions-photos",
+    "animations-ateliers_programme-salon",
+    "animations-ateliers_rencontres-photo",
+    "home",
+    "infos-pratiques",
+    "infos-pratiques_Infos-Pratiques",
+    "infos-pratiques_catalogue",
+    "infos-pratiques_comment-venir-au-salon",
+    "infos-pratiques_dates-acces-horaires",
+    "infos-pratiques_faq",
+    "infos-pratiques_photo-pass",
+    "lien-billetterie",
+    "salon",
+    "salon_a-propos",
+    "salon_partenaires",
+    "salon_profil-visiteur",
+    "salon_qui-expose",
+    "salon_qui-visite",
+    "salon_rse",
+    "salon_salon"
+   ],
+   "pageCount": 27,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "action": "/formbuilder?sc_site=Photo&fxb.FormItemId=1e603ab4-a2d1-48b7",
+    "inputs": 16,
+    "note": ""
+   }
+  },
+  {
+   "component": "facet-dropdown",
+   "behaviour": "facetFilter",
+   "instances": 4,
+   "pages": [
+    "actualite-photo_actus",
+    "actualite-photo_agenda-photo"
+   ],
+   "pageCount": 2,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "selects": 1,
+    "checkboxes": 0,
+    "note": "SXA facets hit /sxa/search — no backend in Jahia"
+   }
+  },
+  {
+   "component": "search-results",
+   "behaviour": "modal",
+   "instances": 4,
+   "pages": [
+    "infos-pratiques_photo-pass"
+   ],
+   "pageCount": 1,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "triggers": 0
+   }
+  },
+  {
+   "component": "div.container",
+   "behaviour": "facetFilter",
+   "instances": 2,
+   "pages": [
+    "actualite-photo_actus",
+    "actualite-photo_agenda-photo"
+   ],
+   "pageCount": 2,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "selects": 2,
+    "checkboxes": 0,
+    "note": "SXA facets hit /sxa/search — no backend in Jahia"
+   }
+  },
+  {
+   "component": "facet-aggregated",
+   "behaviour": "facetFilter",
+   "instances": 2,
+   "pages": [
+    "actualite-photo_actus",
+    "actualite-photo_agenda-photo"
+   ],
+   "pageCount": 2,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "selects": 2,
+    "checkboxes": 0,
+    "note": "SXA facets hit /sxa/search — no backend in Jahia"
+   }
+  },
+  {
+   "component": "facet-summary",
+   "behaviour": "facetFilter",
+   "instances": 2,
+   "pages": [
+    "actualite-photo_actus",
+    "actualite-photo_agenda-photo"
+   ],
+   "pageCount": 2,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "selects": 0,
+    "checkboxes": 0,
+    "note": "SXA facets hit /sxa/search — no backend in Jahia"
+   }
+  },
+  {
+   "component": "carousel",
+   "behaviour": "carousel",
+   "instances": 1,
+   "pages": [
+    "home"
+   ],
+   "pageCount": 1,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "track": "div.carousel-inner",
+    "item": "li.slide",
+    "items": 4,
+    "controls": [
+     "a.prev-text",
+     "a.next-text"
+    ],
+    "indicators": 0,
+    "autoplay": {
+     "timeout": 4000,
+     "isPauseEnabled": true,
+     "transition": "FadeInTransition"
+    }
+   }
+  },
+  {
+   "component": "partners-carrousel",
+   "behaviour": "carousel",
+   "instances": 1,
+   "pages": [
+    "home"
+   ],
+   "pageCount": 1,
+   "vendor": "swiffy-slider",
+   "shippedIsland": null,
+   "contract": {
+    "track": "ul.slider-container",
+    "item": "li.slide-visible",
+    "items": 4,
+    "controls": [
+     "button.slider-nav",
+     "button.slider-nav.slider-nav-next"
+    ],
+    "indicators": 4,
+    "autoplay": null,
+    "vendor": "swiffy-slider"
+   }
+  },
+  {
+   "component": "plain-html",
+   "behaviour": "map",
+   "instances": 1,
+   "pages": [
+    "infos-pratiques_photo-pass"
+   ],
+   "pageCount": 1,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "embed": "iframe"
+   }
+  },
+  {
+   "component": "plain-html",
+   "behaviour": "videoPlayer",
+   "instances": 1,
+   "pages": [
+    "home"
+   ],
+   "pageCount": 1,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "provider": "youtube"
+   }
+  },
+  {
+   "component": "tabs",
+   "behaviour": "modal",
+   "instances": 1,
+   "pages": [
+    "infos-pratiques_photo-pass"
+   ],
+   "pageCount": 1,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "triggers": 0
+   }
+  },
+  {
+   "component": "video-content-block",
+   "behaviour": "videoPlayer",
+   "instances": 1,
+   "pages": [
+    "home"
+   ],
+   "pageCount": 1,
+   "vendor": null,
+   "shippedIsland": null,
+   "contract": {
+    "provider": "youtube"
+   }
+  }
+ ]
+}

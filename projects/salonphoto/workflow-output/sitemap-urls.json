@@ -1,0 +1,318 @@
+{
+ "project": "salonphoto",
+ "source": "https://www.lesalondelaphoto.com/sitemap.xml",
+ "total": 162,
+ "localeUrls": 144,
+ "lang": "fr-FR",
+ "families": {
+  "actualite-photo/actus": {
+   "count": 56,
+   "status": "entity -> actualites (sdp:newsArticle)",
+   "urls": [
+    "actualite-photo/actus/Collodion-humide-Marjolaine-Vuarnesson",
+    "actualite-photo/actus/affiche-salon-de-la-photo-paris-2025",
+    "actualite-photo/actus/affiche-salon-de-la-photo-paris-2026",
+    "actualite-photo/actus/analog-chronicles-spring",
+    "actualite-photo/actus/appareil-photo-pour-debuter",
+    "actualite-photo/actus/bitrate-video",
+    "actualite-photo/actus/boitier-video",
+    "actualite-photo/actus/choisir-son-appareil-photo",
+    "actualite-photo/actus/christophe-brachet-coulisses-du-7e-art",
+    "actualite-photo/actus/composition-photographique",
+    "actualite-photo/actus/conference-nikon",
+    "actualite-photo/actus/definition-resolution",
+    "actualite-photo/actus/etre-publie-dans-un-magazine-photo",
+    "actualite-photo/actus/eyes-of-belga-portrait-voyage",
+    "actualite-photo/actus/faire-connaitre-son-entreprise-de-photographie",
+    "actualite-photo/actus/ffpmi",
+    "actualite-photo/actus/filtres-optiques",
+    "actualite-photo/actus/fnp",
+    "actualite-photo/actus/format-heif",
+    "actualite-photo/actus/formation-professionnelle",
+    "actualite-photo/actus/gestion-couleurs",
+    "actualite-photo/actus/hydrides-pro-capteurs-cmos-bsi-stacked",
+    "actualite-photo/actus/ia-generative-innovation-encadrement",
+    "actualite-photo/actus/ia-retouche-photo-video",
+    "actualite-photo/actus/ia-workflow-photographe",
+    "actualite-photo/actus/idee-cadeau-noel-photographe",
+    "actualite-photo/actus/impression-directe-ou-contrecollage",
+    "actualite-photo/actus/lina-khezzar-devenir-photographe-que-les-clients-choisissent",
+    "actualite-photo/actus/mathieu-forget-art-levitation",
+    "actualite-photo/actus/meilleurs-drones-photo-et-video",
+    "actualite-photo/actus/nicolas-doretti-secrets-portrait-authentique",
+    "actualite-photo/actus/nouvelles-pratiques-pro",
+    "actualite-photo/actus/objectif-camera",
+    "actualite-photo/actus/ordinateur-photographe-professionnel",
+    "actualite-photo/actus/photo-animaliere-thomas-jean",
+    "actualite-photo/actus/photo-mode-lina-khezaar",
+    "actualite-photo/actus/photo-pose-longue-michael-protillo",
+    "actualite-photo/actus/photographe-visibilite",
+    "actualite-photo/actus/photographes-souvenirs-en-securite",
+    "actualite-photo/actus/portrait",
+    "actualite-photo/actus/portrait-voyage",
+    "actualite-photo/actus/pourquoi-photographier-raw",
+    "actualite-photo/actus/pouvoir-storytelling-photographie",
+    "actualite-photo/actus/quand-comment-utiliser-flash",
+    "actualite-photo/actus/realiser-un-livre-photo",
+    "actualite-photo/actus/reflex-hybride-quel-appareil-choisir",
+    "actualite-photo/actus/reparation-seconde-main-upcycling-sldp",
+    "actualite-photo/actus/retouche-photo-ia",
+    "actualite-photo/actus/rolling-shutter",
+    "actualite-photo/actus/salon-de-la-photo-2026-nouveau-logo",
+    "actualite-photo/actus/souffleurs-de-sens",
+    "actualite-photo/actus/studio-tech-phototrend-juillet-2026",
+    "actualite-photo/actus/studio-tech-phototrend-juin-2026",
+    "actualite-photo/actus/thomas-beauquesne-heure-bleue",
+    "actualite-photo/actus/triangle-exposition-photographie",
+    "actualite-photo/actus/upp"
+   ]
+  },
+  "actualite-photo/agenda-photo": {
+   "count": 19,
+   "status": "entity -> agenda (sdp:event)",
+   "urls": [
+    "actualite-photo/agenda-photo/Benoit-Henri-Tyszkiewicz",
+    "actualite-photo/agenda-photo/bruno-barbey-visions-sur-le-monde",
+    "actualite-photo/agenda-photo/edward-watson-modernite-revelee",
+    "actualite-photo/agenda-photo/exposition-kate-barry",
+    "actualite-photo/agenda-photo/exposition-martin-parr-global-warning",
+    "actualite-photo/agenda-photo/exposition-or-norme-guerlain",
+    "actualite-photo/agenda-photo/exposition-valerie-belin-les-choses-entre-elles",
+    "actualite-photo/agenda-photo/exterieurs-annie-ernaux",
+    "actualite-photo/agenda-photo/festival-circulations",
+    "actualite-photo/agenda-photo/genesis-platinum",
+    "actualite-photo/agenda-photo/jean-gaumy-et-la-mer",
+    "actualite-photo/agenda-photo/la-seine-la-seine",
+    "actualite-photo/agenda-photo/lee-miller",
+    "actualite-photo/agenda-photo/lhumus-du-monde",
+    "actualite-photo/agenda-photo/made-in-india",
+    "actualite-photo/agenda-photo/patrizia-mussa-theatralites",
+    "actualite-photo/agenda-photo/superfacial",
+    "actualite-photo/agenda-photo/yasuhiro-ishimoto-des-lignes-et-des-corps",
+    "actualite-photo/agenda-photo/zooms-japan-2025"
+   ]
+  },
+  "salon": {
+   "count": 7,
+   "status": "captured page(s)",
+   "urls": [
+    "salon",
+    "salon/a-propos",
+    "salon/partenaires",
+    "salon/profil-visiteur",
+    "salon/qui-expose",
+    "salon/qui-visite",
+    "salon/rse"
+   ]
+  },
+  "infos-pratiques": {
+   "count": 6,
+   "status": "captured page(s)",
+   "urls": [
+    "infos-pratiques",
+    "infos-pratiques/catalogue",
+    "infos-pratiques/comment-venir-au-salon",
+    "infos-pratiques/dates-acces-horaires",
+    "infos-pratiques/faq",
+    "infos-pratiques/photo-pass"
+   ]
+  },
+  "exposants": {
+   "count": 6,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "exposants",
+    "exposants/boostez-visibilite",
+    "exposants/contacts",
+    "exposants/offres-stands",
+    "exposants/participation-reussie",
+    "exposants/salon"
+   ]
+  },
+  "animations-ateliers/expositions-photos": {
+   "count": 6,
+   "status": "entity -> expositions (sdp:event)",
+   "urls": [
+    "animations-ateliers/expositions-photos/exposition-david-delaplace",
+    "animations-ateliers/expositions-photos/exposition-nikos-aliagas",
+    "animations-ateliers/expositions-photos/festival-montier",
+    "animations-ateliers/expositions-photos/grande-expo",
+    "animations-ateliers/expositions-photos/prix-bayeux",
+    "animations-ateliers/expositions-photos/zooms"
+   ]
+  },
+  "presse-createur-contenus/communiques-dossiers-presse": {
+   "count": 6,
+   "status": "entity -> communiques (sdp:newsArticle)",
+   "urls": [
+    "presse-createur-contenus/communiques-dossiers-presse/cp-1-2026",
+    "presse-createur-contenus/communiques-dossiers-presse/cp-2",
+    "presse-createur-contenus/communiques-dossiers-presse/cp-bilan-2025",
+    "presse-createur-contenus/communiques-dossiers-presse/cp-culturel",
+    "presse-createur-contenus/communiques-dossiers-presse/cp-laureats-zooms-2025",
+    "presse-createur-contenus/communiques-dossiers-presse/cp-test-1"
+   ]
+  },
+  "animations-ateliers": {
+   "count": 5,
+   "status": "captured page(s)",
+   "urls": [
+    "animations-ateliers",
+    "animations-ateliers/animations",
+    "animations-ateliers/expositions-photos",
+    "animations-ateliers/programme-salon",
+    "animations-ateliers/rencontres-photo"
+   ]
+  },
+  "presse-createur-contenus": {
+   "count": 4,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "presse-createur-contenus",
+    "presse-createur-contenus/accreditation",
+    "presse-createur-contenus/communiques-dossiers-presse",
+    "presse-createur-contenus/kit-media"
+   ]
+  },
+  "animations-ateliers/animations": {
+   "count": 4,
+   "status": "entity -> animations (sdp:event)",
+   "urls": [
+    "animations-ateliers/animations/foire-internationale-de-bievres",
+    "animations-ateliers/animations/lectures-portfolio",
+    "animations-ateliers/animations/photos-spots",
+    "animations-ateliers/animations/world-premiere"
+   ]
+  },
+  "actualite-photo": {
+   "count": 3,
+   "status": "captured page(s)",
+   "urls": [
+    "actualite-photo",
+    "actualite-photo/actus",
+    "actualite-photo/agenda-photo"
+   ]
+  },
+  "salon/profil-visiteur": {
+   "count": 3,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "salon/profil-visiteur/amateur-averti",
+    "salon/profil-visiteur/createur-contenus",
+    "salon/profil-visiteur/professionnel"
+   ]
+  },
+  "animations-ateliers/rencontres-photo": {
+   "count": 3,
+   "status": "entity -> rencontres (sdp:event)",
+   "urls": [
+    "animations-ateliers/rencontres-photo/forum-pros",
+    "animations-ateliers/rencontres-photo/grandes-rencontres",
+    "animations-ateliers/rencontres-photo/tete-a-tete-filles-de-la-photo"
+   ]
+  },
+  "exposants/salon": {
+   "count": 3,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "exposants/salon/faq",
+    "exposants/salon/offre-salon",
+    "exposants/salon/rse"
+   ]
+  },
+  "campagnes": {
+   "count": 2,
+   "status": "accepted target",
+   "urls": [
+    "campagnes/zooms-facebook",
+    "campagnes/zooms-instagram"
+   ]
+  },
+  "(home)": {
+   "count": 1,
+   "status": "captured page(s)",
+   "urls": [
+    "home"
+   ]
+  },
+  "billetterie": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "billetterie"
+   ]
+  },
+  "plan-du-site": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "plan-du-site"
+   ]
+  },
+  "declaration-daccessibilite-rgaa": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "declaration-daccessibilite-rgaa"
+   ]
+  },
+  "mentions-legales-et-cgu": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "mentions-legales-et-cgu"
+   ]
+  },
+  "protection-donnees": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "protection-donnees"
+   ]
+  },
+  "cookies": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "cookies"
+   ]
+  },
+  "salon/rse": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "salon/rse/souffleurs-de-sens"
+   ]
+  },
+  "infos-pratiques/catalogue": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "infos-pratiques/catalogue/,-w-,"
+   ]
+  },
+  "infos-pratiques/catalogue/,-w-,": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "infos-pratiques/catalogue/,-w-,/,-w-,"
+   ]
+  },
+  "exposants/salon/rse": {
+   "count": 1,
+   "status": "page(s), crawl declared",
+   "urls": [
+    "exposants/salon/rse/souffleurs-de-sens"
+   ]
+  }
+ },
+ "expectedEntityCounts": {
+  "actualites": 56,
+  "agenda": 19,
+  "expositions": 6,
+  "communiques": 6,
+  "animations": 4,
+  "rencontres": 3
+ },
+ "unaccounted": {}
+}

@@ -1,0 +1,130 @@
+{
+  "_README": "Scope decisions for the Salon de la Photo migration. Each rule is a DECISION taken once and applied to every page (doctrine: decisions printed into the workflow, never re-litigated per page). Every selector was verified against the captured corpus (27 pages) before being listed; the counts in each reason are measured, not estimated. scope_apply.py rebuilds the scoped mirror from local-mirror-prescope on every run, so rules never compound.",
+  "keptEmbeds": [
+    "www.youtube.com",
+    "widget.weezevent.com",
+    "www.google.com",
+    "impactco2.fr",
+    "cdn.jsdelivr.net"
+  ],
+  "_keptEmbeds_README": "Third-party frames the source genuinely uses as CONTENT, each a modelling decision rather than junk: YouTube (home video band), Weezevent (2 ticketing widgets on lien-billetterie), Google My Maps (photo-pass venue map), impactco2 (transport calculator on dates-acces-horaires). cdn.jsdelivr.net is not an embed but the swiffy-slider stylesheet the partners carousel depends on — localize_site left it as external residue; step_assets must vendor it into static/ so the migrated site has no CDN dependency. Everything NOT listed here must be scope-excluded (probes/mirror-selfcontained.py enforces it).",
+  "rules": [
+    {
+      "id": "exclude-onetrust-consent",
+      "action": "exclude",
+      "match": {
+        "selector": "#onetrust-consent-sdk, #onetrust-banner-sdk, #onetrust-pc-sdk, script[src*='cookielaw'], script[src*='onetrust'], script:-soup-contains('cookielaw'), style#onetrust-style"
+      },
+      "scope": "site",
+      "reason": "OneTrust cookie banner + preference centre, present on 27/27 captured pages. Not site content: Jahia ships its own consent module. Left in, it dominates the zoning map (it produced 20+ of the 35 ABSOLUTE keys: Ot Grp Hdr1, Ot Sdk Row, Ot Pc Scrollbar, Dialog, Ot Chkbox) and would be migrated as chrome. The SDK LOADER is a separate inline script pointing at cdn.cookielaw.org (27/27 pages): removing only the banner DOM left the mirror still fetching OneTrust at review time — caught by probes/mirror-selfcontained.py's inline-loader scan, not by the DOM rule.",
+      "decidedBy": "claude+operator",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "exclude-spacer-plain-html",
+      "action": "exclude",
+      "match": {
+        "selector": "div.component.plain-html.height0"
+      },
+      "scope": "site",
+      "reason": "Zero-height SXA plain-html spacer, exactly 27 instances (one per page), no text, no iframe, no script. Layout plumbing, nothing to contribute. The plain-html instances that DO carry an iframe (5: YouTube, impactco2 transport, Google Maps, 2x Weezevent ticketing) are deliberately NOT matched — they are real embeds and each is a modelling decision.",
+      "decidedBy": "claude+operator",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "exclude-trackers-and-chatbot",
+      "action": "exclude",
+      "match": {
+        "selector": "script[data-cf-beacon], script[chatbotid], link[href*='chatbase'], div[id^='chatbase'], button[aria-controls='chatbase-bubble-window'], iframe[src*='googletagmanager'], script[src*='googletagmanager'], script:-soup-contains('googletagmanager'), script:-soup-contains('gtag(')"
+      },
+      "scope": "site",
+      "reason": "Runtime telemetry and third-party widgets, not site content. Cloudflare's own RUM beacon (script[data-cf-beacon]) and the chatbase chatbot survived localization with rewritten relative srcs, so reviewing the mirror produced POST /cdn-cgi/rum -> 404 and GET /api/get-chatbot-styles -> 404 plus a live chat bubble over the hero (operator observation 2026-08-03, read as a Cloudflare block). The GTM noscript iframe is a 0x0 hidden tracker. None of it is migratable content: Jahia has its own analytics/consent story, and a chatbot is a post-migration integration decision. The GTM bootstrap is an INLINE script that builds its own src at runtime, so an attribute-URL selector misses it — matched by text instead (soupsieve :-soup-contains).",
+      "decidedBy": "claude+operator",
+      "date": "2026-08-03"
+    },
+    {
+      "id": "exclude-structured-data",
+      "action": "exclude",
+      "match": {
+        "selector": "div.component.structured-data"
+      },
+      "scope": "site",
+      "reason": "SXA structured-data components (3 instances) hold nothing but a JSON-LD <script>: zero visible text. SEO metadata belongs on the Jahia side to the sdpmix:seo mixin, not to a migrated content component.",
+      "decidedBy": "claude+operator",
+      "date": "2026-08-03"
+    }
+  ],
+  "pagesToCrawl": [
+    {
+      "path": "salon/profil-visiteur",
+      "reason": "3 audience landing pages (amateur-averti, createur-contenus, professionnel) reached from the profil-visiteur card grid. Not dated, not card-reached prose -> PAGES per the tie-break rule. Crawl as children of salon/profil-visiteur."
+    },
+    {
+      "path": "billetterie",
+      "reason": "A THIRD ticketing URL beyond the menu's lien-billetterie and billet, linked from the home hero slide ('Acheter mon billet') and from dates-acces-horaires. The site's primary CTA cannot resolve to nothing: crawl it as a page."
+    },
+    {
+      "path": "exposants",
+      "reason": "The exhibitor-facing area ('Devenir exposant', linked from the top bar and the FAQ). Crawl the landing page; its sub-tree (exposants/salon/rse/...) follows the same decision."
+    },
+    {
+      "path": "presse-createur-contenus/accreditation",
+      "reason": "Press/creator accreditation, linked from the FAQ and the ticketing page. Crawl as a page; if it turns out to be a pure form, it becomes an accepted external target instead."
+    },
+    {
+      "path": "infos-pratiques/catalogue",
+      "reason": "The catalogue's three AXIS LISTING pages — /catalogue/exhibitors, /catalogue/brands, /catalogue/products ('Voir tous les exposants / marques / produits', CatalogFilterBar-link). Each becomes a Jahia page carrying one sdp:jcrQuery over its matching contentFolder. The per-item details under /Exposant/, /Marque/ and /Produit/ are entities and are declared in the mainresource map instead."
+    },
+    {
+      "path": "mentions-legales-et-cgu",
+      "reason": "LEGAL page, linked from the footer on all 27 pages and present in /sitemap.xml. A migrated site without its legal notice is not shippable."
+    },
+    {
+      "path": "protection-donnees",
+      "reason": "GDPR / data-protection page, footer on all 27 pages, in the sitemap. Legally required."
+    },
+    {
+      "path": "declaration-daccessibilite-rgaa",
+      "reason": "RGAA accessibility statement, footer on all 27 pages, in the sitemap. Legally required in France for this kind of site."
+    },
+    {
+      "path": "cookies",
+      "reason": "Cookie policy, footer on all 27 pages. Not in the sitemap (OneTrust may serve it) — crawl it and confirm it is a real page; otherwise it becomes an accepted target."
+    },
+    {
+      "path": "plan-du-site",
+      "reason": "HTML sitemap page, footer on all 27 pages, in the sitemap. In Jahia this can render from the page tree instead of holding frozen links — decide at build time."
+    },
+    {
+      "path": "presse-createur-contenus",
+      "reason": "An entire SECTION absent from the main menu: the press area landing, linked from the footer and from the actualite-photo pages. Its 7 press releases are declared as an entity folder."
+    },
+    {
+      "path": "salon/rse/souffleurs-de-sens",
+      "reason": "A partner story page under the CSR section, published in /sitemap.xml and linked from salon_rse. One page, not an entity family (no date, no listing) -> crawl it as a child page of salon/rse."
+    }
+  ],
+  "acceptedTargets": [
+    {
+      "path": "favorites",
+      "reason": "A client-side favourites feature (the 'mes favoris' tray on programme-salon and the catalogue), not a server page. No Jahia equivalent in scope: the feature is out of scope for the migration."
+    },
+    {
+      "path": "sitecore/service",
+      "reason": "Sitecore's own 404 service endpoint (notfound.aspx), linked by a BROKEN anchor on salon_rse. A defect in the source, not content to migrate."
+    },
+    {
+      "path": "-/media",
+      "reason": "A PDF asset (Ecogestes-Visiteurs-Comexposium.pdf) served from the Sitecore media library. Imported into the Jahia DAM by the asset step, never a page."
+    },
+    {
+      "path": "recherche",
+      "reason": "The Sitecore site-search page. Its backend is the SXA search index, which does not exist in Jahia; the replacement is Jahia's own search module, configured post-migration. Not a page to migrate."
+    },
+    {
+      "path": "campagnes",
+      "reason": "Two social-campaign landing pages (campagnes/zooms-facebook, campagnes/zooms-instagram) for the Prix du Public des Zooms, one per channel. Present in /sitemap.xml, linked from NO page on the site and reached only from social posts — they are tracking entry points, not site content. Out of scope; revisit if the campaign is being re-run on the Jahia site."
+    }
+  ],
+  "_targets_README": "pagesToCrawl and acceptedTargets are the DECISION register for internal link targets the menu-scoped capture does not reach. probes/link-census.py fails on any internal link whose target is in none of: captured pages, mainresource urlPrefixes, the sitemap, pagesToCrawl, acceptedTargets. A decision may be 'crawl it' or 'accept it out of scope', but it may never be silence."
+}
