@@ -24,6 +24,13 @@ done
 [ -f "$PLAN" ] || { echo "plan not found: $PLAN" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
 
+# PLAN LINT before submission (2026-08-03): a plan with a relative repo_dir made the
+# engine execute 0 commands and burn a whole run on "retries_exhausted" with no probe
+# output at all. Also catches a referenced probe script that does not exist, a step
+# that neither proves nor declares a gate, and broken depends_on. Cheap; refuse early.
+python3 orchestration/probes/plan-lint.py "$PLAN" || {
+  echo "run.sh: refusing to submit a plan that fails plan-lint" >&2; exit 2; }
+
 echo "Submitting $PLAN to $ORCH_URL/runs ..."
 RESP=$(curl -s -X POST "$ORCH_URL/runs" \
   -H "Content-Type: application/json" \

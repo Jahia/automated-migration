@@ -19,7 +19,13 @@ Writes (consumed by build_nav_tree / create_pages / load_content):
                                                 ('_'-joined URL segments)
   orchestration/sitemaps/<project>.labels.json  leaf-slug -> clean menu label
 
+`--urls` prints the menu's internal hrefs (one per line, locale prefix intact)
+and writes nothing — this is the mode nav_scope_crawl consumes to derive the
+menu-scoped crawl list. `--lang <prefix>` strips a locale path segment
+(`/fr-FR/salon` -> `salon`) so sitemap leaves match the crawler's own slugs.
+
 Usage: extract_nav.py <project> [--home <cached-home.html>] [--max-depth 3]
+                      [--lang fr-FR] [--urls]
 Exit 0 with a report; exit 1 if no nav structure could be extracted.
 """
 import argparse
@@ -128,15 +134,67 @@ def slugify(label):
     return s or "section"
 
 
-def internal_slug(href, host):
-    """menu href -> the crawl's flat slug ('_'-joined segments); None if external."""
+def internal_slug(href, host, lang=""):
+    """menu href -> the crawl's flat slug ('_'-joined segments); None if external.
+
+    `lang` drops a leading locale segment so the slug matches what crawl-site.py
+    --lang produced (/fr-FR/salon -> 'salon', not 'fr-FR_salon'). Without this the
+    sitemap and the capture disagree on every page's identity."""
     if not href or href in ("#", "/"):
         return None
     href = re.sub(r"^https?://" + re.escape(host), "", href)
     if re.match(r"^(https?:)?//|^mailto:|^tel:", href):
         return None  # external
     segs = [s for s in href.split("?")[0].split("#")[0].split("/") if s]
+    if lang and segs and segs[0].lower() == lang.lower():
+        segs = segs[1:]
     return "_".join(segs) if segs else None
+
+
+def internal_hrefs(items, host, out=None):
+    """Every internal href in the menu tree, in menu order, verbatim (locale
+    prefix intact) — the crawl list nav_scope_crawl feeds to crawl-site.py."""
+    out = [] if out is None else out
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        h = (it.get("href") or "").split("#")[0].split("?")[0]
+        if h and h not in ("#", "/") and not re.match(
+                r"^(https?:)?//|^mailto:|^tel:", re.sub(r"^https?://" + re.escape(host), "", h)):
+            h = re.sub(r"^https?://" + re.escape(host), "", h)
+            if h.startswith("/") and h.rstrip("/") not in out:
+                out.append(h.rstrip("/"))
+        internal_hrefs(it.get("subMenu"), host, out)
+    return out
+
+
+def resolve_home(project, explicit=None):
+    """(path, host) of the cached home page.
+
+    The page INVENTORY is authoritative: crawl-site.py records slug 'home' and
+    its cachedAt path, whatever the URL shape (a locale-prefixed source caches
+    as `<host>/fr-FR.html`, never `<host>/index.html` — the glob-only lookup
+    missed it and reported "no cached home page" on a perfectly good capture).
+    Falls back to the historical globs for pre-inventory captures."""
+    base = f"projects/{project}"
+    if explicit:
+        host = os.path.basename(os.path.dirname(explicit))
+        return explicit, host
+    try:
+        inv = json.load(open(f"{base}/workflow-output/page-inventory.json"))
+        host = re.sub(r"^https?://", "", (inv.get("siteUrl") or "")).split("/")[0]
+        for pg in inv.get("pages", []):
+            if pg.get("slug") == "home" and pg.get("cachedAt"):
+                p = os.path.join(base, pg["cachedAt"])
+                if os.path.isfile(p):
+                    return p, host or os.path.basename(os.path.dirname(p))
+    except (OSError, ValueError):
+        pass
+    cache = f"{base}/.reference/cache/_crawl"
+    for pat in (f"{cache}/*/index.html", f"{cache}/*/*.html"):
+        for cand in sorted(glob.glob(pat)):
+            return cand, os.path.basename(os.path.dirname(cand))
+    return None, ""
 
 
 def main():
@@ -144,18 +202,17 @@ def main():
     ap.add_argument("project")
     ap.add_argument("--home")
     ap.add_argument("--max-depth", type=int, default=3)
+    ap.add_argument("--lang", default="",
+                    help="source locale path prefix (fr-FR) to strip from slugs")
+    ap.add_argument("--urls", action="store_true",
+                    help="print the menu's internal hrefs (crawl list) and exit; "
+                         "writes nothing")
     a = ap.parse_args()
 
-    cache = f"projects/{a.project}/.reference/cache/_crawl"
-    home = a.home
-    host = ""
+    home, host = resolve_home(a.project, a.home)
     if not home:
-        for cand in sorted(glob.glob(f"{cache}/*/index.html")):
-            home = cand
-            host = os.path.basename(os.path.dirname(cand))
-            break
-    if not home or not os.path.isfile(home):
-        sys.exit(f"FAIL: no cached home page under {cache}")
+        sys.exit(f"FAIL: no cached home page for {a.project} "
+                 f"(page-inventory 'home' slug absent and no cached HTML found)")
     page = open(home, encoding="utf-8", errors="ignore").read()
 
     items = astro_nav(page)
@@ -165,6 +222,12 @@ def main():
         strategy = "nav DOM"
     if not items:
         sys.exit("FAIL: no navigation structure found in the cached home page")
+
+    if a.urls:
+        # crawl-list mode: hrefs verbatim, menu order, nothing written
+        for h in internal_hrefs(items, host):
+            print(h)
+        return
 
     lines, labels, externals = [], {}, []
     navmeta = {}   # leaf-slug -> mega-menu description (source navItems)
@@ -176,7 +239,7 @@ def main():
             label = (it.get("label") or "").strip()
             if not label:
                 continue
-            slug = internal_slug(it.get("href") or "#", host)
+            slug = internal_slug(it.get("href") or "#", host, a.lang)
             if slug is None and (it.get("href") or "#") not in ("#", "", "/"):
                 externals.append((label, it.get("href")))
                 continue  # external link: not a page — reported, never fabricated

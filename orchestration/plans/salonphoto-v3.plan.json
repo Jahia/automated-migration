@@ -1,0 +1,906 @@
+{
+  "goal": "Migrate https://www.lesalondelaphoto.com/fr-FR to a Jahia JS module (project: salonphoto, site: salonphoto, ns: sdp) — v2 full loop, fidelity >=99%/page vs local mirror",
+  "repo_dir": "/Users/stephane/Runtimes/0.Modules/automated-migration",
+  "model": "opencode/deepseek-v4-flash",
+  "epics": [
+    {
+      "id": "epic_analyze",
+      "title": "Analyze (v2 deterministic + bounded LLM)",
+      "goal": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
+      "stories": [
+        {
+          "id": "story_analyze",
+          "title": "Analyze (v2 deterministic + bounded LLM)",
+          "description": "Crawl, mirror-gate, extract candidates + partitions, group, emit CND, extract content, fidelity gate.",
+          "steps": [
+            {
+              "id": "step_connect",
+              "title": "Env + Jahia reachable",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/connect.sh projects/salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_crawl",
+              "title": "Crawl the source site",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_connect"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/nav_scope_crawl.py projects/salonphoto https://www.lesalondelaphoto.com/fr-FR --lang fr-FR --rate-delay 2 --max-asset-size 1",
+                "PROBE: test -s projects/salonphoto/workflow-output/page-inventory.json",
+                "PROBE: python3 orchestration/probes/capture-slugs.py projects/salonphoto --lang fr-FR"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_localize",
+              "title": "Local mirror + offline mirror gate",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_crawl"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/localize_site.py projects/salonphoto --max-asset-size 15",
+                "PROBE: test -s projects/salonphoto/workflow-output/local-mirror/mirror.json",
+                "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/salonphoto 10"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_inventory",
+              "title": "SITE INVENTORY: deterministic DOM analysis (landmarks, chrome anatomy, per-region anatomy, theme)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_localize"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/site_inventory.py salonphoto",
+                "PROBE: python3 -c \"import json,sys; d=json.load(open('projects/salonphoto/workflow-output/site-inventory.json')); sys.exit(0 if d.get('pages') and d.get('chrome') else 1)\""
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_semantic",
+              "title": "Deterministic candidates + partitions",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_localize"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/scope_apply.py projects/salonphoto",
+                "Run: python3 orchestration/lib/semantic_extract.py projects/salonphoto",
+                "PROBE: python3 orchestration/probes/mirror-selfcontained.py projects/salonphoto",
+                "PROBE: test -s projects/salonphoto/workflow-output/semantic-candidates.json",
+                "PROBE: test -s projects/salonphoto/workflow-output/semantic-templates.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_zoning",
+              "title": "ZONING: declared inventory + fine-signal zones + islands",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_semantic"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/source_detect.py salonphoto",
+                "Run: python3 orchestration/lib/declared_inventory.py salonphoto",
+                "Run: ZONE3_JSON_DIR=projects/salonphoto/workflow-output python3 orchestration/lib/zone_detect.py salonphoto",
+                "Run: python3 orchestration/lib/island_probe.py salonphoto",
+                "Run: python3 orchestration/lib/sitemap_enumerate.py salonphoto --lang fr-FR || true",
+                "PROBE: python3 orchestration/probes/zone-source.py salonphoto",
+                "PROBE: test -s projects/salonphoto/workflow-output/island-inventory.json",
+                "PROBE: test -s projects/salonphoto/.reference/declared-components.json",
+                "PROBE: python3 orchestration/probes/entity-coverage.py salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_segment",
+              "title": "Vision segmentation (protocol v2: consensus, ALL pages)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_semantic"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: echo segmentation is executed by the engine probe",
+                "PROBE[11340]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
+              ],
+              "max_attempts": 2,
+              "strategies": [
+                {
+                  "id": "claude_adjudicate",
+                  "title": "Assistant adjudicates red pages from overlays (GREEN-BY-ADJUDICATION)",
+                  "when": "on_retries_exhausted",
+                  "order": 1,
+                  "arm_swap": false,
+                  "halt": false,
+                  "patches": [
+                    {
+                      "step_id": "step_segment",
+                      "inputs": {
+                        "project": "projects/salonphoto"
+                      },
+                      "acceptance_criteria": [
+                        "Run: node orchestration/lib/adjudicate_ingest.mjs projects/salonphoto",
+                        "PROBE[11340]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
+                      ]
+                    }
+                  ],
+                  "skip": [],
+                  "notes": "The assistant reviews <slug>.segmap.html + <slug>.page.png and writes projects/salonphoto/workflow-output/segment/adjudication/<slug>.json (rootIds validated against the real block universe — hallucination-impossible). ingest converts them to adjudicated segmentations; the SAME probe then re-checks cluster majority with adjudicated pages counting green-by-adjudication."
+                },
+                {
+                  "id": "ab_test",
+                  "title": "A/B evidence: heuristic arm vs vision arm on the same frozen mirror",
+                  "when": "on_retries_exhausted",
+                  "order": 2,
+                  "arm_swap": false,
+                  "halt": false,
+                  "patches": [
+                    {
+                      "step_id": "step_segment",
+                      "inputs": {
+                        "project": "projects/salonphoto"
+                      },
+                      "acceptance_criteria": [
+                        "Run: echo ab evidence",
+                        "PROBE[2700]: bash orchestration/lib/ab_segment.sh projects/salonphoto",
+                        "PROBE[11340]: node orchestration/lib/segment_probe.mjs projects/salonphoto --consensus --stability 3 --all-pages"
+                      ]
+                    }
+                  ],
+                  "skip": [],
+                  "notes": "Information strategy: runs the heuristic arm into projects/salonphoto/workflow-output/ab/heuristic/ (never clobbers the real artifacts) and writes projects/salonphoto/workflow-output/segment/ab-report.json. The original gate is unchanged and probably still red — the NEXT decision has the A/B report."
+                },
+                {
+                  "id": "heuristic_arm",
+                  "title": "Arm swap: heuristic grouping (group_llm + assemble_manifest)",
+                  "when": "on_retries_exhausted",
+                  "order": 3,
+                  "arm_swap": true,
+                  "halt": false,
+                  "patches": [
+                    {
+                      "step_id": "step_group",
+                      "inputs": {
+                        "project": "projects/salonphoto"
+                      },
+                      "acceptance_criteria": [
+                        "Run: python3 orchestration/lib/group_llm.py projects/salonphoto --model deepseek-v4-flash --ns sdp --out projects/salonphoto/workflow-output/grouping.json",
+                        "PROBE: python3 orchestration/lib/assemble_manifest.py projects/salonphoto/workflow-output/semantic-candidates.json --group projects/salonphoto/workflow-output/grouping.json --ns sdp --out projects/salonphoto/workflow-output/component-manifest.json"
+                      ]
+                    }
+                  ],
+                  "skip": [
+                    "step_segment"
+                  ],
+                  "notes": "Whole pre-registered arm swap (generator-emitted, exempt from the verbatim-PROBE lint): step_segment is skipped and step_group becomes the exact criteria gen_plan emits for --segmentation heuristic."
+                },
+                {
+                  "id": "manual_review",
+                  "title": "Manual review (Julian): halt with the segmentation bundle",
+                  "when": "on_retries_exhausted",
+                  "order": 4,
+                  "arm_swap": false,
+                  "halt": true,
+                  "patches": [],
+                  "skip": [],
+                  "notes": "Converts the decision into halted (gate_type: segmentation) with the review bundle (segmap overlays, consensus diff). Overriding a red segmentation gate is Julian's prerogative only — recorded as a waiver."
+                }
+              ]
+            },
+            {
+              "id": "step_group",
+              "title": "Vision -> SEMANTIC archetype manifest",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_segment"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/segment2manifest.py salonphoto --ns sdp --mixns sdpmix --archetypes",
+                "Run: python3 orchestration/lib/make_overrides.py salonphoto --module salonphoto",
+                "PROBE: test -s projects/salonphoto/workflow-output/component-manifest.json",
+                "PROBE: test -s projects/salonphoto/workflow-output/passthrough-overrides.json",
+                "PROBE: python3 orchestration/probes/archetype-utilization.py salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_model_review",
+              "title": "Model review (scheduled decision point)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_group",
+                "step_zoning"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Review: projects/salonphoto/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and projects/salonphoto/workflow-output/segment/*.segmap.html overlays.",
+                "Cross-check against the ZONING evidence: projects/salonphoto/.reference/declared-components.json (every declared source type mapped or ignored), projects/salonphoto/workflow-output/zone3-salonphoto.json (scopes/records/containment), projects/salonphoto/workflow-output/island-inventory.json (behaviours needing an island).",
+                "Decide: POST /runs/{run_id}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to projects/salonphoto/workflow-output/scope-rules.json + action=apply_and_rerun.",
+                "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
+              ],
+              "max_attempts": 3,
+              "review": true
+            },
+            {
+              "id": "step_naming",
+              "title": "Generic zone/component naming (--apply, future-run manifest)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_model_review"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/name_model.py projects/salonphoto --apply",
+                "PROBE: python3 -c \"import json,sys; d=json.load(open('projects/salonphoto/workflow-output/component-manifest.json')); sys.exit(0 if d.get('components') else 1)\"",
+                "PROBE: test -s projects/salonphoto/workflow-output/naming-proposals.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_extract",
+              "title": "Content-load payload + partition/contribution/component gates",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_naming"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/extract_content.py salonphoto",
+                "Run: python3 orchestration/lib/semanticize_content.py salonphoto --manifest projects/salonphoto/workflow-output/component-manifest.json",
+                "PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/salonphoto.content-load.json')); sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\"",
+                "PROBE: python3 orchestration/probes/reconcile-check.py salonphoto",
+                "PROBE: python3 orchestration/probes/archetype-utilization.py salonphoto",
+                "PROBE: python3 orchestration/probes/inventory-coverage.py salonphoto salonphoto --phase content",
+                "Run: python3 orchestration/probes/partition.py salonphoto || true",
+                "Run: python3 orchestration/probes/contribution.py salonphoto || true",
+                "Run: python3 orchestration/probes/component_coverage.py salonphoto || true"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_compose_gate",
+              "title": "Compose gate (byte-exact vs mirror + side-by-side)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_content_extract"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/compose_probe.py projects/salonphoto || true",
+                "Run: bash orchestration/probes/compose.sh projects/salonphoto || true",
+                "Gate: compose review at projects/salonphoto/workflow-output/compose/compose-review.html"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_model_census",
+              "title": "Corpus census (evidence for the component model)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_extract"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/model_census.py salonphoto",
+                "Run: python3 orchestration/lib/segmap_gallery.py salonphoto",
+                "PROBE: test -s projects/salonphoto/workflow-output/model-census.json",
+                "PROBE: python3 orchestration/probes/census-coverage.py salonphoto",
+                "PROBE: test -s projects/salonphoto/workflow-output/zone-overlay/index.html"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_model_author",
+              "title": "AUTHOR + REVIEW the component model (the contract)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_model_census"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Read projects/salonphoto/workflow-output/model-census.json and representative mirror DOMs; author projects/salonphoto/workflow-output/component-model-review.md (human canon: atoms w/ cta variants, composites w/ FIELD surfaces and VIEW FAMILIES, entity map [nav-reachable=page; card-reached prose=entity; ties->page], chrome, css slots, islands, scope report) + component-model.json (machine twin). Per orchestration/MIGRATION-V3-MODEL-FIRST.md Phase 1. The operator amends and approves — nodeType identifiers freeze at first deploy; the model governs names, fields, views.",
+                "Entity map -> orchestration/content/salonphoto.mainresource.json"
+              ],
+              "max_attempts": 3,
+              "review": true
+            },
+            {
+              "id": "step_model_apply",
+              "title": "Compile the approved model onto the manifest",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_model_author"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/apply_component_model.py salonphoto",
+                "PROBE: test -s projects/salonphoto/workflow-output/component-model.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_cnd",
+              "title": "Emit CND + view plan (wired-only sizing)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_content_extract",
+                "step_compose_gate",
+                "step_model_apply"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/cnd_emit.py projects/salonphoto/workflow-output/component-manifest.json --ns sdp --mixns sdpmix --project salonphoto --out-cnd projects/salonphoto/workflow-output/definitions.cnd --out-views projects/salonphoto/workflow-output/views.json --content-load orchestration/content/salonphoto.content-load.json",
+                "PROBE: test -s projects/salonphoto/workflow-output/definitions.cnd",
+                "PROBE: grep -q \"sdp = \" projects/salonphoto/workflow-output/definitions.cnd",
+                "PROBE: test -s projects/salonphoto/workflow-output/views.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_fidelity_gate",
+              "title": "Fidelity gate (HALT: human reviews review.html)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_cnd"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: node orchestration/lib/reconstruct_probe.mjs projects/salonphoto 10 95 || true",
+                "Gate: present worst pages + semantic share, return status halt."
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_module",
+      "title": "Module (scaffold, assets, CND, components, deploy)",
+      "goal": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
+      "stories": [
+        {
+          "id": "story_module",
+          "title": "Module (scaffold, assets, CND, components, deploy)",
+          "description": "Headless scaffold, asset import, CND merge, components from html-fragments, templates, deploy gate.",
+          "steps": [
+            {
+              "id": "step_namespace_check",
+              "title": "Jackrabbit namespace free/matching",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_fidelity_gate"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/namespace-check.sh sdp 'https://jahia.com/salonphoto/nt/1.0'"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_scaffold",
+              "title": "Headless scaffold (official templates)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_namespace_check"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: bash orchestration/lib/scaffold_module.sh salonphoto salonphoto",
+                "PROBE: test -f projects/salonphoto/package.json"
+              ],
+              "max_attempts": 3,
+              "expected_outputs": {
+                "artifact_0": "projects/salonphoto/package.json"
+              }
+            },
+            {
+              "id": "step_assets",
+              "title": "Mirror assets -> module static/ + head manifests",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_scaffold"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/import_assets.py salonphoto",
+                "PROBE: test -s projects/salonphoto/src/templates/css-manifest.json",
+                "PROBE: test -d projects/salonphoto/static/assets"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_cnd_merge",
+              "title": "Install analyze CND + rule-18 bundles",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_scaffold"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/merge_cnd.py salonphoto --ns sdp --mixns sdpmix",
+                "PROBE: python3 orchestration/probes/model-contract.py --phase cnd projects/salonphoto sdp",
+                "PROBE: bash orchestration/probes/cnd.sh projects/salonphoto sdp",
+                "PROBE: bash orchestration/probes/cnd-patterns.sh projects/salonphoto sdp",
+                "PROBE: bash orchestration/probes/cnd-review.sh projects/salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_bundles",
+              "title": "Editor-UI field labels + tooltips (EN/FR, --apply)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_cnd_merge"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/gen_bundles.py projects/salonphoto --module salonphoto --ns sdp --mixns sdpmix --apply",
+                "PROBE: test -s projects/salonphoto/settings/resources/salonphoto_en.properties",
+                "PROBE: test -s projects/salonphoto/settings/resources/salonphoto_fr.properties",
+                "PROBE: python3 -c \"import sys; g=lambda p:{l.split('=',1)[0].strip() for l in open(p,encoding='utf-8') if l.strip() and not l.startswith('#') and '=' in l}; en=g('projects/salonphoto/settings/resources/salonphoto_en.properties'); fr=g('projects/salonphoto/settings/resources/salonphoto_fr.properties'); sys.exit(0 if en==fr else 1)\""
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_shell_templates",
+              "title": "Agnostic fidelity-shell template set + skeleton views",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_assets",
+                "step_cnd_merge",
+                "step_bundles"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/install_shell_templates.py salonphoto --ns sdp --manifest projects/salonphoto/workflow-output/component-manifest.json",
+                "PROBE: grep -q 'rawHtml' projects/salonphoto/src/components/RawHtml/default.server.tsx",
+                "PROBE: python3 -c \"import json,sys; e=json.load(open('projects/salonphoto/settings/locales/en.json')); f=json.load(open('projects/salonphoto/settings/locales/fr.json')); k=lambda d,p='': set(sum(([k(v,p+n+'.')] and list(k(v,p+n+'.')) if isinstance(v,dict) else [p+n] for n,v in d.items()),[])); sys.exit(0 if k(e)==k(f) and k(e) else 1)\"",
+                "Run: bash orchestration/probes/template-govern.sh projects/salonphoto sdp || true"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_deploy",
+              "title": "Build + deploy to Jahia (deploy gate)",
+              "task_type": "deploy",
+              "agent": "code",
+              "depends_on": [
+                "step_shell_templates"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE[900]: bash orchestration/probes/deploy.sh projects/salonphoto",
+                "PROBE: bash orchestration/probes/namespace-check.sh sdp 'https://jahia.com/salonphoto/nt/1.0'"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_content",
+      "title": "Site + content + publish parity",
+      "goal": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
+      "stories": [
+        {
+          "id": "story_content",
+          "title": "Site + content + publish parity",
+          "description": "Provisioning-API site, MCP content load incl. passthrough, publish parity, editability.",
+          "steps": [
+            {
+              "id": "step_create_site",
+              "title": "Create the site (provisioning API only)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_deploy"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: bash orchestration/lib/create_site.sh salonphoto \"Salon de la Photo (migre)\" salonphoto en,fr",
+                "PROBE: bash orchestration/lib/create_site.sh salonphoto \"Salon de la Photo (migre)\" salonphoto en,fr"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_mcp",
+              "title": "MCP write path up",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_create_site"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/mcp.sh projects/salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_pages",
+              "title": "Create pages from the crawl inventory (en+fr, published)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_mcp"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/create_pages.py salonphoto salonphoto --template basic --locale fr",
+                "PROBE: python3 orchestration/lib/create_pages.py salonphoto salonphoto --check --pre-nav"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_main_resources",
+              "title": "mainResource entities -> contentFolder (+ folder map)",
+              "task_type": "content",
+              "agent": "code",
+              "depends_on": [
+                "step_pages"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/load_main_resources.py salonphoto salonphoto",
+                "PROBE: bash orchestration/probes/mainresource.sh salonphoto salonphoto fr",
+                "PROBE: python3 orchestration/probes/entity-coverage.py salonphoto --expect salonphoto --locale fr"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_nav",
+              "title": "Navigation tree per the SOURCE IA (extracted menu, moves, labels)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_pages"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/extract_nav.py salonphoto --lang fr-FR || true",
+                "PROBE: python3 orchestration/probes/nav-ia.py salonphoto --lang fr-FR",
+                "Run: python3 orchestration/lib/build_nav_tree.py salonphoto salonphoto --locale fr",
+                "Run: python3 orchestration/lib/populate_chrome.py salonphoto salonphoto --locale fr",
+                "PROBE: python3 orchestration/probes/inventory-coverage.py salonphoto salonphoto --phase site",
+                "PROBE: python3 orchestration/probes/chrome-render-check.py salonphoto salonphoto --locale fr",
+                "PROBE: python3 orchestration/probes/cta-link-check.py salonphoto sdp --locale fr",
+                "PROBE: python3 orchestration/probes/dam-ref-check.py salonphoto salonphoto --locale fr",
+                "PROBE: python3 orchestration/probes/link-integrity.py salonphoto salonphoto --locale fr",
+                "PROBE: python3 orchestration/probes/link-census.py salonphoto --lang fr-FR",
+                "PROBE: python3 orchestration/lib/create_pages.py salonphoto salonphoto --check"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_content_load",
+              "title": "Load shells + content via MCP (idempotent clean)",
+              "task_type": "content",
+              "agent": "code",
+              "depends_on": [
+                "step_nav"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/load_content.py salonphoto salonphoto --clean --locale fr",
+                "PROBE: python3 orchestration/lib/create_pages.py salonphoto salonphoto --check",
+                "PROBE: python3 orchestration/probes/clean-render.py salonphoto --model archetype",
+                "PROBE: python3 orchestration/probes/load-parity.py salonphoto salonphoto",
+                "PROBE: python3 orchestration/probes/model-contract.py --phase content salonphoto",
+                "PROBE: bash orchestration/probes/startnode.sh salonphoto salonphoto fr",
+                "Run: python3 orchestration/probes/partition.py salonphoto || true",
+                "Run: python3 orchestration/probes/contribution.py salonphoto || true",
+                "Run: python3 orchestration/probes/component_coverage.py salonphoto || true"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_component_css",
+              "title": "Capture per-component CSS modules from JCR",
+              "task_type": "deploy",
+              "agent": "code",
+              "depends_on": [
+                "step_content_load"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/component_css.py salonphoto salonphoto",
+                "Run: bash orchestration/probes/deploy.sh projects/salonphoto",
+                "PROBE: python3 orchestration/lib/component_css.py salonphoto salonphoto --check"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_publish_parity",
+              "title": "default vs live parity",
+              "task_type": "publish",
+              "agent": "code",
+              "depends_on": [
+                "step_component_css"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/publish-parity.sh projects/salonphoto salonphoto fr"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_edit_frame",
+              "title": "Pages editable in jContent",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_publish_parity"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE: bash orchestration/probes/edit-frame.sh projects/salonphoto salonphoto en"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_editor_surface",
+              "title": "G6 editor surface (forms + item frames)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_edit_frame"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE[900]: python3 orchestration/probes/editor-surface.py salonphoto salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_roundtrip",
+              "title": "G2 contribution round-trip (sentinel edits)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_editor_surface"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE[900]: python3 orchestration/probes/roundtrip.py salonphoto salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_triage",
+              "title": "Pre-triage batch exceptions (DeepSeek classes)",
+              "task_type": "build",
+              "agent": "code",
+              "depends_on": [
+                "step_roundtrip"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: python3 orchestration/lib/triage_exceptions.py projects/salonphoto",
+                "PROBE: test -f projects/salonphoto/workflow-output/exceptions-triage.json"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_exceptions_review",
+              "title": "Batch exceptions review (scheduled decision point)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_triage"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Review: the pre-triaged failure classes (projects/salonphoto/workflow-output/exceptions-triage.json — pattern vs page-specific, per-class counts + suggested actions) alongside the per-page probe results (projects/salonphoto/workflow-output/contribution + partition + publish-parity + roundtrip outputs) — pages that did not fit the frozen profile.",
+                "Decide: POST /runs/{run_id}/steps/step_exceptions_review/decide with action=proceed, OR generalize new pattern-keyed rules into projects/salonphoto/workflow-output/scope-rules.json + action=apply_and_rerun with rerun_from targeting the failing pages' steps.",
+                "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."
+              ],
+              "max_attempts": 3,
+              "review": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "epic_groundtruth",
+      "title": "Ground truth (Jahia live vs source mirror)",
+      "goal": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
+      "stories": [
+        {
+          "id": "story_groundtruth",
+          "title": "Ground truth (Jahia live vs source mirror)",
+          "description": "The P1 exit gate: >=99% render fidelity per page, semantic share reported.",
+          "steps": [
+            {
+              "id": "step_ground_truth",
+              "title": "GROUND-TRUTH gate: Jahia live vs source mirror (HALT)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_exceptions_review"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "Run: bash orchestration/probes/groundtruth.sh salonphoto salonphoto 99 || true",
+                "Gate: present groundtruth/review.html per-page fidelity, return status halt."
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_scorecard",
+              "title": "Scorecard: pixel + junk + IA + completeness (BLOCKING)",
+              "task_type": "verify",
+              "agent": "code",
+              "depends_on": [
+                "step_ground_truth"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
+                "PROBE[900]: python3 orchestration/probes/scorecard.py salonphoto salonphoto --pixel-floor 75"
+              ],
+              "max_attempts": 3
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -139,14 +139,32 @@ def walk(node):
         yield from walk(k)
 
 def load(proj):
-    inv = json.load(open(f"{REPO}/projects/{proj}/workflow-output/page-inventory.json"))
-    pages = []
+    """(slug, body) per page, read from the SCOPED MIRROR when one exists.
+
+    scope_apply.py makes local-mirror/ the scoped reference every downstream step
+    consumes; identification must read the same bytes. Reading the raw crawl cache
+    instead let excluded junk BE the model: on salonphoto the OneTrust consent SDK
+    (27/27 pages) produced 20+ of 35 ABSOLUTE keys — Ot Grp Hdr1, Ot Sdk Row,
+    Ot Pc Scrollbar, Dialog — i.e. the zoning map's chrome tier was mostly a cookie
+    banner. Falls back to `cachedAt` when no mirror has been built yet; the mode is
+    recorded on `load.source` and stamped into the emitted JSON (gated by
+    probes/zone-source.py)."""
+    base = f"{REPO}/projects/{proj}"
+    inv = json.load(open(f"{base}/workflow-output/page-inventory.json"))
+    mirror = f"{base}/workflow-output/local-mirror"
+    pages, modes = [], set()
     for pg in inv["pages"]:
-        p = os.path.join(REPO, "projects", proj, pg.get("cachedAt", ""))
-        if pg.get("cachedAt") and os.path.exists(p):
-            body = BeautifulSoup(open(p, encoding="utf-8", errors="replace").read(), "lxml").body
-            if body:
-                pages.append((pg["slug"], body))
+        cand = [(os.path.join(mirror, f"{pg.get('slug', '')}.html"), "scoped-mirror"),
+                (os.path.join(base, pg.get("cachedAt", "")), "raw-cache")]
+        for p, mode in cand:
+            if pg.get("slug") and os.path.exists(p) and os.path.isfile(p):
+                body = BeautifulSoup(open(p, encoding="utf-8", errors="replace").read(),
+                                     "lxml").body
+                if body:
+                    pages.append((pg["slug"], body))
+                    modes.add(mode)
+                break
+    load.source = modes.pop() if len(modes) == 1 else ("mixed" if modes else "none")
     return pages
 
 def new_agg():
@@ -508,6 +526,7 @@ def emit_json(R, path):
            "coverage": round(100 * R["cov"] / R["tot"]), "tiers": dict(R["tiers"]),
            "ntemplates": len(R["clusters"]), "templates": [], "scopes": {}}
     slugs = [s for s, _ in load(R["proj"])]
+    out["source"] = getattr(load, "source", "unknown")
     out["templates"] = [sorted(slugs[m] for m in mem) for mem in R["clusters"]]
     for sc in ("ABSOLUTE", "TEMPLATE", "COMPONENT", "RECORD"):
         ks = [k for k in agg if agg[k]["scope"] == sc and isa(k) and is_toplevel(k)]

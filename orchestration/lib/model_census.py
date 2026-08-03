@@ -3,12 +3,22 @@
 (MIGRATION-V3 Phase 1). Summarizes the mirror so the model author (Claude,
 operator-reviewed) judges from evidence, never from thresholds:
 
-  * top-level section FAMILIES by anatomy signature (grid / carousel /
-    collapsible / table / aside / plain) with a sample each
+  * top-level BAND families by anatomy signature (grid / carousel /
+    collapsible / table / aside / repeat / plain) with a sample each
   * ENTITY candidates: uncrawled internal link targets clustered by prefix
     + crawled leaf clusters reached from cards
   * CTA anatomies (button-ish vs text-arrow vs icon)
   * chrome regions present
+
+BAND BOUNDARY (2026-08-03): a band was `main.find_all("section")`, which is a
+markup dialect, not a universal. Sitecore SXA declares every band as
+`div.component <type>` and emits ZERO <section> elements, so on salonphoto the
+census reported **0 families for a 17-component page** — the evidence artifact
+the model author reads was empty, silently. The boundary is now, in order:
+the source's OWN declaration (`div.component` / `[data-component]`, top-level
+only), then `<section>`, then `main`'s top-level children; the mode used is
+reported as `boundary` so the artifact says how it measured. `probes/
+census-coverage.py` fails when any captured page yields no band.
 
 Writes projects/<p>/workflow-output/model-census.json and prints the digest.
 Usage: model_census.py <project>
@@ -22,6 +32,49 @@ from collections import Counter
 from bs4 import BeautifulSoup
 
 
+DECLARED = "div.component, [data-component], [data-testid]"
+LAYOUTISH = re.compile(
+    r"^(component-content|container|container-fluid|container-bp|row|col|col-\w+|"
+    r"m[btxysep]?-\d+|p[btxysep]?-\d+|g[xy]?-\d+|d-\w+|text-\w+|w-\d+|h-\d+|bg-\w+|"
+    r"height0|px-0|py-0|clearfix|active|show|first|last|odd|even)$")
+
+
+def band_name(el):
+    """The source's own name for a band, else its tag."""
+    if el.get("data-component"):
+        return str(el["data-component"])
+    toks = [t for t in (el.get("class") or [])
+            if t not in ("component", "component-content") and not LAYOUTISH.match(t)]
+    return toks[0] if toks else el.name
+
+
+def bands(main_el):
+    """(units, mode) — top-level content bands under the main region."""
+    dec = [d for d in main_el.select(DECLARED)
+           if not any(a is not main_el and (
+               "component" in (a.get("class") or []) or a.get("data-component"))
+               for a in d.parents)]
+    if dec:
+        return dec, "declared"
+    secs = [s for s in main_el.find_all("section") if not s.find_parent("section")]
+    if secs:
+        return secs, "section"
+    return [d for d in main_el.find_all(["div", "article"], recursive=False)], "toplevel-div"
+
+
+def repeats(el):
+    """max count of same-signature sibling children (the generic RECORD signal)."""
+    best = 0
+    for parent in [el] + el.find_all(True, limit=200):
+        sig = Counter()
+        for k in parent.find_all(True, recursive=False):
+            cls = " ".join(c for c in (k.get("class") or []) if not LAYOUTISH.match(c))
+            sig[(k.name, cls)] += 1
+        if sig:
+            best = max(best, max(sig.values()))
+    return best
+
+
 def main():
     p = sys.argv[1]
     mirror = f"projects/{p}/workflow-output/local-mirror"
@@ -33,6 +86,8 @@ def main():
     except (OSError, ValueError):
         inv = set()
     fams, samples = Counter(), {}
+    types, type_sig = Counter(), {}
+    modes, per_page = Counter(), {}
     cta_anat = Counter()
     uncrawled = Counter()
     files = sorted(f for f in os.listdir(mirror) if f.endswith(".html"))
@@ -42,25 +97,36 @@ def main():
         main_el = soup.find("main") or soup.body
         if main_el is None:
             continue
-        for sec in main_el.find_all("section"):
-            if sec.find_parent("section"):
-                continue
+        units, mode = bands(main_el)
+        modes[mode] += 1
+        per_page[fn[:-5]] = len(units)
+        for sec in units:
             parts = []
-            if sec.select_one('[data-slot="carousel"], [class*="swiper"], [class*="slider"]'):
+            if sec.select_one('[data-slot="carousel"], [class*="swiper"], [class*="slider"], '
+                              '[class*="carousel"], ul.slides, [class*="owl-"], '
+                              '[class*="splide"], [class*="glide"]'):
                 parts.append("carousel")
-            if sec.select_one('[data-state], [data-slot="collapsible"], details'):
+            if sec.select_one('[data-state], [data-slot="collapsible"], details, '
+                              '[data-toggle="collapse"], [data-bs-toggle="collapse"], '
+                              '[class*="accordion"], [role="tablist"], [class*="nav-tabs"]'):
                 parts.append("collapsible")
-            if sec.select_one('[class*="grid-cols"], [class*="grid "], [class*=" grid"]'):
+            if sec.select_one('[class*="grid-cols"], [class*="grid "], [class*=" grid"], '
+                              '[class*="-grid"]'):
                 parts.append("grid")
             if sec.find("aside") or sec.find_parent("aside"):
                 parts.append("aside")
             if sec.find("table"):
                 parts.append("table")
+            if repeats(sec) >= 3 and "grid" not in parts and "carousel" not in parts:
+                parts.append("repeat")
             sig = "+".join(parts) or "plain"
             fams[sig] += 1
+            name = band_name(sec)
+            types[name] += 1
+            type_sig.setdefault(name, sig)
             if sig not in samples:
                 h = sec.find(["h1", "h2", "h3"])
-                samples[sig] = {"page": fn[:-5],
+                samples[sig] = {"page": fn[:-5], "band": name,
                                 "heading": (h.get_text(strip=True)[:60] if h else ""),
                                 "imgs": len(sec.find_all("img")),
                                 "links": len(sec.find_all("a"))}
@@ -80,8 +146,12 @@ def main():
                     uncrawled["/".join(h.strip("/").split("/")[:-1]) or "(root)"] += 1
     out = {
         "pages": len(files),
+        "boundary": dict(modes),
+        "bandsPerPage": per_page,
         "sectionFamilies": [{"signature": k, "count": v, "sample": samples.get(k)}
                             for k, v in fams.most_common()],
+        "bandTypes": [{"band": k, "count": v, "signature": type_sig.get(k)}
+                      for k, v in types.most_common()],
         "ctaAnatomies": dict(cta_anat),
         "uncrawledPrefixes": [{"prefix": k, "links": v}
                               for k, v in uncrawled.most_common(15)],

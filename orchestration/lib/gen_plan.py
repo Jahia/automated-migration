@@ -65,6 +65,10 @@ def build_plan(p):
     # demanding FR there checks the wrong thing). Defaults to the primary "en".
     CLOC = (p.get("content_locales") or "en").strip()
     PRIMARY_LOCALE = CLOC.split(",")[0]
+    # SOURCE locale PATH PREFIX (e.g. fr-FR for /fr-FR/salon) — a capture
+    # concern, distinct from CONTENT_LOCALES (what we load into Jahia). Empty
+    # for sources served at the root.
+    SLANG = f" --lang {p['source_lang']}" if p.get("source_lang") else ""
     PP = f"projects/{P}"
     URI = f"https://jahia.com/{P}/nt/1.0"
     common = {"project": P, "project_path": PP, "namespace": NS,
@@ -80,7 +84,19 @@ def build_plan(p):
     # pages' specific content as ONE anonymous rawHtml blob each (signature
     # matching only types recurring components) — the fragment-soup failure the
     # component_coverage gate now also blocks downstream.
-    SEG_PROBE = (f"PROBE[2700]: node orchestration/lib/segment_probe.mjs {PP} "
+    # BUDGET (measured 2026-08-03, salonphoto/Qwen3.5-9B): ~5.6 min per page for
+    # --consensus --stability 3 (3 vision passes/page). A constant 2700s therefore
+    # covers only ~8 pages: on a 27-page corpus the probe timed out twice and parked
+    # the run at decision_pending with 8/27 segmented. segment_probe is INCREMENTAL
+    # (a retry resumes, never re-bills), so the budget must simply be large enough for
+    # the whole corpus: 420s/page over the crawl inventory, floor 2700s, ceiling 4h.
+    SEG_BUDGET = 2700
+    try:
+        _inv = json.load(open(f"{PP}/workflow-output/page-inventory.json"))
+        SEG_BUDGET = max(2700, min(14400, 420 * len(_inv.get("pages") or [])))
+    except (OSError, ValueError):
+        pass
+    SEG_PROBE = (f"PROBE[{SEG_BUDGET}]: node orchestration/lib/segment_probe.mjs {PP} "
                  f"--consensus --stability 3 --all-pages")
 
     # heuristic-arm criteria — the SAME lines gen_plan emits for
@@ -148,10 +164,14 @@ def build_plan(p):
              # source NAVIGATION — a BFS --max-pages sample is the twice-burned
              # 18-random-pages failure. The archetype model crawls the menu;
              # the legacy skeleton path keeps the bounded BFS.
-             [(f"Run: python3 orchestration/lib/nav_scope_crawl.py {PP} {URL} --rate-delay 2 --max-asset-size 1"
+             # --lang: a locale-PREFIXED source (/fr-FR/…) must declare it, or
+             # every slug wears the prefix and home is slugged `fr-FR` —
+             # capture-slugs.py is the gate on that identity defect.
+             [(f"Run: python3 orchestration/lib/nav_scope_crawl.py {PP} {URL}{SLANG} --rate-delay 2 --max-asset-size 1"
                if ARCH else
-               f"Run: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2 --rate-delay 2 --max-asset-size 1"),
-              f"PROBE: test -s {PP}/workflow-output/page-inventory.json"],
+               f"Run: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2{SLANG} --rate-delay 2 --max-asset-size 1"),
+              f"PROBE: test -s {PP}/workflow-output/page-inventory.json",
+              f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}"],
              deps=["step_connect"]),
         step("step_localize", "Local mirror + offline mirror gate", "build",
              [f"Run: python3 orchestration/lib/localize_site.py {PP} --max-asset-size 15",
@@ -167,9 +187,43 @@ def build_plan(p):
         step("step_semantic", "Deterministic candidates + partitions", "build",
              [f"Run: python3 orchestration/lib/scope_apply.py {PP}",
               f"Run: python3 orchestration/lib/semantic_extract.py {PP}",
+              # the scoped mirror must not phone home: trackers/chatbots/beacons
+              # that survive scoping make the reviewed mirror behave unlike the
+              # migrated site (Cloudflare RUM + chatbase 404s read as a WAF block,
+              # 2026-08-03). Kept embeds are declared in scope-rules keptEmbeds.
+              f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}",
               f"PROBE: test -s {PP}/workflow-output/semantic-candidates.json",
               f"PROBE: test -s {PP}/workflow-output/semantic-templates.json"],
              deps=["step_localize"]),
+        # ── ZONING (MIGRATION-V3 Phase 1 evidence, ARCH only) ──────────────
+        # Deterministic identification BEFORE any paid segmentation, on the
+        # SCOPED mirror: (1) the source's own component declaration when its CMS
+        # has one (SXA declares every boundary + field — the 14-of-42 drop is
+        # impossible from the declaration), (2) zone_detect's fine-signal scopes
+        # (ABSOLUTE/TEMPLATE/COMPONENT/RECORD + containment + records),
+        # (3) the interactive-behaviour census (which captured behaviours need a
+        # client island, which are accepted static). These are the artifacts the
+        # operator reads at the model gate, and the cross-check that segmentation
+        # dropped nothing.
+        *([step("step_zoning", "ZONING: declared inventory + fine-signal zones + islands",
+                "build",
+                [f"Run: python3 orchestration/lib/source_detect.py {P}",
+                 f"Run: python3 orchestration/lib/declared_inventory.py {P}",
+                 f"Run: ZONE3_JSON_DIR={PP}/workflow-output python3 orchestration/lib/zone_detect.py {P}",
+                 f"Run: python3 orchestration/lib/island_probe.py {P}",
+                 # ENTITY COMPLETENESS: the menu gives the IA, the SITEMAP gives the
+                 # full URL inventory. Without it a listing's page-one sample IS the
+                 # migration (salonphoto: 9 linked article details vs 57 published,
+                 # + 7 press releases linked from nowhere but the footer).
+                 f"Run: python3 orchestration/lib/sitemap_enumerate.py {P}{SLANG} || true",
+                 # identification must read the bytes we declared in scope
+                 f"PROBE: python3 orchestration/probes/zone-source.py {P}",
+                 f"PROBE: test -s {PP}/workflow-output/island-inventory.json",
+                 f"PROBE: test -s {PP}/.reference/declared-components.json",
+                 # every published URL is a captured page, a declared entity prefix,
+                 # a declared page-to-crawl, or an accepted target with a reason
+                 f"PROBE: python3 orchestration/probes/entity-coverage.py {P}"],
+                deps=["step_semantic"])] if ARCH else []),
         # component model: VISION segmentation is the shipping default (the P2
         # A/B winner judged by the ground-truth gate); --segmentation heuristic
         # keeps the LLM-grouping arm for comparisons. The vision step keeps the
@@ -207,9 +261,10 @@ def build_plan(p):
         # emit pattern-keyed scope rules or proceed. Reached ALWAYS.
         review_step("step_model_review", "Model review (scheduled decision point)",
                     [f"Review: {PP}/workflow-output/component-manifest.json (names, grouping altitude, chrome vs content) and {PP}/workflow-output/segment/*.segmap.html overlays.",
+                     f"Cross-check against the ZONING evidence: {PP}/.reference/declared-components.json (every declared source type mapped or ignored), {PP}/workflow-output/zone3-{P}.json (scopes/records/containment), {PP}/workflow-output/island-inventory.json (behaviours needing an island).",
                      f"Decide: POST /runs/{{run_id}}/steps/step_model_review/decide with action=proceed, OR rules (exclude / force_passthrough, pattern-keyed CSS selectors — never page URLs) appended to {PP}/workflow-output/scope-rules.json + action=apply_and_rerun.",
                      "Gate: scheduled decision point — the engine pauses (decision_pending); this step is never sent to an agent."],
-                    deps=["step_group"]),
+                    deps=["step_group"] + (["step_zoning"] if ARCH else [])),
         # P5.6: generic, CMS-reusable NAMING of zones/components (metadata only,
         # never site content) — DeepSeek proposes clean names + near-dupe merges
         # and REWRITES the manifest (--apply) BEFORE extraction/CND, so the type
@@ -284,6 +339,7 @@ def build_plan(p):
                  # the v3 boundary evidence is the segmap gallery (2026-07-23: 404'd)
                  f"Run: python3 orchestration/lib/segmap_gallery.py {P}",
                  f"PROBE: test -s {PP}/workflow-output/model-census.json",
+                 f"PROBE: python3 orchestration/probes/census-coverage.py {P}",
                  f"PROBE: test -s {PP}/workflow-output/zone-overlay/index.html"],
                 deps=["step_content_extract"]),
            review_step("step_model_author",
@@ -424,7 +480,8 @@ def build_plan(p):
                 [f"Run: python3 orchestration/lib/load_main_resources.py {P} {SITE}",
                  # producing gate: every declared folder exists and holds >= 1
                  # node of its type; no mainResource node outside a folder
-                 f"PROBE: bash orchestration/probes/mainresource.sh {P} {SITE} {PRIMARY_LOCALE}"],
+                 f"PROBE: bash orchestration/probes/mainresource.sh {P} {SITE} {PRIMARY_LOCALE}",
+                 f"PROBE: python3 orchestration/probes/entity-coverage.py {P} --expect {SITE} --locale {PRIMARY_LOCALE}"],
                 deps=["step_pages"])]
           if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
@@ -437,7 +494,11 @@ def build_plan(p):
              # extract_nav parses the captured nav (astro-island navItems or the
              # nav DOM) into the sitemap + clean labels; the crawl-URL hierarchy
              # stays as build_nav_tree's fallback when no nav is extractable.
-             [f"Run: python3 orchestration/lib/extract_nav.py {P} || true",
+             [f"Run: python3 orchestration/lib/extract_nav.py {P}{SLANG} || true",
+              # IA gate BEFORE the tree is built from it: non-empty sitemap, no
+              # locale-drifted leaf, a label per leaf, every requested menu page
+              # actually captured (probes/nav-ia.py)
+              f"PROBE: python3 orchestration/probes/nav-ia.py {P}{SLANG}",
               f"Run: python3 orchestration/lib/build_nav_tree.py {P} {SITE} --locale {PRIMARY_LOCALE}",
               # chrome as EDITABLE content: logo + top links on siteHeader,
               # footer link columns + copyright (from the captured source chrome)
@@ -459,6 +520,12 @@ def build_plan(p):
               # (page or entity) must point at it (locale-less sources never
               # rewired ANY markup anchor, 2026-07-21)
               *([f"PROBE: python3 orchestration/probes/link-integrity.py {P} {SITE} --locale {PRIMARY_LOCALE}"] if ARCH else []),
+              # LINK CENSUS (2026-08-03): every internal link target must be a
+              # captured page, a declared entity prefix, a declared page-to-crawl,
+              # or an accepted out-of-scope target. link-integrity only checks
+              # targets that WERE migrated, so a never-modelled target (the home
+              # hero's third ticketing URL, 33 catalogue details) passed silently.
+              *([f"PROBE: python3 orchestration/probes/link-census.py {P}{SLANG}"] if ARCH else []),
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
@@ -611,7 +678,17 @@ def main():
                     help="SEMANTIC authoring model (redesign §10): archetype manifest + "
                          "semantic CND/views + content→field mapper; fidelity gates demote "
                          "to advisory, cnd-review becomes blocking")
-    ap.add_argument("--repo-dir", default=".")
+    # repo_dir MUST be absolute: the engine resolves every probe's cwd from it, and
+    # a relative "." resolves against the ORCHESTRATOR's cwd, not the harness root —
+    # the engine then executes 0 commands and every step fails "retries_exhausted"
+    # with no probe output at all (salonphoto run_1785743247256, 2026-08-03).
+    ap.add_argument("--repo-dir",
+                    default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+    ap.add_argument("--source-lang", default="",
+                    help="source locale PATH PREFIX (e.g. fr-FR for "
+                         "https://site/fr-FR/…): stripped from slugs by the "
+                         "crawler and asserted by probes/capture-slugs.py. "
+                         "Leave empty for a root-served source")
     ap.add_argument("--content-locales", default="en",
                     help="CSV of locales content is LOADED in (load_content --locale + "
                          "publish-parity scope). A source-faithful migration loads only "
@@ -628,6 +705,7 @@ def main():
         "max_pages": a.max_pages, "threshold": a.threshold,
         "per_cluster": a.per_cluster,
         "segmentation": a.segmentation,
+        "source_lang": a.source_lang,
         "content_locales": a.content_locales,
         "model": a.model, "repo_dir": a.repo_dir,
     }

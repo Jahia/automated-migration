@@ -17,7 +17,14 @@ rebuild). This step:
 Fallback honesty: when no menu is extractable, it FAILS loudly with the
 evidence (a menu-less site needs an adapter, not a silent BFS sample).
 
-Usage: nav_scope_crawl.py <project_path> <url> [--rate-delay 2] [--max-asset-size 1]
+Locale-prefixed sources (`/fr-FR/...`, `/en-us/...`) MUST pass `--lang`: it is
+forwarded to crawl-site.py, which strips the prefix from every slug and filters
+foreign-locale URLs. Without it the start page is slugged `fr-FR` instead of
+`home` and every page carries the prefix — create_pages then builds a page tree
+rooted in a bogus `fr-FR` node (gated by probes/capture-slugs.py).
+
+Usage: nav_scope_crawl.py <project_path> <url> [--lang fr-FR] [--rate-delay 2]
+                          [--max-asset-size 1]
 """
 import argparse
 import json
@@ -44,15 +51,20 @@ def main():
     ap.add_argument("url")
     ap.add_argument("--rate-delay", default="2")
     ap.add_argument("--max-asset-size", default="1")
+    ap.add_argument("--lang", default="",
+                    help="source locale path prefix (e.g. fr-FR) — stripped from "
+                         "slugs and used to filter foreign-locale URLs")
     a = ap.parse_args()
     pp = a.project_path.rstrip("/")
     project = pp.split("/")[-1]
     wo = f"{pp}/workflow-output"
+    lang = ["--lang", a.lang] if a.lang else []
 
     # 1. seed: the start page only (gives the menu DOM)
     sh([sys.executable, os.path.join(HERE, "crawl-site.py"), pp, a.url,
         "--max-pages", "1", "--depth", "0",
-        "--rate-delay", a.rate_delay, "--max-asset-size", a.max_asset_size])
+        *lang, "--rate-delay", a.rate_delay,
+        "--max-asset-size", a.max_asset_size])
     sh([sys.executable, os.path.join(HERE, "localize_site.py"), pp,
         "--max-asset-size", "15"])
 
@@ -97,7 +109,8 @@ def main():
     # 4. the real crawl: exactly the menu's pages
     sh([sys.executable, os.path.join(HERE, "crawl-site.py"), pp, a.url,
         "--url-list", lst, "--merge-inventory",
-        "--rate-delay", a.rate_delay, "--max-asset-size", a.max_asset_size])
+        *lang, "--rate-delay", a.rate_delay,
+        "--max-asset-size", a.max_asset_size])
     print("nav_scope_crawl: done")
 
 
