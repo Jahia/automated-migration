@@ -1772,6 +1772,46 @@ def main():
             if has_body:
                 return _arch_nt.get("richTextSection")
             return None
+        def _anatomy_type(inst, band_no):
+            """Shape-derived nodeType that does NOT depend on how the source NAMES
+            its fields — the declared-arm counterpart of _structural_type.
+
+            _structural_type judges `fields['title']` / `fields['body']`, which only
+            exist once content has been mapped onto the archetype surface. A declared
+            source's instances arrive keyed by the SOURCE's own field names (SXA:
+            content / description / heading / titre), so every test there returned
+            false and typing fell through to the NAME bridge — collapsing a whole
+            catch-all type onto one archetype (measured: SXA `content`, 122 instances
+            and six generic slots, took 152 of 213 bands onto richTextSection, 71%,
+            tripping archetype-utilization's 50% concentration ceiling).
+
+            The anatomy is the same in any naming scheme: how much prose, is there an
+            image, is there a link, how many children. Measured on those same 122
+            instances the shape splits them 16 image+prose / 34 prose / 6 short+link /
+            66 short-or-nested — four components wearing one source name."""
+            if band_no == 0 or inst.get("parent") is not None:
+                return None
+            f = inst.get("fields") or {}
+            kids = inst.get("children") or []
+            sk = inst.get("skeleton") or ""
+            texts = [_visible(v) for v in f.values() if isinstance(v, str)]
+            prose = max((len(t) for t in texts), default=0)
+            short = any(0 < len(t) < 120 for t in texts)
+            has_media = (bool(inst.get("media")) or bool(inst.get("images"))
+                         or "{{media:" in sk or "<img" in sk or bool(inst.get("imgOrig")))
+            has_link = bool(inst.get("link")) or bool(inst.get("links"))
+            if len(kids) >= 3:
+                return _arch_nt.get("cardGrid")
+            if has_media and prose >= 120:
+                return _arch_nt.get("mediaText")
+            if prose >= 120:
+                return _arch_nt.get("richTextSection")
+            if short and has_link:
+                return _arch_nt.get("banner")
+            if has_media and short:
+                return _arch_nt.get("mediaText")
+            return None
+
         transformed = []                       # (keep: bool, instance | None)
         for _oi, inst in enumerate(page.get("instances", [])):
             if inst.get("area"):
@@ -1862,8 +1902,12 @@ def main():
             # judge than a generic role key: cards -> cardGrid, image beside
             # prose -> mediaText, title+link w/o media -> banner. Position 0
             # keeps its role/vision typing (a real hero leads the page).
-            node = _vision_node(inst) or _structural_type(inst, _band_no) \
-                or itm.get((inst.get("type") or "").lower())
+            # ANATOMY before the NAME BRIDGE (2026-08-03): a declared source's
+            # catch-all type carries several different components under one name, so
+            # the instance's own shape must decide before itm's name->type map does.
+            node = (_vision_node(inst) or _structural_type(inst, _band_no)
+                    or _anatomy_type(inst, _band_no)
+                    or itm.get((inst.get("type") or "").lower()))
             # ANATOMY override (2026-07-24): a mid-page band typed hero/banner
             # that carries an image AND paragraph-length prose is a media-text
             # row whatever the vision called it ('Call to Action' on

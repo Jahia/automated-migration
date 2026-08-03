@@ -237,6 +237,40 @@ def match_chrome_unsegmented(chrome_index, mirror_soup):
     return out
 
 
+def resolve_declared(mirror_soup):
+    """The SOURCE'S OWN declared component roots -> [(declared_type_name, el)].
+
+    Same contract as resolve_segmented, boundaries from the DECLARATION instead of
+    from vision: a CMS that marks every component in the DOM (SXA `div.component
+    <type>`, an explicit `data-component`) has already answered the question vision is
+    asked to guess. Top-level only (a declared component inside another is that one's
+    item) and in document order, so the promoted regions follow the page and the
+    byte-exact split downstream is unaffected.
+
+    This is what lets the declared arm reuse the ENTIRE promotion path — decompose,
+    skeleton, self-check, verbatim fallback — rather than growing a second one."""
+    body = mirror_soup.find("main") or mirror_soup.body or mirror_soup
+    LAYOUT = re.compile(
+        r"^(component|component-content|container|container-fluid|container-bp|row|col|"
+        r"col-\w+|m[btxysep]?-\d+|p[btxysep]?-\d+|g[xy]?-\d+|d-\w+|text-\w+|w-\d+|"
+        r"h-\d+|bg-\w+|height0|px-0|py-0|clearfix|active|show|first|last|odd|even)$")
+
+    def declared_name(el):
+        if el.get("data-component"):
+            return str(el["data-component"])
+        toks = [t for t in (el.get("class") or []) if not LAYOUT.match(t)]
+        return toks[0] if toks else el.name
+
+    out = []
+    for el in body.select("div.component, [data-component]"):
+        if any(a is not body and ("component" in (a.get("class") or [])
+                                  or a.get("data-component"))
+               for a in el.parents):
+            continue                      # nested: an item of its container
+        out.append((declared_name(el), el))
+    return out
+
+
 def resolve_segmented(project, slug, mirror_soup):
     """For a page that HAS its own passing segmentation, resolve every non-chrome
     vision component root into the mirror DOM. Returns an ordered, de-duplicated,

@@ -716,6 +716,7 @@ def semantic_page(txt, slug, overrides=None, manifest=None):
     # declares a childType (else the loader could not create them and the
     # unresolved {{child:N}} markers would break fidelity)
     itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
+    # boundaries from the source's DECLARATION when the manifest came from it
     container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
                        if c.get("isContainer") and c.get("childType")}
 
@@ -1039,6 +1040,8 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
                            os.environ.get("EXTRACT_NO_LIBRARY_KINDS", "").split(",")
                            if s.strip()])
     itm = {k.lower(): v for k, v in ((manifest or {}).get("instanceTypeMap") or {}).items()}
+    # boundaries from the source's DECLARATION when the manifest came from it
+    DECLARED_BOUNDARIES = "declared2manifest" in ((manifest or {}).get("generatedFrom") or "")
     container_types = {c["nodeType"] for c in (manifest or {}).get("components", [])
                        if c.get("isContainer") and c.get("childType")}
     # P6.3: the project content namespace (asr) — the library recognizer emits
@@ -1228,6 +1231,12 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
         vroots = VE.resolve_segmented(project, slug, mir)
         chrome = VE.resolve_chrome(project, slug, mir)
         match_mode = "own-segmentation"
+    elif DECLARED_BOUNDARIES:
+        # the manifest came from the source's DECLARATION (declared2manifest), so the
+        # boundaries do too — no vision artifacts exist and none are needed
+        vroots = VE.resolve_declared(mir)
+        chrome = VE.resolve_chrome(project, slug, mir)
+        match_mode = "declared"
     else:
         vroots = VE.match_unsegmented(
             {k: v for k, v in sig_index.items() if k != "_chrome"}, mir)
@@ -1624,7 +1633,20 @@ def main():
     # no per-site config. force_sxa (legacy) always wins.
     use_vision = False
     sig_index = {}
-    if not force_sxa and manifest:
+    # DECLARED manifest (2026-08-03): when declared2manifest built the model from the
+    # source's own declaration, extraction takes the SAME promotion path the vision
+    # adapter uses — decompose, skeleton, self-check, verbatim fallback — with
+    # boundaries resolved from the declaration (VE.resolve_declared) instead of from
+    # segmentation artifacts, which do not exist on this arm. The v1 --adapter sxa path
+    # emits flat text with no skeleton, and semanticize drops every such instance as
+    # `dropped-empty` (measured: 556 instances in, 0 out, all 27 pages emptied).
+    declared_manifest = bool(manifest) and "declared2manifest" in (
+        (manifest or {}).get("generatedFrom") or "")
+    if declared_manifest and not force_sxa:
+        use_vision = True
+        print("extract_content: manifest built from the SOURCE DECLARATION -> "
+              "promotion path with DECLARED boundaries (no vision artifacts needed)")
+    if not force_sxa and manifest and not declared_manifest:
         try:
             import vision_extract as VE
             if VE.has_vision_segmentations(project):
