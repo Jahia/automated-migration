@@ -1,3 +1,0 @@
-[lsp:socialLink] > jnt:content, lspmix:component
- - platform (string, choicelist) = 'instagram' autocreated < 'instagram', 'facebook', 'linkedin', 'x', 'youtube'
- - j:linkType (string, choicelist[linkTypeInitializer]) = 'external' autocreated indexed=no

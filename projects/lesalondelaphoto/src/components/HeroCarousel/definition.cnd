@@ -1,4 +1,0 @@
-[lsp:heroCarousel] > jnt:content, lspmix:pageComponent
- - autoplay (boolean) = 'true' autocreated
- - interval (long)
- + * (lsp:hero)

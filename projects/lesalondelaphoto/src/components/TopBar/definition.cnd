@@ -1,4 +1,0 @@
-[lsp:topBar] > jnt:content, lspmix:pageComponent
- - hashtag (string) i18n
- + * (lsp:socialLink)
- + * (lsp:ctaButton)

@@ -1,7 +1,0 @@
-[lsp:dateLieuHoraires] > jnt:content, lspmix:pageComponent
- - titre1 (string) i18n mandatory
- - description1 (string, richtext) i18n mandatory
- - titre2 (string) i18n mandatory
- - description2 (string, richtext) i18n mandatory
- - titre3 (string) i18n mandatory
- - description3 (string, richtext) i18n mandatory

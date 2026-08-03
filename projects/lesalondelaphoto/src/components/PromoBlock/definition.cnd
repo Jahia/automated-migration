@@ -1,4 +1,0 @@
-[lsp:promoBlock] > jnt:content, lspmix:pageComponent, lspmix:cta
- - heading (string) i18n mandatory
- - description (string) i18n
- + * (lsp:ctaButton)

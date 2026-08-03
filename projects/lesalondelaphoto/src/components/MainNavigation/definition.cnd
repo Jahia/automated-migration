@@ -1,2 +1,0 @@
-[lsp:mainNav] > jnt:content, lspmix:pageComponent, lspmix:media, jmix:hiddenType
- - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no

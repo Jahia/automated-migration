@@ -1,3 +1,0 @@
-[lsp:accordion] > jnt:content, lspmix:pageComponent
- - heading (string) i18n
- + * (lsp:accordionItem)

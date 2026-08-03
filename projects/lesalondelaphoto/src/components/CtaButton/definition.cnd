@@ -1,3 +1,0 @@
-[lsp:ctaButton] > jnt:content, lspmix:component
-  - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
-  - ctaLabel (string) i18n

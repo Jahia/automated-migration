@@ -1,5 +1,0 @@
-[lsp:pageHeader] > jnt:content, lspmix:pageComponent
- - titre (string) i18n mandatory
- - sousTitre (string) i18n
- - arriereTitre (string) i18n
- - datePublication (date)

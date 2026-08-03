@@ -1,4 +1,0 @@
-[lsp:externalEmbed] > jnt:content, lspmix:pageComponent
- - j:linkType (string, choicelist[linkTypeInitializer]) = 'external' autocreated mandatory indexed=no
- - embedTitle (string) i18n mandatory
- - embedHeight (long)

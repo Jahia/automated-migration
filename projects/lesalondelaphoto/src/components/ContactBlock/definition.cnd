@@ -1,6 +1,0 @@
-[lsp:contactBlock] > jnt:content, lspmix:pageComponent
- - prenomNom (string) i18n mandatory
- - fonction (string) i18n
- - email (string) i18n
- - telephone (string) i18n
- - j:linkType (string, choicelist[linkTypeInitializer]) = 'none' autocreated indexed=no
