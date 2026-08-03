@@ -520,6 +520,7 @@
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/merge_cnd.py salonphoto --ns sdp --mixns sdpmix",
                 "PROBE: python3 orchestration/probes/model-contract.py --phase cnd projects/salonphoto sdp",
+                "PROBE: python3 orchestration/probes/mainresource-model.py --phase cnd projects/salonphoto sdp",
                 "PROBE: bash orchestration/probes/cnd.sh projects/salonphoto sdp",
                 "PROBE: bash orchestration/probes/cnd-patterns.sh projects/salonphoto sdp",
                 "PROBE: bash orchestration/probes/cnd-review.sh projects/salonphoto"
@@ -654,9 +655,9 @@
               "max_attempts": 3
             },
             {
-              "id": "step_main_resources",
-              "title": "mainResource entities -> contentFolder (+ folder map)",
-              "task_type": "content",
+              "id": "step_entity_crawl",
+              "title": "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
+              "task_type": "build",
               "agent": "code",
               "depends_on": [
                 "step_pages"
@@ -666,8 +667,28 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
+                "Run: python3 orchestration/lib/entity_crawl.py salonphoto --lang fr-FR --rate-delay 2",
+                "PROBE: python3 orchestration/probes/capture-slugs.py projects/salonphoto --lang fr-FR",
+                "PROBE: python3 orchestration/probes/mirror-selfcontained.py projects/salonphoto"
+              ],
+              "max_attempts": 3
+            },
+            {
+              "id": "step_main_resources",
+              "title": "mainResource entities -> contentFolder (+ folder map)",
+              "task_type": "content",
+              "agent": "code",
+              "depends_on": [
+                "step_entity_crawl"
+              ],
+              "inputs": {
+                "project": "projects/salonphoto",
+                "site": "salonphoto"
+              },
+              "acceptance_criteria": [
                 "Run: python3 orchestration/lib/load_main_resources.py salonphoto salonphoto",
                 "PROBE: bash orchestration/probes/mainresource.sh salonphoto salonphoto fr",
+                "PROBE: python3 orchestration/probes/mainresource-model.py --phase content salonphoto --locale fr",
                 "PROBE: python3 orchestration/probes/entity-coverage.py salonphoto --expect salonphoto --locale fr"
               ],
               "max_attempts": 3

@@ -411,6 +411,14 @@ def type_block_semantic(comp, ns, mixns):
     # CHILD inside content bands (sidebar+column layout) — without this rule
     # the loader's create fails ConstraintViolation on every service page
     lines.append(f"  + * ({ns}:subNavigation)")
+    # BODY COMPOSITION (2026-08-03): a mainResource entity composes its body from
+    # BANDS. Without this residual rule Jackrabbit refuses every band child with
+    # `ConstraintViolationException: No child node definition found` (CLAUDE.md
+    # rule 17), so the loader had no choice but to flatten the whole article into
+    # one richtext — freezing its images, its video block and its section
+    # structure out of the editor's reach.
+    if comp.get("bodyChildren") or comp.get("needsMainResource"):
+        lines.append(f"  + * ({mixns}:component)")
     return "\n".join(lines), ""
 
 

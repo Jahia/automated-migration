@@ -396,6 +396,12 @@ def build_plan(p):
               # CONTRACT gate (2026-07-16): no numbered contrib mixins, no bodyN,
               # structural set present, SDC definition.cnd per component folder
               *([f"PROBE: python3 orchestration/probes/model-contract.py --phase cnd {PP} {NS}"] if ARCH else []),
+              # mainResource entities must be CONTAINERS that accept band children
+              # (jmix:list + `+ * (nsmix:component)`): without the child rule every
+              # band create fails ConstraintViolation and the loader is forced to
+              # flatten the whole article into one richtext (2026-08-03)
+              *([f"PROBE: python3 orchestration/probes/mainresource-model.py --phase cnd {PP} {NS}"]
+                if ARCH and os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
               f"PROBE: bash orchestration/probes/cnd.sh {PP} {NS}",
               f"PROBE: bash orchestration/probes/cnd-patterns.sh {PP} {NS}",
               # AUTHORING lint (agentic check-cnd via cnd-review.sh): flags
@@ -476,13 +482,25 @@ def build_plan(p):
         # copies. The step existed (load_main_resources.py, ETL phase 2.5) but
         # gen_plan never emitted it — the documented regression every generated
         # plan inherited. Config-gated: runs when <p>.mainresource.json exists.
-        *([step("step_main_resources", "mainResource entities -> contentFolder (+ folder map)", "content",
+        *([step("step_entity_crawl", "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
+                "build",
+                # the menu is the IA, not the corpus: entity details live at their own
+                # URLs and load_main_resources reads each one's core from the mirror.
+                # Union of the source's sitemap families and the card-reached links the
+                # sitemap omits (search-indexed items).
+                [f"Run: python3 orchestration/lib/entity_crawl.py {P}{SLANG} --rate-delay 2",
+                 f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}",
+                 f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}"],
+                deps=["step_pages"]),
+           step("step_main_resources", "mainResource entities -> contentFolder (+ folder map)", "content",
                 [f"Run: python3 orchestration/lib/load_main_resources.py {P} {SITE}",
                  # producing gate: every declared folder exists and holds >= 1
                  # node of its type; no mainResource node outside a folder
                  f"PROBE: bash orchestration/probes/mainresource.sh {P} {SITE} {PRIMARY_LOCALE}",
+                 # the body is COMPOSED of band children, never one flattened richtext
+                 f"PROBE: python3 orchestration/probes/mainresource-model.py --phase content {SITE} --locale {PRIMARY_LOCALE}",
                  f"PROBE: python3 orchestration/probes/entity-coverage.py {P} --expect {SITE} --locale {PRIMARY_LOCALE}"],
-                deps=["step_pages"])]
+                deps=["step_entity_crawl"])]
           if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
         # navigation doctrine (rule 13 + 2026-07-06): the page tree IS the nav.
         # build_nav_tree restructures the flat crawl tree per the project

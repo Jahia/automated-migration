@@ -40,6 +40,15 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import archetypes as _arch                                        # noqa: E402
+import importlib.util as _ilu                                     # noqa: E402
+_spec = _ilu.spec_from_file_location(
+    "model_census", os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "model_census.py"))
+_census = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_census)
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bs4 import BeautifulSoup  # noqa: E402
 
 _lc = importlib.import_module("load_content")
@@ -112,11 +121,50 @@ def parse_date(text):
     return None
 
 
+def entity_bands(main_el, ns, type_of):
+    """[{name, nodeType, title, body, image}] — the entity body DECOMPOSED into
+    bands, in document order.
+
+    An entity body is not one richtext (2026-08-03, measured on two real Salon de
+    la Photo articles): it is a sequence of bands — standfirst, section headings,
+    prose, an image+text block, a video block. Flattening it into a single `body`
+    property froze every in-article image and the video section out of the editor's
+    reach. Band boundaries come from `model_census.bands` (the source's OWN
+    declaration when its CMS has one, else <section>, else main's children) and each
+    band is classified by `archetypes.classify_region` — the SAME vocabulary pages
+    use, so an article body is authored with the same components as a page."""
+    units, mode = _census.bands(main_el)
+    out = []
+    for el in units:
+        name = _census.band_name(el)
+        imgs = [i for i in el.find_all("img")
+                if _RASTER.search((i.get("src") or "").split("?")[0])]
+        has_iframe = el.find("iframe") is not None
+        kids = len([c for c in units if c is not el and el in getattr(c, "parents", [])])
+        key, _conf = _arch.classify_region(name, kind="component",
+                                           is_container=bool(kids >= 3))
+        # the measured anatomy overrides a weak name: image + prose = mediaText,
+        # an embed band is its own unit, prose alone is a rich-text section
+        text = re.sub(r"\s+", " ", el.get_text(" ", strip=True))
+        if key in ("richTextSection", "section") and imgs and len(text) >= 80:
+            key = "mediaText"
+        hel = el.find(["h1", "h2", "h3"])
+        btitle = re.sub(r"\s+", " ", hel.get_text(" ", strip=True))[:250] if hel else ""
+        if not text and not imgs and not has_iframe:
+            continue                      # empty layout wrapper: nothing to author
+        out.append({"name": name, "nodeType": type_of(key),
+                    "title": btitle, "body": "".join(str(c) for c in el.children),
+                    "image": os.path.basename((imgs[0].get("src") or "").split("?")[0])
+                             if imgs else None})
+    return out, mode
+
+
 def article_core(mirror_path):
-    """(title, date_iso, hero_file, body_html) from the localized article DOM.
-    Deterministic: chrome stripped (header/footer/nav/aside/script), h1 is the
-    title, the first raster in <main> is the hero (its single-image wrapper
-    removed with it), the rest of <main> is the body markup."""
+    """(title, date_iso, hero_file, standfirst_html, main_el) from the localized
+    article DOM. Deterministic: chrome stripped (header/footer/nav/aside/script),
+    h1 is the title, the first raster in <main> is the hero (its single-image
+    wrapper removed with it). The remaining <main> is handed to entity_bands —
+    it is NEVER flattened into one property."""
     soup = BeautifulSoup(open(mirror_path, encoding="utf-8", errors="replace").read(),
                          "lxml")
     main = soup.find("main") or soup.body
@@ -154,8 +202,19 @@ def article_core(mirror_path):
         break
     if h1 is not None:
         h1.extract()
-    body = "".join(str(c) for c in main.children).strip()
-    return title, date_iso, hero_file, body
+    return title, date_iso, hero_file, main
+
+
+def _child_count(ld, path):
+    """how many child nodes the entity already carries (idempotency: bands are
+    created once; a rebuild is `--clean`, never a silent duplicate)."""
+    try:
+        r = ld.m.gql('query { jcr(workspace: EDIT) { nodeByPath(path: "%s") '
+                     '{ children { nodes { name } } } } }' % path)
+        n = (((r or {}).get("jcr") or {}).get("nodeByPath") or {})
+        return len(((n.get("children") or {}).get("nodes") or []))
+    except Exception:                                              # noqa: BLE001
+        return 0
 
 
 def _exists(ld, path):
@@ -202,12 +261,28 @@ def main():
             if not os.path.isfile(mp):
                 print(f"  ! mirror missing for {slug} — skipped", file=sys.stderr)
                 continue
-            title, date_iso, hero, body = article_core(mp)
+            title, date_iso, hero, main_el = article_core(mp)
+            ns_ent = fcfg["type"].split(":")[0]
+
+            def _type_of(key, _ns=ns_ent):
+                return f"{_ns}:{_arch.node_local(key)}"
+            bands, bmode = entity_bands(main_el, ns_ent, _type_of)
+            # the FIRST prose band is the standfirst: it is the entity's own
+            # summary property (what the card/compact views render as the teaser).
+            # Everything after it composes the body as child bands.
+            standfirst = ""
+            if bands and not bands[0]["image"]:
+                standfirst = bands[0]["body"]
+                bands = bands[1:]
             leaf = entity_leaf(slug, fcfg)
             npath = f"{fpath}/{leaf}"
             if a.dry:
                 print(f"  [dry] {npath} <- {fcfg['type']} title={title[:48]!r} "
-                      f"date={date_iso} hero={hero} body={len(body)}ch")
+                      f"date={date_iso} hero={hero} standfirst={len(standfirst)}ch "
+                      f"bands={len(bands)} [{bmode}] "
+                      + ", ".join(f"{b['nodeType'].split(':')[1]}"
+                                  + ("+img" if b["image"] else "")
+                                  for b in bands[:6]))
                 continue
             if not _exists(ld, npath):
                 try:
@@ -218,7 +293,7 @@ def main():
                 except Exception as e:
                     print(f"  ! create {leaf}: {str(e)[:140]}", file=sys.stderr)
                     continue
-            post = {"body": ld._rewire_hrefs(body)[:200_000]}
+            post = {"body": ld._rewire_hrefs(standfirst)[:200_000]}
             if date_iso:
                 post["date"] = date_iso
             try:
@@ -226,6 +301,27 @@ def main():
                 updated += 1
             except Exception as e:
                 print(f"  ! props {leaf}: {str(e)[:140]}", file=sys.stderr)
+            # BAND CHILDREN (2026-08-03): the body is composed, not flattened.
+            # Requires the mainResource CND to carry `+ * (nsmix:component)`
+            # (cnd_emit) — without it every create fails ConstraintViolation.
+            if bands and _child_count(ld, npath) == 0:
+                for i, b in enumerate(bands, 1):
+                    bname = f"{b['nodeType'].split(':')[1]}-{i}"
+                    try:
+                        ld.m.create(npath, b["nodeType"],
+                                    {"jcr:title": b["title"][:250]} if b["title"] else {},
+                                    name=bname, locale=a.locale)
+                        ld.m.update(f"{npath}/{bname}",
+                                    {"body": ld._rewire_hrefs(b["body"])[:200_000]},
+                                    locale=a.locale)
+                        if b["image"]:
+                            bdam = ld.upload_dam(b["image"])
+                            if bdam:
+                                ld.m.set_weakref(f"{npath}/{bname}", "image",
+                                                 bdam["path"], locale=a.locale)
+                    except Exception as e:                          # noqa: BLE001
+                        print(f"  ! band {bname} on {leaf}: {str(e)[:120]}",
+                              file=sys.stderr)
             if hero:
                 dam = ld.upload_dam(hero)
                 if dam:

@@ -149,12 +149,23 @@ ARCHETYPES = {
                             f("sortBy", "string, choicelist[resourceBundle]")],
                  "subNodesView": True, "views": ["default", "grid", "inline"]},
     # ── structured content (mainResource) ────────────────────────────────
+    # BODY COMPOSITION (2026-08-03, salonphoto): an entity body is NOT one
+    # richtext. Measured on two real articles, the body is a SEQUENCE of bands —
+    # standfirst, section headings, prose, an image+text block, a video block. The
+    # loader used to flatten all of it into a single `body` property, so every
+    # in-article image and the video section stopped being contributable (and the
+    # CND had no child rule to hold them anyway: ConstraintViolation). mainResource
+    # types are therefore CONTAINERS: `list` gives jmix:list + orderable, and
+    # `bodyChildren` makes cnd_emit add `+ * (nsmix:component)` so ANY band type can
+    # compose the body, rendered by the fullPage view's RenderChildren.
     "article": {"name": "Article", "node": "newsArticle", "title": True, "mainResource": True,
-                "mixins": ["media", "seo"], "taxonomy": True,
+                "mixins": ["media", "seo"], "taxonomy": True, "list": True,
+                "bodyChildren": True,
                 "fields": [f("body", RICHTEXT, i18n=True), f("date", "date, DatePicker")],
                 "views": ["default", "compact", "cm", "featured", "fullPage"]},
     "event": {"name": "Event", "title": True, "mainResource": True,
-              "mixins": ["media", "seo"], "taxonomy": True,
+              "mixins": ["media", "seo"], "taxonomy": True, "list": True,
+              "bodyChildren": True,
               "fields": [f("body", RICHTEXT, i18n=True), f("startDate", "date, DatePicker"),
                          f("endDate", "date, DatePicker"), f("location", "string", i18n=True)],
               "views": ["default", "compact", "cm", "featured", "fullPage"]},
@@ -250,6 +261,8 @@ def to_manifest_component(key, ns, mixns, name_override=None, covers_roles=None)
         "subNodesView": bool(a.get("subNodesView")),
         "chrome": a.get("chrome"),
         "treeDriven": bool(a.get("treeDriven")),
+        # body composed of child BANDS (any nsmix:component), not one richtext
+        "bodyChildren": bool(a.get("bodyChildren")),
     }
     if a.get("child"):
         comp["childType"] = _child_component(a["child"], ns, mixns)
