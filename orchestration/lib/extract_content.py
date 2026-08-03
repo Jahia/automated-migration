@@ -1503,6 +1503,19 @@ def vision_page(project, txt, slug, sig_index, overrides=None, manifest=None):
             return None
         if child.name in ("header", "nav", "footer"):
             return _chrome_area(child.name)
+        # A LAYOUT WRAPPER is not chrome (2026-08-03). This test fired on any body
+        # child with text that is not <main> itself — but a source that wraps its whole
+        # page in one <div> (SXA: div > header + main + footer, 44KB) then had its
+        # ENTIRE body emitted as a single chrome blob, so no component root was ever
+        # walked and nothing was promoted (measured: 12 declared roots on the fixture
+        # home page, 0 promoted, 1061 verbatim regions site-wide). A child that CONTAINS
+        # the main region, or contains promoted content roots, must be descended into.
+        # Consistent with the established rule that content wins over chrome when the
+        # two overlap.
+        if main_el is not None and main_el in child.descendants:
+            return None
+        if any(id(d) in root_ids for d in child.descendants):
+            return None
         if re.sub(r"\s+", " ", child.get_text(" ", strip=True)).strip():
             return "chrome"
         return None

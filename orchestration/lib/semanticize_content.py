@@ -1756,6 +1756,10 @@ def main():
             the role key; position 0 always defers (a real hero leads)."""
             if band_no == 0 or inst.get("parent") is not None:
                 return None
+            # a wrapper aggregates its whole subtree — judging it by anatomy types the
+            # page as one band (see _anatomy_type); a container is layout
+            if inst.get("container"):
+                return _arch_nt.get("section")
             kids = inst.get("children") or []
             f = inst.get("fields") or {}
             sk = inst.get("skeleton") or ""
@@ -1791,6 +1795,13 @@ def main():
             66 short-or-nested — four components wearing one source name."""
             if band_no == 0 or inst.get("parent") is not None:
                 return None
+            # A WRAPPER IS NOT A CONTENT BAND (2026-08-03): an anonymous container
+            # instance aggregates everything below it, so judging it by anatomy types
+            # the whole page as one band — measured: the page-level wrapper holding 11
+            # bands came out sdp:mediaText because its subtree has an image and prose.
+            # A container is layout; its children carry the content.
+            if inst.get("container"):
+                return _arch_nt.get("section")
             f = inst.get("fields") or {}
             kids = inst.get("children") or []
             sk = inst.get("skeleton") or ""
@@ -1813,6 +1824,7 @@ def main():
             return None
 
         transformed = []                       # (keep: bool, instance | None)
+        assigned_nt = {}                       # source index -> assigned nodeType
         for _oi, inst in enumerate(page.get("instances", [])):
             if inst.get("area"):
                 # ARCHETYPE model: captured source chrome (rawHtml routed to an
@@ -1908,6 +1920,22 @@ def main():
             node = (_vision_node(inst) or _structural_type(inst, _band_no)
                     or _anatomy_type(inst, _band_no)
                     or itm.get((inst.get("type") or "").lower()))
+            # A CONTAINER'S CHILD IS ITS ITEM (2026-08-03). Both structural passes
+            # deliberately defer on a parented instance (`parent is not None`), so a
+            # child fell through to the NAME bridge and inherited whatever band type
+            # its source name maps to. Measured on the declared arm: 36 items nested in
+            # one container — 20 of them an image plus a short title, i.e. plainly cards
+            # ("Venir en train", "Accès PMR") — all typed richTextSection. A child's type
+            # comes from its container's childType (cardGrid -> cardItem, accordion ->
+            # accordionItem); only if the container has none does the name bridge decide.
+            _par = inst.get("parent")
+            if _par is not None:
+                _pnt = assigned_nt.get(_par)
+                _cnt = child_of.get(_pnt) if _pnt else None
+                if _cnt:
+                    node = _cnt
+            if node:
+                assigned_nt[_oi] = node
             # ANATOMY override (2026-07-24): a mid-page band typed hero/banner
             # that carries an image AND paragraph-length prose is a media-text
             # row whatever the vision called it ('Call to Action' on
@@ -1915,7 +1943,8 @@ def main():
             # its enterprise twin typed mediaText structurally and scored 10
             # points higher). Cover banners keep: no image, or title+button
             # only. Position 0 keeps its hero.
-            if _band_no > 0 and node in (_arch_nt.get("hero"), _arch_nt.get("banner")):
+            if (_band_no > 0 and not inst.get("container")
+                    and node in (_arch_nt.get("hero"), _arch_nt.get("banner"))):
                 _f2 = inst.get("fields") or {}
                 _prose = sum(len(_visible(v)) for _k2, v in _f2.items()
                              if isinstance(v, str)
