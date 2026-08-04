@@ -412,10 +412,74 @@ def main():
     pages = inv.get("pages", [])
 
     loc = Localizer(proj, int(args.max_asset_size * 1024 * 1024), args.force)
+
+    # INCREMENTAL (2026-08-04). Localizing is not cheap on a real corpus: 169 pages of
+    # 85-240KB each, parsed and rewritten, on EVERY run — and this step re-runs on every
+    # capture retry, every scope change and every restart. The assets were already on
+    # disk (1027 files, unchanged) yet each run redid all the page rewriting.
+    #
+    # The registry is what made naive skipping unsafe: mirror.json's urlMap is built up
+    # per page as pages are processed, so skipping a page used to drop its assets from
+    # the map. But the urlMap is GLOBAL, so it can simply be seeded from the previous
+    # mirror.json — then a page whose output is newer than its captured source is
+    # already correct and can be skipped without losing a single mapping. --force still
+    # rebuilds everything.
+    prev_map, reused = {}, 0
+    mj = os.path.join(loc.mirror, "mirror.json")
+    if not args.force and os.path.isfile(mj):
+        try:
+            _prev = json.load(open(mj))
+            for _u, _name in (_prev.get("urlMap") or {}).items():
+                loc.reg.setdefault(_u, {"name": os.path.basename(_name), "ok": True,
+                                        "bytes": 0, "kind": ""})
+            prev_map = _prev.get("urlMap") or {}
+        except (OSError, ValueError):
+            prev_map = {}
+
+    # NEVER WRITE A POORER REGISTRY THAN THE MIRROR ALREADY NEEDS (2026-08-04, self-
+    # inflicted). Skipping pages is only safe if the urlMap carries forward: seeding it
+    # from a mirror.json that a killed run had left without one produced 169 "reused"
+    # pages and an EMPTY registry, while 1063 asset files and every page reference
+    # stayed on disk — a mirror that looks complete and serves nothing. If pages
+    # reference assets but the seed is empty, the incremental path is unsafe: rebuild.
+    _refs = 0
+    try:
+        import glob as _g
+        for _f in _g.glob(os.path.join(loc.mirror, "*.html"))[:5]:
+            _refs += len(re.findall(r"assets/[0-9a-f]{8,}\.",
+                                    open(_f, encoding="utf-8", errors="replace").read()))
+    except Exception:                                              # noqa: BLE001
+        _refs = 0
+    if _refs and not prev_map:
+        print("  ! incremental DISABLED: the mirror's pages reference assets but the "
+              "previous mirror.json carries no urlMap — skipping pages would write an "
+              "empty registry. Rebuilding in full.")
+        prev_map = {}
+        _incremental_ok = False
+    else:
+        _incremental_ok = True
+
+    def _fresh(page):
+        """the mirror output exists and is newer than the captured source"""
+        if args.force or not _incremental_ok:
+            return False
+        src = os.path.join(proj, page.get("cachedAt", ""))
+        out = os.path.join(loc.mirror, f"{page.get('slug')}.html")
+        try:
+            return (os.path.isfile(out) and os.path.isfile(src)
+                    and os.path.getmtime(out) >= os.path.getmtime(src))
+        except OSError:
+            return False
     page_recs = []
     for page in pages:
         html_path = os.path.join(proj, page.get("cachedAt", ""))
         if not os.path.isfile(html_path):
+            continue
+        if _fresh(page):
+            reused += 1
+            page_recs.append({"slug": page["slug"], "url": page["url"],
+                              "htmlFile": f"{page['slug']}.html", "newAssets": 0,
+                              "reused": True})
             continue
         try:
             html = open(html_path, errors="replace").read()
@@ -428,6 +492,10 @@ def main():
             page_recs.append({"slug": page["slug"], "url": page["url"], "error": str(e)[:200]})
             print(f"  WARNING: failed to localise {page['slug']}: {e}", file=sys.stderr)
 
+    if reused:
+        print(f"  ~ incremental: {reused} page(s) already current (mirror newer than "
+              f"capture), {len(pages) - reused} rewritten; urlMap seeded with "
+              f"{len(prev_map)} known asset(s) — --force to rebuild all")
     ok_assets = [a for a in loc.reg.values() if a["ok"]]
     total_bytes = sum(a["bytes"] for a in ok_assets)
     localizable = round(100 * len(ok_assets) / max(1, len(loc.reg)), 1)

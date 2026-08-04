@@ -41,3 +41,6 @@ orchestration/sitemaps/
 # Captured site content stays LOCAL (mhtml + per-project page data); harness .py scripts stay tracked.
 *.mhtml
 orchestration/pages/*/
+
+# engine runtime log (6 MB and growing; never a source artifact)
+migration-orchestrator/*.log

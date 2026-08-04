@@ -192,10 +192,10 @@ def build_plan(p):
                       "inputs": {"project": PP},
                       "acceptance_criteria": [
                           f"Run: python3 orchestration/lib/declared2manifest.py {P} --ns {NS} --mixns {MIXNS}",
-                          f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
+                          f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/component-manifest.json",
                           f"PROBE: bash orchestration/probes/sxa-coverage.sh {PP}",
                           f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
-                          f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json"]}],
+                          f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/passthrough-overrides.json"]}],
          "skip": ["step_segment"],
          "notes": ("FIRST strategy when the source DECLARES its components in the DOM "
                    "(declared_inventory found an adapter: SXA div.component + field-*, "
@@ -233,12 +233,16 @@ def build_plan(p):
              [(f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/nav_scope_crawl.py {PP} {URL}{SLANG} --rate-delay 2 --max-asset-size 1"
                if ARCH else
                f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2{SLANG} --rate-delay 2 --max-asset-size 1"),
-              f"PROBE: test -s {PP}/workflow-output/page-inventory.json",
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/page-inventory.json",
               f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}"],
              deps=["step_connect"]),
         step("step_localize", "Local mirror + offline mirror gate", "build",
              [f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/localize_site.py {PP} --max-asset-size 15",
-              f"PROBE: test -s {PP}/workflow-output/local-mirror/mirror.json",
+              # `test -s` asks whether mirror.json has BYTES; a registry with
+              # "urlMap": {{}} has plenty (2026-08-04) and the mirror then renders
+              # with no images, CSS or fonts while looking complete. Measure the
+              # registry against what the pages actually reference instead.
+              f"PROBE: python3 orchestration/probes/mirror-registry.py {PP}",
               f"PROBE[900]: node orchestration/lib/mirror_probe.mjs {PP} 10"],
              deps=["step_crawl"]),
         # ENTITY DETAILS ARE PART OF THE CORPUS (2026-08-03). The menu gives the IA;
@@ -273,8 +277,8 @@ def build_plan(p):
               # migrated site (Cloudflare RUM + chatbase 404s read as a WAF block,
               # 2026-08-03). Kept embeds are declared in scope-rules keptEmbeds.
               f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}",
-              f"PROBE: test -s {PP}/workflow-output/semantic-candidates.json",
-              f"PROBE: test -s {PP}/workflow-output/semantic-templates.json"],
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/semantic-candidates.json",
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/semantic-templates.json"],
              deps=["step_localize"]),
         # ── ZONING (MIGRATION-V3 Phase 1 evidence, ARCH only) ──────────────
         # Deterministic identification BEFORE any paid segmentation, on the
@@ -299,8 +303,8 @@ def build_plan(p):
                  f"Run: python3 orchestration/lib/sitemap_enumerate.py {P}{SLANG} || true",
                  # identification must read the bytes we declared in scope
                  f"PROBE: python3 orchestration/probes/zone-source.py {P}",
-                 f"PROBE: test -s {PP}/workflow-output/island-inventory.json",
-                 f"PROBE: test -s {PP}/.reference/declared-components.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/island-inventory.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/.reference/declared-components.json",
                  # every published URL is a captured page, a declared entity prefix,
                  # a declared page-to-crawl, or an accepted target with a reason
                  f"PROBE: python3 orchestration/probes/entity-coverage.py {P}"],
@@ -320,8 +324,8 @@ def build_plan(p):
                 "build",
                 [f"Run: python3 orchestration/lib/declared2manifest.py {P} --ns {NS} --mixns {MIXNS}",
                  f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
-                 f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
-                 f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/component-manifest.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/passthrough-overrides.json",
                  # every declared type mapped or explicitly ignored — no silent drops
                  f"PROBE: bash orchestration/probes/sxa-coverage.sh {PP}",
                  f"PROBE: python3 orchestration/probes/archetype-utilization.py {P}"],
@@ -337,8 +341,8 @@ def build_plan(p):
                 [f"Run: python3 orchestration/lib/segment2manifest.py {P} --ns {NS} --mixns {MIXNS}"
                  + (" --archetypes" if ARCH else ""),
                  f"Run: python3 orchestration/lib/make_overrides.py {P} --module {MODULE}",
-                 f"PROBE: test -s {PP}/workflow-output/component-manifest.json",
-                 f"PROBE: test -s {PP}/workflow-output/passthrough-overrides.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/component-manifest.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/passthrough-overrides.json",
                  # the model's types must actually be USED (2026-07-23: a
                  # needs_mr misroute loaded the whole site as 3 types and no
                  # gate noticed — fidelity rides skeletons, not types)
@@ -370,7 +374,7 @@ def build_plan(p):
         step("step_naming", "Generic zone/component naming (--apply, future-run manifest)", "build",
              [f"Run: python3 orchestration/lib/name_model.py {PP} --apply",
               f"PROBE: python3 -c \"import json,sys; d=json.load(open('{PP}/workflow-output/component-manifest.json')); sys.exit(0 if d.get('components') else 1)\"",
-              f"PROBE: test -s {PP}/workflow-output/naming-proposals.json"],
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/naming-proposals.json"],
              deps=["step_model_review"]),
         # P2.5: extraction BEFORE the CND — cnd_emit sizes the body..bodyN
         # richtext props per type from the OBSERVED lift (wired-only types:
@@ -434,7 +438,7 @@ def build_plan(p):
                  # the UI's model-review card links artifacts/zone-overlay/index.html —
                  # the v3 boundary evidence is the segmap gallery (2026-07-23: 404'd)
                  f"Run: python3 orchestration/lib/segmap_gallery.py {P}",
-                 f"PROBE: test -s {PP}/workflow-output/model-census.json",
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/model-census.json",
                  f"PROBE: python3 orchestration/probes/census-coverage.py {P}",
                  f"PROBE: test -s {PP}/workflow-output/zone-overlay/index.html"],
                 deps=["step_content_extract"]),
@@ -453,14 +457,14 @@ def build_plan(p):
                        deps=["step_model_census"]),
            step("step_model_apply", "Compile the approved model onto the manifest", "build",
                 [f"Run: python3 orchestration/lib/apply_component_model.py {P}",
-                 f"PROBE: test -s {PP}/workflow-output/component-model.json"],
+                 f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/component-model.json"],
                 deps=["step_model_author"])]
           if ARCH else []),
         step("step_cnd", "Emit CND + view plan (wired-only sizing)", "build",
              [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json --content-load orchestration/content/{P}.content-load.json",
               f"PROBE: test -s {PP}/workflow-output/definitions.cnd",
               f"PROBE: grep -q \"{NS} = \" {PP}/workflow-output/definitions.cnd",
-              f"PROBE: test -s {PP}/workflow-output/views.json"],
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/views.json"],
              deps=["step_content_extract", "step_compose_gate"]
              + (["step_model_apply"] if ARCH else [])),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
@@ -484,7 +488,7 @@ def build_plan(p):
              outputs={"artifact_0": f"{PP}/package.json"}),
         step("step_assets", "Mirror assets -> module static/ + head manifests", "build",
              [f"Run: python3 orchestration/lib/import_assets.py {P}",
-              f"PROBE: test -s {PP}/src/templates/css-manifest.json",
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/src/templates/css-manifest.json",
               f"PROBE: test -d {PP}/static/assets"],
              deps=["step_scaffold"]),
         step("step_cnd_merge", "Install analyze CND + rule-18 bundles", "build",
