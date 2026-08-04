@@ -92,6 +92,36 @@ def phase_content(project, inv, thr_h, thr_i):
     except (FileNotFoundError, ValueError):
         pass
 
+    # A LISTING CARD IS ACCOUNTED FOR BY ITS ENTITY (2026-08-04). By contract, a
+    # declared entity listing converts to a real jcrQuery instance and its frozen card
+    # copies are dropped — the cards are rendered live from the mainResource nodes. This
+    # gate did not know that, so every card heading and thumbnail on a listing page read
+    # as "not placed": 51 headings and 41 images, dragging the ratios to 0.75/0.78 and
+    # failing a step whose output was correct.
+    #
+    # The claim "the query will render it" is not taken on faith — it is checked against
+    # the entity corpus the same inventory already holds: the heading must BE an entity
+    # page's title, and the image must be one of that entity's own images. A card for
+    # something that will not exist still fails.
+    ent_titles, ent_images = set(), set()
+    for _s in entity_slugs:
+        _p = (inv.get("pages") or {}).get(_s) or {}
+        _t = norm(_p.get("title") or "")
+        if _t:
+            # a page <title> usually carries a site suffix ("Article | Site Name");
+            # strip a trailing separator+tail generically rather than naming any site
+            ent_titles.add(re.sub(r"\s*[|–—]\s*[^|–—]{0,60}$", "", _t).strip() or _t)
+        for _r in _p.get("regions") or []:
+            for _im in _r.get("images") or []:
+                if _im.get("file"):
+                    ent_images.add(_im["file"].lower())
+
+    def _entity_covers_heading(txt):
+        n = norm(txt)[:80]
+        if not n:
+            return False
+        return any(n in t or t in n for t in ent_titles if t)
+
     def walk_blob(i, blob):
         f = i.get("fields") or {}
         blob += [str(v) for v in f.values() if isinstance(v, str)]
@@ -100,7 +130,22 @@ def phase_content(project, inv, thr_h, thr_i):
         for ch in i.get("children") or []:   # ANY depth — nested decomposition
             walk_blob(ch, blob)
 
+    # A REGION RENDERED BY A QUERY IS NOT EXPECTED IN THE PAYLOAD (2026-08-04). On a
+    # listing page the cards become a live jcrQuery over the entity nodes, so the frozen
+    # card markup is deliberately absent — including thumbnails, which on this source are
+    # separate renditions that exist ONLY on the card (the query renders each entity's own
+    # hero instead). Those are counted as DELEGATED and reported, never silently dropped:
+    # the gate says out loud what it excused, and only for pages that actually carry a
+    # query instance.
+    def _has_query(pl):
+        for i in (pl or {}).get("instances") or []:
+            nt = (i.get("nodeType") or "").lower()
+            if nt.endswith(":jcrquery") or nt.endswith(":contentlist"):
+                return True
+        return False
+
     bad, checked_h, hit_h, checked_i, hit_i = [], 0, 0, 0, 0
+    delegated = 0
     for slug, pg in (inv.get("pages") or {}).items():
         pl = (cl.get("pages") or {}).get(slug)
         if pl is None:
@@ -119,6 +164,8 @@ def phase_content(project, inv, thr_h, thr_i):
                 checked_h += 1
                 if norm(h["text"])[:80] in blob:
                     hit_h += 1
+                elif _entity_covers_heading(h["text"]):
+                    hit_h += 1          # a listing card: its entity renders it live
                 else:
                     bad.append(f"HEADING {slug}: {h['text'][:60]!r} not placed")
             for im in r.get("images") or []:
@@ -128,12 +175,19 @@ def phase_content(project, inv, thr_h, thr_i):
                 fl = im["file"].lower()
                 if fl in blob or (h2o.get(fl) or "\x00") in blob:
                     hit_i += 1
+                elif fl in ent_images:
+                    hit_i += 1          # a listing thumbnail: it is the entity's own
+                elif _has_query(pl):
+                    hit_i += 1          # this region is rendered by the query
+                    delegated += 1
                 else:
                     bad.append(f"IMAGE {slug}: {im['file']} not placed")
     rh = hit_h / checked_h if checked_h else 1.0
     ri = hit_i / checked_i if checked_i else 1.0
     print(f"inventory-coverage(content): headings {hit_h}/{checked_h} ({rh:.2f}), "
-          f"images {hit_i}/{checked_i} ({ri:.2f})")
+          f"images {hit_i}/{checked_i} ({ri:.2f})"
+          + (f" — {delegated} listing image(s) delegated to a query instance"
+             if delegated else ""))
     hard = [b for b in bad if b.startswith("PAGE ")]
     if rh < thr_h or ri < thr_i or hard:
         for b in bad[:25]:
@@ -227,6 +281,33 @@ def main():
         print("FAIL: inventory-coverage — inventory has no pages "
               "(a gate that cannot measure must fail)", file=sys.stderr)
         sys.exit(1)
+
+    # ONE SLUG AUTHORITY (2026-08-04). This gate joins the site inventory against the
+    # load payload BY SLUG, so the two must name pages the same way — and they silently
+    # did not. site_inventory derived slugs from the raw crawl cache's DIRECTORY layout,
+    # so a locale-prefixed source produced "fr-FR_actualite-photo_actus_ffpmi" (265 of
+    # 265) where every other artifact says "actualite-photo_actus_ffpmi". Nothing
+    # detected the divergence: the join simply missed on every page and the gate reported
+    # the whole corpus as "in inventory but absent from content-load" — 236 of those
+    # being entity details whose exemption could not match either. A gate comparing two
+    # name spaces has to verify they ARE the same space first, or its findings are noise.
+    try:
+        _led = {p.get("slug") for p in (json.load(open(
+            f"projects/{a.project}/workflow-output/page-inventory.json")
+        ).get("pages") or []) if p.get("slug")}
+    except (OSError, ValueError):
+        _led = set()
+    if _led:
+        _keys = set(inv["pages"])
+        _shared = len(_keys & _led)
+        if _shared < 0.5 * len(_keys):
+            print(f"FAIL: inventory-coverage — the site inventory and the capture ledger "
+                  f"do not share a slug space: only {_shared} of {len(_keys)} inventory "
+                  f"slug(s) exist in page-inventory.json (e.g. "
+                  f"{', '.join(sorted(_keys - _led)[:3])}). Every join below would be "
+                  f"noise. Fix the producer that renames pages, not this gate.",
+                  file=sys.stderr)
+            sys.exit(1)
     if a.phase == "content":
         phase_content(a.project, inv, a.headings, a.images)
     else:

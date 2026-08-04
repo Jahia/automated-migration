@@ -300,10 +300,34 @@ def main():
     if not hosts:
         sys.exit(f"FAIL: no crawl cache under {crawl}")
     host = hosts[0]
-    base = os.path.join(crawl, host)
-    pages_html = sorted(glob.glob(os.path.join(base, "**", "*.html"), recursive=True))
+    # READ THE SCOPED MIRROR, NOT THE RAW CACHE (2026-08-04) — the same correction
+    # zone_detect needed. Two things went wrong while this read
+    # .reference/cache/_crawl/<host>/**/*.html:
+    #
+    # 1. SLUGS came from the cache's DIRECTORY LAYOUT, so a locale-prefixed source put
+    #    every page under fr-FR/ and every slug carried it: home was "fr-FR",
+    #    "fr-FR_actualite-photo_actus_ffpmi", 265 of 265 prefixed. Nothing else in the
+    #    pipeline names pages that way, so this inventory joined with NOTHING —
+    #    inventory-coverage compared its keys against the content-load payload and
+    #    reported the entire corpus as missing, and its entity exemption could never
+    #    match either.
+    # 2. The DOM was unscoped: consent banners, trackers, breadcrumbs and chatbot
+    #    widgets that every scope rule exists to remove were still in it, so the
+    #    "chrome anatomy / per-region anatomy / theme" this step feeds downstream was
+    #    measured on markup the migration has already decided is not content.
+    #
+    # The mirror's flat filenames ARE the canonical slugs (home.html, salon_qui-expose
+    # .html), which is why no locale handling is needed here at all.
+    mirror_dir = f"projects/{a.project}/workflow-output/local-mirror"
+    base = mirror_dir if os.path.isdir(mirror_dir) else os.path.join(crawl, host)
+    if base == mirror_dir:
+        pages_html = sorted(glob.glob(os.path.join(base, "*.html")))
+    else:
+        print(f"  ~ no scoped mirror at {mirror_dir} — falling back to the raw cache; "
+              f"slugs will follow its directory layout", file=sys.stderr)
+        pages_html = sorted(glob.glob(os.path.join(base, "**", "*.html"), recursive=True))
     if not pages_html:
-        sys.exit(f"FAIL: no cached pages under {base}")
+        sys.exit(f"FAIL: no pages under {base}")
 
     inv = {"project": a.project, "host": host, "pages": {}, "assets": {"images": {}}}
     home = os.path.join(base, "index.html")
