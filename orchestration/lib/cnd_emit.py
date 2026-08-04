@@ -548,6 +548,50 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         view_plans.append(views_for(c))
     full = "\n".join(shared) + "\n// ── components (SDC copies) ──\n" \
            + "\n".join(b for _, b in ((s, t.split("\n", len(ns_header))[-1]) for s, t in blocks))
+
+    # DECLARE EVERY ITEM TYPE THE MANIFEST NAMES (2026-08-04). This emitter ships ONE
+    # reusable item type, ns:cardItem, and grants it in every container. The manifest,
+    # built from the archetypes, names items PER PARENT — ns:accordionItem,
+    # ns:cardGridItem — because each archetype declares its own `child` key. Nothing
+    # reconciled the two, and the load payload is written from the manifest by a step
+    # that runs BEFORE this one, so it asked for 41 nodes of two types no CND declared:
+    # the loader would have created what it could and thrown ConstraintViolation on the
+    # rest, leaving a site that looks populated with holes in it (found pre-deploy by
+    # probes/type-closure.py, which is the whole reason that gate exists).
+    #
+    # Declaring the aliases is the additive half of the fix — the payload does not have
+    # to be recomputed and any project's naming is accommodated, whatever its archetypes
+    # call their items. They mirror cardItem exactly, because in this model an item is a
+    # skeleton node whose fields come from its slot mixins.
+    declared = set(re.findall(r"^\[([\w:]+)\]", full, re.M))
+    extra = []
+    for c in m.get("components") or []:
+        ct = c.get("childType")
+        nt = ct.get("nodeType") if isinstance(ct, dict) else None
+        if nt and nt not in declared and nt not in {x[0] for x in extra}:
+            extra.append((nt, c.get("nodeType")))
+    if extra:
+        alias = ["", "// ── item types the manifest names per container (mirror cardItem) ──"]
+        for nt, parent in extra:
+            alias += [
+                f"// items of {parent}",
+                f"[{nt}] > jnt:content, mix:title, {mixns}:component, "
+                f"{mixns}:sourceMarkup orderable",
+                "  - body (string, richtext) i18n",
+                "  - image (weakreference, picker[type='image']) < jmix:image",
+                "  - imageOrig (string, textarea) hidden",
+                "  - imageOrigRef (string) hidden",
+                f"  + * ({ns}:cta)",
+                "",
+            ]
+        full += "\n" + "\n".join(alias)
+        # and grant them wherever the generic item is granted, or the parent cannot
+        # hold the very children the payload puts in it
+        grant = "\n".join(f"  + * ({nt})" for nt, _ in extra)
+        full = full.replace(f"  + * ({ns}:cardItem)",
+                            f"  + * ({ns}:cardItem)\n{grant}")
+        print(f"[cnd_emit] + {len(extra)} manifest-named item type(s): "
+              + ", ".join(nt for nt, _ in extra))
     return full, blocks, view_plans
 
 

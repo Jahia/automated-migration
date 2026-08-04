@@ -473,7 +473,13 @@ def build_plan(p):
              [f"Run: python3 orchestration/lib/cnd_emit.py {PP}/workflow-output/component-manifest.json --ns {NS} --mixns {MIXNS} --project {P} --out-cnd {PP}/workflow-output/definitions.cnd --out-views {PP}/workflow-output/views.json --content-load orchestration/content/{P}.content-load.json",
               f"PROBE: test -s {PP}/workflow-output/definitions.cnd",
               f"PROBE: grep -q \"{NS} = \" {PP}/workflow-output/definitions.cnd",
-              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/views.json"],
+              f"PROBE: python3 orchestration/probes/json-payload.py {PP}/workflow-output/views.json",
+              # THE LOAD MUST NOT ASK FOR A TYPE THE CND DOES NOT DECLARE. The payload
+              # and the CND come from different steps and nothing compared them: 41
+              # instances of two item types the CND never declared would have thrown
+              # ConstraintViolation mid-load, leaving a site that looks populated with
+              # holes. Set containment, exactly checkable (2026-08-04).
+              f"PROBE: python3 orchestration/probes/type-closure.py {P}"],
              deps=["step_content_extract", "step_compose_gate"]
              + (["step_model_apply"] if ARCH else [])),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
