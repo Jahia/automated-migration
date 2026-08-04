@@ -336,7 +336,7 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
     return [
         "// tree-driven main navigation (AIStartupKit rule 19: nav = page tree,",
         "// 3 levels, never frozen markup; view renders the source's own classes)",
-        f"[{ns}:mainNavigation] > jnt:content, {mixns}:component",
+        f"[{ns}:mainNavigation] > jnt:content, {mixns}:pageComponent",
         "",
         f"// listing + grid tools (editor-facing, every module ships these)",
         f"[{ns}:jcrQuery] > jnt:content, mix:title, {mixns}:pageComponent, jmix:list, jmix:cache",
@@ -379,10 +379,18 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
         # jcrQuery with children is neither a query nor a grid. A static card band
         # belongs to cardGrid, which is what holds cardItem children.
         "",
-        f"[{ns}:gridRow] > jnt:content, {mixns}:component",
-        "  - columns (long) = 3 < 1, 2, 3, 4, 6, 12",
-        "  - gap (string, choicelist) = 'md' < 'none', 'sm', 'md', 'lg'",
-        f"  + * ({mixns}:component)",
+        # PER .agents/skills/04-define-content-types (2026-08-04). Three divergences
+        # were invented here: `{mixns}:component` instead of pageComponent (so the grid
+        # was not droppable in a page area), `columns (long)` instead of a
+        # choicelist[resourceBundle] (no dropdown, no translated labels, and values 6/12
+        # nobody asked for), and `+ * ({mixns}:component)` instead of
+        # `+ * (jmix:droppableContent)` — which quietly forbade PLATFORM content in a
+        # grid cell, so an editor could not drop a jnt:bigText into the layout tool whose
+        # entire job is holding arbitrary content.
+        f"[{ns}:gridRow] > jnt:content, {mixns}:pageComponent",
+        "  - columns (string, choicelist[resourceBundle]) = '2' < '1', '2', '3', '4'",
+        "  - gap (string, choicelist[resourceBundle]) = 'md' < 'none', 'sm', 'md', 'lg'",
+        "  + * (jmix:droppableContent) = jmix:droppableContent",
         "",
         *raw_lines,
         "",

@@ -486,7 +486,15 @@ def build_plan(p):
               # instances of two item types the CND never declared would have thrown
               # ConstraintViolation mid-load, leaving a site that looks populated with
               # holes. Set containment, exactly checkable (2026-08-04).
-              f"PROBE: python3 orchestration/probes/type-closure.py {P}"],
+              f"PROBE: python3 orchestration/probes/type-closure.py {P}",
+              # THE SKILLS ARE THE CONTRACT (2026-08-04). Three defects in one session
+              # came from this emitter inventing its own simplified shape for a component
+              # a skill already specifies exactly — the minimalist jcrQuery, `default`
+              # doubling as the card view, child grants on a query, gridRow as
+              # `component` with a `long` columns and no jmix:droppableContent. Each was
+              # caught by a human reading the CND. Compare the two mechanically instead.
+              f"PROBE: python3 orchestration/probes/skill-conformance.py {P} "
+              f"--ns {NS} --mixns {MIXNS}"],
              deps=["step_content_extract", "step_compose_gate"]
              + (["step_model_apply"] if ARCH else [])),
         step("step_fidelity_gate", "Fidelity gate (HALT: human reviews review.html)", "verify",
