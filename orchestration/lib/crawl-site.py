@@ -485,6 +485,7 @@ def main():
         # Extract slug and title
         slug = slug_from_url(url, origin, lang)
         title = ''
+        html = ''
         try:
             with open(page_cache, 'r', errors='replace') as f:
                 html = f.read()
@@ -493,6 +494,22 @@ def main():
                 title = re.sub(r'\s+', ' ', m.group(1)).strip()
         except Exception:
             pass
+
+        # AN ERROR PAGE SERVED WITH A 200 IS NOT CONTENT. is_error_page has existed
+        # since 2026-08-03 and was never CALLED — written, gated, and left unwired, so
+        # the eight programme/exhibitor URLs whose origin answers "500 — Internal
+        # server error" were purged by hand and walked straight back in on the next
+        # crawl (probes/capture-slugs.py named all eight again). Discard the cache
+        # entry too, or the next run reuses it and the refusal never fires.
+        err = is_error_page(html)
+        if err:
+            print(f"  SKIP (source error page: {err}): {url}", file=sys.stderr)
+            failed.append({'url': url, 'error': f'source error page: {err}'})
+            try:
+                os.remove(page_cache)
+            except OSError:
+                pass
+            continue
 
         pages.append({
             'url': url,
@@ -532,8 +549,25 @@ def main():
         # crawled page, overwrite same-slug entries with the fresh capture
         prev = json.load(open(inv_prev_path))
         new_slugs = {p['slug'] for p in pages}
-        pages = [p for p in (prev.get('pages') or [])
-                 if p.get('slug') not in new_slugs] + pages
+        kept, stale = [], []
+        for p in (prev.get('pages') or []):
+            if p.get('slug') in new_slugs:
+                continue
+            # A LEDGER ENTRY WITHOUT A CAPTURE IS STALE (2026-08-04). The merge kept
+            # every previously crawled page unconditionally, so a page removed from the
+            # corpus on purpose — the eight URLs whose origin answers 500, whose cache
+            # this crawl now deletes — was restored by the very next merge and the
+            # capture gate went red again. The cached file IS the evidence the page
+            # exists; without it there is nothing downstream can read anyway.
+            if p.get('url') and not os.path.exists(cache_path(proj, p['url'], '_crawl')):
+                stale.append(p.get('slug'))
+                continue
+            kept.append(p)
+        if stale:
+            print(f"  merge: dropped {len(stale)} ledger entr"
+                  f"{'y' if len(stale) == 1 else 'ies'} with no cached capture "
+                  f"({', '.join(s for s in stale[:4] if s)})")
+        pages = kept + pages
         start_url = prev.get('siteUrl') or start_url
     # capture variants are never page identities (2026-07-23: .recon slugs —
     # chrome re-captures of existing pages — leaked into the inventory via a

@@ -1,6 +1,6 @@
 {
  "siteUrl": "https://www.lesalondelaphoto.com/fr-FR",
- "crawledAt": "2026-08-04T10:38:47Z",
+ "crawledAt": "2026-08-04T11:46:41Z",
  "pages": [
   {
    "url": "https://www.lesalondelaphoto.com/fr-FR/actualite-photo/actus/Collodion-humide-Marjolaine-Vuarnesson",
@@ -1345,12 +1345,500 @@
    "httpStatus": 200,
    "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/salon/salon.html",
    "contentLength": 180034
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/ALLPAGES",
+   "slug": "infos-pratiques_catalogue_Exposant_ALLPAGES",
+   "title": "ALLPAGES",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/ALLPAGES.html",
+   "contentLength": 221184
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CANON-2",
+   "slug": "infos-pratiques_catalogue_Exposant_CANON-2",
+   "title": "CANON",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CANON-2.html",
+   "contentLength": 206528
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DIGIT-ACCESS-3",
+   "slug": "infos-pratiques_catalogue_Exposant_DIGIT-ACCESS-3",
+   "title": "DIGIT ACCESS",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DIGIT-ACCESS-3.html",
+   "contentLength": 229785
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DJI-GmbH",
+   "slug": "infos-pratiques_catalogue_Exposant_DJI-GmbH",
+   "title": "DJI GmbH",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DJI-GmbH.html",
+   "contentLength": 206536
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Exposant_FUJIFILM-FRANCE-3",
+   "title": "FUJIFILM FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/FUJIFILM-FRANCE-3.html",
+   "contentLength": 233494
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Graine-de-Photographe-3",
+   "slug": "infos-pratiques_catalogue_Exposant_Graine-de-Photographe-3",
+   "title": "Graine de Photographe",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Graine-de-Photographe-3.html",
+   "contentLength": 227876
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/HAHNEMUHLE-3",
+   "slug": "infos-pratiques_catalogue_Exposant_HAHNEMUHLE-3",
+   "title": "HAHNEM\u00dcHLE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/HAHNEMUHLE-3.html",
+   "contentLength": 221806
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/LOXLEY-COLOUR",
+   "slug": "infos-pratiques_catalogue_Exposant_LOXLEY-COLOUR",
+   "title": "LOXLEY COLOUR",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/LOXLEY-COLOUR.html",
+   "contentLength": 206591
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/SIGMA-France",
+   "slug": "infos-pratiques_catalogue_Exposant_SIGMA-France",
+   "title": "SIGMA France",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/SIGMA-France.html",
+   "contentLength": 206676
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/SIRUI-Optical-GmbH",
+   "slug": "infos-pratiques_catalogue_Exposant_SIRUI-Optical-GmbH",
+   "title": "SIRUI Optical GmbH",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/SIRUI-Optical-GmbH.html",
+   "contentLength": 206835
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/SLIMPYX-5",
+   "slug": "infos-pratiques_catalogue_Exposant_SLIMPYX-5",
+   "title": "SLIMPYX",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/SLIMPYX-5.html",
+   "contentLength": 221727
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/TETENAL-5",
+   "slug": "infos-pratiques_catalogue_Exposant_TETENAL-5",
+   "title": "TETENAL",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/TETENAL-5.html",
+   "contentLength": 249756
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/VISUAL-IMPACT-FRANCE",
+   "slug": "infos-pratiques_catalogue_Exposant_VISUAL-IMPACT-FRANCE",
+   "title": "VISUAL IMPACT FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/VISUAL-IMPACT-FRANCE.html",
+   "contentLength": 244224
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/DNP-TETENAL-7",
+   "slug": "infos-pratiques_catalogue_Marque_DNP-TETENAL-7",
+   "title": "DNP - TETENAL",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/DNP-TETENAL-7.html",
+   "contentLength": 219812
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/EIZO-TETENAL-5",
+   "slug": "infos-pratiques_catalogue_Marque_EIZO-TETENAL-5",
+   "title": "EIZO - TETENAL",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/EIZO-TETENAL-5.html",
+   "contentLength": 219160
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Atelier-Photo-Initiation-au-collodion-humide-Graine-de-Photographe-2",
+   "slug": "infos-pratiques_catalogue_Produit_Atelier-Photo-Initiation-au-collodion-humide-Graine-de-Photographe-2",
+   "title": "Atelier Photo Initiation au collodion humide",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Atelier-Photo-Initiation-au-collodion-humide-Graine-de-Photographe-2.html",
+   "contentLength": 231610
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Atelier-Photo-de-nuit-Fetes-des-lumieres-a-Lyon-Graine-de-Photographe-2",
+   "slug": "infos-pratiques_catalogue_Produit_Atelier-Photo-de-nuit-Fetes-des-lumieres-a-Lyon-Graine-de-Photographe-2",
+   "title": "Atelier Photo de nuit - F\u00eates des lumi\u00e8res \u00e0 Lyon",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Atelier-Photo-de-nuit-Fetes-des-lumieres-a-Lyon-Graine-de-Photographe-2.html",
+   "contentLength": 225160
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Cours-Street-Photography-Graine-de-Photographe-2",
+   "slug": "infos-pratiques_catalogue_Produit_Cours-Street-Photography-Graine-de-Photographe-2",
+   "title": "Cours Street Photography",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Cours-Street-Photography-Graine-de-Photographe-2.html",
+   "contentLength": 221233
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DNP-Module-de-Connexion-sans-fil-WCM-PLUS-TETENAL-3",
+   "slug": "infos-pratiques_catalogue_Produit_DNP-Module-de-Connexion-sans-fil-WCM-PLUS-TETENAL-3",
+   "title": "DNP Module de Connexion sans fil WCM-PLUS",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DNP-Module-de-Connexion-sans-fil-WCM-PLUS-TETENAL-3.html",
+   "contentLength": 223044
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DxO-PhotoLab-DxO-Labs-2",
+   "slug": "infos-pratiques_catalogue_Produit_DxO-PhotoLab-DxO-Labs-2",
+   "title": "DxO PhotoLab",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DxO-PhotoLab-DxO-Labs-2.html",
+   "contentLength": 222818
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EIZO-Ecran-Coloredge-27-CG2700S-BK-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-27-CG2700S-BK-TETENAL",
+   "title": "EIZO Ecran Coloredge 27\" CG2700S-BK",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EIZO-Ecran-Coloredge-27-CG2700S-BK-TETENAL.html",
+   "contentLength": 221601
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EIZO-Ecran-Coloredge-27-CG2700X-BK-TETENAL-3",
+   "slug": "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-27-CG2700X-BK-TETENAL-3",
+   "title": "EIZO Ecran Coloredge 27\" CG2700X-BK",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EIZO-Ecran-Coloredge-27-CG2700X-BK-TETENAL-3.html",
+   "contentLength": 221604
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EIZO-Ecran-Coloredge-31-CG319X-BK-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-31-CG319X-BK-TETENAL",
+   "title": "EIZO Ecran Coloredge 31\" CG319X-BK",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EIZO-Ecran-Coloredge-31-CG319X-BK-TETENAL.html",
+   "contentLength": 236736
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EPSON-Imprimante-grand-format-SC-P8500D-Garantie-2-ans-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_EPSON-Imprimante-grand-format-SC-P8500D-Garantie-2-ans-TETENAL",
+   "title": "EPSON Imprimante grand format SC-P8500D - Garantie 2 ans",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/EPSON-Imprimante-grand-format-SC-P8500D-Garantie-2-ans-TETENAL.html",
+   "contentLength": 225807
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/NORITSU-QSS-Green-III-Dry-Lab-TETENAL-2",
+   "slug": "infos-pratiques_catalogue_Produit_NORITSU-QSS-Green-III-Dry-Lab-TETENAL-2",
+   "title": "NORITSU QSS Green III Dry-Lab",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/NORITSU-QSS-Green-III-Dry-Lab-TETENAL-2.html",
+   "contentLength": 222601
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/NORITSU-QSS-Green-Pro-Dry-Lab-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_NORITSU-QSS-Green-Pro-Dry-Lab-TETENAL",
+   "title": "NORITSU QSS Green Pro Dry-Lab",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/NORITSU-QSS-Green-Pro-Dry-Lab-TETENAL.html",
+   "contentLength": 222130
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Workflows-hybrides-et-Vision-d'auteur-ENS-Louis-Lumiere-2",
+   "slug": "infos-pratiques_catalogue_Produit_Workflows-hybrides-et-Vision-d'auteur-ENS-Louis-Lumiere-2",
+   "title": "Workflows hybrides et Vision d\u2019auteur",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Workflows-hybrides-et-Vision-d_auteur-ENS-Louis-Lumiere-2.html",
+   "contentLength": 224686
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/X-E5-FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Produit_X-E5-FUJIFILM-FRANCE-3",
+   "title": "X-E5",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/X-E5-FUJIFILM-FRANCE-3.html",
+   "contentLength": 230201
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/X-M5-FUJIFILM-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Produit_X-M5-FUJIFILM-FRANCE-2",
+   "title": "X-M5",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/X-M5-FUJIFILM-FRANCE-2.html",
+   "contentLength": 225421
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/X-half-FUJIFILM-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Produit_X-half-FUJIFILM-FRANCE-2",
+   "title": "X half",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/X-half-FUJIFILM-FRANCE-2.html",
+   "contentLength": 229111
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/XF500mm-F5-6-R-LM-OIS-WR-FUJIFILM-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Produit_XF500mm-F5-6-R-LM-OIS-WR-FUJIFILM-FRANCE-2",
+   "title": "XF500mm F5.6 R LM OIS WR",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/XF500mm-F5-6-R-LM-OIS-WR-FUJIFILM-FRANCE-2.html",
+   "contentLength": 232491
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Blackmagic-Design",
+   "slug": "infos-pratiques_catalogue_Exposant_Blackmagic-Design",
+   "title": "Blackmagic Design",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Blackmagic-Design.html",
+   "contentLength": 207650
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CANSON",
+   "slug": "infos-pratiques_catalogue_Exposant_CANSON",
+   "title": "CANSON",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CANSON.html",
+   "contentLength": 214763
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CMA-Formation",
+   "slug": "infos-pratiques_catalogue_Exposant_CMA-Formation",
+   "title": "CMA Formation",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CMA-Formation.html",
+   "contentLength": 206737
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/ComLine-France",
+   "slug": "infos-pratiques_catalogue_Exposant_ComLine-France",
+   "title": "ComLine France",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/ComLine-France.html",
+   "contentLength": 218754
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DIGIXO-COM",
+   "slug": "infos-pratiques_catalogue_Exposant_DIGIXO-COM",
+   "title": "DIGIXO.COM",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DIGIXO-COM.html",
+   "contentLength": 209521
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DxO-Labs",
+   "slug": "infos-pratiques_catalogue_Exposant_DxO-Labs",
+   "title": "DxO Labs",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/DxO-Labs.html",
+   "contentLength": 233847
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/ENS-Louis-Lumiere",
+   "slug": "infos-pratiques_catalogue_Exposant_ENS-Louis-Lumiere",
+   "title": "ENS Louis-Lumi\u00e8re",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/ENS-Louis-Lumiere.html",
+   "contentLength": 238367
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/FRANCE",
+   "slug": "infos-pratiques_catalogue_Exposant_FRANCE",
+   "title": "FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/FRANCE.html",
+   "contentLength": 205800
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/JC-PIERI-FORMATION-4",
+   "slug": "infos-pratiques_catalogue_Exposant_JC-PIERI-FORMATION-4",
+   "title": "JC PIERI FORMATION",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/JC-PIERI-FORMATION-4.html",
+   "contentLength": 206843
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/L-ATELIER-DE-CHARLES-2",
+   "slug": "infos-pratiques_catalogue_Exposant_L-ATELIER-DE-CHARLES-2",
+   "title": "L'ATELIER DE CHARLES",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/L-ATELIER-DE-CHARLES-2.html",
+   "contentLength": 206872
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/MMF-PRO-3",
+   "slug": "infos-pratiques_catalogue_Exposant_MMF-PRO-3",
+   "title": "MMF-PRO",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/MMF-PRO-3.html",
+   "contentLength": 255907
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/NEEWER-4",
+   "slug": "infos-pratiques_catalogue_Exposant_NEEWER-4",
+   "title": "NEEWER",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/NEEWER-4.html",
+   "contentLength": 219714
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Nanlite",
+   "slug": "infos-pratiques_catalogue_Exposant_Nanlite",
+   "title": "Nanlite",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Nanlite.html",
+   "contentLength": 207326
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Panasonic-France",
+   "slug": "infos-pratiques_catalogue_Exposant_Panasonic-France",
+   "title": "Panasonic France",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Panasonic-France.html",
+   "contentLength": 207604
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Zoom-Up-or-Apprendre-la-photo",
+   "slug": "infos-pratiques_catalogue_Exposant_Zoom-Up-or-Apprendre-la-photo",
+   "title": "Zoom'Up | Apprendre la photo",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Zoom-Up-or-Apprendre-la-photo.html",
+   "contentLength": 228214
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Blackmagic-Design-VISUAL-IMPACT-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Marque_Blackmagic-Design-VISUAL-IMPACT-FRANCE-2",
+   "title": "Blackmagic Design - VISUAL IMPACT FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Blackmagic-Design-VISUAL-IMPACT-FRANCE-2.html",
+   "contentLength": 227554
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/DILAND-TETENAL",
+   "slug": "infos-pratiques_catalogue_Marque_DILAND-TETENAL",
+   "title": "DILAND - TETENAL",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/DILAND-TETENAL.html",
+   "contentLength": 219744
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/GFX-SERIES-FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Marque_GFX-SERIES-FUJIFILM-FRANCE-3",
+   "title": "GFX SERIES - FUJIFILM FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/GFX-SERIES-FUJIFILM-FRANCE-3.html",
+   "contentLength": 218592
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/KODAK-TETENAL-5",
+   "slug": "infos-pratiques_catalogue_Marque_KODAK-TETENAL-5",
+   "title": "KODAK - TETENAL",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/KODAK-TETENAL-5.html",
+   "contentLength": 217579
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Leofoto-DIGIT-ACCESS",
+   "slug": "infos-pratiques_catalogue_Marque_Leofoto-DIGIT-ACCESS",
+   "title": "Leofoto - DIGIT ACCESS",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Leofoto-DIGIT-ACCESS.html",
+   "contentLength": 213471
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Lexar-DIGIT-ACCESS",
+   "slug": "infos-pratiques_catalogue_Marque_Lexar-DIGIT-ACCESS",
+   "title": "Lexar - DIGIT ACCESS",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Lexar-DIGIT-ACCESS.html",
+   "contentLength": 212688
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Nanlite-VISUAL-IMPACT-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Marque_Nanlite-VISUAL-IMPACT-FRANCE-2",
+   "title": "Nanlite - VISUAL IMPACT FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Nanlite-VISUAL-IMPACT-FRANCE-2.html",
+   "contentLength": 212465
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/PRINT-FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Marque_PRINT-FUJIFILM-FRANCE-3",
+   "title": "PRINT - FUJIFILM FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/PRINT-FUJIFILM-FRANCE-3.html",
+   "contentLength": 218657
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Peak-Design-DIGIT-ACCESS",
+   "slug": "infos-pratiques_catalogue_Marque_Peak-Design-DIGIT-ACCESS",
+   "title": "Peak Design - DIGIT ACCESS",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Peak-Design-DIGIT-ACCESS.html",
+   "contentLength": 213004
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/QUICKSNAP-FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Marque_QUICKSNAP-FUJIFILM-FRANCE-3",
+   "title": "QUICKSNAP - FUJIFILM FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/QUICKSNAP-FUJIFILM-FRANCE-3.html",
+   "contentLength": 213224
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/X-SERIES-FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Marque_X-SERIES-FUJIFILM-FRANCE-3",
+   "title": "X SERIES - FUJIFILM FRANCE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/X-SERIES-FUJIFILM-FRANCE-3.html",
+   "contentLength": 219872
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/ADAPTATEUR-MODULE-8-EMIT-3",
+   "slug": "infos-pratiques_catalogue_Produit_ADAPTATEUR-MODULE-8-EMIT-3",
+   "title": "ADAPTATEUR MODULE 8",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/ADAPTATEUR-MODULE-8-EMIT-3.html",
+   "contentLength": 226101
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DNP-Photobooth-The-PRIME-compatible-DS620-TETENAL-2",
+   "slug": "infos-pratiques_catalogue_Produit_DNP-Photobooth-The-PRIME-compatible-DS620-TETENAL-2",
+   "title": "DNP Photobooth The PRIME compatible DS620",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DNP-Photobooth-The-PRIME-compatible-DS620-TETENAL-2.html",
+   "contentLength": 222429
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/NIKKOR-Z-70-200mm-f2-8-S-VR-NIKON-2",
+   "slug": "infos-pratiques_catalogue_Produit_NIKKOR-Z-70-200mm-f2-8-S-VR-NIKON-2",
+   "title": "NIKKOR Z 70-200mm f/2.8 S VR",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/NIKKOR-Z-70-200mm-f2-8-S-VR-NIKON-2.html",
+   "contentLength": 220933
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Produit_XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2",
+   "title": "XF16-55mm F2.8 R LM WR II",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2.html",
+   "contentLength": 228700
   }
  ],
- "totalPages": 169,
+ "totalPages": 237,
  "failedPages": [],
- "assetsDownloaded": 0,
- "assetsBytes": 0,
+ "assetsDownloaded": 26,
+ "assetsBytes": 141762,
  "maxPages": "unlimited",
  "depth": 3,
  "lang": "fr-FR",
@@ -1358,15 +1846,15 @@
  "skippedLang": 0,
  "_provenance": {
   "run_id": "run_1785837843405",
-  "step_id": "step_crawl",
-  "generated_at": "2026-08-04T10:38:47Z",
-  "git_sha": "dec020a55aa6-dirty",
+  "step_id": "step_entity_crawl",
+  "generated_at": "2026-08-04T11:46:41Z",
+  "git_sha": "3cb487c3347e-dirty",
   "tool": "crawl-site.py",
   "args": [
    "projects/salonphoto",
    "https://www.lesalondelaphoto.com/fr-FR",
    "--url-list",
-   "projects/salonphoto/workflow-output/nav-urls.txt",
+   "projects/salonphoto/workflow-output/entity-urls.txt",
    "--merge-inventory",
    "--lang",
    "fr-FR",
@@ -1461,7 +1949,6 @@
    "animations-ateliers_expositions-photos_grande-expo",
    "animations-ateliers_expositions-photos_prix-bayeux",
    "animations-ateliers_expositions-photos_zooms",
-   "animations-ateliers_programme-salon_,-w-,_,-w-,",
    "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus",
    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc",
    "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors",
@@ -1544,13 +2031,82 @@
    "salon_qui-expose",
    "salon_qui-visite",
    "salon_rse",
-   "salon_salon"
+   "salon_salon",
+   "animations-ateliers_programme-salon_Conference-or-Mers-et-Mysteres-par-Laurent-Ballesta",
+   "animations-ateliers_programme-salon_Evenement_Visite-soufflee-pour-malvoyants-et-non-voyants",
+   "catalog-exhibitor-full_CANSON",
+   "catalog-exhibitor-full_DxO-Labs",
+   "catalog-exhibitor-full_UPP-3",
+   "catalog-exhibitor-full_Zoom-Up-or-Apprendre-la-photo",
+   "infos-pratiques_catalogue_Exposant_ALLPAGES",
+   "infos-pratiques_catalogue_Exposant_CANON-2",
+   "infos-pratiques_catalogue_Exposant_DIGIT-ACCESS-3",
+   "infos-pratiques_catalogue_Exposant_DJI-GmbH",
+   "infos-pratiques_catalogue_Exposant_FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Exposant_Graine-de-Photographe-3",
+   "infos-pratiques_catalogue_Exposant_HAHNEMUHLE-3",
+   "infos-pratiques_catalogue_Exposant_LOXLEY-COLOUR",
+   "infos-pratiques_catalogue_Exposant_SIGMA-France",
+   "infos-pratiques_catalogue_Exposant_SIRUI-Optical-GmbH",
+   "infos-pratiques_catalogue_Exposant_SLIMPYX-5",
+   "infos-pratiques_catalogue_Exposant_TETENAL-5",
+   "infos-pratiques_catalogue_Exposant_VISUAL-IMPACT-FRANCE",
+   "infos-pratiques_catalogue_Marque_DNP-TETENAL-7",
+   "infos-pratiques_catalogue_Marque_EIZO-TETENAL-5",
+   "infos-pratiques_catalogue_Marque_EPSON-TETENAL-4",
+   "infos-pratiques_catalogue_Marque_HAHNEMUHLE-TETENAL-3",
+   "infos-pratiques_catalogue_Produit_Atelier-Photo-Initiation-au-collodion-humide-Graine-de-Photographe-2",
+   "infos-pratiques_catalogue_Produit_Atelier-Photo-de-nuit-Fetes-des-lumieres-a-Lyon-Graine-de-Photographe-2",
+   "infos-pratiques_catalogue_Produit_Cours-Street-Photography-Graine-de-Photographe-2",
+   "infos-pratiques_catalogue_Produit_DNP-Module-de-Connexion-sans-fil-WCM-PLUS-TETENAL-3",
+   "infos-pratiques_catalogue_Produit_DxO-PhotoLab-DxO-Labs-2",
+   "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-27-CG2700S-BK-TETENAL",
+   "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-27-CG2700X-BK-TETENAL-3",
+   "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-31-CG319X-BK-TETENAL",
+   "infos-pratiques_catalogue_Produit_EPSON-Imprimante-grand-format-SC-P8500D-Garantie-2-ans-TETENAL",
+   "infos-pratiques_catalogue_Produit_NORITSU-QSS-Green-III-Dry-Lab-TETENAL-2",
+   "infos-pratiques_catalogue_Produit_NORITSU-QSS-Green-Pro-Dry-Lab-TETENAL",
+   "infos-pratiques_catalogue_Produit_Workflows-hybrides-et-Vision-d'auteur-ENS-Louis-Lumiere-2",
+   "infos-pratiques_catalogue_Produit_X-E5-FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Produit_X-M5-FUJIFILM-FRANCE-2",
+   "infos-pratiques_catalogue_Produit_X-half-FUJIFILM-FRANCE-2",
+   "infos-pratiques_catalogue_Produit_XF500mm-F5-6-R-LM-OIS-WR-FUJIFILM-FRANCE-2",
+   "infos-pratiques_catalogue_Exposant_Blackmagic-Design",
+   "infos-pratiques_catalogue_Exposant_CANSON",
+   "infos-pratiques_catalogue_Exposant_CMA-Formation",
+   "infos-pratiques_catalogue_Exposant_ComLine-France",
+   "infos-pratiques_catalogue_Exposant_DIGIXO-COM",
+   "infos-pratiques_catalogue_Exposant_DxO-Labs",
+   "infos-pratiques_catalogue_Exposant_ENS-Louis-Lumiere",
+   "infos-pratiques_catalogue_Exposant_FRANCE",
+   "infos-pratiques_catalogue_Exposant_JC-PIERI-FORMATION-4",
+   "infos-pratiques_catalogue_Exposant_L-ATELIER-DE-CHARLES-2",
+   "infos-pratiques_catalogue_Exposant_MMF-PRO-3",
+   "infos-pratiques_catalogue_Exposant_NEEWER-4",
+   "infos-pratiques_catalogue_Exposant_Nanlite",
+   "infos-pratiques_catalogue_Exposant_Panasonic-France",
+   "infos-pratiques_catalogue_Exposant_Zoom-Up-or-Apprendre-la-photo",
+   "infos-pratiques_catalogue_Marque_Blackmagic-Design-VISUAL-IMPACT-FRANCE-2",
+   "infos-pratiques_catalogue_Marque_DILAND-TETENAL",
+   "infos-pratiques_catalogue_Marque_GFX-SERIES-FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Marque_KODAK-TETENAL-5",
+   "infos-pratiques_catalogue_Marque_Leofoto-DIGIT-ACCESS",
+   "infos-pratiques_catalogue_Marque_Lexar-DIGIT-ACCESS",
+   "infos-pratiques_catalogue_Marque_Nanlite-VISUAL-IMPACT-FRANCE-2",
+   "infos-pratiques_catalogue_Marque_PRINT-FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Marque_Peak-Design-DIGIT-ACCESS",
+   "infos-pratiques_catalogue_Marque_QUICKSNAP-FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Marque_X-SERIES-FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Produit_ADAPTATEUR-MODULE-8-EMIT-3",
+   "infos-pratiques_catalogue_Produit_DNP-Photobooth-The-PRIME-compatible-DS620-TETENAL-2",
+   "infos-pratiques_catalogue_Produit_NIKKOR-Z-70-200mm-f2-8-S-VR-NIKON-2",
+   "infos-pratiques_catalogue_Produit_XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2"
   ]
  },
  "_purged": [
   {
-   "slug": "animations-ateliers_programme-salon_,-w-,_,-w-,",
-   "reason": "unresolved source template placeholder in the path (crawl-site.is_placeholder_url now refuses it); recorded in scope-rules acceptedTargets",
+   "count": 8,
+   "reason": "source error pages (HTTP 500 rendered as content); crawl-site.is_error_page now refuses and un-caches them at capture time",
    "date": "2026-08-04"
   }
  ]

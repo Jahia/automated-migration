@@ -430,8 +430,16 @@ def main():
         try:
             _prev = json.load(open(mj))
             for _u, _name in (_prev.get("urlMap") or {}).items():
-                loc.reg.setdefault(_u, {"name": os.path.basename(_name), "ok": True,
+                _base = os.path.basename(_name)
+                loc.reg.setdefault(_u, {"name": _base, "ok": True,
                                         "bytes": 0, "kind": ""})
+                # SEED THE STRUCTURE THAT IS ACTUALLY WRITTEN (2026-08-04). mirror.json's
+                # urlMap is serialized from loc.urlmap, not loc.reg — seeding only reg
+                # carried nothing forward, so a run that reused 168 pages and rewrote 69
+                # published a urlMap covering 9.1% of the 1056 files its own pages
+                # reference. Caught by probes/mirror-registry.py's coverage arm, which is
+                # the reason that arm exists: the empty-registry check alone passed it.
+                loc.urlmap.setdefault(_u, _base)
             prev_map = _prev.get("urlMap") or {}
         except (OSError, ValueError):
             prev_map = {}
@@ -442,19 +450,28 @@ def main():
     # pages and an EMPTY registry, while 1063 asset files and every page reference
     # stayed on disk — a mirror that looks complete and serves nothing. If pages
     # reference assets but the seed is empty, the incremental path is unsafe: rebuild.
-    _refs = 0
+    # COVERAGE, not presence — third time this distinction has cost a defect
+    # (2026-08-04). The first version of this guard asked whether the previous urlMap
+    # was EMPTY. A PARTIAL one sails through: a run that reused 168 pages and rewrote
+    # 69 seeded 96 mappings, wrote them back, and left the registry covering 9.1% of
+    # the 1056 files its pages reference. So measure what the mirror actually needs
+    # against what the seed knows, and rebuild in full whenever the seed falls short.
+    _refs, _known = set(), {os.path.basename(str(v)) for v in prev_map.values()}
     try:
         import glob as _g
-        for _f in _g.glob(os.path.join(loc.mirror, "*.html"))[:5]:
-            _refs += len(re.findall(r"assets/[0-9a-f]{8,}\.",
+        for _f in _g.glob(os.path.join(loc.mirror, "*.html")):
+            _refs.update(re.findall(r"assets/([0-9A-Za-z_.-]+\.[0-9A-Za-z]{1,6})",
                                     open(_f, encoding="utf-8", errors="replace").read()))
     except Exception:                                              # noqa: BLE001
-        _refs = 0
-    if _refs and not prev_map:
-        print("  ! incremental DISABLED: the mirror's pages reference assets but the "
-              "previous mirror.json carries no urlMap — skipping pages would write an "
-              "empty registry. Rebuilding in full.")
+        _refs = set()
+    _cover = (len(_refs & _known) / len(_refs)) if _refs else 1.0
+    if _refs and _cover < 0.95:
+        print(f"  ! incremental DISABLED: the previous urlMap covers {_cover:.1%} of the "
+              f"{len(_refs)} asset file(s) the mirror's pages reference — skipping pages "
+              f"would publish that gap. Rebuilding in full.")
         prev_map = {}
+        loc.urlmap.clear()
+        loc.reg.clear()
         _incremental_ok = False
     else:
         _incremental_ok = True

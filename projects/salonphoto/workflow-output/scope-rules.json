@@ -43,6 +43,17 @@
       "date": "2026-08-03"
     },
     {
+      "id": "exclude-breadcrumbs",
+      "action": "exclude",
+      "match": {
+        "selector": "div.component.breadcrumb, [class*='readcrumb'], nav[aria-label*='readcrumb']"
+      },
+      "scope": "site",
+      "reason": "336 breadcrumb roots inside <main> on 228 of 237 captured pages, in two dialects: the SXA `component breadcrumb` (228) and the catalogue's own `CatalogBreadcrumb` (108). A breadcrumb is not content in Jahia — it renders from the page tree at template level — and leaving it in has a cost beyond noise: `breadcrumb` was already the single largest source of passthrough (119 of the 283 sdp:rawHtml bands), and on ENTITY details the trail landed INSIDE the extracted body, so an event's first band opened with 'Recherche' followed by the trail before reaching its own content. Excluding at scope level removes it from every consumer at once (census, extractor, entity loader) instead of teaching each one to skip it.",
+      "decidedBy": "claude",
+      "date": "2026-08-04"
+    },
+    {
       "id": "exclude-structured-data",
       "action": "exclude",
       "match": {
