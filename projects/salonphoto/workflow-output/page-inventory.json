@@ -1,6 +1,6 @@
 {
  "siteUrl": "https://www.lesalondelaphoto.com/fr-FR",
- "crawledAt": "2026-08-04T11:46:41Z",
+ "crawledAt": "2026-08-04T11:52:03Z",
  "pages": [
   {
    "url": "https://www.lesalondelaphoto.com/fr-FR/actualite-photo/actus/Collodion-humide-Marjolaine-Vuarnesson",
@@ -1833,12 +1833,284 @@
    "httpStatus": 200,
    "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2.html",
    "contentLength": 228700
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Aftershoot",
+   "slug": "infos-pratiques_catalogue_Exposant_Aftershoot",
+   "title": "Aftershoot",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Aftershoot.html",
+   "contentLength": 206626
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CYME-3",
+   "slug": "infos-pratiques_catalogue_Exposant_CYME-3",
+   "title": "CYME",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/CYME-3.html",
+   "contentLength": 206533
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/EMIT-2",
+   "slug": "infos-pratiques_catalogue_Exposant_EMIT-2",
+   "title": "EMIT",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/EMIT-2.html",
+   "contentLength": 231630
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/LUMYS-4",
+   "slug": "infos-pratiques_catalogue_Exposant_LUMYS-4",
+   "title": "LUMYS",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/LUMYS-4.html",
+   "contentLength": 206591
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Luminar",
+   "slug": "infos-pratiques_catalogue_Exposant_Luminar",
+   "title": "Luminar",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/Luminar.html",
+   "contentLength": 206494
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/MA-JOLIE-PHOTO",
+   "slug": "infos-pratiques_catalogue_Exposant_MA-JOLIE-PHOTO",
+   "title": "MA JOLIE PHOTO",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/MA-JOLIE-PHOTO.html",
+   "contentLength": 206731
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/NIKON-3",
+   "slug": "infos-pratiques_catalogue_Exposant_NIKON-3",
+   "title": "NIKON",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/NIKON-3.html",
+   "contentLength": 222977
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/NYA-EVO-4",
+   "slug": "infos-pratiques_catalogue_Exposant_NYA-EVO-4",
+   "title": "NYA-EVO",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/NYA-EVO-4.html",
+   "contentLength": 221690
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/PHOTOGRAPHES-DU-MONDE-3",
+   "slug": "infos-pratiques_catalogue_Exposant_PHOTOGRAPHES-DU-MONDE-3",
+   "title": "PHOTOGRAPHES DU MONDE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/PHOTOGRAPHES-DU-MONDE-3.html",
+   "contentLength": 206928
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/PIXTRAKKPIXPALACE",
+   "slug": "infos-pratiques_catalogue_Exposant_PIXTRAKKPIXPALACE",
+   "title": "PIXTRAKK/PIXPALACE",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/PIXTRAKKPIXPALACE.html",
+   "contentLength": 225164
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/TRUESIGHT-PTE-LTD",
+   "slug": "infos-pratiques_catalogue_Exposant_TRUESIGHT-PTE-LTD",
+   "title": "TRUESIGHT PTE.LTD.",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Exposant/TRUESIGHT-PTE-LTD.html",
+   "contentLength": 206897
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/DxO-Labs-DxO-Labs",
+   "slug": "infos-pratiques_catalogue_Marque_DxO-Labs-DxO-Labs",
+   "title": "DxO Labs - DxO Labs",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/DxO-Labs-DxO-Labs.html",
+   "contentLength": 215511
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/LaCie-ComLine-France",
+   "slug": "infos-pratiques_catalogue_Marque_LaCie-ComLine-France",
+   "title": "LaCie - ComLine France",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/LaCie-ComLine-France.html",
+   "contentLength": 214444
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/NEEWER-NEEWER-2",
+   "slug": "infos-pratiques_catalogue_Marque_NEEWER-NEEWER-2",
+   "title": "NEEWER - NEEWER",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/NEEWER-NEEWER-2.html",
+   "contentLength": 208757
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Savage-MMF-PRO-2",
+   "slug": "infos-pratiques_catalogue_Marque_Savage-MMF-PRO-2",
+   "title": "Savage - MMF-PRO",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Marque/Savage-MMF-PRO-2.html",
+   "contentLength": 220926
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Borne-autonome-DNP-DS-Pro2-Photo-and-Creation-DT-T9-DS620-DS820-Meuble-TETENAL-3",
+   "slug": "infos-pratiques_catalogue_Produit_Borne-autonome-DNP-DS-Pro2-Photo-and-Creation-DT-T9-DS620-DS820-Meuble-TETENAL-3",
+   "title": "Borne autonome DNP DS Pro2 Photo &amp; Creation (DT-T9 + DS620 + DS820 + Meuble)",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Borne-autonome-DNP-DS-Pro2-Photo-and-Creation-DT-T9-DS620-DS820-Meuble-TETENAL-3.html",
+   "contentLength": 225255
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Boutique-en-ligne-Imagine-WEB-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_Boutique-en-ligne-Imagine-WEB-TETENAL",
+   "title": "Boutique en ligne Imagine WEB",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Boutique-en-ligne-Imagine-WEB-TETENAL.html",
+   "contentLength": 223547
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/COOKE-SP3-EMIT-3",
+   "slug": "infos-pratiques_catalogue_Produit_COOKE-SP3-EMIT-3",
+   "title": "COOKE SP3",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/COOKE-SP3-EMIT-3.html",
+   "contentLength": 225919
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Camera-GFX-Eterna-55-FUJIFILM-FRANCE",
+   "slug": "infos-pratiques_catalogue_Produit_Camera-GFX-Eterna-55-FUJIFILM-FRANCE",
+   "title": "Cam\u00e9ra GFX Eterna 55",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Camera-GFX-Eterna-55-FUJIFILM-FRANCE.html",
+   "contentLength": 223334
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Chromie-perception-diagnostic-et-corrections-ENS-Louis-Lumiere-2",
+   "slug": "infos-pratiques_catalogue_Produit_Chromie-perception-diagnostic-et-corrections-ENS-Louis-Lumiere-2",
+   "title": "Chromie : perception, diagnostic et corrections",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Chromie-perception-diagnostic-et-corrections-ENS-Louis-Lumiere-2.html",
+   "contentLength": 217379
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DNP-Photobooth-The-POP-UP-compatible-DS620-et-QW410-TETENAL-2",
+   "slug": "infos-pratiques_catalogue_Produit_DNP-Photobooth-The-POP-UP-compatible-DS620-et-QW410-TETENAL-2",
+   "title": "DNP Photobooth The POP UP compatible DS620 et QW410",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/DNP-Photobooth-The-POP-UP-compatible-DS620-et-QW410-TETENAL-2.html",
+   "contentLength": 237988
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Fujifilm-Print-Shop-FUJIFILM-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Produit_Fujifilm-Print-Shop-FUJIFILM-FRANCE-2",
+   "title": "Fujifilm Print Shop",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Fujifilm-Print-Shop-FUJIFILM-FRANCE-2.html",
+   "contentLength": 222214
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Imprimante-Creative-Duplex-CX-3240F-FUJIFILM-FRANCE-3",
+   "slug": "infos-pratiques_catalogue_Produit_Imprimante-Creative-Duplex-CX-3240F-FUJIFILM-FRANCE-3",
+   "title": "Imprimante Creative Duplex CX 3240F",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Imprimante-Creative-Duplex-CX-3240F-FUJIFILM-FRANCE-3.html",
+   "contentLength": 232325
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Imprimante-Frontier-DX400-FUJIFILM-FRANCE-2",
+   "slug": "infos-pratiques_catalogue_Produit_Imprimante-Frontier-DX400-FUJIFILM-FRANCE-2",
+   "title": "Imprimante Frontier DX400",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Imprimante-Frontier-DX400-FUJIFILM-FRANCE-2.html",
+   "contentLength": 256315
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/KODAK-PayandPrint-Borne-sans-contact-avec-imprimante-6900-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_KODAK-PayandPrint-Borne-sans-contact-avec-imprimante-6900-TETENAL",
+   "title": "KODAK Pay&amp;Print - Borne sans contact avec imprimante 6900",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/KODAK-PayandPrint-Borne-sans-contact-avec-imprimante-6900-TETENAL.html",
+   "contentLength": 237322
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/KODAK-PayandPrint-Borne-sans-contact-avec-imprimantes-6900-and-8810-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_KODAK-PayandPrint-Borne-sans-contact-avec-imprimantes-6900-and-8810-TETENAL",
+   "title": "KODAK Pay&amp;Print Borne sans contact avec imprimantes 6900 &amp; 8810",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/KODAK-PayandPrint-Borne-sans-contact-avec-imprimantes-6900-and-8810-TETENAL.html",
+   "contentLength": 238343
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/KODAK-Station-APEX-v2-2-imprimantes-6900-1-imprimante-8810-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_KODAK-Station-APEX-v2-2-imprimantes-6900-1-imprimante-8810-TETENAL",
+   "title": "KODAK Station APEX v2 + 2 imprimantes 6900 + 1 imprimante 8810",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/KODAK-Station-APEX-v2-2-imprimantes-6900-1-imprimante-8810-TETENAL.html",
+   "contentLength": 222696
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/LEITZ-HEKTOR-EMIT-3",
+   "slug": "infos-pratiques_catalogue_Produit_LEITZ-HEKTOR-EMIT-3",
+   "title": "LEITZ HEKTOR",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/LEITZ-HEKTOR-EMIT-3.html",
+   "contentLength": 243090
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Master-Photographie-ENS-Louis-Lumiere-2",
+   "slug": "infos-pratiques_catalogue_Produit_Master-Photographie-ENS-Louis-Lumiere-2",
+   "title": "Master Photographie",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Master-Photographie-ENS-Louis-Lumiere-2.html",
+   "contentLength": 216915
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Nik-collection-DxO-Labs-2",
+   "slug": "infos-pratiques_catalogue_Produit_Nik-collection-DxO-Labs-2",
+   "title": "Nik collection",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Nik-collection-DxO-Labs-2.html",
+   "contentLength": 222233
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Savage-fond-papier-MMF-PRO",
+   "slug": "infos-pratiques_catalogue_Produit_Savage-fond-papier-MMF-PRO",
+   "title": "Savage fond papier",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/Savage-fond-papier-MMF-PRO.html",
+   "contentLength": 231950
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/TETENAL-Station-Imagine-Ecran-Logiciel-27-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_TETENAL-Station-Imagine-Ecran-Logiciel-27-TETENAL",
+   "title": "TETENAL Station Imagine - Ecran + Logiciel 27\"",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/TETENAL-Station-Imagine-Ecran-Logiciel-27-TETENAL.html",
+   "contentLength": 224797
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/TETENAL-Station-Imagine-Ecran-Logiciel-32-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_TETENAL-Station-Imagine-Ecran-Logiciel-32-TETENAL",
+   "title": "TETENAL Station Imagine - Ecran + Logiciel 32\"",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/TETENAL-Station-Imagine-Ecran-Logiciel-32-TETENAL.html",
+   "contentLength": 224856
+  },
+  {
+   "url": "https://www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/TETENAL-Station-Imagine-Ecran-Logiciel-TETENAL",
+   "slug": "infos-pratiques_catalogue_Produit_TETENAL-Station-Imagine-Ecran-Logiciel-TETENAL",
+   "title": "TETENAL Station Imagine - Ecran + Logiciel",
+   "httpStatus": 200,
+   "cachedAt": ".reference/cache/_crawl/www.lesalondelaphoto.com/fr-FR/infos-pratiques/catalogue/Produit/TETENAL-Station-Imagine-Ecran-Logiciel-TETENAL.html",
+   "contentLength": 229400
   }
  ],
- "totalPages": 237,
+ "totalPages": 264,
  "failedPages": [],
- "assetsDownloaded": 26,
- "assetsBytes": 141762,
+ "assetsDownloaded": 60,
+ "assetsBytes": 343314,
  "maxPages": "unlimited",
  "depth": 3,
  "lang": "fr-FR",
@@ -1847,8 +2119,8 @@
  "_provenance": {
   "run_id": "run_1785837843405",
   "step_id": "step_entity_crawl",
-  "generated_at": "2026-08-04T11:46:41Z",
-  "git_sha": "3cb487c3347e-dirty",
+  "generated_at": "2026-08-04T11:52:03Z",
+  "git_sha": "284204bd3d1b",
   "tool": "crawl-site.py",
   "args": [
    "projects/salonphoto",
@@ -2032,12 +2304,6 @@
    "salon_qui-visite",
    "salon_rse",
    "salon_salon",
-   "animations-ateliers_programme-salon_Conference-or-Mers-et-Mysteres-par-Laurent-Ballesta",
-   "animations-ateliers_programme-salon_Evenement_Visite-soufflee-pour-malvoyants-et-non-voyants",
-   "catalog-exhibitor-full_CANSON",
-   "catalog-exhibitor-full_DxO-Labs",
-   "catalog-exhibitor-full_UPP-3",
-   "catalog-exhibitor-full_Zoom-Up-or-Apprendre-la-photo",
    "infos-pratiques_catalogue_Exposant_ALLPAGES",
    "infos-pratiques_catalogue_Exposant_CANON-2",
    "infos-pratiques_catalogue_Exposant_DIGIT-ACCESS-3",
@@ -2053,8 +2319,6 @@
    "infos-pratiques_catalogue_Exposant_VISUAL-IMPACT-FRANCE",
    "infos-pratiques_catalogue_Marque_DNP-TETENAL-7",
    "infos-pratiques_catalogue_Marque_EIZO-TETENAL-5",
-   "infos-pratiques_catalogue_Marque_EPSON-TETENAL-4",
-   "infos-pratiques_catalogue_Marque_HAHNEMUHLE-TETENAL-3",
    "infos-pratiques_catalogue_Produit_Atelier-Photo-Initiation-au-collodion-humide-Graine-de-Photographe-2",
    "infos-pratiques_catalogue_Produit_Atelier-Photo-de-nuit-Fetes-des-lumieres-a-Lyon-Graine-de-Photographe-2",
    "infos-pratiques_catalogue_Produit_Cours-Street-Photography-Graine-de-Photographe-2",
@@ -2100,13 +2364,51 @@
    "infos-pratiques_catalogue_Produit_ADAPTATEUR-MODULE-8-EMIT-3",
    "infos-pratiques_catalogue_Produit_DNP-Photobooth-The-PRIME-compatible-DS620-TETENAL-2",
    "infos-pratiques_catalogue_Produit_NIKKOR-Z-70-200mm-f2-8-S-VR-NIKON-2",
-   "infos-pratiques_catalogue_Produit_XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2"
+   "infos-pratiques_catalogue_Produit_XF16-55mm-F2-8-R-LM-WR-II-FUJIFILM-FRANCE-2",
+   "infos-pratiques_catalogue_Exposant_Aftershoot",
+   "infos-pratiques_catalogue_Exposant_CYME-3",
+   "infos-pratiques_catalogue_Exposant_EMIT-2",
+   "infos-pratiques_catalogue_Exposant_LUMYS-4",
+   "infos-pratiques_catalogue_Exposant_Luminar",
+   "infos-pratiques_catalogue_Exposant_MA-JOLIE-PHOTO",
+   "infos-pratiques_catalogue_Exposant_NIKON-3",
+   "infos-pratiques_catalogue_Exposant_NYA-EVO-4",
+   "infos-pratiques_catalogue_Exposant_PHOTOGRAPHES-DU-MONDE-3",
+   "infos-pratiques_catalogue_Exposant_PIXTRAKKPIXPALACE",
+   "infos-pratiques_catalogue_Exposant_TRUESIGHT-PTE-LTD",
+   "infos-pratiques_catalogue_Marque_DxO-Labs-DxO-Labs",
+   "infos-pratiques_catalogue_Marque_LaCie-ComLine-France",
+   "infos-pratiques_catalogue_Marque_NEEWER-NEEWER-2",
+   "infos-pratiques_catalogue_Marque_Savage-MMF-PRO-2",
+   "infos-pratiques_catalogue_Produit_Borne-autonome-DNP-DS-Pro2-Photo-and-Creation-DT-T9-DS620-DS820-Meuble-TETENAL-3",
+   "infos-pratiques_catalogue_Produit_Boutique-en-ligne-Imagine-WEB-TETENAL",
+   "infos-pratiques_catalogue_Produit_COOKE-SP3-EMIT-3",
+   "infos-pratiques_catalogue_Produit_Camera-GFX-Eterna-55-FUJIFILM-FRANCE",
+   "infos-pratiques_catalogue_Produit_Chromie-perception-diagnostic-et-corrections-ENS-Louis-Lumiere-2",
+   "infos-pratiques_catalogue_Produit_DNP-Photobooth-The-POP-UP-compatible-DS620-et-QW410-TETENAL-2",
+   "infos-pratiques_catalogue_Produit_Fujifilm-Print-Shop-FUJIFILM-FRANCE-2",
+   "infos-pratiques_catalogue_Produit_Imprimante-Creative-Duplex-CX-3240F-FUJIFILM-FRANCE-3",
+   "infos-pratiques_catalogue_Produit_Imprimante-Frontier-DX400-FUJIFILM-FRANCE-2",
+   "infos-pratiques_catalogue_Produit_KODAK-PayandPrint-Borne-sans-contact-avec-imprimante-6900-TETENAL",
+   "infos-pratiques_catalogue_Produit_KODAK-PayandPrint-Borne-sans-contact-avec-imprimantes-6900-and-8810-TETENAL",
+   "infos-pratiques_catalogue_Produit_KODAK-Station-APEX-v2-2-imprimantes-6900-1-imprimante-8810-TETENAL",
+   "infos-pratiques_catalogue_Produit_LEITZ-HEKTOR-EMIT-3",
+   "infos-pratiques_catalogue_Produit_LaCie-8big-Pro5-ComLine-France-2",
+   "infos-pratiques_catalogue_Produit_Master-Photographie-ENS-Louis-Lumiere-2",
+   "infos-pratiques_catalogue_Produit_Nik-collection-DxO-Labs-2",
+   "infos-pratiques_catalogue_Produit_Savage-fond-papier-MMF-PRO",
+   "infos-pratiques_catalogue_Produit_TETENAL-Station-Imagine-Ecran-Logiciel-27-TETENAL",
+   "infos-pratiques_catalogue_Produit_TETENAL-Station-Imagine-Ecran-Logiciel-32-TETENAL",
+   "infos-pratiques_catalogue_Produit_TETENAL-Station-Imagine-Ecran-Logiciel-TETENAL"
   ]
  },
  "_purged": [
   {
-   "count": 8,
-   "reason": "source error pages (HTTP 500 rendered as content); crawl-site.is_error_page now refuses and un-caches them at capture time",
+   "count": 1,
+   "slugs": [
+    "infos-pratiques_catalogue_Produit_LaCie-8big-Pro5-ComLine-France-2"
+   ],
+   "reason": "entity detail rendered EMPTY at the source (<100 chars of <main>); entity_crawl._prune_empty_details now refuses these at capture",
    "date": "2026-08-04"
   }
  ]

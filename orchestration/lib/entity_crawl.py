@@ -40,6 +40,65 @@ def sh(args):
         sys.exit(f"FAIL entity_crawl: {os.path.basename(args[1])} -> {r.returncode}")
 
 
+def _prune_empty_details(pp, found, lang_seg):
+    """Drop entity details the source rendered EMPTY (2026-08-04).
+
+    A detail URL can answer 200 with a shell: one catalogue product's <main> held
+    35 characters — "Infos pratiques LISTE DES EXPOSANTS", the section label and
+    the listing's heading, no product at all — because the SXA item did not
+    resolve. It is the sibling of the HTTP 500 pages crawl-site now refuses, but
+    it cannot be refused there: a 35-character <main> is a legitimate shape for
+    some PAGES, and crawl-site does not know which URLs are entity details. Here
+    we do know, so the rule is applied only where it is safe.
+
+    Scoped deliberately narrow: an ENTITY DETAIL with under 100 characters of
+    <main> text has nothing to load. Left in, it becomes a node named after the
+    listing heading with no body — junk an editor has to find and delete.
+    """
+    inv_p = f"{pp}/workflow-output/page-inventory.json"
+    try:
+        inv = json.load(open(inv_p))
+    except (OSError, ValueError):
+        return
+    detail_slugs = {r.replace("/", "_") for r in found}
+    dropped = []
+    for pg in list(inv.get("pages") or []):
+        slug = pg.get("slug") or ""
+        if slug not in detail_slugs:
+            continue
+        src = f"{pp}/workflow-output/local-mirror/{slug}.html"
+        if not os.path.exists(src):
+            continue
+        try:
+            soup = BeautifulSoup(open(src, encoding="utf-8", errors="replace").read(),
+                                 "lxml")
+        except Exception:                                          # noqa: BLE001
+            continue
+        main = soup.find("main")
+        text = re.sub(r"\s+", " ", (main or soup).get_text(" ", strip=True)) if main else ""
+        if len(text) < 100:
+            dropped.append((slug, len(text)))
+    if not dropped:
+        return
+    gone = {d[0] for d in dropped}
+    inv["pages"] = [p for p in inv["pages"] if p.get("slug") not in gone]
+    inv.setdefault("_purged", []).append(
+        {"count": len(dropped), "slugs": [d[0] for d in dropped],
+         "reason": "entity detail rendered EMPTY at the source (<100 chars of <main>); "
+                   "nothing to load, would become a node named after the listing heading",
+         "date": "2026-08-04"})
+    json.dump(inv, open(inv_p, "w"), indent=1)
+    for slug, n in dropped:
+        for f in (f"{pp}/workflow-output/local-mirror/{slug}.html",):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+        print(f"  SKIP (entity detail empty at source: {n} chars of <main>): {slug}",
+              file=sys.stderr)
+    print(f"entity_crawl: pruned {len(dropped)} empty entity detail(s)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("project")
@@ -136,6 +195,7 @@ def main():
     sh([sys.executable, os.path.join(HERE, "crawl-site.py"), pp, site,
         "--url-list", lst, "--merge-inventory", *lang,
         "--rate-delay", a.rate_delay, "--max-asset-size", "1"])
+    _prune_empty_details(pp, found, lang_seg)
     sh([sys.executable, os.path.join(HERE, "localize_site.py"), pp,
         "--max-asset-size", "15"])
     sh([sys.executable, os.path.join(HERE, "scope_apply.py"), pp])
