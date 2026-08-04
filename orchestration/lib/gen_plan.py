@@ -409,6 +409,13 @@ def build_plan(p):
               # properties/children (coverage floor), no structure-markup
               # leftovers, value-level applicability — blocking, BEFORE any load
               *([f"PROBE: python3 orchestration/probes/reconcile-check.py {P}",
+                 # A RETRY MUST NOT PUBLISH A DIFFERENT MODEL (2026-08-04).
+                 # semanticize_content transformed its own output in place, so the
+                 # engine's second attempt demoted 539 instances to 243 — cardItem
+                 # 315 -> 66, layoutSection 25 -> 0 — while reporting success and
+                 # leaving every other gate green. Re-derive into a temp file and
+                 # compare the model.
+                 f"PROBE: python3 orchestration/probes/semantic-idempotent.py {P}",
                  # LOADED-distribution check needs content-load.json — at
                  # step_group it silently skips (file absent in a fresh run);
                  # here it gates for real (2026-07-23)

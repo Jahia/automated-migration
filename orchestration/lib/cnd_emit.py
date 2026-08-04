@@ -8,7 +8,7 @@ Turns the assembled component manifest into:
 
 Both are DETERMINISTIC functions of the manifest — no LLM. View identification
 follows fixed rules from usage flags:
-  - needsMainResource        -> default (card/teaser) + fullPage (detail page)
+  - needsMainResource        -> default + card (what a jcrQuery lists) + fullPage
   - isContainer              -> default; its child type gets a card view
   - layoutProperty present   -> single default view that branches on the property
   - otherwise                -> default only
@@ -349,12 +349,15 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
         "  - type (string)",
         "  - sortBy (string)",
         "  - startNode (weakreference)",
-        # a role can map a STATIC card band onto jcrQuery (itm is anatomy-
-        # driven); its decomposed children must still create rather than
-        # ConstraintViolation (corporate_investor-relations, 2026-07-23)
-        f"  + * ({ns}:cardItem)",
-        f"  + * ({ns}:cta)",
-        f"  + * ({ns}:subNavigation)",
+        # NO CHILD NODES ON A QUERY (operator, 2026-08-04). A jcrQuery RETRIEVES
+        # jmix:mainResource nodes and renders each with subNodeView='card', linking
+        # to the entity's fullPage view — the result set is the content, and it lives
+        # in the entity folders, not under this node. Children were granted here on
+        # 2026-07-23 because a STATIC card band occasionally got TYPED jcrQuery and
+        # its decomposed children failed ConstraintViolation; that papered over a
+        # typing bug with a permissive definition and left the model ambiguous — a
+        # jcrQuery with children is neither a query nor a grid. A static card band
+        # belongs to cardGrid, which is what holds cardItem children.
         "",
         f"[{ns}:gridRow] > jnt:content, {mixns}:component",
         "  - columns (long) = 3 < 1, 2, 3, 4, 6, 12",
@@ -587,9 +590,21 @@ def emit_semantic(m, ns, mixns, proj, stats=None):
         full += "\n" + "\n".join(alias)
         # and grant them wherever the generic item is granted, or the parent cannot
         # hold the very children the payload puts in it
-        grant = "\n".join(f"  + * ({nt})" for nt, _ in extra)
-        full = full.replace(f"  + * ({ns}:cardItem)",
-                            f"  + * ({ns}:cardItem)\n{grant}")
+        # SCOPED to the declaring parent. A first version replaced every
+        # `+ * (ns:cardItem)` line in the file, which granted accordionItem and
+        # cardGridItem inside every container that allows a card — including
+        # sdp:jcrQuery, which must hold no children at all. An item type belongs to
+        # its own parent's block and nowhere else.
+        for nt, parent in extra:
+            if not parent:
+                continue
+            m = re.search(r"^\[" + re.escape(parent) + r"\][^\n]*\n(?:[ \t]+[^\n]*\n)*",
+                          full, re.M)
+            if not m:
+                continue
+            block = m.group(0)
+            if f"+ * ({nt})" not in block:
+                full = full.replace(block, block.rstrip("\n") + f"\n  + * ({nt})\n", 1)
         print(f"[cnd_emit] + {len(extra)} manifest-named item type(s): "
               + ", ".join(nt for nt, _ in extra))
     return full, blocks, view_plans
@@ -671,6 +686,19 @@ def views_for(comp):
     node = comp["nodeType"]
     views = ["default.server.tsx"]
     if comp.get("needsMainResource"):
+        # A mainResource is rendered in exactly two situations, and the model should
+        # name both (operator, 2026-08-04): a jcrQuery LISTS it — asking Jahia for
+        # `subNodeView = 'card'`, which is what sdp:jcrQuery declares — and its own URL
+        # renders it FULL PAGE. The card view is what carries the link back to
+        # fullPage, so it is the hinge of the whole listing story.
+        #
+        # It was missing: these types emitted default + fullPage only, so every listing
+        # asked for a `card` view that did not exist and silently fell back to
+        # `default`. The docstring above still calls default "card/teaser", which is
+        # where the ambiguity came from — `default` renders the entity in whatever
+        # context it happens to sit, and a listing card is a deliberate, different
+        # rendering (image, title, date, link). Naming it makes the contract legible.
+        views.append("card.server.tsx")
         views.append("fullPage.server.tsx")
     plan = {"component": comp["name"], "nodeType": node, "views": views}
     if comp.get("layoutProperty"):
