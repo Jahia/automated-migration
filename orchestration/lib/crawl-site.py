@@ -173,6 +173,35 @@ def normalize_url(url):
     return urllib.parse.urlunparse((parsed.scheme, netloc, path, parsed.params, parsed.query, ''))
 
 
+def is_placeholder_url(url):
+    """True when a path segment carries no alphanumeric character at all.
+
+    A source template can leak an UNRESOLVED PLACEHOLDER into an href: this site's
+    programme template emitted `/programme-salon/,-w-,/,-w-,` on two event pages
+    (2026-08-04). The crawler followed it, the origin answered, and the result sat in
+    the corpus as an entity detail with no title and no body — a hollow node the
+    loader would have created, and a permanent red on entity-payload for a defect
+    that is upstream and unfixable here.
+
+    Kept generic rather than matching Sitecore's `,-w-,` literally, since placeholder
+    syntaxes differ per CMS. Two shapes, both about the segment rather than the
+    vendor: alphanumerics are a MINORITY of it (`,-w-,` is 1 of 5 characters -- a
+    first attempt at "no alphanumerics at all" missed it precisely because of that
+    stray `w`), or it carries template delimiters (`{{id}}`, `{id}`, `$(x)`, `<x>`).
+    Real slugs are overwhelmingly alphanumeric: `qui-expose` 0.9, `MPB-3` 0.8,
+    `cp-1-2026` 0.78."""
+    path = urllib.parse.urlparse(url).path
+    for seg in path.split("/"):
+        if not seg:
+            continue
+        s = urllib.parse.unquote(seg)
+        if sum(c.isalnum() for c in s) / len(s) < 0.5:
+            return True
+        if re.search(r"\{\{|\}\}|\$\(|\{[a-z_.]+\}|<[a-z_.]+>", s, re.I):
+            return True
+    return False
+
+
 def is_utility_page(url):
     """Check if a URL matches a utility page pattern."""
     path = urllib.parse.urlparse(url).path.lower()
@@ -419,6 +448,12 @@ def main():
 
         # Skip utility pages
         if is_utility_page(url):
+            skipped_utility.append(url)
+            continue
+
+        # Skip an unresolved template placeholder in the path (see is_placeholder_url)
+        if is_placeholder_url(url):
+            print(f"  SKIP (unresolved placeholder in path): {url}", file=sys.stderr)
             skipped_utility.append(url)
             continue
 

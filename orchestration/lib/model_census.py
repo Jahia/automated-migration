@@ -52,39 +52,70 @@ def _vis_len(el):
     return len(re.sub(r"\s+", " ", el.get_text(" ", strip=True)))
 
 
-def bands(main_el):
+def _declared_roots(el):
+    return [d for d in el.select(DECLARED)
+            if not any(a is not el and (
+                "component" in (a.get("class") or []) or a.get("data-component"))
+                for a in d.parents)]
+
+
+def bands(main_el, _depth=0):
     """(units, mode) — top-level content bands under the main region.
 
-    COVERAGE, not presence (2026-08-04). Choosing the declared boundary because a
-    declared component EXISTS is wrong when the declaration covers almost none of the
-    page: a Sitecore *item* template renders an event detail with its title, sessions,
-    description and themes as plain markup and only ONE `div.component` (the
-    breadcrumb). The chooser returned that single root, so 38 of 40 programme events
-    extracted with NO BODY and would have loaded as empty shells (caught pre-load by
-    probes/entity-payload.py). A declaration is only the right boundary when it
-    actually accounts for the region's text."""
-    dec = [d for d in main_el.select(DECLARED)
-           if not any(a is not main_el and (
-               "component" in (a.get("class") or []) or a.get("data-component"))
-               for a in d.parents)]
+    COVERAGE, not presence — for EVERY tier (2026-08-04). The first version of this
+    fix measured coverage only for the source's declaration and still took `<section>`
+    merely because sections EXISTED. On a Sitecore *item* template that is the same
+    bug one tier down: a programme event's two `<section>`s hold the date strip and
+    the TAB LABELS ("Sessions Description Thematiques"), 254 of the region's 2595
+    chars, while the top-level wrapper holds all 2595. Every event therefore loaded a
+    227-char body of tab labels and no prose — and entity-payload passed it, because
+    a body of labels clears a `>= 40 chars` floor. Presence tests keep failing the
+    same way: they answer "is there a boundary?" when the question is "does this
+    boundary account for the content?"
+
+    So: score all tiers, take the first that covers at least half the region, and if
+    the winner is a lone wrapper holding essentially everything, DESCEND into it —
+    one 2595-char band is the flat richtext the entity doctrine exists to prevent."""
     total = _vis_len(main_el)
-    covered = sum(_vis_len(d) for d in dec)
-    if dec and (total == 0 or covered / total >= 0.5):
-        return dec, "declared"
+    dec = _declared_roots(main_el)
+    secs = [s for s in main_el.find_all("section") if not s.find_parent("section")]
+    tl = [c for c in main_el.find_all(["div", "article", "section", "ul", "ol"],
+                                      recursive=False) if _vis_len(c) or c.find("img")]
+    # order matters: the source's own declaration wins when it accounts for the text
+    tiers = [("declared", dec), ("section", secs), ("toplevel-div", tl)]
+
+    for name, units in tiers:
+        if not units:
+            continue
+        covered = sum(_vis_len(u) for u in units)
+        if not (total == 0 or covered / total >= 0.5):
+            continue
+        # a single unit covering the whole region is a WRAPPER, not a band list.
+        # The chain is as deep as the source's markup: on a programme event it runs
+        # main > .container > .row > .external-content-wrapper > .VueWrapper >
+        # .container-events > .container before reaching 6 real bands, so a depth-4
+        # cap returned the wrapper and the body stayed one flat blob. Descend as far
+        # as the wrappers go (8 is well past any observed chain, and each level must
+        # still be a LONE child covering >90%, so it cannot walk into content).
+        if len(units) == 1 and _depth < 8 and total and covered / total > 0.9:
+            inner, imode = bands(units[0], _depth + 1)
+            if len(inner) > 1:
+                return inner, f"{name}>{imode}"
+        return units, name
+
     if dec:
-        # keep the declared roots AND the uncovered siblings: the page mixes an SXA
-        # component with item-template markup, and dropping either loses content
-        secs = [s for s in main_el.find_all(["section", "div", "article"],
-                                            recursive=False)]
-        mixed = dec + [s for s in secs if s not in dec
+        # mixed: declared roots AND the uncovered item-template siblings — the page
+        # mixes an SXA component with item markup and dropping either loses content
+        covered = sum(_vis_len(d) for d in dec)
+        mixed = dec + [s for s in tl if s not in dec
                        and not any(d in s.descendants for d in dec)
                        and _vis_len(s) > 0]
         if mixed and sum(_vis_len(x) for x in mixed) > covered:
             return mixed, f"declared+item ({covered}/{total} chars declared)"
-    secs = [s for s in main_el.find_all("section") if not s.find_parent("section")]
-    if secs:
-        return secs, "section"
-    return [d for d in main_el.find_all(["div", "article"], recursive=False)], "toplevel-div"
+    for name, units in tiers:
+        if units:
+            return units, f"{name} (under-covering)"
+    return [], "empty"
 
 
 def repeats(el):

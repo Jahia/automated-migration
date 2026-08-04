@@ -84,7 +84,7 @@ def main():
                          f"mirror page(s) for prefixes {prefixes} — nothing to load")
             continue
         wants_date = bool(DATED & set((fcfg.get("fieldMap") or {}).keys()))
-        no_title, no_body, no_date = [], [], []
+        no_title, no_body, no_date, thin, flat = [], [], [], [], []
         for s in mine:
             try:
                 title, date_iso, hero, main_el = M.article_core(f"{mirror}/{s}.html")
@@ -101,7 +101,24 @@ def main():
                 no_body.append(s)
             if wants_date and not date_iso:
                 no_date.append(s)
-        rows.append((fname, len(mine), len(no_title), len(no_body), len(no_date)))
+
+            # COVERAGE, against the page's own text (2026-08-04). A `>= 40 chars`
+            # floor passed every programme event on a body of TAB LABELS — "Sessions
+            # Description Thematiques Types" — 227 of the region's 2595 chars, because
+            # the band boundary took two <section>s that held the labels and not the
+            # panels. Any floor would have passed it; only the ratio to what the page
+            # actually says exposes it. Reference-derived, so there is no threshold to
+            # tune: a short page needs little, a long page must be mostly carried over.
+            own = len(re.sub(r"\s+", " ", main_el.get_text(" ", strip=True)))
+            if own >= 400 and text / max(own, 1) < 0.6:
+                thin.append((s, text, own))
+            # and a long body that came through as ONE band is the flat richtext the
+            # entity decomposition exists to prevent: every in-body image and embed
+            # is frozen out of the editor's reach inside it.
+            if own >= 800 and len(bands) <= 1:
+                flat.append((s, own))
+        rows.append((fname, len(mine), len(no_title), len(no_body), len(no_date),
+                     len(thin), len(flat)))
         if no_title:
             fails.append(f"folder '{fname}': {len(no_title)} of {len(mine)} entity/"
                          f"entities would load with NO TITLE ("
@@ -109,15 +126,27 @@ def main():
         if no_body:
             fails.append(f"folder '{fname}': {len(no_body)} of {len(mine)} would load "
                          f"with NO BODY ({', '.join(no_body[:4])})")
+        if thin and len(thin) / len(mine) > 0.25:
+            ex = "; ".join(f"{s2} ({t}/{o} chars)" for s2, t, o in thin[:3])
+            fails.append(f"folder '{fname}': {len(thin)} of {len(mine)} would load a "
+                         f"body carrying < 60% of what the page says ({ex}) — the band "
+                         f"boundary is not accounting for the content")
+        if flat:
+            ex = "; ".join(f"{s2} ({o} chars)" for s2, o in flat[:3])
+            fails.append(f"folder '{fname}': {len(flat)} of {len(mine)} would load as a "
+                         f"SINGLE band over a long body ({ex}) — that is one flat "
+                         f"richtext; its images and embeds are unreachable to editors")
         if wants_date and no_date and len(no_date) / len(mine) > a.max_dateless:
             fails.append(f"folder '{fname}': {len(no_date)} of {len(mine)} lack a DATE "
                          f"(> {a.max_dateless:.0%}) — the fieldMap date source is "
                          f"probably wrong for this family, not the pages")
 
     if a.report or fails:
-        print("entity payload (folder / pages / no-title / no-body / no-date):")
+        print("entity payload (folder / pages / no-title / no-body / no-date / "
+              "thin / flat):")
         for r in rows:
-            print(f"   {r[0]:<22} {r[1]:>4} {r[2]:>9} {r[3]:>8} {r[4]:>8}")
+            print(f"   {r[0]:<22} {r[1]:>4} {r[2]:>9} {r[3]:>8} {r[4]:>8} "
+                  f"{r[5]:>6} {r[6]:>5}")
     if fails:
         print(f"FAIL entity-payload [{p}] — {len(fails)} finding(s)")
         for f in fails[:10]:

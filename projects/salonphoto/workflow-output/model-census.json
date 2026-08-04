@@ -1,8 +1,10 @@
 {
- "pages": 169,
+ "pages": 168,
  "boundary": {
-  "declared": 120,
-  "section": 49
+  "declared": 119,
+  "section>toplevel-div": 1,
+  "toplevel-div>toplevel-div": 47,
+  "section": 1
  },
  "bandsPerPage": {
   "actualite-photo": 3,
@@ -98,8 +100,7 @@
   "animations-ateliers_expositions-photos_grande-expo": 24,
   "animations-ateliers_expositions-photos_prix-bayeux": 13,
   "animations-ateliers_expositions-photos_zooms": 20,
-  "animations-ateliers_programme-salon": 1,
-  "animations-ateliers_programme-salon_,-w-,_,-w-,": 1,
+  "animations-ateliers_programme-salon": 2,
   "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus": 2,
   "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc": 2,
   "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors": 2,
@@ -178,7 +179,7 @@
  "sectionFamilies": [
   {
    "signature": "plain",
-   "count": 933,
+   "count": 936,
    "sample": {
     "page": "actualite-photo",
     "band": "title",
@@ -200,7 +201,7 @@
   },
   {
    "signature": "carousel",
-   "count": 57,
+   "count": 37,
    "sample": {
     "page": "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art",
     "band": "video-content-block",
@@ -210,25 +211,36 @@
    }
   },
   {
-   "signature": "grid+aside",
-   "count": 1,
+   "signature": "carousel+grid",
+   "count": 16,
    "sample": {
-    "page": "animations-ateliers_programme-salon",
-    "band": "Container",
-    "heading": "R\u00e9sultats dans CALENDRIER DES \u00c9V\u00c9NEMENTS 2026",
-    "imgs": 0,
-    "links": 37
+    "page": "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus",
+    "band": "div",
+    "heading": "100 000\u20ac en photo de mariage : comment gagner plus sans trav",
+    "imgs": 7,
+    "links": 5
    }
   },
   {
    "signature": "grid",
+   "count": 2,
+   "sample": {
+    "page": "animations-ateliers_programme-salon",
+    "band": "Container-inner",
+    "heading": "R\u00e9sultats dans CALENDRIER DES \u00c9V\u00c9NEMENTS 2026",
+    "imgs": 0,
+    "links": 0
+   }
+  },
+  {
+   "signature": "grid+aside",
    "count": 1,
    "sample": {
-    "page": "infos-pratiques_catalogue",
-    "band": "Container",
-    "heading": "Exposants",
+    "page": "animations-ateliers_programme-salon",
+    "band": "Container-inner",
+    "heading": "Filtrer",
     "imgs": 0,
-    "links": 15
+    "links": 37
    }
   }
  ],
@@ -250,7 +262,7 @@
   },
   {
    "band": "breadcrumb",
-   "count": 119,
+   "count": 118,
    "signature": "plain"
   },
   {
@@ -264,14 +276,9 @@
    "signature": "plain"
   },
   {
-   "band": "CatalogTabs",
-   "count": 43,
+   "band": "div",
+   "count": 107,
    "signature": "repeat"
-  },
-  {
-   "band": "CatalogEventStrip",
-   "count": 37,
-   "signature": "carousel"
   },
   {
    "band": "content-block-vertical-image",
@@ -296,11 +303,6 @@
   {
    "band": "video-content-block",
    "count": 13,
-   "signature": "carousel"
-  },
-  {
-   "band": "carousel",
-   "count": 11,
    "signature": "carousel"
   },
   {
@@ -329,39 +331,14 @@
    "signature": "plain"
   },
   {
-   "band": "CatalogAppointmentBar",
-   "count": 4,
-   "signature": "plain"
-  },
-  {
-   "band": "CatalogExhibitorStrip",
-   "count": 4,
-   "signature": "repeat"
-  },
-  {
-   "band": "CatalogProductStrip",
-   "count": 4,
-   "signature": "carousel"
-  },
-  {
-   "band": "div",
-   "count": 3,
-   "signature": "repeat"
-  },
-  {
    "band": "divider",
    "count": 3,
    "signature": "plain"
   },
   {
-   "band": "Container",
+   "band": "Container-inner",
    "count": 2,
-   "signature": "grid+aside"
-  },
-  {
-   "band": "CatalogBrandStrip",
-   "count": 2,
-   "signature": "plain"
+   "signature": "grid"
   },
   {
    "band": "partners-2-list",
@@ -384,6 +361,11 @@
    "signature": "plain"
   },
   {
+   "band": "carousel",
+   "count": 1,
+   "signature": "carousel"
+  },
+  {
    "band": "quicklinks",
    "count": 1,
    "signature": "repeat"
@@ -404,6 +386,11 @@
    "signature": "repeat"
   },
   {
+   "band": "Container",
+   "count": 1,
+   "signature": "grid"
+  },
+  {
    "band": "date-lieu-horaires",
    "count": 1,
    "signature": "repeat"
@@ -416,15 +403,15 @@
  "uncrawledPrefixes": [
   {
    "prefix": "fr-FR/animations-ateliers",
-   "links": 264
+   "links": 263
   },
   {
    "prefix": "(root)",
-   "links": 217
+   "links": 216
   },
   {
    "prefix": "fr-FR",
-   "links": 171
+   "links": 170
   },
   {
    "prefix": "fr-FR/actualite-photo",
@@ -443,11 +430,11 @@
    "links": 39
   },
   {
-   "prefix": "fr-FR/animations-ateliers/programme-salon/,-w-,",
-   "links": 38
+   "prefix": "fr-FR/animations-ateliers/programme-salon/Evenement",
+   "links": 37
   },
   {
-   "prefix": "fr-FR/animations-ateliers/programme-salon/Evenement",
+   "prefix": "fr-FR/animations-ateliers/programme-salon/,-w-,",
    "links": 37
   },
   {
