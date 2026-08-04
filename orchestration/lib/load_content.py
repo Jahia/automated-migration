@@ -549,9 +549,18 @@ class Loader:
             post["jcr:title"] = f["title"][:250]
         # query-listing props (structured content 2026-07-21): the jcrQuery
         # archetype declares these natively — set when the type carries them
-        for qk in ("type", "maxItems", "sortBy", "variant", "mediaSide"):
+        # The canonical jcrQuery (.agents/skills/06-implement-jcr-query) has no `sortBy`
+        # and no `subNodeView`: sorting is `criteria` + `sortDirection`, and the item view
+        # is `j:subNodesView`. Posting the old names silently dropped them — `avail` gates
+        # on the declared property set, so the value went nowhere and every listing sorted
+        # by whatever the default happened to be (2026-08-04).
+        for qk in ("type", "maxItems", "criteria", "sortDirection", "j:subNodesView",
+                   "loadMore", "categoryFilter", "noResultText", "variant", "mediaSide"):
             if f.get(qk) and qk in avail:
                 post[qk] = str(f[qk])[:250]
+        for _old, _new in (("sortBy", "criteria"), ("subNodeView", "j:subNodesView")):
+            if f.get(_old) and _new in avail and _new not in post:
+                post[_new] = str(f[_old])[:250]
         for k, v in f.items():
             if not k.startswith("body") or not v:
                 continue

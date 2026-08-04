@@ -1648,6 +1648,9 @@ def main():
                   f"page(s) routed to mainResource (not pages)")
     except ImportError:
         pass
+    # the PROSE type — where a band with real text but no query intent belongs
+    _prose_nt = next((c.get("nodeType") for c in (manifest.get("components") or [])
+                      if c.get("archetype") in ("richTextSection", "richText")), None)
     listing_map = _mr_listing_map(a.project)
     query_nt = next((c.get("nodeType") for c in (manifest.get("components") or [])
                      if c.get("archetype") == "jcrQuery"), None)
@@ -2198,6 +2201,27 @@ def main():
                         cm0[key] = v
                 if cm0:
                     node["classMap"] = json.dumps(cm0, ensure_ascii=False)
+        # A QUERY WITH NOTHING TO QUERY IS NOT A QUERY (2026-08-04). The canonical
+        # jcrQuery declares `type` MANDATORY — it is chosen from the types that opted into
+        # {mixns}:queryContent — so an instance without one cannot be created at all. One
+        # arrived here anyway: the source's `search-results` band on home maps to jcrQuery
+        # through the name bridge, but its SXA search backend is out of scope, so no entity
+        # family resolves for it and it carried only body + title. That is the same
+        # mis-typing the old permissive definition (+ * cardItem on jcrQuery) was quietly
+        # absorbing. Re-type it by what it actually holds instead of loosening the CND.
+        for _i2 in kept:
+            if (_i2.get("nodeType") or "") != query_nt or not query_nt:
+                continue
+            if (_i2.get("fields") or {}).get("type"):
+                continue                       # a real listing: keeps its query type
+            _f2 = _i2.get("fields") or {}
+            _has_text = any(isinstance(v, str) and len(re.sub(r"<[^>]+>", " ", v).strip()) > 24
+                            for k, v in _f2.items() if k == "title" or k.startswith("body"))
+            _i2["nodeType"] = _prose_nt if (_has_text and _prose_nt) else passthrough
+            _i2["retypedFrom"] = query_nt
+            print(f"  ~ jcrQuery with no queryable type -> {_i2['nodeType']} "
+                  f"(no entity family resolved for this band)", file=sys.stderr)
+
         # decomposition residue: container slots duplicating child texts drop
         _dedup_container_slots(kept)
         _mod_ns = (passthrough or "x:y").split(":")[0]

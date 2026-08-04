@@ -339,16 +339,36 @@ def query_and_grid_types(ns, mixns, raw_runs=0, raw_stats=None):
         f"[{ns}:mainNavigation] > jnt:content, {mixns}:component",
         "",
         f"// listing + grid tools (editor-facing, every module ships these)",
-        f"[{ns}:jcrQuery] > jnt:content, {mixns}:component, jmix:list",
-        "  - query (string, textarea)",
-        "  - maxItems (long) = 10",
-        "  - subNodeView (string) = 'card'",
-        # entity-listing wiring (2026-07-23): the loader posts type/sortBy and
-        # a startNode weakref for structured-content listings — undeclared,
-        # every content.update failed 'Couldn't find definition for property'
-        "  - type (string)",
-        "  - sortBy (string)",
-        "  - startNode (weakreference)",
+        f"[{ns}:jcrQuery] > jnt:content, mix:title, {mixns}:pageComponent, jmix:list, jmix:cache",
+        "  - maxItems (long) indexed=no",
+        # CANONICAL DEFINITION — .agents/skills/06-implement-jcr-query/SKILL.md, which
+        # says in as many words: "Do NOT ship a minimalist hardcoded-nodeType/basePath
+        # variant — use this full component with criteria, sortDirection, filter,
+        # loadMore, categoryFilter, j:subNodesView". This emitter shipped exactly the
+        # minimalist variant (query textarea + plain-string type/sortBy/subNodeView), so
+        # editors got free-text where the skill specifies pickers, and the properties the
+        # views read (criteria/sortDirection/j:subNodesView) did not exist at all.
+        #
+        # `type` is driven by the marker mixin: subnodetypes auto-populates with every
+        # type that opted in by extending {mixns}:queryContent (+ jnt:page), so the
+        # dropdown stays short and curated instead of listing the whole catalogue. NO
+        # space after the comma in the CSV — a space there is one of the five known
+        # install-blocking CND faults.
+        f"  - type (string, choicelist[subnodetypes='jnt:page,{mixns}:queryContent',"
+        f"resourceBundle]) mandatory indexed=no",
+        "  - criteria (string, choicelist[resourceBundle]) = 'jcr:created' autocreated "
+        "indexed=no < 'jcr:created', 'jcr:lastModified', 'j:lastPublished'",
+        "  - sortDirection (string, choicelist[resourceBundle]) = 'desc' autocreated "
+        "indexed=no < 'asc', 'desc'",
+        "  - startNode (weakreference) indexed=no",
+        "  - excludeNodes (weakreference) multiple indexed=no",
+        "  - filter (weakreference, category[autoSelectParent=false]) multiple indexed=no",
+        "  - noResultText (string) i18n indexed=no",
+        "  - j:subNodesView (string, choicelist[templates=subnodes,resourceBundle,image,"
+        "dependentProperties='type']) nofulltext indexed=no",
+        "  - j:linkType (string, choicelist[linkTypeInitializer]) indexed=no",
+        "  - loadMore (boolean) = false indexed=no",
+        "  - categoryFilter (boolean) = false indexed=no",
         # NO CHILD NODES ON A QUERY (operator, 2026-08-04). A jcrQuery RETRIEVES
         # jmix:mainResource nodes and renders each with subNodeView='card', linking
         # to the entity's fullPage view — the result set is the content, and it lives
