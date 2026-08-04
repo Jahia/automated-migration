@@ -55,6 +55,10 @@ def main():
     ap.add_argument("project")
     ap.add_argument("--max-dateless", type=float, default=0.25)
     ap.add_argument("--report", action="store_true")
+    ap.add_argument("--config-only", action="store_true",
+                    help="run only the checks that read the entity map, not the mirror "
+                         "(seconds instead of minutes; used to test this gate and to "
+                         "fail a bad map before any page work happens)")
     a = ap.parse_args()
     p = a.project
     pp = f"projects/{p}"
@@ -71,10 +75,71 @@ def main():
     if not os.path.isdir(mirror):
         sys.exit(f"FAIL entity-payload: no scoped mirror at {mirror}")
 
-    M = load_producer()
+    M = None if a.config_only else load_producer()
     slugs = sorted(f[:-5] for f in os.listdir(mirror) if f.endswith(".html"))
     fails, rows = [], []
     DATED = {"date", "startDate", "publishDate"}
+
+    # FOLDERS SHARING A TYPE MUST BE TELLABLE APART (2026-08-04). The catalogue's three
+    # axes were consolidated into one sdp:directoryEntry precisely because their field
+    # surfaces are identical — which is right, but then something has to carry the axis.
+    # Nothing did: no folder set the `kind` choicelist the type was approved with, so 77
+    # entries would have loaded indistinguishable and every kind-filtered listing would
+    # return nothing. A shared type with no distinguishing fixedProp is a modelling hole,
+    # visible in the config alone — no need to read a single page to know it.
+    # Only when the TYPE ITSELF declares a discriminator. Five folders share
+    # sdp:event and that is perfectly fine — an agenda entry and a programme entry are
+    # told apart by their folder, which is what jcrQuery.startNode selects on. But
+    # sdp:directoryEntry was approved with a `kind` choicelist (exposant|marque|produit)
+    # precisely because the catalogue's three axes are one type, and then no folder set
+    # it. A first version of this check compared fixedProps across every shared type and
+    # cried wolf on event and newsArticle; the archetype's own discriminator is the
+    # signal, not the sharing.
+    sys.path.insert(0, LIB)
+    try:
+        import archetypes as ARCH
+    except ImportError:
+        ARCH = None
+
+    def _discriminator(nt):
+        if ARCH is None:
+            return None
+        local = (nt or "").split(":")[-1]
+        for k, v in ARCH.ARCHETYPES.items():
+            if ARCH.node_local(k) == local:
+                return ((v.get("layout") or {}).get("name")
+                        if (v.get("layout") or {}).get("values") else None)
+        return None
+
+    by_type = {}
+    for fname, fcfg in folders.items():
+        by_type.setdefault(fcfg.get("type"), []).append((fname, fcfg))
+    for nt, group in by_type.items():
+        disc = _discriminator(nt)
+        if not disc or len(group) < 2:
+            continue
+        missing = [g[0] for g in group if not (g[1].get("fixedProps") or {}).get(disc)]
+        if missing:
+            fails.append(f"type '{nt}' declares the discriminator '{disc}' and "
+                         f"{len(group)} folders share it, but {len(missing)} set no "
+                         f"value ({', '.join(missing)}) — every entry would load "
+                         f"indistinguishable and a {disc}-filtered listing returns "
+                         f"nothing")
+        vals = [(g[1].get("fixedProps") or {}).get(disc) for g in group]
+        if len(set(v for v in vals if v)) < len([v for v in vals if v]):
+            fails.append(f"type '{nt}': folders repeat the same '{disc}' value "
+                         f"({', '.join(str(v) for v in vals)}) — the discriminator does "
+                         f"not discriminate")
+
+    if a.config_only:
+        if fails:
+            print(f"FAIL entity-payload [{p}] (config) — {len(fails)} finding(s)")
+            for f in fails:
+                print(f"  - {f}")
+            sys.exit(1)
+        print(f"PASS entity-payload (config): {len(folders)} folder(s), "
+              f"{len(by_type)} type(s), each shared type distinguishable")
+        return
 
     for fname, fcfg in folders.items():
         prefixes = [x.strip("/") for x in (fcfg.get("urlPrefixes") or [])]

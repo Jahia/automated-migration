@@ -259,7 +259,16 @@ def build_plan(p):
                 "build",
                 [f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/entity_crawl.py {P}{SLANG} --rate-delay 2",
                  f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}",
-                 f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}"],
+                 f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}",
+                 # PROVE THE ENTITY PAYLOAD WHERE IT IS CAPTURED (2026-08-04).
+                 # entity-payload runs the real loader over every declared detail and
+                 # fails on the ones that would land hollow — titleless, bodiless, a
+                 # body carrying under 60% of the page, a long body as one flat band,
+                 # or a whole folder sharing one template heading. It was written, it
+                 # caught four real defect classes today, and it was wired into NO
+                 # step: the plan only checked entities AFTER loading them. Same
+                 # failure as is_error_page sitting uncalled for a day.
+                 f"PROBE: python3 orchestration/probes/entity-payload.py {P}"],
                 deps=["step_localize"])]
           if os.path.exists(f"orchestration/content/{P}.mainresource.json") else []),
         step("step_inventory", "SITE INVENTORY: deterministic DOM analysis (landmarks, "

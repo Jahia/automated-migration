@@ -348,6 +348,24 @@ def main():
             post = {"body": ld._rewire_hrefs(standfirst)[:200_000]}
             if date_iso:
                 post["date"] = date_iso
+            # PER-FOLDER PROPERTIES (2026-08-04). Three catalogue folders share one
+            # sdp:directoryEntry, distinguished by a `kind` choicelist — and nothing set
+            # it, so all 77 entries would have loaded indistinguishable and any listing
+            # filtered by kind would return nothing. `fixedProps` is the folder's own
+            # declaration of what its type means; `propPatterns` lifts a visible string
+            # out of the page into its own field (a stand number reads "Stands : M3006"
+            # in prose, and prose is not a field a contributor can edit as a field).
+            for k, v in (fcfg.get("fixedProps") or {}).items():
+                post[k] = v
+            _own = re.sub(r"\s+", " ", main_el.get_text(" ", strip=True))
+            for k, pat in (fcfg.get("propPatterns") or {}).items():
+                try:
+                    m = re.search(pat, _own)
+                except re.error as e:
+                    print(f"  ! propPattern {k}: bad regex ({e})", file=sys.stderr)
+                    continue
+                if m:
+                    post[k] = (m.group(1) if m.groups() else m.group(0)).strip()[:250]
             try:
                 ld.m.update(npath, post, locale=a.locale)
                 updated += 1
