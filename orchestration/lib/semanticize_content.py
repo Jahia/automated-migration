@@ -1581,7 +1581,32 @@ def main():
     a = ap.parse_args()
     load_p = f"orchestration/content/{a.project}.content-load.json"
     man_p = a.manifest or f"projects/{a.project}/workflow-output/component-manifest.json"
-    data = json.load(open(load_p))
+
+    # IDEMPOTENCY (2026-08-04). This transforms the EXTRACT payload in place, so a
+    # second pass consumes its own output — and silently degrades it. Measured on
+    # salonphoto, same file, twice in a row:
+    #     pass 1 (raw extract):  207 semantic, 16 passthrough, 89 images lifted
+    #     pass 2 (its own output): 182 semantic, 41 passthrough,  3 images lifted
+    # 25 instances demoted to raw HTML and image lifting all but gone, with both
+    # passes reporting success. The engine retries a step up to 3 times by design, so
+    # any retry of step_content_extract quietly published the degraded model — and the
+    # "182/41" that appears on a retry is indistinguishable from a producer bug, which
+    # is exactly how it cost me three false diagnoses in one session before I measured
+    # the double pass itself.
+    #
+    # Fix: keep the extract output beside the payload the first time through and always
+    # re-derive from THAT. The transform becomes a pure function of the extract, which
+    # is what every consumer already assumes it is.
+    raw_p = f"orchestration/content/{a.project}.content-extract.json"
+    _cur = json.load(open(load_p))
+    if _cur.get("model") == "archetype" and os.path.exists(raw_p):
+        data = json.load(open(raw_p))
+        print(f"[semanticize_content] input was already semanticized — re-deriving from "
+              f"{os.path.basename(raw_p)} (idempotent)", file=sys.stderr)
+    else:
+        data = _cur
+        if _cur.get("model") != "archetype":
+            json.dump(_cur, open(raw_p, "w"), ensure_ascii=False)
     manifest = json.load(open(man_p))
     if manifest.get("model") != "archetype":
         sys.exit("FAIL: manifest is not the archetype model — run segment2manifest --archetypes")
