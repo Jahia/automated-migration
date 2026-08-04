@@ -140,6 +140,10 @@
     {
       "path": "Le-salon/Actualites",
       "reason": "A LEGACY URL shape (capitalised /Le-salon/Actualites/<slug>) still linked from one article's prose; the live site 301s it to /actualite-photo/actus/<slug>. The write-time link rewire maps it onto the migrated article when the slug resolves; recorded here so the census does not demand a page for a redirect."
+    },
+    {
+      "path": "__source-500__",
+      "reason": "8 declared entity URLs answer HTTP 500 at the source (rendered '500 — Internal server error', no <main>): animations-ateliers_programme-salon_Conference-or-Mers-et-Mysteres-par-Laurent-Ballesta, animations-ateliers_programme-salon_Evenement_Visite-soufflee-pour-malvoyants-et-non-voyants, catalog-exhibitor-full_CANSON, catalog-exhibitor-full_DxO-Labs and 4 more. Not content and not migratable — the defect is upstream. The crawler now refuses to cache an error page (crawl-site.is_error_page) and probes/capture-slugs.py fails if one is in the ledger."
     }
   ],
   "_targets_README": "pagesToCrawl and acceptedTargets are the DECISION register for internal link targets the menu-scoped capture does not reach. probes/link-census.py fails on any internal link whose target is in none of: captured pages, mainresource urlPrefixes, the sitemap, pagesToCrawl, acceptedTargets. A decision may be 'crawl it' or 'accept it out of scope', but it may never be silence."

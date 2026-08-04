@@ -20,6 +20,10 @@ Checks:
      recorded decision, not an omission.)
   4. review steps carry NO PROBE: line (they are decision points by design).
   5. step ids are unique and every depends_on target exists.
+  6. every CORPUS-SCALED producer carries an explicit `Run[N]:` budget — a bare
+     `Run:` is capped at the engine default (900s) and that cap is invisible in the
+     plan. Measured: nav_scope_crawl on a 159-page corpus was killed at 900s on all
+     three attempts and step_crawl burned 8 hours without ever being able to pass.
 
 Usage: plan-lint.py <plan.json>
 """
@@ -88,6 +92,25 @@ def main():
                      + ", ".join(review_probe))
     if bad_dep:
         fails.append(f"depends_on target(s) not in the plan: {', '.join(bad_dep[:6])}")
+
+    # a producer whose work scales with the corpus MUST declare its budget
+    LONG = ("nav_scope_crawl.py", "crawl-site.py", "localize_site.py", "entity_crawl.py",
+            "extract_content.py", "semanticize_content.py", "load_content.py",
+            "load_main_resources.py", "zone_detect.py", "segment_probe.mjs",
+            "component_css.py", "publish_site.py")
+    unbudgeted = []
+    for s_ in steps:
+        for c in s_.get("acceptance_criteria") or []:
+            if not c.startswith("Run:"):
+                continue
+            for prod in LONG:
+                if prod in c and "|| true" not in c:
+                    unbudgeted.append(f"{s_['id']}: {prod}")
+    if unbudgeted:
+        fails.append(f"{len(unbudgeted)} corpus-scaled producer(s) on a bare `Run:` "
+                     f"(capped at the engine's 900s default, invisibly): "
+                     + "; ".join(sorted(set(unbudgeted))[:6])
+                     + " — use Run[N]: with a corpus-derived budget")
 
     if fails:
         print(f"FAIL plan-lint [{path}]")

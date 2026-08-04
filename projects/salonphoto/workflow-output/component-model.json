@@ -358,6 +358,25 @@
       ],
       "_scope": "72 card-reached dated details: programme/Evenement 37, agenda-photo 20, expositions-photos 9, animations 6",
       "_note": "ONE type, four folders. Agenda entries and salon programme events share a field surface (title/date/location/body/image); separating them into two types would duplicate a shape (dup-shapes.sh would fail it)."
+    },
+    "sdp:directoryEntry": {
+      "name": "Entrée catalogue",
+      "views": [
+        "default",
+        "compact",
+        "cm",
+        "featured",
+        "fullPage"
+      ],
+      "_mainResource": true,
+      "_folders": [
+        "contents/catalogue-exposants",
+        "contents/catalogue-marques",
+        "contents/catalogue-produits"
+      ],
+      "_layoutProperty": "kind = exposant | marque | produit",
+      "_approved": "2026-08-03 on full-corpus evidence: 33 details across /Exposant/ (15), /Marque/ (11), /Produit/ (7) and /catalog-exhibitor-full/.",
+      "_why": "Not an article (no publication date) and not an event (no dates at all): a logo, a stand number, product categories, an outbound website link. One type + a kind choicelist keeps the shape single and the editor label honest."
     }
   },
   "childTypes": {

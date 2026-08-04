@@ -112,6 +112,22 @@ def build_plan(p):
     # source whose CMS DECLARES its components (declared_inventory finds an adapter),
     # that spend buys nothing the declaration does not already give deterministically
     # — a declared-source arm belongs in seg_strategies.
+    # RUN BUDGETS (2026-08-04). A `Run:` line without an explicit budget is capped at
+    # the engine's default (900s), and that cap is invisible in the plan: on a 159-page
+    # corpus nav_scope_crawl was killed at 900s on all three attempts and step_crawl
+    # burned EIGHT HOURS of wall clock without ever being able to pass. The engine does
+    # support `Run[N]:` — gen_plan simply never used it. Any producer whose work scales
+    # with the corpus now carries a budget derived from the corpus, floor 30 min,
+    # ceiling 4h (crawl/localize are network-bound and rate-limited by design).
+    _pages_n = 0
+    try:
+        _pages_n = len(json.load(open(
+            f"{PP}/workflow-output/page-inventory.json")).get("pages") or [])
+    except (OSError, ValueError):
+        _pages_n = 0
+    CAPTURE_BUDGET = max(1800, min(14400, 90 * max(_pages_n, 20)))
+    EXTRACT_BUDGET = max(1800, min(7200, 30 * max(_pages_n, 20)))
+
     SEG_BUDGET = 2700
     try:
         _inv = json.load(open(f"{PP}/workflow-output/page-inventory.json"))
@@ -214,14 +230,14 @@ def build_plan(p):
              # --lang: a locale-PREFIXED source (/fr-FR/…) must declare it, or
              # every slug wears the prefix and home is slugged `fr-FR` —
              # capture-slugs.py is the gate on that identity defect.
-             [(f"Run: python3 orchestration/lib/nav_scope_crawl.py {PP} {URL}{SLANG} --rate-delay 2 --max-asset-size 1"
+             [(f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/nav_scope_crawl.py {PP} {URL}{SLANG} --rate-delay 2 --max-asset-size 1"
                if ARCH else
-               f"Run: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2{SLANG} --rate-delay 2 --max-asset-size 1"),
+               f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/crawl-site.py {PP} {URL} --max-pages {N} --depth 2{SLANG} --rate-delay 2 --max-asset-size 1"),
               f"PROBE: test -s {PP}/workflow-output/page-inventory.json",
               f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}"],
              deps=["step_connect"]),
         step("step_localize", "Local mirror + offline mirror gate", "build",
-             [f"Run: python3 orchestration/lib/localize_site.py {PP} --max-asset-size 15",
+             [f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/localize_site.py {PP} --max-asset-size 15",
               f"PROBE: test -s {PP}/workflow-output/local-mirror/mirror.json",
               f"PROBE[900]: node orchestration/lib/mirror_probe.mjs {PP} 10"],
              deps=["step_crawl"]),
@@ -237,7 +253,7 @@ def build_plan(p):
         # No-op when the project declares no entities.
         *([step("step_entity_crawl", "Capture the ENTITY DETAIL pages (sitemap + card-reached)",
                 "build",
-                [f"Run: python3 orchestration/lib/entity_crawl.py {P}{SLANG} --rate-delay 2",
+                [f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/entity_crawl.py {P}{SLANG} --rate-delay 2",
                  f"PROBE: python3 orchestration/probes/capture-slugs.py {PP}{SLANG}",
                  f"PROBE: python3 orchestration/probes/mirror-selfcontained.py {PP}"],
                 deps=["step_localize"])]
@@ -274,7 +290,7 @@ def build_plan(p):
                 "build",
                 [f"Run: python3 orchestration/lib/source_detect.py {P}",
                  f"Run: python3 orchestration/lib/declared_inventory.py {P}",
-                 f"Run: ZONE3_JSON_DIR={PP}/workflow-output python3 orchestration/lib/zone_detect.py {P}",
+                 f"Run[{EXTRACT_BUDGET}]: ZONE3_JSON_DIR={PP}/workflow-output python3 orchestration/lib/zone_detect.py {P}",
                  f"Run: python3 orchestration/lib/island_probe.py {P}",
                  # ENTITY COMPLETENESS: the menu gives the IA, the SITEMAP gives the
                  # full URL inventory. Without it a listing's page-one sample IS the
@@ -360,19 +376,14 @@ def build_plan(p):
         # richtext props per type from the OBSERVED lift (wired-only types:
         # a declared-but-unwired prop is a dead prop, G1 forbids it)
         step("step_content_extract", "Content-load payload + partition/contribution/component gates", "build",
-             [# the DECLARED arm's manifest is keyed by the source's declared type
-              # names, so extraction must read the same declaration (--adapter sxa);
-              # the vision arm's manifest keeps the vision-driven default. The flag is
-              # chosen from the manifest's own generatedFrom stamp — no second source
-              # of truth to drift.
-              f"Run: python3 -c \"import json,subprocess,sys; "
-              f"m=json.load(open('{PP}/workflow-output/component-manifest.json')); "
-              f"dec='declared2manifest' in (m.get('generatedFrom') or ''); "
-              f"sys.exit(subprocess.run([sys.executable,'orchestration/lib/extract_content.py','{P}','{SITE}']"
-              f"+(['--adapter','sxa'] if dec else [])).returncode)\"",
+             [# extract_content picks its own adapter from the manifest's
+              # generatedFrom stamp (a declared-arm manifest -> declared boundaries),
+              # so the plan names the PRODUCER plainly. An inline python -c wrapper
+              # here hid which producer ran from every audit of this plan.
+              f"Run[{EXTRACT_BUDGET}]: python3 orchestration/lib/extract_content.py {P} {SITE}",
               # archetype model: map the skeleton content-load onto the semantic
               # archetype field surface (title/body/image/cta + typed children).
-              *([f"Run: python3 orchestration/lib/semanticize_content.py {P} "
+              *([f"Run[{EXTRACT_BUDGET}]: python3 orchestration/lib/semanticize_content.py {P} "
                  f"--manifest {PP}/workflow-output/component-manifest.json"] if ARCH else []),
               # archetype-model blocking gate: the content-load is the semantic
               # model AND every page carries instances (skeleton content-load
@@ -568,7 +579,7 @@ def build_plan(p):
         # gen_plan never emitted it — the documented regression every generated
         # plan inherited. Config-gated: runs when <p>.mainresource.json exists.
         *([step("step_main_resources", "mainResource entities -> contentFolder (+ folder map)", "content",
-                [f"Run: python3 orchestration/lib/load_main_resources.py {P} {SITE}",
+                [f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/load_main_resources.py {P} {SITE}",
                  # producing gate: every declared folder exists and holds >= 1
                  # node of its type; no mainResource node outside a folder
                  f"PROBE: bash orchestration/probes/mainresource.sh {P} {SITE} {PRIMARY_LOCALE}",
@@ -622,7 +633,7 @@ def build_plan(p):
               f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"],
              deps=["step_pages"]),
         step("step_content_load", "Load shells + content via MCP (idempotent clean)", "content",
-             [f"Run: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale {PRIMARY_LOCALE}",
+             [f"Run[{CAPTURE_BUDGET}]: python3 orchestration/lib/load_content.py {P} {SITE} --clean --locale {PRIMARY_LOCALE}",
               # blocking under ARCH: the page's main area has content children in
               # LIVE (the engine integrity belt does the deeper page-tree diff).
               *([f"PROBE: python3 orchestration/lib/create_pages.py {P} {SITE} --check"] if ARCH else []),
@@ -654,7 +665,7 @@ def build_plan(p):
         # node's concrete type + captured classes), then rebuilds + redeploys —
         # CSS is a pure rendering asset, so the post-load rebuild is legitimate.
         *([step("step_component_css", "Capture per-component CSS modules from JCR", "deploy",
-                [f"Run: python3 orchestration/lib/component_css.py {P} {SITE}",
+                [f"Run[{EXTRACT_BUDGET}]: python3 orchestration/lib/component_css.py {P} {SITE}",
                  f"Run: bash orchestration/probes/deploy.sh {PP}",
                  f"PROBE: python3 orchestration/lib/component_css.py {P} {SITE} --check"],
                 deps=["step_content_load"])] if ARCH else []),

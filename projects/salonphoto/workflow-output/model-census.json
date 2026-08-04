@@ -1,8 +1,8 @@
 {
- "pages": 159,
+ "pages": 169,
  "boundary": {
-  "declared": 158,
-  "toplevel-div": 1
+  "declared": 120,
+  "section": 49
  },
  "bandsPerPage": {
   "actualite-photo": 3,
@@ -98,45 +98,45 @@
   "animations-ateliers_expositions-photos_grande-expo": 24,
   "animations-ateliers_expositions-photos_prix-bayeux": 13,
   "animations-ateliers_expositions-photos_zooms": 20,
-  "animations-ateliers_programme-salon": 4,
-  "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus": 1,
-  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc": 1,
-  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors": 1,
-  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2": 1,
-  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet": 1,
-  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc-2": 1,
-  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc": 1,
-  "animations-ateliers_programme-salon_Evenement_Calculer-le-prix-d'une-exposition": 1,
-  "animations-ateliers_programme-salon_Evenement_Conference-La-photographie-de-voyage-sortir-des-sentiers-battus": 1,
-  "animations-ateliers_programme-salon_Evenement_Conference-Le-voyage-photo-et-ses-bonnes-pratiques": 1,
-  "animations-ateliers_programme-salon_Evenement_De-la-photographie-a-la-video": 1,
-  "animations-ateliers_programme-salon_Evenement_De-la-visibilite-aux-clients-batir-une-strategie-Instagram-qui-rapporte": 1,
-  "animations-ateliers_programme-salon_Evenement_Demonstration-de-collodion-humide": 1,
-  "animations-ateliers_programme-salon_Evenement_Diversifier-son-activite-les-10-conseils-aux-Photographes-Tous-statuts": 1,
-  "animations-ateliers_programme-salon_Evenement_Droit-d'auteur-et-calcul-perilleux": 1,
-  "animations-ateliers_programme-salon_Evenement_DxO-PhotoLab-avec-Mathieu-Bachon-alias-Nohcab": 1,
-  "animations-ateliers_programme-salon_Evenement_Exposition-Montier-Festival-Photo": 1,
-  "animations-ateliers_programme-salon_Evenement_Exposition-Prix-Bayeux": 1,
-  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Adrien-Vautier": 1,
-  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Arnaud-Baumann": 1,
-  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Christophe-Brachet-Tanguy-Mendrisse-and-Baptiste-Langinier": 1,
-  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Nikos-Aliagas": 1,
-  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Olivier-Culmann-and-Samuel-Bollendorf": 1,
-  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-avec-Sophie-Zenon": 1,
-  "animations-ateliers_programme-salon_Evenement_Jean-Christophe-Bechet-signature-de-livres": 1,
-  "animations-ateliers_programme-salon_Evenement_LECTURE-DE-PORTFOLIO-2": 1,
-  "animations-ateliers_programme-salon_Evenement_La-6e-Transition-200-ans-de-revolutions-photo-et-pourquoi-l-IA-ne-prendra-pas-votre-place": 1,
-  "animations-ateliers_programme-salon_Evenement_La-Grande-Exposition": 1,
-  "animations-ateliers_programme-salon_Evenement_Le-Vademecum-du-photographe-un-guide-complet-pour-comprendre-tous-les-statuts-et-specificites-du-metier": 1,
-  "animations-ateliers_programme-salon_Evenement_Le-portrait-Corporate-avec-Nicolas-Kalogeropoulos": 1,
-  "animations-ateliers_programme-salon_Evenement_Lecture-de-portfolio": 1,
-  "animations-ateliers_programme-salon_Evenement_Nouveau-ne-la-specialite-qui-ne-s-improvise-pas-securite-hygiene-et-bonnes-pratiques": 1,
-  "animations-ateliers_programme-salon_Evenement_Parcours-de-photographe-Solomon-Jamy-Brown-qui-exposera-sur-notre-stand": 1,
-  "animations-ateliers_programme-salon_Evenement_Portrait-de-personnalite-pour-la-presse-faire-poser-et-imposer": 1,
-  "animations-ateliers_programme-salon_Evenement_Se-lancer-comme-photographe-pro-en-2026-tout-ce-qu-on-ne-vous-dit-pas-ailleurs": 1,
-  "animations-ateliers_programme-salon_Evenement_Visite-soufflee-pour-malvoyants-et-non-voyants": 1,
-  "animations-ateliers_programme-salon_Evenement_Vivre-de-la-photographie-sociale-en-2026-quel-business-model-choisir-pour-maximiser-votre-chiffre-d-affaires": 1,
-  "animations-ateliers_programme-salon_Evenement_Workshop-Cansonr-Infinity-Choisir-son-papier-sublimer-son-image": 1,
+  "animations-ateliers_programme-salon": 1,
+  "animations-ateliers_programme-salon_,-w-,_,-w-,": 1,
+  "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus": 2,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc": 2,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors": 2,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet-2": 2,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-par-Jean-Christophe-Bechet": 2,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc-2": 2,
+  "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-avec-Laurence-Leblanc": 2,
+  "animations-ateliers_programme-salon_Evenement_Calculer-le-prix-d'une-exposition": 2,
+  "animations-ateliers_programme-salon_Evenement_Conference-La-photographie-de-voyage-sortir-des-sentiers-battus": 2,
+  "animations-ateliers_programme-salon_Evenement_Conference-Le-voyage-photo-et-ses-bonnes-pratiques": 2,
+  "animations-ateliers_programme-salon_Evenement_De-la-photographie-a-la-video": 2,
+  "animations-ateliers_programme-salon_Evenement_De-la-visibilite-aux-clients-batir-une-strategie-Instagram-qui-rapporte": 2,
+  "animations-ateliers_programme-salon_Evenement_Demonstration-de-collodion-humide": 2,
+  "animations-ateliers_programme-salon_Evenement_Diversifier-son-activite-les-10-conseils-aux-Photographes-Tous-statuts": 2,
+  "animations-ateliers_programme-salon_Evenement_Droit-d'auteur-et-calcul-perilleux": 2,
+  "animations-ateliers_programme-salon_Evenement_DxO-PhotoLab-avec-Mathieu-Bachon-alias-Nohcab": 2,
+  "animations-ateliers_programme-salon_Evenement_Exposition-Montier-Festival-Photo": 2,
+  "animations-ateliers_programme-salon_Evenement_Exposition-Prix-Bayeux": 2,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Adrien-Vautier": 2,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Arnaud-Baumann": 2,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Christophe-Brachet-Tanguy-Mendrisse-and-Baptiste-Langinier": 2,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Nikos-Aliagas": 2,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-Olivier-Culmann-and-Samuel-Bollendorf": 2,
+  "animations-ateliers_programme-salon_Evenement_Grande-Rencontre-avec-Sophie-Zenon": 2,
+  "animations-ateliers_programme-salon_Evenement_Jean-Christophe-Bechet-signature-de-livres": 2,
+  "animations-ateliers_programme-salon_Evenement_LECTURE-DE-PORTFOLIO-2": 2,
+  "animations-ateliers_programme-salon_Evenement_La-6e-Transition-200-ans-de-revolutions-photo-et-pourquoi-l-IA-ne-prendra-pas-votre-place": 2,
+  "animations-ateliers_programme-salon_Evenement_La-Grande-Exposition": 2,
+  "animations-ateliers_programme-salon_Evenement_Le-Vademecum-du-photographe-un-guide-complet-pour-comprendre-tous-les-statuts-et-specificites-du-metier": 2,
+  "animations-ateliers_programme-salon_Evenement_Le-portrait-Corporate-avec-Nicolas-Kalogeropoulos": 2,
+  "animations-ateliers_programme-salon_Evenement_Lecture-de-portfolio": 2,
+  "animations-ateliers_programme-salon_Evenement_Nouveau-ne-la-specialite-qui-ne-s-improvise-pas-securite-hygiene-et-bonnes-pratiques": 2,
+  "animations-ateliers_programme-salon_Evenement_Parcours-de-photographe-Solomon-Jamy-Brown-qui-exposera-sur-notre-stand": 2,
+  "animations-ateliers_programme-salon_Evenement_Portrait-de-personnalite-pour-la-presse-faire-poser-et-imposer": 2,
+  "animations-ateliers_programme-salon_Evenement_Se-lancer-comme-photographe-pro-en-2026-tout-ce-qu-on-ne-vous-dit-pas-ailleurs": 2,
+  "animations-ateliers_programme-salon_Evenement_Vivre-de-la-photographie-sociale-en-2026-quel-business-model-choisir-pour-maximiser-votre-chiffre-d-affaires": 2,
+  "animations-ateliers_programme-salon_Evenement_Workshop-Cansonr-Infinity-Choisir-son-papier-sublimer-son-image": 2,
   "animations-ateliers_rencontres-photo": 5,
   "animations-ateliers_rencontres-photo_forum-pros": 12,
   "animations-ateliers_rencontres-photo_grandes-rencontres": 11,
@@ -144,7 +144,17 @@
   "home": 12,
   "infos-pratiques": 3,
   "infos-pratiques_Infos-Pratiques": 3,
-  "infos-pratiques_catalogue": 3,
+  "infos-pratiques_catalogue": 2,
+  "infos-pratiques_catalogue_Exposant_INSTA-360": 3,
+  "infos-pratiques_catalogue_Exposant_MPB-3": 3,
+  "infos-pratiques_catalogue_Exposant_PROMATTEX": 3,
+  "infos-pratiques_catalogue_Exposant_SONY-WORLD-PHOTOGRAPHY-AWARDS-4": 3,
+  "infos-pratiques_catalogue_Marque_Insta360-DIGIT-ACCESS": 3,
+  "infos-pratiques_catalogue_Marque_Panasonic-VISUAL-IMPACT-FRANCE-2": 3,
+  "infos-pratiques_catalogue_Produit_DNP-Imprimante-QW410-TETENAL-4": 3,
+  "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-27-CS2740-BK-TETENAL-3": 3,
+  "infos-pratiques_catalogue_Produit_GFX100RF-FUJIFILM-FRANCE-2": 3,
+  "infos-pratiques_catalogue_Produit_Journee-Photo-Bases-Techniques-Graine-de-Photographe-2": 3,
   "infos-pratiques_comment-venir-au-salon": 16,
   "infos-pratiques_dates-acces-horaires": 11,
   "infos-pratiques_faq": 33,
@@ -168,7 +178,7 @@
  "sectionFamilies": [
   {
    "signature": "plain",
-   "count": 934,
+   "count": 933,
    "sample": {
     "page": "actualite-photo",
     "band": "title",
@@ -179,7 +189,7 @@
   },
   {
    "signature": "repeat",
-   "count": 409,
+   "count": 420,
    "sample": {
     "page": "actualite-photo",
     "band": "page-list",
@@ -190,13 +200,35 @@
   },
   {
    "signature": "carousel",
-   "count": 6,
+   "count": 57,
    "sample": {
     "page": "actualite-photo_actus_christophe-brachet-coulisses-du-7e-art",
     "band": "video-content-block",
     "heading": "Plongez dans l'univers de Christophe Brachet",
     "imgs": 1,
     "links": 2
+   }
+  },
+  {
+   "signature": "grid+aside",
+   "count": 1,
+   "sample": {
+    "page": "animations-ateliers_programme-salon",
+    "band": "Container",
+    "heading": "R\u00e9sultats dans CALENDRIER DES \u00c9V\u00c9NEMENTS 2026",
+    "imgs": 0,
+    "links": 37
+   }
+  },
+  {
+   "signature": "grid",
+   "count": 1,
+   "sample": {
+    "page": "infos-pratiques_catalogue",
+    "band": "Container",
+    "heading": "Exposants",
+    "imgs": 0,
+    "links": 15
    }
   }
  ],
@@ -208,7 +240,7 @@
   },
   {
    "band": "content",
-   "count": 270,
+   "count": 269,
    "signature": "plain"
   },
   {
@@ -218,18 +250,28 @@
   },
   {
    "band": "breadcrumb",
-   "count": 157,
-   "signature": "plain"
-  },
-  {
-   "band": "title",
    "count": 119,
    "signature": "plain"
   },
   {
-   "band": "snippet",
-   "count": 112,
+   "band": "title",
+   "count": 117,
    "signature": "plain"
+  },
+  {
+   "band": "snippet",
+   "count": 110,
+   "signature": "plain"
+  },
+  {
+   "band": "CatalogTabs",
+   "count": 43,
+   "signature": "repeat"
+  },
+  {
+   "band": "CatalogEventStrip",
+   "count": 37,
+   "signature": "carousel"
   },
   {
    "band": "content-block-vertical-image",
@@ -254,6 +296,11 @@
   {
    "band": "video-content-block",
    "count": 13,
+   "signature": "carousel"
+  },
+  {
+   "band": "carousel",
+   "count": 11,
    "signature": "carousel"
   },
   {
@@ -282,6 +329,21 @@
    "signature": "plain"
   },
   {
+   "band": "CatalogAppointmentBar",
+   "count": 4,
+   "signature": "plain"
+  },
+  {
+   "band": "CatalogExhibitorStrip",
+   "count": 4,
+   "signature": "repeat"
+  },
+  {
+   "band": "CatalogProductStrip",
+   "count": 4,
+   "signature": "carousel"
+  },
+  {
    "band": "div",
    "count": 3,
    "signature": "repeat"
@@ -289,6 +351,16 @@
   {
    "band": "divider",
    "count": 3,
+   "signature": "plain"
+  },
+  {
+   "band": "Container",
+   "count": 2,
+   "signature": "grid+aside"
+  },
+  {
+   "band": "CatalogBrandStrip",
+   "count": 2,
    "signature": "plain"
   },
   {
@@ -312,16 +384,6 @@
    "signature": "plain"
   },
   {
-   "band": "card",
-   "count": 1,
-   "signature": "plain"
-  },
-  {
-   "band": "carousel",
-   "count": 1,
-   "signature": "carousel"
-  },
-  {
    "band": "quicklinks",
    "count": 1,
    "signature": "repeat"
@@ -337,27 +399,32 @@
    "signature": "carousel"
   },
   {
+   "band": "CatalogFilterBar",
+   "count": 1,
+   "signature": "repeat"
+  },
+  {
    "band": "date-lieu-horaires",
    "count": 1,
    "signature": "repeat"
   }
  ],
  "ctaAnatomies": {
-  "button": 160,
+  "button": 168,
   "textArrow": 10
  },
  "uncrawledPrefixes": [
   {
    "prefix": "fr-FR/animations-ateliers",
-   "links": 263
+   "links": 264
   },
   {
    "prefix": "(root)",
-   "links": 196
+   "links": 217
   },
   {
    "prefix": "fr-FR",
-   "links": 160
+   "links": 171
   },
   {
    "prefix": "fr-FR/actualite-photo",
@@ -369,18 +436,18 @@
   },
   {
    "prefix": "fr-FR/infos-pratiques",
-   "links": 40
+   "links": 60
   },
   {
    "prefix": "fr-FR/actualite-photo/agenda-photo",
    "links": 39
   },
   {
-   "prefix": "fr-FR/animations-ateliers/programme-salon/Evenement",
-   "links": 37
+   "prefix": "fr-FR/animations-ateliers/programme-salon/,-w-,",
+   "links": 38
   },
   {
-   "prefix": "fr-FR/animations-ateliers/programme-salon/,-w-,",
+   "prefix": "fr-FR/animations-ateliers/programme-salon/Evenement",
    "links": 37
   },
   {
@@ -388,24 +455,24 @@
    "links": 33
   },
   {
+   "prefix": "fr-FR/infos-pratiques/catalogue/Exposant",
+   "links": 32
+  },
+  {
+   "prefix": "fr-FR/infos-pratiques/catalogue",
+   "links": 28
+  },
+  {
+   "prefix": "fr-FR/infos-pratiques/catalogue/Produit",
+   "links": 20
+  },
+  {
    "prefix": "fr-FR/animations-ateliers/expositions-photos",
    "links": 15
   },
   {
-   "prefix": "fr-FR/animations-ateliers/animations",
-   "links": 10
-  },
-  {
-   "prefix": "fr-FR/presse-createur-contenus",
-   "links": 8
-  },
-  {
-   "prefix": "catalog-exhibitor-full",
-   "links": 7
-  },
-  {
-   "prefix": "fr-FR/animations-ateliers/rencontres-photo",
-   "links": 7
+   "prefix": "fr-FR/infos-pratiques/catalogue/Marque",
+   "links": 12
   }
  ],
  "chrome": {

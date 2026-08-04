@@ -25,6 +25,7 @@ Usage: capture-slugs.py <project_path> [--lang fr-FR]
 """
 import argparse
 import json
+import os
 import re
 import sys
 
@@ -63,6 +64,57 @@ def main():
         hint = f"--lang {a.lang}" if a.lang else "--lang <locale>"
         fails.append(f"{len(prefixed)} slug(s) carry a locale prefix "
                      f"(e.g. {', '.join(prefixed[:3])}) — re-crawl with {hint}")
+
+    # LEDGER MONOTONICITY (2026-08-03): the inventory only ever grows within a run —
+    # capture adds pages, nothing removes them. A pass that REPLACES it instead of
+    # merging silently drops earlier captures (the seed crawl truncated 159 -> 27 while
+    # the captures stayed on disk). Compare against the cache: every cached page that
+    # belongs to this locale must be in the ledger.
+    import glob as _glob
+    cache = f"{a.project_path.rstrip('/')}/.reference/cache/_crawl"
+    cached = [f for f in _glob.glob(f"{cache}/**/*.html", recursive=True)]
+    if cached and len(cached) > len(slugs) * 1.2:
+        fails.append(f"inventory holds {len(slugs)} page(s) but {len(cached)} page(s) are "
+                     f"CACHED — a pass replaced the ledger instead of merging into it, so "
+                     f"earlier captures are invisible downstream")
+
+    # ERROR PAGES ARE NOT CONTENT (2026-08-04). The crawler cached whatever the origin
+    # returned, so two programme URLs that answer "500 — Internal server error" landed in
+    # the corpus as pages: no headings, no fields, and they would have loaded as titleless
+    # empty entity nodes. A 4xx/5xx body served with a 200 status is invisible to a
+    # status-code check, so match the RENDERED page: an error title with no real content.
+    import glob as _g2
+    mirror_dir = f"{a.project_path.rstrip('/')}/workflow-output/local-mirror"
+    ERR = re.compile(r"(?:^|\W)(4\d\d|5\d\d)\s*[—–-]\s*|internal server error|"
+                     r"page not found|something went wrong|page introuvable|"
+                     r"erreur interne", re.I)
+    errpages = []
+    for f in sorted(_g2.glob(f"{mirror_dir}/*.html")):
+        try:
+            html = open(f, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        mt = re.search(r"<title[^>]*>(.*?)</title>", html, re.S | re.I)
+        title = re.sub(r"\s+", " ", (mt.group(1) if mt else "")).strip()
+        if not ERR.search(title):
+            continue
+        # measure the MAIN region: an error page still ships the full site chrome
+        # (7220 chars of header/nav/footer here), so a whole-page threshold never
+        # fires. Its <main> held 204 chars and zero headings.
+        # the error page has NO <main> AT ALL — falling back to the whole document
+        # measured 7220 chars of chrome and the test never fired. A missing main
+        # region under an error title IS the signal; every real page here has one.
+        mm = re.search(r"<main[^>]*>(.*?)</main>", html, re.S | re.I)
+        region = mm.group(1) if mm else ""
+        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", region)).strip()
+        heads = len(re.findall(r"<h[12]\b", region or html, re.I))
+        if (mm is None or len(text) < 600) and heads == 0:
+            errpages.append((os.path.basename(f)[:-5], title[:48]))
+    if errpages:
+        fails.append(f"{len(errpages)} captured page(s) are SOURCE ERROR PAGES, not "
+                     f"content: " + "; ".join(f"{s2} ({t})" for s2, t in errpages[:5])
+                     + " — drop them from the ledger or record them as accepted "
+                       "source defects; they would load as empty nodes")
 
     dupes = sorted({s for s in slugs if slugs.count(s) > 1})
     if dupes:

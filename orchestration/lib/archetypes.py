@@ -169,6 +169,24 @@ ARCHETYPES = {
               "fields": [f("body", RICHTEXT, i18n=True), f("startDate", "date, DatePicker"),
                          f("endDate", "date, DatePicker"), f("location", "string", i18n=True)],
               "views": ["default", "compact", "cm", "featured", "fullPage"]},
+    # DIRECTORY ENTITY (2026-08-03, approved on full-corpus evidence). A trade-show
+    # style catalogue indexes exhibiting companies, the brands they represent and the
+    # products they show — measured on the fixture source: 33 card-reached details
+    # across FOUR url shapes (/Exposant/ 15, /Marque/ 11, /Produit/ 7,
+    # /catalog-exhibitor-full/), each with its own URL and its own listing.
+    # It is neither an article nor an event: no publication date, but a logo, a stand
+    # number and product categories. Reusing `article` would label a printer
+    # "Actualité"; three separate types would duplicate one field shape and fail
+    # dup-shapes. So: ONE mainResource type + a `kind` choicelist the view branches on,
+    # loaded into one folder per axis and listed by a jcrQuery over each.
+    "directoryEntry": {"name": "Directory Entry", "title": True, "mainResource": True,
+                       "mixins": ["media", "seo", "cta"], "taxonomy": True,
+                       "list": True, "bodyChildren": True,
+                       "fields": [f("body", RICHTEXT, i18n=True),
+                                  f("standNumber", "string", i18n=True)],
+                       "layout": {"name": "kind", "default": "exposant",
+                                  "values": ["exposant", "marque", "produit"]},
+                       "views": ["default", "compact", "cm", "featured", "fullPage"]},
     # ── in-page navigation (tree-driven, NOT chrome) ─────────────────────
     # The source's sibling-service sidebar (operator finding 2026-07-20,
     # speedpost-standard): a per-page menu of the parent section's child
@@ -340,6 +358,8 @@ _CLASS_RULES = [
     ("footer",         ["footer"]),
     ("siteHeader",     ["header", "masthead", "topbar"]),
     ("event",          ["event", "agenda", "webinar", "calendar"]),
+    ("directoryEntry", ["exposant", "exhibitor", "marque", "brand", "produit",
+                        "product", "catalogue", "catalog", "directory"]),
     ("article",        ["article", "news", "post", "press", "story", "blog", "publication"]),
     ("accordion",      ["accordion", "faq", "toggle", "collapsible"]),
     ("cardGrid",       ["carousel", "slider", "grid", "cards", "gallery", "logos",

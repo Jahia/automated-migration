@@ -93,6 +93,25 @@ def main():
                 if nt and local(nt) not in STRUCTURAL:
                     loaded[nt] += 1
         ltotal = sum(loaded.values())
+        # A PAYLOAD THAT LOADS NOTHING IS THE WORST STATE, NOT THE BEST (2026-08-04).
+        # The concentration test below is share-based, so an EMPTY payload divides by
+        # nothing, adds no finding, and this gate reported PASS with its healthy-looking
+        # manifest role shares — measured live: semanticize emptied all 27 pages
+        # (556 instances in, 0 out) and this printed "PASS ... 6 live type(s)". A gate
+        # that cannot measure must fail. The file's ABSENCE is still fine (pre-extract),
+        # but its presence is a promise that content was produced.
+        if ltotal == 0:
+            bad.append("the content-load exists but carries ZERO typed instances — "
+                       "extraction or semanticize emptied the payload; nothing would "
+                       "load and every share-based check below is vacuous")
+        empty_pages = sorted(sl for sl, pg in (cl.get("pages") or {}).items()
+                             if not (pg.get("instances") or []))
+        if empty_pages and len(empty_pages) == len(cl.get("pages") or {}):
+            bad.append(f"all {len(empty_pages)} page(s) in the payload have zero "
+                       f"instances")
+        elif empty_pages:
+            bad.append(f"{len(empty_pages)} page(s) carry zero instances: "
+                       + ", ".join(empty_pages[:6]))
         for nt, c in loaded.most_common():
             if ltotal and c / ltotal > 0.50:
                 bad.append(f"loaded-concentration: {nt} carries {c}/{ltotal} loaded "

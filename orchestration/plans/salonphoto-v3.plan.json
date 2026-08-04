@@ -41,7 +41,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/nav_scope_crawl.py projects/salonphoto https://www.lesalondelaphoto.com/fr-FR --lang fr-FR --rate-delay 2 --max-asset-size 1",
+                "Run[14400]: python3 orchestration/lib/nav_scope_crawl.py projects/salonphoto https://www.lesalondelaphoto.com/fr-FR --lang fr-FR --rate-delay 2 --max-asset-size 1",
                 "PROBE: test -s projects/salonphoto/workflow-output/page-inventory.json",
                 "PROBE: python3 orchestration/probes/capture-slugs.py projects/salonphoto --lang fr-FR"
               ],
@@ -60,7 +60,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/localize_site.py projects/salonphoto --max-asset-size 15",
+                "Run[14400]: python3 orchestration/lib/localize_site.py projects/salonphoto --max-asset-size 15",
                 "PROBE: test -s projects/salonphoto/workflow-output/local-mirror/mirror.json",
                 "PROBE[900]: node orchestration/lib/mirror_probe.mjs projects/salonphoto 10"
               ],
@@ -79,7 +79,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/entity_crawl.py salonphoto --lang fr-FR --rate-delay 2",
+                "Run[14400]: python3 orchestration/lib/entity_crawl.py salonphoto --lang fr-FR --rate-delay 2",
                 "PROBE: python3 orchestration/probes/capture-slugs.py projects/salonphoto --lang fr-FR",
                 "PROBE: python3 orchestration/probes/mirror-selfcontained.py projects/salonphoto"
               ],
@@ -139,7 +139,7 @@
               "acceptance_criteria": [
                 "Run: python3 orchestration/lib/source_detect.py salonphoto",
                 "Run: python3 orchestration/lib/declared_inventory.py salonphoto",
-                "Run: ZONE3_JSON_DIR=projects/salonphoto/workflow-output python3 orchestration/lib/zone_detect.py salonphoto",
+                "Run[4830]: ZONE3_JSON_DIR=projects/salonphoto/workflow-output python3 orchestration/lib/zone_detect.py salonphoto",
                 "Run: python3 orchestration/lib/island_probe.py salonphoto",
                 "Run: python3 orchestration/lib/sitemap_enumerate.py salonphoto --lang fr-FR || true",
                 "PROBE: python3 orchestration/probes/zone-source.py salonphoto",
@@ -225,8 +225,8 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 -c \"import json,subprocess,sys; m=json.load(open('projects/salonphoto/workflow-output/component-manifest.json')); dec='declared2manifest' in (m.get('generatedFrom') or ''); sys.exit(subprocess.run([sys.executable,'orchestration/lib/extract_content.py','salonphoto','salonphoto']+(['--adapter','sxa'] if dec else [])).returncode)\"",
-                "Run: python3 orchestration/lib/semanticize_content.py salonphoto --manifest projects/salonphoto/workflow-output/component-manifest.json",
+                "Run[4830]: python3 orchestration/lib/extract_content.py salonphoto salonphoto",
+                "Run[4830]: python3 orchestration/lib/semanticize_content.py salonphoto --manifest projects/salonphoto/workflow-output/component-manifest.json",
                 "PROBE: python3 -c \"import json,sys; d=json.load(open('orchestration/content/salonphoto.content-load.json')); sys.exit(0 if d.get('model')=='archetype' and all(p.get('instances') for p in d['pages'].values()) else 1)\"",
                 "PROBE: python3 orchestration/probes/reconcile-check.py salonphoto",
                 "PROBE: python3 orchestration/probes/archetype-utilization.py salonphoto",
@@ -587,7 +587,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/load_main_resources.py salonphoto salonphoto",
+                "Run[14400]: python3 orchestration/lib/load_main_resources.py salonphoto salonphoto",
                 "PROBE: bash orchestration/probes/mainresource.sh salonphoto salonphoto fr",
                 "PROBE: python3 orchestration/probes/mainresource-model.py --phase content salonphoto --locale fr",
                 "PROBE: python3 orchestration/probes/entity-coverage.py salonphoto --expect salonphoto --locale fr"
@@ -634,7 +634,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/load_content.py salonphoto salonphoto --clean --locale fr",
+                "Run[14400]: python3 orchestration/lib/load_content.py salonphoto salonphoto --clean --locale fr",
                 "PROBE: python3 orchestration/lib/create_pages.py salonphoto salonphoto --check",
                 "PROBE: python3 orchestration/probes/clean-render.py salonphoto --model archetype",
                 "PROBE: python3 orchestration/probes/load-parity.py salonphoto salonphoto",
@@ -659,7 +659,7 @@
                 "site": "salonphoto"
               },
               "acceptance_criteria": [
-                "Run: python3 orchestration/lib/component_css.py salonphoto salonphoto",
+                "Run[4830]: python3 orchestration/lib/component_css.py salonphoto salonphoto",
                 "Run: bash orchestration/probes/deploy.sh projects/salonphoto",
                 "PROBE: python3 orchestration/lib/component_css.py salonphoto salonphoto --check"
               ],

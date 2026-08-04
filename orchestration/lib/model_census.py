@@ -48,14 +48,39 @@ def band_name(el):
     return toks[0] if toks else el.name
 
 
+def _vis_len(el):
+    return len(re.sub(r"\s+", " ", el.get_text(" ", strip=True)))
+
+
 def bands(main_el):
-    """(units, mode) — top-level content bands under the main region."""
+    """(units, mode) — top-level content bands under the main region.
+
+    COVERAGE, not presence (2026-08-04). Choosing the declared boundary because a
+    declared component EXISTS is wrong when the declaration covers almost none of the
+    page: a Sitecore *item* template renders an event detail with its title, sessions,
+    description and themes as plain markup and only ONE `div.component` (the
+    breadcrumb). The chooser returned that single root, so 38 of 40 programme events
+    extracted with NO BODY and would have loaded as empty shells (caught pre-load by
+    probes/entity-payload.py). A declaration is only the right boundary when it
+    actually accounts for the region's text."""
     dec = [d for d in main_el.select(DECLARED)
            if not any(a is not main_el and (
                "component" in (a.get("class") or []) or a.get("data-component"))
                for a in d.parents)]
-    if dec:
+    total = _vis_len(main_el)
+    covered = sum(_vis_len(d) for d in dec)
+    if dec and (total == 0 or covered / total >= 0.5):
         return dec, "declared"
+    if dec:
+        # keep the declared roots AND the uncovered siblings: the page mixes an SXA
+        # component with item-template markup, and dropping either loses content
+        secs = [s for s in main_el.find_all(["section", "div", "article"],
+                                            recursive=False)]
+        mixed = dec + [s for s in secs if s not in dec
+                       and not any(d in s.descendants for d in dec)
+                       and _vis_len(s) > 0]
+        if mixed and sum(_vis_len(x) for x in mixed) > covered:
+            return mixed, f"declared+item ({covered}/{total} chars declared)"
     secs = [s for s in main_el.find_all("section") if not s.find_parent("section")]
     if secs:
         return secs, "section"

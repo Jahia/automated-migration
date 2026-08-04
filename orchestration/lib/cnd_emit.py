@@ -79,12 +79,22 @@ def link_lines():
 
 
 def layout_line(lp):
+    """The per-instance LAYOUT choicelist — AGENTS 2b's preferred lever: one type,
+    a property the contributor flips in Content Editor, no new view and no new type.
+
+    KEY MISMATCH (2026-08-03): this read `options` while every archetype in
+    archetypes.py declares `values`, so it returned None and NOT ONE layout
+    choicelist was ever emitted — mediaText's imageLeft/imageRight, cardGrid's
+    grid/carousel/slider, layoutSection's stack/row and article/directoryEntry kinds
+    were all silently absent from the CND, and the views' layout branches had no
+    property to branch on. Accept both keys, and honour an explicit `default`."""
     name = camel(lp.get("name", "layout"))
-    opts = [o for o in (lp.get("options") or []) if o]
+    opts = [o for o in (lp.get("values") or lp.get("options") or []) if o]
     if not opts:
         return None
+    first = lp.get("default") if lp.get("default") in opts else opts[0]
     quoted = ", ".join(f"'{o}'" for o in opts)
-    return f"  - {name} (string, choicelist) = '{opts[0]}' < {quoted}"
+    return f"  - {name} (string, choicelist) = '{first}' < {quoted}"
 
 
 def _supertypes(fields, mixns, main_resource=False):

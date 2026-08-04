@@ -60,9 +60,15 @@ def main():
     wo = f"{pp}/workflow-output"
     lang = ["--lang", a.lang] if a.lang else []
 
-    # 1. seed: the start page only (gives the menu DOM)
+    # 1. seed: the start page only (gives the menu DOM).
+    # --merge-inventory even here (2026-08-03): without it the seed pass REPLACES
+    # page-inventory.json with its single page, so re-running this step silently
+    # discards every entity detail page a previous step_entity_crawl had merged in —
+    # the inventory fell 159 -> 27 while 161 captures sat in the cache, and the entity
+    # crawl then re-declared 134 already-captured details as missing. The inventory is
+    # a LEDGER; a seed pass must add to it, never truncate it.
     sh([sys.executable, os.path.join(HERE, "crawl-site.py"), pp, a.url,
-        "--max-pages", "1", "--depth", "0",
+        "--max-pages", "1", "--depth", "0", "--merge-inventory",
         *lang, "--rate-delay", a.rate_delay,
         "--max-asset-size", a.max_asset_size])
     sh([sys.executable, os.path.join(HERE, "localize_site.py"), pp,

@@ -47,6 +47,32 @@ MAX_ASSET_SIZE = 5 * 1024 * 1024  # 5 MB
 # is_cached() reads it fresh each call and never raises on an absent/old marker.
 TOOL_VERSION = 1
 
+# An origin that answers 500/404 with a rendered error PAGE (status 200 or not)
+# must not have that page cached as content: measured on salonphoto, 8 declared
+# entity URLs answered "500 — Internal server error" and were cached as pages, so
+# they would have loaded as titleless empty nodes. Detected on the RENDERED result
+# (a thin <main> with no headings under an error title), because a 4xx/5xx body
+# served with a 200 status defeats any status-code check.
+ERROR_TITLE = re.compile(r"(?:^|\W)(4\d\d|5\d\d)\s*[—–-]\s*|internal server error|"
+                         r"page not found|something went wrong|page introuvable|"
+                         r"erreur interne", re.I)
+
+
+def is_error_page(html):
+    mt = re.search(r"<title[^>]*>(.*?)</title>", html or "", re.S | re.I)
+    title = re.sub(r"\s+", " ", mt.group(1) if mt else "").strip()
+    if not ERROR_TITLE.search(title):
+        return None
+    mm = re.search(r"<main[^>]*>(.*?)</main>", html or "", re.S | re.I)
+    region = mm.group(1) if mm else ""
+    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", region)).strip()
+    # no <main> at all under an error title is itself the signal (the rendered 500
+    # ships chrome only), so do not fall back to measuring the whole document
+    if (mm is None or len(text) < 600) and not re.search(r"<h[12]\b", region or (html or ""), re.I):
+        return title[:60]
+    return None
+
+
 ASSET_EXTS = {'.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.avif',
               '.woff', '.woff2', '.ttf', '.eot', '.ico', '.pdf'}
 

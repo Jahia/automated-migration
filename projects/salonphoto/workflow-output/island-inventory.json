@@ -1,11 +1,11 @@
 {
  "project": "salonphoto",
- "pages": 159,
+ "pages": 169,
  "vendorScripts": [
   "swiffy-slider"
  ],
  "byBehaviour": {
-  "form": 158,
+  "form": 169,
   "videoPlayer": 26,
   "facetFilter": 10,
   "modal": 8,
@@ -16,7 +16,7 @@
   {
    "component": "footer",
    "behaviour": "form",
-   "instances": 158,
+   "instances": 169,
    "pages": [
     "actualite-photo",
     "actualite-photo_actualites",
@@ -112,6 +112,7 @@
     "animations-ateliers_expositions-photos_prix-bayeux",
     "animations-ateliers_expositions-photos_zooms",
     "animations-ateliers_programme-salon",
+    "animations-ateliers_programme-salon_,-w-,_,-w-,",
     "animations-ateliers_programme-salon_Evenement_100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus",
     "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc",
     "animations-ateliers_programme-salon_Evenement_Atelier-ZOOM-UP-Street-Photography-integrer-des-corps-dans-des-decors",
@@ -157,6 +158,16 @@
     "infos-pratiques",
     "infos-pratiques_Infos-Pratiques",
     "infos-pratiques_catalogue",
+    "infos-pratiques_catalogue_Exposant_INSTA-360",
+    "infos-pratiques_catalogue_Exposant_MPB-3",
+    "infos-pratiques_catalogue_Exposant_PROMATTEX",
+    "infos-pratiques_catalogue_Exposant_SONY-WORLD-PHOTOGRAPHY-AWARDS-4",
+    "infos-pratiques_catalogue_Marque_Insta360-DIGIT-ACCESS",
+    "infos-pratiques_catalogue_Marque_Panasonic-VISUAL-IMPACT-FRANCE-2",
+    "infos-pratiques_catalogue_Produit_DNP-Imprimante-QW410-TETENAL-4",
+    "infos-pratiques_catalogue_Produit_EIZO-Ecran-Coloredge-27-CS2740-BK-TETENAL-3",
+    "infos-pratiques_catalogue_Produit_GFX100RF-FUJIFILM-FRANCE-2",
+    "infos-pratiques_catalogue_Produit_Journee-Photo-Bases-Techniques-Graine-de-Photographe-2",
     "infos-pratiques_comment-venir-au-salon",
     "infos-pratiques_dates-acces-horaires",
     "infos-pratiques_faq",
@@ -177,7 +188,7 @@
     "salon_rse",
     "salon_salon"
    ],
-   "pageCount": 158,
+   "pageCount": 169,
    "vendor": null,
    "shippedIsland": null,
    "contract": {

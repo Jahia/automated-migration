@@ -126,7 +126,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 183,
+      "instances": 194,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -189,7 +189,7 @@
         "fa-regular"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 158,
+      "instances": 169,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -223,7 +223,7 @@
         "fa-ticket-simple"
       ],
       "modelHint": null,
-      "instances": 158,
+      "instances": 169,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -252,7 +252,7 @@
         "fa-ticket-simple"
       ],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 158,
+      "instances": 169,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -276,7 +276,7 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 158,
+      "instances": 169,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -315,7 +315,7 @@
         "fa-youtube"
       ],
       "modelHint": "social-link series → child component (platform/icon + j:linkType)",
-      "instances": 158,
+      "instances": 169,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -343,7 +343,7 @@
       "listItems": 4,
       "hasIcons": [],
       "modelHint": "link series → child component (label + j:linkType)",
-      "instances": 157,
+      "instances": 168,
       "pages": [
         "100-000euro-en-photo-de-mariage-comment-gagner-plus-sans-travailler-plus.html",
         "Atelier-ZOOM-UP-La-Photographie-en-noir-et-blanc-trouver-son-style-en-noir-et-blanc.html",
@@ -376,16 +376,16 @@
       "listItems": 0,
       "hasIcons": [],
       "modelHint": null,
-      "instances": 119,
+      "instances": 129,
       "pages": [
         "Benoit-Henri-Tyszkiewicz.html",
         "Collodion-humide-Marjolaine-Vuarnesson.html",
+        "DNP-Imprimante-QW410-TETENAL-4.html",
+        "EIZO-Ecran-Coloredge-27-CS2740-BK-TETENAL-3.html",
+        "GFX100RF-FUJIFILM-FRANCE-2.html",
+        "INSTA-360.html",
         "Infos-Pratiques.html",
-        "a-propos.html",
-        "actualite-photo.html",
-        "actualites.html",
-        "affiche-salon-de-la-photo-paris-2025.html",
-        "affiche-salon-de-la-photo-paris-2026.html"
+        "Insta360-DIGIT-ACCESS.html"
       ]
     },
     {

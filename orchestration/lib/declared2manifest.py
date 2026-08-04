@@ -176,7 +176,35 @@ def main():
         else:
             components.append(comp)
 
+    # ENTITY TYPES come from the ENTITY MAP, not from declared bands (2026-08-03).
+    # A declared source describes the components a PAGE is built from; jmix:mainResource
+    # types describe content that is not a page at all, so nothing in the declaration
+    # names them. Without this the CND shipped no newsArticle / event / directoryEntry
+    # and every load_main_resources create would fail on an unknown node type.
     present = {c["nodeType"] for c in components} | {c["nodeType"] for c in xcut}
+    rev_local = {ARCH.node_local(k): k for k in ARCH.ARCHETYPES}
+    entity_types = []
+    try:
+        _mr = json.load(open(f"orchestration/content/{p}.mainresource.json"))
+        for fkey, f in (_mr.get("folders") or {}).items():
+            nt = f.get("type") or ""
+            akey = rev_local.get(nt.split(":")[-1])
+            if not akey or f"{ns}:{ARCH.node_local(akey)}" in present:
+                continue
+            comp = ARCH.to_manifest_component(akey, ns, mixns)
+            comp["frequency"] = 0
+            comp["pages"] = []
+            comp["sxaSource"] = []
+            comp["fromEntityMap"] = sorted(
+                k for k, v in (_mr.get("folders") or {}).items()
+                if (v.get("type") or "") == nt)
+            components.append(comp)
+            present.add(comp["nodeType"])
+            entity_types.append(comp["nodeType"])
+            itm.setdefault(akey.lower(), comp["nodeType"])
+    except (OSError, ValueError):
+        pass
+
     for akey in ALWAYS:
         node = f"{ns}:{ARCH.node_local(akey)}"
         if node in present:
@@ -210,6 +238,7 @@ def main():
         "namingViolations": [],      # archetype library names, clean by construction
         "namingQuality": "good",
         "sxaIgnored": sorted(mapped_ignored),
+        "entityTypes": sorted(entity_types),
         "childRouted": sorted(child_routed),
         "declaredCoverage": {"declaredTypes": len(types),
                              "mapped": len(types) - len(mapped_ignored),
@@ -230,6 +259,8 @@ def main():
     for c in sorted(components + xcut, key=lambda c: -c.get("frequency", 0))[:14]:
         print(f"  x{c.get('frequency', 0):<5} {c['nodeType']:<24} "
               f"<- {', '.join(c.get('sxaSource') or ['(standard tool)'])[:60]}")
+    if entity_types:
+        print(f"  ~ entity types from the entity map: {', '.join(entity_types)}")
     for cr in child_routed:
         print(f"  ~ item: {cr}")
     if low:

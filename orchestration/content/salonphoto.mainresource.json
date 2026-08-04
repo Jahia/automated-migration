@@ -161,34 +161,9 @@
         "summary": "content"
       },
       "_evidence": "7 press releases enumerated from /sitemap.xml. This family was invisible to BOTH the menu capture (the press area is not in the main menu) and the first link census (its only in-page links are in the FOOTER, which the census was not scanning). Same type as actualites, own folder + listing."
-    }
-  },
-  "_scopeQuestions": [
-    {
-      "id": "exposants-catalogue",
-      "question": "The exhibitor catalogue (/fr-FR/infos-pratiques/catalogue, + an uncrawled /fr-FR/exposants) is a searchable exhibitor directory. Its list is NOT in the captured DOM — the page's 43 internal links are all mega-menu chrome, and the catalogue itself carries SXA facet components (facet-dropdown x4, facet-aggregated, facet-summary, load-more) whose /sxa/search backend does not exist in Jahia.",
-      "options": [
-        "Model exhibitors as a sdp:exhibitor mainResource folder + a sdp:jcrQuery listing with category facets rendered client-side (the supercar-garage pattern) — needs a browser capture of the live list to get the real exhibitor data",
-        "Keep the catalogue page as an editorial page with a link out to the existing exhibitor platform (no entity migration)",
-        "Out of scope for this migration"
-      ],
-      "recommendation": "Decide at the model gate. Do NOT let a facet component ship: it renders empty controls that list nothing (measured on supercar-garage).",
-      "blocking": true,
-      "resolved": true,
-      "resolution": "The catalogue is a THREE-AXIS directory — /Exposant/ (15), /Marque/ (11), /Produit/ (7) = 33 card-reached details, all found by the link census. Recommendation: ONE new archetype `sdp:directoryEntry` (mix:title + sdpmix:media logo + sdpmix:cta website + body richtext + jmix:categorized + standNumber + a `kind` choicelist exposant|marque|produit), loaded into three folders and listed by one sdp:jcrQuery with client-side category chips. Three separate types would duplicate one field shape and fail dup-shapes.sh; reusing sdp:newsArticle would label a printer 'Actualité'.",
-      "blockingWhy": "Needs ONE new archetype approved (sdp:directoryEntry). Approve, refuse, or scope the catalogue out."
     },
-    {
-      "id": "profil-visiteur-children",
-      "question": "salon/profil-visiteur has 3 card-reached children (amateur-averti, createur-contenus, professionnel) — 'Le salon selon votre profil'.",
-      "recommendation": "PAGES, not entities: they are audience landing pages, carry no date, and the rule breaks ties to page. Declared in scope-rules pagesToCrawl.",
-      "blocking": false
-    }
-  ],
-  "_articleBodyFinding": "MEASURED on 2 article details: an article body is not one rich-text field but a SEQUENCE of bands — content (standfirst + section headings + prose), rich-text, content-block-vertical-image (image+text), video-content-block ('En vidéo'), image. So sdp:newsArticle keeps title/date/summary/hero/categories as PROPERTIES and composes its body from CHILD content nodes (richTextSection / mediaText / video), the same archetype vocabulary as page bands, rendered with RenderChildren. Flattening it into one richtext would make every in-article image and video block non-contributable.",
-  "_deferredFolders": {
     "catalogue-exposants": {
-      "_status": "PENDING OPERATOR APPROVAL — ONE new archetype sdp:directoryEntry (AGENTS 2b)",
+      "_status": "APPROVED 2026-08-03 (full-corpus evidence): 33 card-reached details across 4 URL shapes, a field shape neither article nor event fits",
       "type": "sdp:directoryEntry",
       "listingPages": [
         "infos-pratiques_catalogue"
@@ -198,13 +173,14 @@
         "body": "description"
       },
       "urlPrefixes": [
-        "infos-pratiques/catalogue/Exposant"
+        "infos-pratiques/catalogue/Exposant",
+        "catalog-exhibitor-full"
       ],
       "_kind": "exposant",
       "_evidence": "15 detail links under the source's own /Exposant/ segment (INSTA-360, MPB-3, PROMATTEX, SONY-WORLD-PHOTOGRAPHY-AWARDS-4, ...)"
     },
     "catalogue-marques": {
-      "_status": "PENDING OPERATOR APPROVAL — ONE new archetype sdp:directoryEntry (AGENTS 2b)",
+      "_status": "APPROVED 2026-08-03 (full-corpus evidence): 33 card-reached details across 4 URL shapes, a field shape neither article nor event fits",
       "type": "sdp:directoryEntry",
       "listingPages": [
         "infos-pratiques_catalogue"
@@ -220,7 +196,7 @@
       "_evidence": "11 detail links under /Marque/ (e.g. EPSON-TETENAL-4)"
     },
     "catalogue-produits": {
-      "_status": "PENDING OPERATOR APPROVAL — ONE new archetype sdp:directoryEntry (AGENTS 2b)",
+      "_status": "APPROVED 2026-08-03 (full-corpus evidence): 33 card-reached details across 4 URL shapes, a field shape neither article nor event fits",
       "type": "sdp:directoryEntry",
       "listingPages": [
         "infos-pratiques_catalogue"
@@ -236,5 +212,28 @@
       "_evidence": "7 detail links under /Produit/ (e.g. DNP-Imprimante-QW410-TETENAL)"
     }
   },
-  "_deferredWhy": "The catalogue's 3 axes need ONE new archetype (sdp:directoryEntry, 33 details: 15 exhibitors / 11 brands / 7 products) which is not approved yet, and a type that is not in the CND fails every create. Deferred so the 6 approved entity folders load now; move them back under `folders` the moment the type is approved — nothing else changes."
+  "_scopeQuestions": [
+    {
+      "id": "exposants-catalogue",
+      "question": "The exhibitor catalogue (/fr-FR/infos-pratiques/catalogue, + an uncrawled /fr-FR/exposants) is a searchable exhibitor directory. Its list is NOT in the captured DOM — the page's 43 internal links are all mega-menu chrome, and the catalogue itself carries SXA facet components (facet-dropdown x4, facet-aggregated, facet-summary, load-more) whose /sxa/search backend does not exist in Jahia.",
+      "options": [
+        "Model exhibitors as a sdp:exhibitor mainResource folder + a sdp:jcrQuery listing with category facets rendered client-side (the supercar-garage pattern) — needs a browser capture of the live list to get the real exhibitor data",
+        "Keep the catalogue page as an editorial page with a link out to the existing exhibitor platform (no entity migration)",
+        "Out of scope for this migration"
+      ],
+      "recommendation": "Decide at the model gate. Do NOT let a facet component ship: it renders empty controls that list nothing (measured on supercar-garage).",
+      "blocking": true,
+      "resolved": true,
+      "resolution": "The catalogue is a THREE-AXIS directory — /Exposant/ (15), /Marque/ (11), /Produit/ (7) = 33 card-reached details, all found by the link census. Recommendation: ONE new archetype `sdp:directoryEntry` (mix:title + sdpmix:media logo + sdpmix:cta website + body richtext + jmix:categorized + standNumber + a `kind` choicelist exposant|marque|produit), loaded into three folders and listed by one sdp:jcrQuery with client-side category chips. Three separate types would duplicate one field shape and fail dup-shapes.sh; reusing sdp:newsArticle would label a printer 'Actualité'.",
+      "blockingWhy": "Needs ONE new archetype approved (sdp:directoryEntry). Approve, refuse, or scope the catalogue out.",
+      "decision": "APPROVED: one new archetype sdp:directoryEntry (mainResource, mix:title + media + cta + seo + taxonomy, body richtext, standNumber, and a `kind` choicelist exposant|marque|produit that the view branches on), loaded into 3 folders and listed by a jcrQuery per axis. Three types would duplicate one shape; reusing newsArticle would label a printer 'Actualité'."
+    },
+    {
+      "id": "profil-visiteur-children",
+      "question": "salon/profil-visiteur has 3 card-reached children (amateur-averti, createur-contenus, professionnel) — 'Le salon selon votre profil'.",
+      "recommendation": "PAGES, not entities: they are audience landing pages, carry no date, and the rule breaks ties to page. Declared in scope-rules pagesToCrawl.",
+      "blocking": false
+    }
+  ],
+  "_articleBodyFinding": "MEASURED on 2 article details: an article body is not one rich-text field but a SEQUENCE of bands — content (standfirst + section headings + prose), rich-text, content-block-vertical-image (image+text), video-content-block ('En vidéo'), image. So sdp:newsArticle keeps title/date/summary/hero/categories as PROPERTIES and composes its body from CHILD content nodes (richTextSection / mediaText / video), the same archetype vocabulary as page bands, rendered with RenderChildren. Flattening it into one richtext would make every in-article image and video block non-contributable."
 }

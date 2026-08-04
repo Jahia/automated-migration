@@ -54,9 +54,31 @@ from bs4 import BeautifulSoup  # noqa: E402
 _lc = importlib.import_module("load_content")
 
 _RASTER = re.compile(r"\.(?:png|jpe?g|gif|webp|avif)(?:[?#]|$)", re.I)
+# Month names in the SOURCE'S language, not only English (2026-08-04). A
+# French source writes "10 octobre 2025" and carries no <time> element, so an
+# English-only table returned None and whole entity families looked dateless —
+# measured: animations 3 of 4 and rencontres 1 of 3, which read as a wrong
+# fieldMap when the pages were fine and the PARSER was not. Accents are folded, so
+# "février"/"fevrier" and "août"/"aout" both resolve. Extend per language, never
+# per site.
 _MONTHS = {m: i + 1 for i, m in enumerate(
     ["january", "february", "march", "april", "may", "june", "july",
      "august", "september", "october", "november", "december"])}
+_MONTHS.update({m: i + 1 for i, m in enumerate(
+    ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet",
+     "aout", "septembre", "octobre", "novembre", "decembre"])})
+_MONTHS.update({m: i + 1 for i, m in enumerate(   # abbreviations both languages
+    ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct",
+     "nov", "dec"])})
+_MONTHS.update({"janv": 1, "fevr": 2, "avr": 4, "juil": 7, "sept": 9,
+                "oct": 10, "nov": 11, "dec": 12, "déc": 12})
+
+
+def _fold(sx):
+    """lowercase + strip accents so month lookup is language-tolerant."""
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", (sx or "").lower())
+                   if unicodedata.category(c) != "Mn")
 
 
 def classified_slugs(project, cfg=None):
@@ -110,9 +132,11 @@ def entity_leaf(slug, fcfg):
 
 def parse_date(text):
     """First recognizable date in the text -> ISO (Jahia date prop)."""
-    m = re.search(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})", text or "")
-    if m and m.group(2).lower() in _MONTHS:
-        return (f"{m.group(3)}-{_MONTHS[m.group(2).lower()]:02d}-"
+    folded = _fold(text)
+    # ordinals: "1er fevrier", "1st October", "2e juin"
+    m = re.search(r"(\d{1,2})(?:er|re|e|st|nd|rd|th)?\s+([a-z]+)\.?\s+(\d{4})", folded)
+    if m and m.group(2) in _MONTHS:
+        return (f"{m.group(3)}-{_MONTHS[m.group(2)]:02d}-"
                 f"{int(m.group(1)):02d}T00:00:00.000")
     m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", text or "")
     if m:
