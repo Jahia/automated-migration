@@ -54,6 +54,17 @@ from bs4 import BeautifulSoup  # noqa: E402
 _lc = importlib.import_module("load_content")
 
 _RASTER = re.compile(r"\.(?:png|jpe?g|gif|webp|avif)(?:[?#]|$)", re.I)
+
+
+def _fold_tokens(s):
+    """Accent-folded word tokens of length > 2 — used to match a heading against the
+    page's own slug. Folding is not optional on a French corpus: `boitier-video` and
+    "BOÎTIER" share no raw token, so an unfolded compare called every accented title
+    a mismatch."""
+    import unicodedata
+    flat = "".join(c for c in unicodedata.normalize("NFD", (s or "").lower())
+                   if unicodedata.category(c) != "Mn")
+    return {t for t in re.split(r"[^0-9a-z]+", flat) if len(t) > 2}
 # Month names in the SOURCE'S language, not only English (2026-08-04). A
 # French source writes "10 octobre 2025" and carries no <time> element, so an
 # English-only table returned None and whole entity families looked dateless —
@@ -195,11 +206,28 @@ def article_core(mirror_path):
     # title BEFORE the chrome strip (support pages carry the h1 inside a
     # header element the strip removes — observed: empty jcr:title) and
     # require non-empty text (decorative empty h2 precedes real headings)
-    title = ""
+    # THE FIRST HEADING IS NOT ALWAYS THE ENTITY'S OWN (2026-08-04). A catalogue
+    # detail renders inside its listing template, so the first h1 is the LISTING's:
+    # every exhibitor, brand and product would have been named "LISTE DES EXPOSANTS"
+    # and the folder would hold N identically-titled nodes. The page's own slug is the
+    # tie-break the source itself provides — /catalogue/Exposant/PROMATTEX names the
+    # entity — so prefer a heading that shares a token with it, and fall back to the
+    # first non-empty heading when nothing matches (articles legitimately carry an
+    # editorial headline that differs from their slug: `boitier-video` ->
+    # "POURQUOI UN BON BOITIER NE SUFFIT PAS"). Accent-folded, or every French title
+    # reads as a mismatch.
+    _slug_toks = _fold_tokens(os.path.basename(mirror_path)[:-5].split("_")[-1])
+    title, _fallback = "", ""
     for hel in main.find_all(["h1", "h2"]):
-        title = re.sub(r"\s+", " ", hel.get_text(" ", strip=True)).strip()
-        if title:
+        cand = re.sub(r"\s+", " ", hel.get_text(" ", strip=True)).strip()
+        if not cand:
+            continue
+        if not _fallback:
+            _fallback = cand
+        if _slug_toks and (_fold_tokens(cand) & _slug_toks):
+            title = cand
             break
+    title = title or _fallback
     for el in main.find_all(["script", "style", "noscript", "template",
                              "header", "footer", "nav", "aside"]):
         el.extract()

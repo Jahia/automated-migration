@@ -32,6 +32,7 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIB = os.path.join(os.path.dirname(HERE), "lib")
@@ -85,6 +86,7 @@ def main():
             continue
         wants_date = bool(DATED & set((fcfg.get("fieldMap") or {}).keys()))
         no_title, no_body, no_date, thin, flat = [], [], [], [], []
+        titles = []
         for s in mine:
             try:
                 title, date_iso, hero, main_el = M.article_core(f"{mirror}/{s}.html")
@@ -95,6 +97,7 @@ def main():
                 fails.append(f"{fname}/{s}: extraction RAISED ({str(e)[:80]})")
                 continue
             text = sum(len(re.sub(r"<[^>]+>", " ", b["body"] or "")) for b in bands)
+            titles.append((title or "").strip())
             if not (title or "").strip():
                 no_title.append(s)
             if not bands or text < 40:
@@ -126,6 +129,19 @@ def main():
         if no_body:
             fails.append(f"folder '{fname}': {len(no_body)} of {len(mine)} would load "
                          f"with NO BODY ({', '.join(no_body[:4])})")
+        # DISTINCT ENTITIES HAVE DISTINCT NAMES (2026-08-04). A catalogue detail
+        # renders inside its listing template, so the first h1 belongs to the LISTING:
+        # every exhibitor, brand and product extracted as "LISTE DES EXPOSANTS" and the
+        # folder would have held N identically-named nodes — each with a title, so the
+        # no-title check passed all of them. Mass duplication is the signature of a
+        # template heading leaking in, and it needs no threshold to tune: two events
+        # can share a name, a whole folder cannot.
+        seen = Counter(t for t in titles if t)
+        for t, n in seen.most_common(1):
+            if n >= 3 and n / len(mine) > 0.3:
+                fails.append(f"folder '{fname}': {n} of {len(mine)} entities would load "
+                             f"with the SAME title ({t[:44]!r}) — that is a template "
+                             f"heading, not each entity's own name")
         if thin and len(thin) / len(mine) > 0.25:
             ex = "; ".join(f"{s2} ({t}/{o} chars)" for s2, t, o in thin[:3])
             fails.append(f"folder '{fname}': {len(thin)} of {len(mine)} would load a "
